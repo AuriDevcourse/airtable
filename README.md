@@ -13,6 +13,27 @@ Browser (techbbq.dk)  ──►  /api/speakers  ──►  Airtable
    safe JSON only        allow-list + gate
 ```
 
+## Add to a WordPress page (Elementor Pro)
+
+1. **Deploy to Vercel** and grab the URL (e.g. `https://your-project.vercel.app`).
+   Sanity-check the feed in a browser: `https://your-project.vercel.app/api/speakers`
+   should return JSON.
+2. Open `public/elementor-embed.html` and change the `ENDPOINT` line to your feed URL:
+   `var ENDPOINT = "https://your-project.vercel.app/api/speakers";`
+3. In WordPress, edit the page with **Elementor**.
+4. In the widget panel, search **HTML** and drag the **HTML widget** onto the page where
+   you want the speakers (it's built into Elementor, free and Pro).
+5. Paste the **entire** snippet into the widget's Content box.
+6. Click **Update / Publish**. The speaker grid renders in that section.
+7. On Vercel, set `ALLOWED_ORIGIN` to your site origin (`https://techbbq.dk`) so the
+   browser is allowed to fetch the feed. If it shows "Could not load speakers", this is
+   usually the cause.
+
+Notes:
+- To restyle, edit the `<style>` block inside the snippet.
+- For NISS speakers, use `public/niss-embed.html` and the `/api/niss-speakers` endpoint
+  the same way (add `?role=Speaker` to show only speakers).
+
 ## What it exposes
 
 `GET /api/speakers` → `{ count, speakers: [{ id, name, title, company, bio, quote, photo, linkedin, website }] }`

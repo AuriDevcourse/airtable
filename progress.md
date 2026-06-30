@@ -20,6 +20,44 @@ keep the old photo-on-top + body-below layout. Port them next.
 Tuning knobs: glow angle (115deg), black amount, red/orange stops, frame padding (8px),
 photo shape (media aspect-ratio).
 
+Per-image shimmer added (preview only): a `SpeakerPhoto` component (in `app/page.tsx`)
+holds its own `loaded` state and shows `.s-card__media.shimmer` (+ `#1d1d1d` bg) until
+its photo fires onLoad/onError. State lives in the component so SWR revalidation re-renders
+can't restart the shimmer (the earlier classList.remove approach kept re-shimmering — bug
+fixed). Reuses `tbbq-shimmer` keyframes. SkeletonGrid still handles the cold whole-grid
+load. To see it: DevTools → Network → Slow 3G → hard refresh.
+
+README: added top section "Add to a WordPress page (Elementor Pro)" — 7-step embed flow
+(deploy → set ENDPOINT → drag Elementor HTML widget → paste snippet → publish → set
+ALLOWED_ORIGIN).
+
+Dashboard now self-serves the embed: the `.howto` `<details>` panel on `/` explains what
+the snippet is and has a **Copy embed code** button (`copyEmbed`). It copies `EMBED_SNIPPET`
+(constant in `app/page.tsx`) with `__ORIGIN__` swapped for `window.location.origin`. The
+copied snippet is the NEW card ported to vanilla JS/CSS (frame, diagonal hover glow,
+per-image shimmer via inline `onload`/`onerror`). So the canonical embed now lives in
+page.tsx, generated fresh with the right feed URL. Gotcha: copy from the DEPLOYED Vercel
+dashboard, else the baked-in ENDPOINT is localhost.
+
+Preview now has search + pagination + responsive list (preview only, NOT in the embed
+snippet yet): search bar filters by name/title/company; Load More shows `PAGE_SIZE` (12)
+at a time and resets on search; under 640px the card grid is swapped for `.list-rows`
+(60px thumbnail left, name/title right) via CSS media query; back-to-top button (`.scrolltop`,
+fixed, appears after 600px scroll, Lucide-style chevron SVG). `SpeakerPhoto` now takes
+`mediaClassName` so the row reuses it for the thumbnail + shimmer. All in `app/page.tsx`
++ `app/globals.css`. Heading still says "Speakers preview" (mockup said "Speakers 2026").
+Defaults: `PAGE_SIZE = 20` (20 loaded, +20 per Load More). Desktop grid is `repeat(5, 1fr)`
+(5 cols), 3 cols on tablet (641-1000px), list under 640px.
+
+Next:
+0. Decide if the WordPress embed (EMBED_SNIPPET) needs search + mobile list + Load More too,
+   or if those stay preview-only. Currently the snippet is just the card grid.
+1. The static `public/elementor-embed.html` + `niss-embed.html` still hold the OLD card —
+   either regenerate them from EMBED_SNIPPET or just rely on the dashboard copy button.
+2. Build a NISS variant of the copy button / snippet (`/api/niss-speakers`, role filter).
+3. Deploy to Vercel (env vars + `ALLOWED_ORIGIN=https://techbbq.dk`), then test the copied
+   snippet in a real Elementor HTML widget.
+
 Pushed to GitHub: https://github.com/AuriDevcourse/airtable (`main`).
 
 Photo crop fix: speaker headshots were center-cropped (`object-fit: cover` default
