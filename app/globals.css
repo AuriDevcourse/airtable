@@ -166,7 +166,7 @@ a { color: inherit; }
 }
 .s-card:hover { background: var(--color-card-2); }
 .s-card a { text-decoration: none; display: block; }
-.s-card__img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: #1d1d1d; }
+.s-card__img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; object-position: 50% 30%; display: block; background: #1d1d1d; }
 .s-card__img--empty { width: 100%; aspect-ratio: 1 / 1; background: #1d1d1d; }
 .s-card__body { padding: 20px; }
 .s-card__role {

@@ -4,7 +4,16 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Current state (2026-06-26)
+## Current state (2026-06-30)
+
+Photo crop fix: speaker headshots were center-cropped (`object-fit: cover` default
+`50% 50%`), cutting foreheads/chins. Set `object-position: 50% 30%` in all three render
+spots — `app/globals.css` (.s-card__img, covers `/` and `/niss`), `public/elementor-embed.html`,
+`public/niss-embed.html`. Fixed heuristic, not per-face. If specific photos still crop
+wrong, next step is server-side smartcrop focal points (smartcrop-sharp → `focusX/focusY`
+in the JSON, computed once per image + cached, card uses `object-position: var(--focus)`).
+
+## Earlier state (2026-06-26)
 
 Working locally. Two feeds live and tested against the real base:
 
