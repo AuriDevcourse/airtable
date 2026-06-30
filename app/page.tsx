@@ -66,13 +66,15 @@ export default function Home() {
                 const meta = s.title + (s.company ? ` · ${s.company}` : "");
                 const card = (
                   <>
-                    {s.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="s-card__img" src={s.photo} alt={s.name} loading="lazy" />
-                    ) : (
-                      <div className="s-card__img--empty" />
-                    )}
-                    <div className="s-card__body">
+                    <div className="s-card__media">
+                      {s.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className="s-card__img" src={s.photo} alt={s.name} loading="lazy" />
+                      ) : (
+                        <div className="s-card__img--empty" />
+                      )}
+                    </div>
+                    <div className="s-card__overlay">
                       <h3 className="s-card__name">{s.name}</h3>
                       <p className="s-card__meta">{meta}</p>
                     </div>

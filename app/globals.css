@@ -158,17 +158,52 @@ a { color: inherit; }
   gap: 20px;
   margin-top: 28px;
 }
+/* Card is a padded dark frame. Photo on top (3/4), text band below (1/4). */
 .s-card {
+  position: relative;
   background: var(--color-card);
   border-radius: var(--radius-xl);
+  padding: 8px;
   overflow: hidden;
-  transition: background 0.18s;
 }
-.s-card:hover { background: var(--color-card-2); }
 .s-card a { text-decoration: none; display: block; }
-.s-card__img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; object-position: 50% 30%; display: block; background: #1d1d1d; }
-.s-card__img--empty { width: 100%; aspect-ratio: 1 / 1; background: #1d1d1d; }
-.s-card__body { padding: 20px; }
+/* The photo sits inset, takes 3/4 of the card height, with its own rounded corners. */
+.s-card__media {
+  position: relative;
+  z-index: 1; /* keep the photo above the hover gradient so fire stays in the bottom band */
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.s-card__img,
+.s-card__img--empty {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 30%;
+  display: block; background: #1d1d1d;
+}
+/* Name + title in the padded bottom band, on the card frame. */
+.s-card__overlay {
+  position: relative;
+  padding: 12px 8px 4px;
+}
+/* Fire glow that fades in on hover. Anchored to the whole card and pushed past
+   the 8px padding (inset: -8px) so it reaches the real bottom edge. */
+.s-card::after {
+  content: "";
+  position: absolute; inset: -8px;
+  /* Diagonal black -> red -> orange -> transparent for a more dynamic glow. */
+  background: linear-gradient(
+    115deg,
+    rgba(0,0,0,0.95) 0%,
+    rgba(206,15,46,0.92) 26%,
+    rgba(250,112,0,0.6) 48%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.s-card:hover::after { opacity: 1; }
 .s-card__role {
   display: inline-flex;
   align-items: center;
@@ -181,8 +216,8 @@ a { color: inherit; }
   margin-bottom: 8px;
 }
 .s-card__role::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
-.s-card__name { font-size: 17px; line-height: 1.2; }
-.s-card__meta { margin: 6px 0 0; color: var(--color-muted); font-size: 14px; line-height: 1.4; }
+.s-card__name { position: relative; z-index: 1; font-size: 17px; line-height: 1.2; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
+.s-card__meta { position: relative; z-index: 1; margin: 6px 0 0; color: rgba(255,255,255,0.82); font-size: 14px; line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 
 .muted { color: var(--color-muted); }
 .count-line { color: var(--color-muted); font-size: 14px; margin: 4px 0 0; }

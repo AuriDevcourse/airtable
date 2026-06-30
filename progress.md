@@ -6,6 +6,22 @@ reaching the browser.
 
 ## Current state (2026-06-30)
 
+Card redesign DONE (preview pages only): card is a padded dark frame (`.s-card`,
+`padding: 8px`). Photo on top in `.s-card__media` (square `aspect-ratio: 1/1`, rounded
+12px, `z-index: 1` so the hover glow can't bleed onto it), name + title in a padded
+bottom band (`.s-card__overlay`, in normal flow below the photo). On **hover** a diagonal
+glow fades in via `.s-card::after` (`inset: -8px` covers the whole card, reaches the true
+bottom edge; gradient `115deg` black → red → orange → transparent, so the fire only shows
+in the bottom band since the photo sits above it). Files: `app/page.tsx` (media wrapper +
+overlay sibling), `app/globals.css` (.s-card / .s-card__media / .s-card__overlay /
+.s-card::after / .s-card__name+meta white w/ text-shadow). `/niss` shares these styles.
+STILL NOT ported to embed snippets — `public/elementor-embed.html` + `niss-embed.html`
+keep the old photo-on-top + body-below layout. Port them next.
+Tuning knobs: glow angle (115deg), black amount, red/orange stops, frame padding (8px),
+photo shape (media aspect-ratio).
+
+Pushed to GitHub: https://github.com/AuriDevcourse/airtable (`main`).
+
 Photo crop fix: speaker headshots were center-cropped (`object-fit: cover` default
 `50% 50%`), cutting foreheads/chins. Set `object-position: 50% 30%` in all three render
 spots — `app/globals.css` (.s-card__img, covers `/` and `/niss`), `public/elementor-embed.html`,
