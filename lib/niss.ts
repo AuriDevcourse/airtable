@@ -1,18 +1,26 @@
-// Server-only access to the "NISS 2025" table (Nordic India Startup Summit).
-// Same safety rules as lib/airtable.ts: token never leaves the server, only an
-// allow-list of safe fields is requested, and only records gated for the website
-// are returned. Email and internal Note are deliberately NOT exposed.
+// Server-only access to the "Nordic India Startup Summit (Registrants)" table — the
+// NISS 2026 roster. Same safety rules as lib/airtable.ts: the token never leaves the
+// server, only an allow-list of safe fields is requested, and only records inside the
+// curated public VIEW are returned. Email, phone, dietary and pitch-deck fields are
+// deliberately NOT exposed.
 
 const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
-const TABLE = process.env.AIRTABLE_NISS_TABLE || "NISS 2025";
-// NISS uses a single-select "Status"; the public value is "On website".
-const GATE_FIELD = process.env.AIRTABLE_NISS_GATE_FIELD || "Status";
-const GATE_VALUE = process.env.AIRTABLE_NISS_GATE_VALUE || "On website";
+const TABLE = process.env.AIRTABLE_NISS_TABLE || "tblfIPjV4t1c1628h";
+// The curated grid is a specific view; membership in it is the publish gate.
+const VIEW = process.env.AIRTABLE_NISS_VIEW || "viwRMZMX5NeN68XX7";
 
-const SAFE_FIELDS = ["Name", "Job title", "Company Name", "copy", "LinkedIn", "Photo", "Role"];
+// Note the trailing space in "Position at Company " — it's part of the real field name.
+const SAFE_FIELDS = [
+  "Full Name",
+  "Company Name",
+  "Position at Company ",
+  "Role",
+  "Linkedin/Social Profile link",
+  "Self Portrait",
+];
 
 export type NissPerson = {
   id: string;
@@ -40,14 +48,16 @@ function firstPhoto(v: unknown): string | null {
 
 function mapRecord(rec: AirtableRecord): NissPerson {
   const f = rec.fields;
+  const link = str(f["Linkedin/Social Profile link"]);
   return {
     id: rec.id,
-    name: str(f["Name"]),
-    title: str(f["Job title"]),
+    name: str(f["Full Name"]),
+    title: str(f["Position at Company "]),
     company: str(f["Company Name"]),
-    bio: str(f["copy"]),
-    photo: firstPhoto(f["Photo"]),
-    linkedin: str(f["LinkedIn"]) || null,
+    bio: "", // 2026 table has no bio/description field
+    photo: firstPhoto(f["Self Portrait"]),
+    // Field is free text, so only treat it as a link if it's an actual URL.
+    linkedin: link.startsWith("http") ? link : null,
     role: str(f["Role"]),
   };
 }
@@ -70,11 +80,12 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
 
   do {
     const params = new URLSearchParams();
-    // Gate on website status; optionally also on Role (e.g. only Speakers).
-    const escVal = (v: string) => v.replace(/'/g, "\\'");
-    let formula = `{${GATE_FIELD}}='${escVal(GATE_VALUE)}'`;
-    if (roleFilter) formula = `AND(${formula},{Role}='${escVal(roleFilter)}')`;
-    params.set("filterByFormula", formula);
+    // Gate on the curated view; optionally also filter by Role.
+    params.set("view", VIEW);
+    if (roleFilter) {
+      const esc = roleFilter.replace(/'/g, "\\'");
+      params.set("filterByFormula", `{Role}='${esc}'`);
+    }
     params.set("pageSize", "100");
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
@@ -93,7 +104,7 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
       const p = mapRecord(rec);
-      if (p.name) people.push(p);
+      if (p.name) people.push(p); // skip blank rows
     }
     offset = data.offset;
   } while (offset);

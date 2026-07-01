@@ -1,9 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { OrbBackdrop } from "@/components/OrbBackdrop";
+import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
+
+// Same per-image shimmer loader as the main Speakers page: state lives here so parent
+// re-renders (SWR revalidation) can't reset it back to shimmering.
+function SpeakerPhoto({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className={"s-card__media" + (loaded ? "" : " shimmer")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="s-card__img"
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+      />
+    </div>
+  );
+}
 
 type NissPerson = {
   id: string;
@@ -16,7 +35,7 @@ type NissPerson = {
   role: string;
 };
 
-const ROLES = ["all", "Speaker", "Moderator", "Team"] as const;
+const ROLES = ["all", "Speaker", "Moderator", "Team Member"] as const;
 type Role = (typeof ROLES)[number];
 
 export default function NissPage() {
@@ -33,14 +52,14 @@ export default function NissPage() {
   return (
     <main>
       <section className="hero">
-        <OrbBackdrop />
+        <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Nordic India Startup Summit</p>
+          <p className="eyebrow">Nordic India Startup Summit · Airtable 2026 grid</p>
           <h1>
-            NISS 2025 <span className="text-tbbq-gradient">speakers</span>
+            NISS 2026 <span className="text-tbbq-gradient">speakers</span>
           </h1>
           <p className="lede">
-            Live from Airtable · only records marked <code>Status = On website</code> ·
+            Live from Airtable · the curated 2026 grid (speakers, moderators, team) ·
             served as JSON at <code>/api/niss-speakers</code>.
           </p>
 
@@ -78,12 +97,13 @@ export default function NissPage() {
                 const card = (
                   <>
                     {p.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="s-card__img" src={p.photo} alt={p.name} loading="lazy" />
+                      <SpeakerPhoto src={p.photo} alt={p.name} />
                     ) : (
-                      <div className="s-card__img--empty" />
+                      <div className="s-card__media">
+                        <div className="s-card__img--empty" />
+                      </div>
                     )}
-                    <div className="s-card__body">
+                    <div className="s-card__overlay">
                       {p.role && <span className="s-card__role">{p.role}</span>}
                       <h3 className="s-card__name">{p.name}</h3>
                       <p className="s-card__meta">{meta}</p>

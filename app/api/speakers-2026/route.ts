@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchNiss, NissError } from "@/lib/niss";
+import { fetchHubSpeakers, HubError } from "@/lib/hub";
 import { rateLimit, cached } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -27,25 +27,32 @@ export async function GET(req: NextRequest) {
 
   const limit = rateLimit(ip);
   if (!limit.ok) {
-    const res = NextResponse.json({ error: "Too many requests. Try again shortly." }, { status: 429 });
+    const res = NextResponse.json(
+      { error: "Too many requests. Try again shortly." },
+      { status: 429 }
+    );
     res.headers.set("Retry-After", String(limit.retryAfter));
     return withCors(res);
   }
 
-  // Optional ?role=Speaker | Moderator | Team. Validated against an allow-list.
-  const roleParam = req.nextUrl.searchParams.get("role");
-  const ALLOWED_ROLES = ["Speaker", "Moderator", "Team Member"];
-  const role = roleParam && ALLOWED_ROLES.includes(roleParam) ? roleParam : undefined;
-
   try {
-    const people = await cached(`niss:${role || "all"}`, () => fetchNiss(role));
-    const res = NextResponse.json({ count: people.length, role: role || "all", people }, { status: 200 });
-    res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    const speakers = await cached("speakers-2026", fetchHubSpeakers);
+    const res = NextResponse.json(
+      { count: speakers.length, speakers },
+      { status: 200 }
+    );
+    res.headers.set(
+      "Cache-Control",
+      "public, s-maxage=300, stale-while-revalidate=600"
+    );
     return withCors(res);
   } catch (err) {
-    const status = err instanceof NissError ? err.status : 500;
-    const message = err instanceof NissError ? err.message : "Something went wrong loading NISS people.";
-    console.error("[/api/niss-speakers]", err);
+    const status = err instanceof HubError ? err.status : 500;
+    const message =
+      err instanceof HubError
+        ? err.message
+        : "Something went wrong loading 2026 speakers.";
+    console.error("[/api/speakers-2026]", err);
     return withCors(NextResponse.json({ error: message }, { status }));
   }
 }

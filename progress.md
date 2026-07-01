@@ -4,6 +4,100 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Current state (2026-07-01, hero backgrounds + repo consolidation)
+
+Hero: replaced the animated OrbBackdrop blob with static TechBBQ brand images
+(`public/backgrounds/bg-landscape-{1,2,4}.jpg`) via new `components/HeroBackdrop.tsx`
+(image + left-weighted dark scrim for text legibility + bottom fade). Per page: `/`=bg-2,
+`/speakers-2026`=bg-1, `/niss`=bg-4. Hero lede text brightened from grey #9a9a9c to
+rgba(255,255,255,0.92); inline code in lede = pure white. `OrbBackdrop.tsx` now unused
+(kept for now, safe to delete).
+
+Repo: `Desktop/GITHUB/airtable` and this folder were TWO CLONES of the same repo
+(`github.com/AuriDevcourse/airtable`, main). GITHUB one was stale at the last pushed
+commit. Consolidated: committed all of today's work straight to main + pushed; GITHUB/
+airtable is now the single home (pulled current, `.env.local` copied over since git can't
+carry the gitignored secrets). The old `SideProjects/techbbq-airtable-connector` copy was
+removed. WORK FROM `Desktop/GITHUB/airtable` GOING FORWARD.
+
+## Current state (2026-07-01, NISS repointed to 2026 + Airtable import)
+
+**NISS feed repointed 2025 → 2026.** Now reads `Nordic India Startup Summit (Registrants)`
+table `tblfIPjV4t1c1628h`, gated on the curated VIEW `viwRMZMX5NeN68XX7` (env
+`AIRTABLE_NISS_TABLE` + `AIRTABLE_NISS_VIEW`; old Status gate removed). `lib/niss.ts`
+rewritten: safe fields = Full Name, Company Name, "Position at Company " (trailing space!),
+Role, Linkedin/Social Profile link, Self Portrait (photo). No bio field in 2026 (bio="").
+LinkedIn only used if it starts with http (field is free text, holds junk). Roles are now
+Speaker / Moderator / **Team Member** (was "Team") — updated in route allow-list + page
+ROLES + page heading (NISS 2026) + TopNav label. Feed verified: 3 people live (view is
+still filling), role filter works. PII (email/phone/dietary/pitch decks) never exposed.
+GDPR note: view is the gate; a `Confirm TechBBQ Usage of Information` checkbox exists if
+we want to additionally require consent before showing someone.
+
+**Airtable import DONE: 109 TechBBQ Summit speakers written.** Copied the 109 Supabase
+`speaker_public_profiles` into Marketing Project Overview (`tblTecOBecLQCNIeD`, Speaker
+view `viwfIcQFDNQ9ggSqx`) as new records, `Project Name = "TechBBQ Summit"` (option already
+existed). Fields: Full Name, Company, Job Title, LinkedIn Handle (url), Profile Picture
+(attachment, Airtable ingested all 109 from the Supabase photo URLs). Verified 109/109 with
+photo + LinkedIn, 0 dupes. ONE-TIME snapshot, not a live sync. Re-runnable script (dedupes
+by Full Name) at `scratchpad/import_speakers.py` — needs AIRTABLE_* + SPEAKERHUB_SUPABASE_*
+env. Token has data.records:write on the TechBBQ base.
+
+## Current state (2026-07-01, later)
+
+**Speaker Hub source corrected → Supabase, not Airtable.** The real "Speaker Hub" is
+a Lovable/Supabase app (zip: `Downloads/speaker-hub-techbbq.zip`), NOT the Airtable
+`Speaker Hub 1:1` namesake table. Supabase project `dnzozouxwzxewguruoxr`. The Hub
+ships a purpose-built public view **`speaker_public_profiles`** (PII stripped: no email/
+phone/PA contacts; RLS gates who is public via `visible_in_directory`). Anon key reads
+it fine → **109 speakers**, with linkedin + `ecosystem_role`.
+
+New "TechBBQ Speakers 2026" feature:
+- `lib/hub.ts` — now fetches Supabase `speaker_public_profiles` REST with the anon key
+  (env `SPEAKERHUB_SUPABASE_URL` + `SPEAKERHUB_SUPABASE_ANON_KEY` in `.env.local`).
+  Maps full_name/job_title/company/biography/photo_url/linkedin_profile/location/
+  ecosystem_role. No extra gate — RLS/the view IS the gate.
+- `app/api/speakers-2026/route.ts` — proxy route (same rate-limit + cache + CORS as others).
+- `app/speakers-2026/page.tsx` — same card design as `/` (frame, glow, shimmer, search,
+  Load More, mobile list). Cards link to LinkedIn.
+- `components/TopNav.tsx` — new sticky top menu on every page: Speakers 2026 / Speakers
+  (all) / NISS 2025. Add a project = one line in `PROJECTS`.
+- Also this session: NISS card ported to the new design (was old layout); role badge
+  recolored teal→orange; `scrollbar-gutter: stable` on <html> to stop the NISS role
+  filter shaking the page.
+
+Superseded: the earlier Airtable `Speaker Hub 1:1` approach (65 records, completeness
+gate). The `AIRTABLE_HUB_*` env vars are gone. If any old code references them, remove.
+
+Open decisions:
+1. `ecosystem_role` values seen: co_founder, investor, journalist (+ more). This is the
+   "types of speakers" Auri wants to section by. Journalists show in the public feed too
+   — decide whether to filter roles or add a role segmented filter like NISS.
+2. `segments_public` + `segment_speakers_public` views exist (stage, event_day, times,
+   topic[], type) — the real "sections" (sessions/tracks). Not wired yet. Next if we want
+   to group speakers by session/stage.
+3. Confirm with TechBBQ that `speaker_public_profiles` (visible_in_directory) is the
+   intended public list before this goes on techbbq.dk.
+
+## Current state (2026-07-01)
+
+Source-label pass: the eyebrow above each headline now names the speaker set + its
+Airtable table, so it's obvious what data the page shows and where it comes from.
+`app/page.tsx` → "TechBBQ main speakers · Airtable “Speakers” table" (was "TechBBQ ·
+Airtable connector"). `app/niss/page.tsx` → "Nordic India Startup Summit · Airtable
+“NISS 2025” table" (was just the summit name). Lede lines under each headline still
+state the gate (`On Website?` / `Status = On website`) + JSON endpoint. Open follow-up:
+main headline still says "Speakers preview" — swap to "Speakers 2026" if this is the
+embedded-facing version.
+
+Data recap (what actually leaves the server): `/api/speakers` returns 9 fields
+(name, title, company, bio, quote, photo, linkedin, website) from `Speakers` gated
+`On Website?`=TRUE. `/api/niss-speakers` returns 8 (name, title, company, bio, photo,
+linkedin, role) from `NISS 2025` gated `Status="On website"`. Only NISS has a `role`
+(Speaker/Moderator/Team) for segmenting; the main Speakers feed has NO type/track/stage
+field pulled yet — if we want to split main speakers into sections, that column has to
+be found in the ~200-field table first.
+
 ## Current state (2026-06-30)
 
 Card redesign DONE (preview pages only): card is a padded dark frame (`.s-card`,

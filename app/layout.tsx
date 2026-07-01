@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Onest, Inter } from "next/font/google";
 import "./globals.css";
+import { TopNav } from "@/components/TopNav";
 
 const onest = Onest({
   variable: "--font-onest",
@@ -23,7 +24,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${onest.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        <TopNav />
+        {children}
+      </body>
     </html>
   );
 }

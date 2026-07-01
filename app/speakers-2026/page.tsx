@@ -7,9 +7,8 @@ import { useCachedList } from "@/lib/useCachedList";
 
 const PAGE_SIZE = 20;
 
-// Shimmers only until its own photo loads. State lives here, so parent re-renders
-// (e.g. SWR revalidation) can't reset it back to shimmering. mediaClassName lets the
-// same loader serve both the card (square) and the mobile row (small thumbnail).
+// Shimmers until its own photo loads. State lives here so parent re-renders (SWR
+// revalidation) can't reset it. mediaClassName serves both card + mobile row.
 function SpeakerPhoto({
   src,
   alt,
@@ -43,78 +42,26 @@ type Speaker = {
   bio: string;
   photo: string | null;
   linkedin: string | null;
-  website: string | null;
+  location: string;
+  role: string;
 };
 
-// Ready-to-paste WordPress/Elementor snippet. Draws this exact card grid (frame,
-// hover glow, per-image shimmer). __ORIGIN__ is swapped for the live URL on copy.
-const EMBED_SNIPPET = `<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-<section id="tbbq-speakers" class="tbbq-speakers"><p class="tbbq-speakers__loading">Loading speakers…</p></section>
-
-<style>
-  .tbbq-speakers{--bg:#0d0d0d;--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;background:var(--bg);color:var(--fg);font-family:"Inter",ui-sans-serif,system-ui,sans-serif;padding:clamp(24px,4vw,48px);border-radius:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:20px}
-  .tbbq-speakers__loading{grid-column:1/-1;color:var(--muted);margin:0}
-  .tbbq-card{position:relative;background:var(--card);border-radius:20px;padding:8px;overflow:hidden}
-  .tbbq-card a{text-decoration:none;color:inherit;display:block}
-  .tbbq-card__media{position:relative;z-index:1;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#1d1d1d}
-  .tbbq-card__media img{width:100%;height:100%;object-fit:cover;object-position:50% 30%;display:block}
-  .tbbq-card__body{position:relative;padding:12px 8px 4px}
-  .tbbq-card__body h3{position:relative;z-index:1;font-family:"Onest",sans-serif;font-weight:500;letter-spacing:-.02em;font-size:17px;line-height:1.2;margin:0;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5)}
-  .tbbq-card__body p{position:relative;z-index:1;margin:6px 0 0;color:rgba(255,255,255,.82);font-size:14px;line-height:1.4;text-shadow:0 1px 6px rgba(0,0,0,.5)}
-  .tbbq-card::after{content:"";position:absolute;inset:-8px;background:linear-gradient(115deg,rgba(0,0,0,.95) 0%,rgba(206,15,46,.92) 26%,rgba(250,112,0,.6) 48%,transparent 72%);opacity:0;transition:opacity .25s ease;pointer-events:none}
-  .tbbq-card:hover::after{opacity:1}
-  .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
-  @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}
-</style>
-
-<script>
-(function(){
-  var ENDPOINT = "__ORIGIN__/api/speakers";
-  var root = document.getElementById("tbbq-speakers");
-  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
-  fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){
-    var list=(data&&data.speakers)||[];
-    if(!list.length){root.innerHTML='<p class="tbbq-speakers__loading">No speakers yet.</p>';return;}
-    root.innerHTML=list.map(function(s){
-      var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'" alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
-      var meta=esc(s.title)+(s.company?" · "+esc(s.company):"");
-      var inner=media+'<div class="tbbq-card__body"><h3>'+esc(s.name)+'</h3><p>'+meta+'</p></div>';
-      var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
-      return '<article class="tbbq-card">'+body+'</article>';
-    }).join("");
-  }).catch(function(){root.innerHTML='<p class="tbbq-speakers__loading">Could not load speakers right now.</p>';});
-})();
-</script>`;
-
-export default function Home() {
+export default function Speakers2026() {
   const { data, loading, revalidating, error, updated } = useCachedList<Speaker>(
-    "speakers",
-    "/api/speakers",
+    "speakers-2026",
+    "/api/speakers-2026",
     "speakers"
   );
   const speakers = data ?? [];
-  const [copied, setCopied] = useState(false);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showTop, setShowTop] = useState(false);
 
-  // Show the back-to-top button after the user scrolls down a bit.
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 600);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  function copyEmbed() {
-    const code = EMBED_SNIPPET.replace(/__ORIGIN__/g, window.location.origin);
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
 
   const q = query.trim().toLowerCase();
   const filtered = q
@@ -126,67 +73,34 @@ export default function Home() {
 
   function onSearch(value: string) {
     setQuery(value);
-    setVisibleCount(PAGE_SIZE); // reset paging when the filter changes
+    setVisibleCount(PAGE_SIZE);
   }
 
   return (
     <main>
       <section className="hero">
-        <HeroBackdrop image="/backgrounds/bg-landscape-2.jpg" />
+        <HeroBackdrop image="/backgrounds/bg-landscape-1.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">TechBBQ main speakers · Airtable “Speakers” table</p>
+          <p className="eyebrow">Live 2026 roster · Speaker Hub (Supabase)</p>
           <h1>
-            Speakers <span className="text-tbbq-gradient">preview</span>
+            TechBBQ Speakers <span className="text-tbbq-gradient">2026</span>
           </h1>
           <p className="lede">
-            Live from Airtable · only records with <code>On Website?</code> ticked ·
-            the same data is served as JSON at <code>/api/speakers</code>.
+            Live from the Speaker Hub · public directory profiles only (RLS-gated) ·
+            served as JSON at <code>/api/speakers-2026</code>.
           </p>
         </div>
       </section>
 
-      <div className="wrap">
-        <details className="howto">
-          <summary>How to put this on a WordPress page (Elementor Pro)</summary>
-          <p className="howto__intro">
-            The <strong>snippet</strong> is a ready-made block of HTML, CSS and JavaScript
-            that draws this exact speaker grid. You don&apos;t write any code. Click the
-            button to copy it, with your feed URL already filled in.
-          </p>
-          <button type="button" className="howto__copy" onClick={copyEmbed}>
-            {copied ? "Copied to clipboard" : "Copy embed code"}
-          </button>
-          <ol className="howto__steps">
-            <li>Click <strong>Copy embed code</strong> above.</li>
-            <li>
-              In WordPress, edit the page with <strong>Elementor</strong>, then drag an{" "}
-              <strong>HTML</strong> widget to where you want the speakers.
-            </li>
-            <li>
-              Paste the copied code into the widget&apos;s content box and click{" "}
-              <strong>Update</strong>.
-            </li>
-            <li>
-              On Vercel, set <code>ALLOWED_ORIGIN</code> to your site, e.g.{" "}
-              <code>https://techbbq.dk</code>, so the browser is allowed to fetch the feed.
-            </li>
-          </ol>
-          <p className="howto__note">
-            Copy this from your <strong>deployed</strong> dashboard (the Vercel URL), so the
-            feed URL inside the code points at production and not <code>localhost</code>.
-            NISS speakers use the same flow with <code>/api/niss-speakers</code>.
-          </p>
-        </details>
-      </div>
-
       <div className="wrap" style={{ paddingBottom: 80 }}>
         {error && !data ? (
           <div className="notice">
-            <strong>Could not load speakers.</strong>
+            <strong>Could not load 2026 speakers.</strong>
             <p>{error}</p>
             <p>
-              Most likely the token is missing the <code>data.records:read</code> scope,
-              or no record has <code>On Website?</code> ticked.
+              Most likely the token can&apos;t read the{" "}
+              <code>Speaker Hub 1:1</code> base, or no record has name + photo + bio
+              filled in yet.
             </p>
           </div>
         ) : loading ? (
@@ -265,7 +179,7 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* Mobile: list rows (photo left, name right) */}
+                {/* Mobile: list rows */}
                 <ul className="list-rows">
                   {visible.map((s) => {
                     const meta = s.title + (s.company ? ` · ${s.company}` : "");
