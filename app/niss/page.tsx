@@ -116,7 +116,7 @@ export default function NissPage() {
                       </div>
                     )}
                     <div className="s-card__overlay">
-                      {p.role && <span className="s-card__role">{p.role}</span>}
+                      {p.role && <span className="s-card__role">{roleLabel(p.role)}</span>}
                       <h3 className="s-card__name">{p.name}</h3>
                       <p className="s-card__meta">{meta}</p>
                     </div>
