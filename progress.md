@@ -41,6 +41,12 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**NISS pages: "speakers" → "presenters" (UI text only).** This event calls speakers
+presenters. Renamed visible wording on `/niss` + `/niss-2025` only: h1, lede, and the role
+tab. The tab still filters Airtable `Role = "Speaker"` — a `roleLabel()` helper decouples the
+displayed word from the query value, so routes/JSON keys/embeds are untouched. Main + Supabase
+pages keep "Speakers" (out of scope). Global meta description still says "speakers".
+
 Next:
 1. Delete the 3 dead NISS env vars on Vercel (`AIRTABLE_NISS_TABLE`, `_GATE_FIELD`, `_GATE_VALUE`).
 2. Copy the embed from the DEPLOYED dashboard (not localhost) so `__ORIGIN__` bakes in the prod URL.

@@ -39,6 +39,10 @@ type NissPerson = {
 const ROLES = ["all", "Speaker", "Moderator", "Team Member"] as const;
 type Role = (typeof ROLES)[number];
 
+// Display label only — the underlying value stays "Speaker" so the Airtable role filter
+// (Role = "Speaker") keeps working. This event calls speakers "presenters".
+const roleLabel = (r: string) => (r === "all" ? "All" : r === "Speaker" ? "Presenter" : r);
+
 export default function NissPage() {
   const [role, setRole] = useState<Role>("Speaker");
 
@@ -57,17 +61,17 @@ export default function NissPage() {
         <div className="wrap hero__inner">
           <p className="eyebrow">Nordic India Startup Summit · Airtable 2026 grid</p>
           <h1>
-            NISS 2026 <span className="text-tbbq-gradient">speakers</span>
+            NISS 2026 <span className="text-tbbq-gradient">presenters</span>
           </h1>
           <p className="lede">
-            Live from Airtable · the curated 2026 grid (speakers, moderators, team) ·
+            Live from Airtable · the curated 2026 grid (presenters, moderators, team) ·
             served as JSON at <code>/api/niss-speakers</code>.
           </p>
 
           <div className="seg" role="tablist" aria-label="Filter by role" style={{ marginTop: 28 }}>
             {ROLES.map((r) => (
               <button key={r} role="tab" aria-selected={role === r} onClick={() => setRole(r)}>
-                {r === "all" ? "All" : r}
+                {roleLabel(r)}
               </button>
             ))}
           </div>
@@ -75,7 +79,7 @@ export default function NissPage() {
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyEmbed path={url} listKey="people" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copies an Elementor snippet for the current filter (<code>{role}</code>).
+              Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>
           </div>
         </div>
