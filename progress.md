@@ -41,6 +41,12 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Embed: force fonts against theme override.** In WordPress the theme's typography was
+overriding the card body text (title/company fell back to the theme font; name stayed Onest
+because that was already explicit). Fix: `--sans` (Inter + system fallback stack) and `--head`
+(Onest) CSS vars; `.tbbq-card__body p` and `h3` now set `font-family:var(--sans/--head)!important`
+so the theme can't win. Re-copy embeds to apply.
+
 **Embed: Load-more now optional; OFF for NISS 2025.** `buildEmbedSnippet` gained `loadMore`
 (default true). NISS 2025 page passes `loadMore={false}` on its CopyEmbed — 2025 presenters
 (25) would only reveal 5 more, not worth a button, so it renders all at once. Main feed (312)
