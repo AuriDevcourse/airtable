@@ -41,6 +41,13 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Embed: photo-left row layout on mobile for moderators.** New `mobileLayout` option in
+`buildEmbedSnippet` ("grid" default | "rows"). "rows" adds a `tbbq-rows` class → on
+`max-width:600px` the card becomes flex (84px photo left, name+title right, single column).
+Both NISS pages set `mobileLayout={role === "Moderator" ? "rows" : "grid"}`, so selecting the
+Moderator filter and copying gives the row layout; presenters/team keep the 2-col grid. Desktop
+unchanged (grid) for all. Re-copy the moderator block to apply.
+
 **Embed: force fonts against theme override.** In WordPress the theme's typography was
 overriding the card body text (title/company fell back to the theme font; name stayed Onest
 because that was already explicit). Fix: `--sans` (Inter + system fallback stack) and `--head`

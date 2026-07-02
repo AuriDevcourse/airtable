@@ -6,13 +6,19 @@ import { buildEmbedSnippet, type EmbedOptions } from "@/lib/embedSnippet";
 // Reusable "Copy embed code" button. Give it the feed path + list key and it copies a
 // ready-to-paste Elementor snippet targeting exactly that table/role. __ORIGIN__ is swapped
 // for the live URL here, so copy from the DEPLOYED dashboard (else it bakes in localhost).
-export function CopyEmbed({ path, listKey, loadMore, label }: EmbedOptions & { label?: string }) {
+export function CopyEmbed({
+  path,
+  listKey,
+  loadMore,
+  mobileLayout,
+  label,
+}: EmbedOptions & { label?: string }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     // Fresh id per copy so this block won't clash with any other embed on the same page.
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildEmbedSnippet({ path, listKey, uid, loadMore }).replace(
+    const code = buildEmbedSnippet({ path, listKey, uid, loadMore, mobileLayout }).replace(
       /__ORIGIN__/g,
       window.location.origin
     );

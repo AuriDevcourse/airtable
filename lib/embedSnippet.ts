@@ -15,15 +15,25 @@ export type EmbedOptions = {
   // Show the "Load more" button (reveal 20 at a time). Default true. Set false for small
   // sets (e.g. NISS 2025) where paginating a few extra cards adds no value.
   loadMore?: boolean;
+  // Mobile layout. "grid" = 2 cards per row (default). "rows" = photo-left, name+title-right
+  // list rows — good for short lists like moderators. Desktop is a grid either way.
+  mobileLayout?: "grid" | "rows";
 };
 
-export function buildEmbedSnippet({ path, listKey, uid, loadMore = true }: EmbedOptions): string {
+export function buildEmbedSnippet({
+  path,
+  listKey,
+  uid,
+  loadMore = true,
+  mobileLayout = "grid",
+}: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
+  const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-<section id="${id}" class="tbbq-speakers"><div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
+<section id="${id}" class="tbbq-speakers${rowsClass}"><div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
 
 <style>
   .tbbq-speakers{--bg:#0d0d0d;--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:clamp(24px,4vw,48px);border-radius:20px}
@@ -32,6 +42,14 @@ export function buildEmbedSnippet({ path, listKey, uid, loadMore = true }: Embed
   .tbbq-more{display:block;margin:24px auto 0;padding:12px 28px;border:1px solid #2a2a2a;border-radius:9999px;background:#131313;color:#f2f2f2;font-family:"Onest",sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:background .18s}
   .tbbq-more:hover{background:#1b1b1b}
   @media(max-width:600px){.tbbq-grid{grid-template-columns:repeat(2,1fr);gap:12px}.tbbq-speakers{padding:16px}}
+  @media(max-width:600px){
+    .tbbq-rows .tbbq-grid{grid-template-columns:1fr;gap:10px}
+    .tbbq-rows .tbbq-card,.tbbq-rows .tbbq-card>a{display:flex;align-items:center;gap:14px;text-align:left}
+    .tbbq-rows .tbbq-card__media{width:84px;height:84px;flex:0 0 auto}
+    .tbbq-rows .tbbq-card__body{padding:0;flex:1 1 auto;min-width:0}
+    .tbbq-rows .tbbq-card__body h3{font-size:19px}
+    .tbbq-rows .tbbq-card__body p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  }
   .tbbq-card{position:relative;background:var(--card);border-radius:20px;padding:8px;overflow:hidden}
   .tbbq-card a{text-decoration:none;color:inherit;display:block}
   .tbbq-card__media{position:relative;z-index:1;aspect-ratio:1/1;border-radius:12px;overflow:hidden;background:#1d1d1d}
