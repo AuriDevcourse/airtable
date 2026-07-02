@@ -8,9 +8,12 @@ const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
-const TABLE = process.env.AIRTABLE_NISS_TABLE || "tblfIPjV4t1c1628h";
+// Table + view are pinned in code on purpose, NOT read from env. A stale
+// AIRTABLE_NISS_TABLE left over from the 2025 setup silently overrode the default
+// and broke prod (2025 table + 2026 view = 502). These ids aren't secret.
+const TABLE = "tblfIPjV4t1c1628h"; // Nordic India Startup Summit (Registrants), 2026
 // The curated grid is a specific view; membership in it is the publish gate.
-const VIEW = process.env.AIRTABLE_NISS_VIEW || "viwRMZMX5NeN68XX7";
+const VIEW = "viwRMZMX5NeN68XX7";
 
 // Note the trailing space in "Position at Company " — it's part of the real field name.
 const SAFE_FIELDS = [
