@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     // Let Vercel's CDN serve repeat hits without re-running the function.
     res.headers.set(
       "Cache-Control",
-      "public, s-maxage=300, stale-while-revalidate=600"
+      "public, s-maxage=3600, stale-while-revalidate=86400"
     );
     return withCors(res);
   } catch (err) {

@@ -3,6 +3,8 @@
 // is requested, and only records with Status = "On website" are returned. This table
 // mixes internal notes; email/phone/etc. are deliberately NOT exposed.
 
+import { fetchWithTimeout } from "@/lib/http";
+
 const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
@@ -98,7 +100,7 @@ export async function fetchNiss2025(roleFilter?: string): Promise<NissPerson[]> 
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
-    const res = await fetch(`${API}/${BASE_ID}/${TABLE}?${params.toString()}`, {
+    const res = await fetchWithTimeout(`${API}/${BASE_ID}/${TABLE}?${params.toString()}`, {
       headers: { Authorization: `Bearer ${TOKEN}` },
       cache: "no-store",
     });

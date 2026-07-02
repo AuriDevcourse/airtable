@@ -23,16 +23,28 @@ export function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
   return { ok: true, retryAfter: 0 };
 }
 
-// Tiny TTL cache so we don't hit Airtable on every page view (also dodges
-// Airtable's 5 req/sec limit).
+// TTL cache so we don't hit Airtable on every page view (also dodges Airtable's
+// 5 req/sec limit). Refreshes once an hour: a speaker list barely changes, so an
+// Airtable edit can take up to TTL_MS to show. Lower TTL_MS if you need it faster.
 type CacheEntry<T> = { value: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
-const TTL_MS = 5 * 60_000;
+const TTL_MS = 60 * 60_000; // 1 hour
 
 export async function cached<T>(key: string, loader: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() < hit.expiresAt) return hit.value as T;
-  const value = await loader();
-  cache.set(key, { value, expiresAt: Date.now() + TTL_MS });
-  return value;
+  try {
+    const value = await loader();
+    cache.set(key, { value, expiresAt: Date.now() + TTL_MS });
+    return value;
+  } catch (err) {
+    // Airtable/Supabase failed on refresh. Serve the last good value (even if
+    // expired) instead of surfacing an error — visitors see slightly stale data
+    // rather than "could not load". Only throw if we've never succeeded.
+    if (hit) {
+      console.error("[cache] loader failed, serving stale value for", key, err);
+      return hit.value as T;
+    }
+    throw err;
+  }
 }

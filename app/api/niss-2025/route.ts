@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   try {
     const people = await cached(`niss2025:${role || "all"}`, () => fetchNiss2025(role));
     const res = NextResponse.json({ count: people.length, role: role || "all", people }, { status: 200 });
-    res.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
     return withCors(res);
   } catch (err) {
     const status = err instanceof NissError ? err.status : 500;

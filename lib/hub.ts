@@ -10,6 +10,8 @@
 // the server so this feed matches /api/speakers and /api/niss-speakers: one embed
 // pattern, one allowed origin, shared rate-limit + cache.
 
+import { fetchWithTimeout } from "@/lib/http";
+
 const URL_BASE = process.env.SPEAKERHUB_SUPABASE_URL;
 const ANON_KEY = process.env.SPEAKERHUB_SUPABASE_ANON_KEY;
 
@@ -85,7 +87,7 @@ export async function fetchHubSpeakers(): Promise<HubSpeaker[]> {
   params.set("select", COLUMNS.join(","));
   params.set("order", "full_name.asc");
 
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${URL_BASE}/rest/v1/speaker_public_profiles?${params.toString()}`,
     {
       headers: {

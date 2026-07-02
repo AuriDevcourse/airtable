@@ -4,6 +4,8 @@
 // curated public VIEW are returned. Email, phone, dietary and pitch-deck fields are
 // deliberately NOT exposed.
 
+import { fetchWithTimeout } from "@/lib/http";
+
 const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
@@ -93,7 +95,7 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${API}/${BASE_ID}/${encodeURIComponent(TABLE)}?${params.toString()}`,
       { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" }
     );

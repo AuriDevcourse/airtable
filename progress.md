@@ -41,6 +41,17 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Reliability: 1h cache + stale fallback + fetch timeout.** Hardened all feeds. (1) In-memory
+`cached()` TTL 5min→1h; on a failed refresh it now serves the last good value instead of
+throwing (only errors if it never succeeded once). (2) CDN headers on all 4 routes 300s→3600s
+`s-maxage`, `stale-while-revalidate` 600→86400 — Vercel edge serves cached JSON for an hour and
+stale-while-revalidating for a day, so Airtable is hit ~once/hour/region. (3) New `lib/http.ts`
+`fetchWithTimeout` (8s AbortController) used by all 4 feed libs so a hung upstream fails fast
+instead of eating the Vercel function timeout. TRADE-OFF: an Airtable edit now takes up to ~1h
+to appear (lower TTL_MS in rate-limit.ts + s-maxage if faster needed). Remaining risk not
+covered: Supabase free tier pauses the 2026 project after ~7d idle (separate; move 2026 to
+Airtable or keep it warm).
+
 **Embed: photo-left row layout on mobile for moderators.** New `mobileLayout` option in
 `buildEmbedSnippet` ("grid" default | "rows"). "rows" adds a `tbbq-rows` class → on
 `max-width:600px` the card becomes flex (84px photo left, name+title right, single column).

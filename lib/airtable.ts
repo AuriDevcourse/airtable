@@ -3,6 +3,8 @@
 // of the Speakers table. The raw table also holds passport numbers, dates of
 // birth, phone numbers and emails — none of those fields are read here.
 
+import { fetchWithTimeout } from "@/lib/http";
+
 const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
@@ -91,7 +93,7 @@ export async function fetchSpeakers(): Promise<Speaker[]> {
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${API}/${BASE_ID}/${encodeURIComponent(TABLE)}?${params.toString()}`,
       { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" }
     );
