@@ -9,6 +9,7 @@ const PROJECTS = [
   { href: "/speakers-2026", label: "Speakers 2026" },
   { href: "/", label: "Speakers (all)" },
   { href: "/niss", label: "NISS 2026" },
+  { href: "/niss-2025", label: "NISS 2025" },
 ];
 
 export function TopNav() {

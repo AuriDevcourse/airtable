@@ -6,7 +6,7 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
-// Same per-image shimmer loader as the main Speakers page: state lives here so parent
+// Same per-image shimmer loader as the other speaker pages: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
 function SpeakerPhoto({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -36,15 +36,15 @@ type NissPerson = {
   role: string;
 };
 
-const ROLES = ["all", "Speaker", "Moderator", "Team Member"] as const;
+const ROLES = ["all", "Speaker", "Moderator", "Team"] as const;
 type Role = (typeof ROLES)[number];
 
-export default function NissPage() {
+export default function Niss2025Page() {
   const [role, setRole] = useState<Role>("Speaker");
 
-  const url = role === "all" ? "/api/niss-speakers" : `/api/niss-speakers?role=${role}`;
+  const url = role === "all" ? "/api/niss-2025" : `/api/niss-2025?role=${role}`;
   const { data, loading, revalidating, error, updated } = useCachedList<NissPerson>(
-    `niss:${role}`,
+    `niss2025:${role}`,
     url,
     "people"
   );
@@ -55,13 +55,13 @@ export default function NissPage() {
       <section className="hero">
         <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Nordic India Startup Summit · Airtable 2026 grid</p>
+          <p className="eyebrow">Nordic India Startup Summit · Airtable 2025 archive</p>
           <h1>
-            NISS 2026 <span className="text-tbbq-gradient">speakers</span>
+            NISS 2025 <span className="text-tbbq-gradient">speakers</span>
           </h1>
           <p className="lede">
-            Live from Airtable · the curated 2026 grid (speakers, moderators, team) ·
-            served as JSON at <code>/api/niss-speakers</code>.
+            Last year&apos;s roster · gated on <code>Status = On website</code> (speakers,
+            moderators, team) · served as JSON at <code>/api/niss-2025</code>.
           </p>
 
           <div className="seg" role="tablist" aria-label="Filter by role" style={{ marginTop: 28 }}>

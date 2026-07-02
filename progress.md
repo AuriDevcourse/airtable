@@ -4,6 +4,51 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Current state (2026-07-02, NISS 2026 prod fix + NISS 2025 archive feed)
+
+**Fixed prod NISS 2026 502.** Root cause was env drift, not code: Vercel still had a
+stale `AIRTABLE_NISS_TABLE` (2025 table) from 2 days ago plus dead `AIRTABLE_NISS_GATE_FIELD`
+/ `AIRTABLE_NISS_GATE_VALUE`, and no `AIRTABLE_NISS_VIEW`. Stale 2025 table + code's 2026
+default view = Airtable 422 → 502. Fix: pinned table + view directly in `lib/niss.ts`
+(removed the `process.env.AIRTABLE_NISS_*` reads) so leftover env vars can't override them.
+Pushed to main (`ac7f019`), auto-deployed, verified all 4 prod feeds green. The three old
+NISS env vars on Vercel are now dead (code ignores them) — delete when convenient. Same
+session also confirmed the Supabase feed was fixed by adding `SPEAKERHUB_SUPABASE_*` on Vercel
+(that was a separate missing-env issue — `/api/speakers-2026` was 503, now 200/109).
+
+**Added NISS 2025 archive.** New feed for last year's roster (`tblyWVASxceyLRCaL`, same base).
+Gate is `Status = "On website"` via filterByFormula (this table has no all-role public view;
+the view Auri linked, `viwgis2pM9TepCjjN`, is Speakers-only and hides moderators). 38 people
+live: 25 Speaker / 9 Moderator / 4 Team. Deleted / "delete from website" / "To be uploaded"
+rows stay hidden. Safe fields: Name, Job title, Company Name, LinkedIn, Photo, Role (Note/copy/
+Status kept internal). Table pinned in code, no env vars. Files:
+- `lib/niss2025.ts` — fetch + Status gate + role filter (clone of `lib/niss.ts`, different field names).
+- `app/api/niss-2025/route.ts` — proxy route, `?role=Speaker|Moderator|Team`.
+- `app/niss-2025/page.tsx` — page with role filter (clone of `/niss`, bg-landscape-4).
+- `components/TopNav.tsx` — new "NISS 2025" nav link.
+Verified locally (all roles 200 with correct counts).
+
+**Embed snippet refactored + per-page Copy buttons.** The Elementor snippet was duplicated
+per page; extracted to one source of truth `lib/embedSnippet.ts` — `buildEmbedSnippet({path,
+listKey})`. Targeting a table = the `path` (feed URL); `listKey` is the JSON array key
+(`speakers` for the main feed, `people` for NISS). New `components/CopyEmbed.tsx` reusable
+button (swaps `__ORIGIN__` → live origin on click). Added a filter-aware Copy button to
+`/niss` and `/niss-2025`: it copies a snippet for the CURRENTLY selected role (e.g.
+`/api/niss-2025?role=Moderator`), no hand-editing. `app/page.tsx` now uses the same generator
+(removed its inline `EMBED_SNIPPET` constant). New `.copy-embed` pill style in globals.css.
+Recipe to add a new event table (now ~4 files): `lib/<event>.ts` (table id + safe fields +
+gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `TopNav` PROJECTS.
+
+All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
+
+Next:
+1. Delete the 3 dead NISS env vars on Vercel (`AIRTABLE_NISS_TABLE`, `_GATE_FIELD`, `_GATE_VALUE`).
+2. Copy the embed from the DEPLOYED dashboard (not localhost) so `__ORIGIN__` bakes in the prod URL.
+3. Optional: fix `.env.example` (still lists the old NISS gate vars — drift risk).
+4. Optional: images are the main first-load cost — swap `<img>` for next/image or request a
+   smaller Airtable thumbnail size (cards are small). API is 5-min server-cached already.
+5. Optional: add a favicon (`public/` has none → harmless 404 in console).
+
 ## Current state (2026-07-01, hero backgrounds + repo consolidation)
 
 Hero: replaced the animated OrbBackdrop blob with static TechBBQ brand images
