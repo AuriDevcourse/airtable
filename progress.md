@@ -41,6 +41,13 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Embed: unique id per copy (fixes two-blocks-on-one-page bug).** Two embeds on the same
+WordPress page (e.g. "Previous Presenters" + "Previous Moderators") both used `id="tbbq-speakers"`,
+so `getElementById` only found the first → the second block stuck on "Loading…". Now
+`buildEmbedSnippet` takes a `uid` and both copy buttons generate a fresh id per click
+(`tbbq-<rand>`), used for the section id + getElementById. Multiple embeds coexist. REQUIRES
+re-copying both blocks and re-pasting into their HTML widgets.
+
 **NISS 2025: curated moderators + status gate confirmed.** Status gate already excludes
 `deleted` / `delete from website` / `To be uploaded` for ALL roles (only `Status = "On website"`
 passes) — verified (Troels Licht = "delete from website" was already hidden). Added a curated

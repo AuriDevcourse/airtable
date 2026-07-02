@@ -7,14 +7,20 @@
 export type EmbedOptions = {
   path: string; // e.g. "/api/niss-2025?role=Speaker"
   listKey: "speakers" | "people";
+  // Unique element id so several embeds can live on ONE WordPress page (e.g. a
+  // "Previous Presenters" block and a "Previous Moderators" block). Without this they'd
+  // share id="tbbq-speakers" and getElementById would only ever find the first one, so the
+  // second block stays stuck on "Loading…". Generate a fresh id per copy.
+  uid?: string;
 };
 
-export function buildEmbedSnippet({ path, listKey }: EmbedOptions): string {
+export function buildEmbedSnippet({ path, listKey, uid }: EmbedOptions): string {
+  const id = uid || "tbbq-speakers";
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-<section id="tbbq-speakers" class="tbbq-speakers"><div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
+<section id="${id}" class="tbbq-speakers"><div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
 
 <style>
   .tbbq-speakers{--bg:#0d0d0d;--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;background:var(--bg);color:var(--fg);font-family:"Inter",ui-sans-serif,system-ui,sans-serif;padding:clamp(24px,4vw,48px);border-radius:20px}
@@ -40,7 +46,7 @@ export function buildEmbedSnippet({ path, listKey }: EmbedOptions): string {
 (function(){
   var ENDPOINT = "__ORIGIN__${path}";
   var STEP = 20;
-  var root = document.getElementById("tbbq-speakers");
+  var root = document.getElementById("${id}");
   var grid = root.querySelector(".tbbq-grid");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function card(s){

@@ -10,7 +10,9 @@ export function CopyEmbed({ path, listKey, label }: EmbedOptions & { label?: str
   const [copied, setCopied] = useState(false);
 
   function copy() {
-    const code = buildEmbedSnippet({ path, listKey }).replace(
+    // Fresh id per copy so this block won't clash with any other embed on the same page.
+    const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
+    const code = buildEmbedSnippet({ path, listKey, uid }).replace(
       /__ORIGIN__/g,
       window.location.origin
     );

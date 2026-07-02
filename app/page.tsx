@@ -67,7 +67,8 @@ export default function Home() {
   }, []);
 
   function copyEmbed() {
-    const code = buildEmbedSnippet({ path: "/api/speakers", listKey: "speakers" }).replace(
+    const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
+    const code = buildEmbedSnippet({ path: "/api/speakers", listKey: "speakers", uid }).replace(
       /__ORIGIN__/g,
       window.location.origin
     );
