@@ -41,6 +41,15 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Embed snippet: Load-more + 2-col mobile.** The uploaded Elementor embed dumped all records
+at once and collapsed to 1 column on phones. `lib/embedSnippet.ts` restructured: outer
+`.tbbq-speakers` is now a block, inner `.tbbq-grid` holds the cards, plus a `.tbbq-more`
+button. JS reveals 20 at a time (STEP=20) by appending (existing images don't reload). Mobile
+(`max-width:600px`) forces `grid-template-columns:repeat(2,1fr)` = 2 presenters per row.
+Applies to every copied embed (main + both NISS) since it's the shared generator. NOTE: the
+dashboard NISS pages themselves still render all at once (no Load-more there yet) — only the
+embed got it; main dashboard already had it.
+
 **NISS pages: "speakers" → "presenters" (UI text only).** This event calls speakers
 presenters. Renamed visible wording on `/niss` + `/niss-2025` only: h1, lede, and the role
 tab. The tab still filters Airtable `Role = "Speaker"` — a `roleLabel()` helper decouples the
