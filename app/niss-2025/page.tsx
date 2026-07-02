@@ -77,7 +77,7 @@ export default function Niss2025Page() {
           </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path={url} listKey="people" />
+            <CopyEmbed path={url} listKey="people" loadMore={false} />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>

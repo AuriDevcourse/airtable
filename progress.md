@@ -41,6 +41,11 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**Embed: Load-more now optional; OFF for NISS 2025.** `buildEmbedSnippet` gained `loadMore`
+(default true). NISS 2025 page passes `loadMore={false}` on its CopyEmbed — 2025 presenters
+(25) would only reveal 5 more, not worth a button, so it renders all at once. Main feed (312)
+keeps Load-more. NISS 2026 keeps it too (default). Re-copy the 2025 block to drop its button.
+
 **Embed: unique id per copy (fixes two-blocks-on-one-page bug).** Two embeds on the same
 WordPress page (e.g. "Previous Presenters" + "Previous Moderators") both used `id="tbbq-speakers"`,
 so `getElementById` only found the first → the second block stuck on "Loading…". Now

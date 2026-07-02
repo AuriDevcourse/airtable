@@ -12,9 +12,12 @@ export type EmbedOptions = {
   // share id="tbbq-speakers" and getElementById would only ever find the first one, so the
   // second block stays stuck on "Loading…". Generate a fresh id per copy.
   uid?: string;
+  // Show the "Load more" button (reveal 20 at a time). Default true. Set false for small
+  // sets (e.g. NISS 2025) where paginating a few extra cards adds no value.
+  loadMore?: boolean;
 };
 
-export function buildEmbedSnippet({ path, listKey, uid }: EmbedOptions): string {
+export function buildEmbedSnippet({ path, listKey, uid, loadMore = true }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +48,8 @@ export function buildEmbedSnippet({ path, listKey, uid }: EmbedOptions): string 
 <script>
 (function(){
   var ENDPOINT = "__ORIGIN__${path}";
-  var STEP = 20;
+  var STEP = ${loadMore ? "20" : "1000000"};
+  var LOADMORE = ${loadMore ? "true" : "false"};
   var root = document.getElementById("${id}");
   var grid = root.querySelector(".tbbq-grid");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -71,7 +75,7 @@ export function buildEmbedSnippet({ path, listKey, uid }: EmbedOptions): string 
       if(shown>=list.length)more.style.display="none";
     }
     more.onclick=fill;
-    root.appendChild(more);
+    if(LOADMORE)root.appendChild(more);
     fill();
   }).catch(function(){grid.innerHTML='<p class="tbbq-speakers__loading">Could not load right now.</p>';});
 })();
