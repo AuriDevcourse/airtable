@@ -16,6 +16,18 @@ const GATE_VALUE = "On website";
 
 const SAFE_FIELDS = ["Name", "Job title", "Company Name", "LinkedIn", "Photo", "Role"];
 
+// Curated moderator list: only these four moderators are shown, regardless of how many
+// have Status = "On website". Matched by case-insensitive substring on the name (the
+// Airtable names are longer, e.g. "Zenia Worm Francke"). Speakers and Team are unaffected.
+// NOTE: hardcoded curation — the cleaner long-term home for this is a Status/flag in Airtable.
+const MODERATOR_ALLOW = ["zenia", "christina brinch", "julia abrams", "nicolaj geller"];
+
+function isAllowedModerator(role: string, name: string): boolean {
+  if (role.toLowerCase() !== "moderator") return true; // only moderators are curated
+  const n = name.toLowerCase();
+  return MODERATOR_ALLOW.some((allowed) => n.includes(allowed));
+}
+
 export type NissPerson = {
   id: string;
   name: string;
@@ -100,7 +112,9 @@ export async function fetchNiss2025(roleFilter?: string): Promise<NissPerson[]> 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
       const p = mapRecord(rec);
-      if (p.name) people.push(p); // skip blank rows
+      if (!p.name) continue; // skip blank rows
+      if (!isAllowedModerator(p.role, p.name)) continue; // curated moderator list
+      people.push(p);
     }
     offset = data.offset;
   } while (offset);

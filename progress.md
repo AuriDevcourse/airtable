@@ -41,6 +41,15 @@ gate) · `app/api/<event>/route.ts` · `app/<event>/page.tsx` · one line in `To
 
 All of the above pushed to main this session; auto-deploys to airtable-woad.vercel.app.
 
+**NISS 2025: curated moderators + status gate confirmed.** Status gate already excludes
+`deleted` / `delete from website` / `To be uploaded` for ALL roles (only `Status = "On website"`
+passes) — verified (Troels Licht = "delete from website" was already hidden). Added a curated
+moderator allow-list in `lib/niss2025.ts` (`MODERATOR_ALLOW`, case-insensitive substring match):
+only Zenia (Worm Francke), Christina Brinch (Clark), Julia Abrams, Nicolaj Geller (Christensen)
+show as moderators. The other 5 on-website moderators (Eske, Mette, Mik, Kunal, Ashish) are
+hidden. Speakers/Team unaffected. Counts: moderators 9→4, all 38→33. Hardcoded curation —
+ideally moved to an Airtable Status/flag later.
+
 **Embed snippet: Load-more + 2-col mobile.** The uploaded Elementor embed dumped all records
 at once and collapsed to 1 column on phones. `lib/embedSnippet.ts` restructured: outer
 `.tbbq-speakers` is now a block, inner `.tbbq-grid` holds the cards, plus a `.tbbq-more`
