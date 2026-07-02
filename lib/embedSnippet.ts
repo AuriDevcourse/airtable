@@ -48,7 +48,7 @@ export function buildEmbedSnippet({
     .tbbq-rows .tbbq-card__media{width:84px;height:84px;flex:0 0 auto}
     .tbbq-rows .tbbq-card__body{padding:0;flex:1 1 auto;min-width:0}
     .tbbq-rows .tbbq-card__body h3{font-size:19px}
-    .tbbq-rows .tbbq-card__body p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tbbq-rows .tbbq-card__body p{white-space:normal;overflow-wrap:break-word}
   }
   .tbbq-card{position:relative;background:var(--card);border-radius:20px;padding:8px;overflow:hidden}
   .tbbq-card a{text-decoration:none;color:inherit;display:block}
