@@ -4,6 +4,80 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-07 · Speaker sync (Supabase Hub -> Airtable)
+
+**Re-ran the snapshot: Airtable 109 -> 115.** The Airtable "TechBBQ Summit" rows are a
+COPY of the Supabase Speaker Hub, not a live sync, so they had drifted (Hub grew to 114).
+Rebuilt the lost import script at `scripts/import_speakers.py` (dry-run by default, `--write`
+to apply; idempotent, dedupes by normalized Full Name, only ADDS). Added the 6 missing
+speakers (Dennis Green-Lieber, Johan Attby, Lishuai Jing, Nour Alnuaimi, Peter Carlsson,
+Rui Eduardo). Airtable now 115; Supabase 114 (one Airtable name isn't in the Hub — harmless).
+
+**Built an automatic sync as a protected Vercel route.**
+- `lib/sync.ts` — `syncSpeakersToAirtable()`: reuses `fetchHubSpeakers` for the read,
+  fetches existing Full Names (paginated), creates only the delta (batches of 10, typecast).
+  One-way, add-only, never edits/deletes. Returns `{hubCount, existingCount, added, addedNames}`.
+- `app/api/sync-speakers/route.ts` — GET+POST, gated by `CRON_SECRET` (constant-time compare,
+  FAILS CLOSED if the secret env is unset). Vercel Cron / the Actions pinger send it as
+  `Authorization: Bearer <CRON_SECRET>`. Tested locally: no-auth 401, wrong 401, correct 200/added:0.
+- `vercel.json` — daily cron `0 6 * * *` (baseline; Hobby native cron only runs once/day, and a
+  sub-daily schedule there can FAIL the deploy — kept daily on purpose).
+- `.github/workflows/sync-speakers.yml` — every-3-hours pinger (the actual cadence, since Hobby
+  cron can't). Needs GitHub secrets `SYNC_URL` + `CRON_SECRET`. Has `workflow_dispatch` for manual runs.
+- `.env.example` updated (CRON_SECRET added; stale NISS gate vars replaced with the real NISS 2026 table/view).
+
+**NOT LIVE YET — remaining manual steps (Auri):**
+1. Add `CRON_SECRET` to Vercel env (value is in local `.env.local`). Token also needs `data.records:write`.
+2. Branch + push (repo auto-deploys from main; don't edit main directly — WORKFLOW r1). Merge to deploy.
+3. GitHub repo secrets: `SYNC_URL=https://airtable-woad.vercel.app/api/sync-speakers` + `CRON_SECRET` (same value).
+4. Then run the Actions workflow once manually (Actions tab -> Run workflow) to confirm.
+
+**Base-structure notes (from a Tier question, read-only — nothing wired to the connector):**
+- The write target `Marketing Project Overview` (`tblTecOBecLQCNIeD`) also holds partner marketing
+  rows. Its **"Partner Deliverables 2026" VIEW** = `viw7FVbsTb9IRaWF0` (54 records). Many are raw
+  web-form submissions (Created by `anonymous+formpage@`) with almost no fields.
+- **Two different tables get confused.** Deal amounts + working tier live in the **`Partners 2026`
+  CRM** (`tbl9V6ZtxEbR4uELC`), NOT in Marketing Project Overview. The deliverables view is a separate
+  table and its rows are **not linked** back to the CRM, so a partner's Deal/Tier never flows through.
+- **Two tier columns in `Partners 2026`:** `Partnership Tier` = a FORMULA (auto, e.g. "Challenger",
+  populated for everyone) vs `Tier` = a MANUAL single-select that is **blank for basically all rows**
+  (nobody fills it). So "blank tier" almost always means "looking at the manual `Tier`, not the
+  formula `Partnership Tier`." Marketing Project Overview's own `Tier` (single-select) is likewise
+  manual, blank on 9/54, and its auto `Partnership Tier` link is empty because no rows are linked.
+- Open idea (not started): auto-link deliverable rows to their `Partners 2026` record by company
+  name so Deal/Tier populate automatically instead of by hand.
+
+## Session 2026-07-02 · Side Events table + 2026 final-submissions view
+
+Explored the **Side Events** table for the 2026 side-event submission flow (separate from the
+NISS/Speaker feeds above; not yet wired into the connector).
+
+- **Table:** `Side Events` = `tbljk4v9ivIc5b4YH` in base `appgXNjXJqpk9Ebxd`. Mixed schema (50+
+  fields): event info, catering/lunch, barter deals, enquiry fields, per-year status fields.
+- **2026 final-submissions view** = `viwGYLpFuwYLZi0Fi` ("Final submissions (side events) 2026",
+  grid). Its filter is `Name is not empty` AND `Created is after <date>`. Started as
+  `Created is after July 2, 2026`, which excludes anything created on July 2 (today) because
+  `Created` is an auto timestamp that can't be back/forward-dated via API. Auri relaxed the
+  operator so today's records show. Gotcha for future: rows created before the cutoff will
+  never appear; only new submissions do.
+- **Test records created via API (safe to delete):**
+  - `recVslkJxjncpHhfB` — bare test row ("Test Entry · Claude").
+  - `reccJSINPSjQUYyWL` — fully populated sample 2026 submission ("AI Workshop Demo Night 2026",
+    Website status = Published, Date = August 27, Target Audience, etc.).
+- **UTF-8 gotcha:** curl on this Windows box mangles `·` (U+00B7) into a display `�`, but the
+  value stored in Airtable is correct — it's a terminal print artifact, not corrupted data.
+  Verified via code-point readback (0xB7, no U+FFFD).
+- **Form-for-2026 question — answered:** Airtable API can read/write RECORDS but CANNOT edit
+  VIEWS, and a form is a view. So form title/text/layout/dates are **UI-only**. To make a 2026
+  form, **duplicate the form view** in the UI (keeps 2025 intact) — both forms still write to the
+  SAME table/fields; records are separated by the Created-date view filter, not by the form.
+  DANGER: single-select options are shared table-wide — never RENAME/DELETE existing date options
+  (e.g. `Date` = August 20-29, `Enquiry: Date` = 14/15 September) or you silently rewrite/strip
+  2025 records. ADD new 2026 options instead. Field-option edits I CAN do via API; give dates.
+- **Next if resumed:** get real TechBBQ 2026 dates → add (not rename) 2026 options to `Date`,
+  `Enquiry: Date`, `Enquiry: Package type`; Auri duplicates + edits the form in the UI; decide
+  whether to delete the two test rows.
+
 ## Current state (2026-07-02, NISS 2026 prod fix + NISS 2025 archive feed)
 
 **Fixed prod NISS 2026 502.** Root cause was env drift, not code: Vercel still had a

@@ -1,0 +1,28 @@
+name: Sync speakers to Airtable
+
+# Pings the protected /api/sync-speakers route every 3 hours. The route does the
+# work (Supabase Speaker Hub -> Airtable); this workflow is just the scheduler,
+# because Vercel Hobby native cron only runs once/day. The vercel.json cron is the
+# daily backstop; this is the every-few-hours driver.
+
+on:
+  schedule:
+    - cron: "0 */3 * * *" # every 3 hours (UTC)
+  workflow_dispatch: {} # allow a manual run from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync endpoint
+        env:
+          SYNC_URL: ${{ secrets.SYNC_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -s -o /tmp/body.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SYNC_URL")
+          echo "HTTP $code"
+          cat /tmp/body.json
+          echo
+          test "$code" = "200"
