@@ -6,7 +6,7 @@
 
 export type EmbedOptions = {
   path: string; // e.g. "/api/niss-2025?role=Speaker"
-  listKey: "speakers" | "people";
+  listKey: "speakers" | "people" | "team";
   // Unique element id so several embeds can live on ONE WordPress page (e.g. a
   // "Previous Presenters" block and a "Previous Moderators" block). Without this they'd
   // share id="tbbq-speakers" and getElementById would only ever find the first one, so the
