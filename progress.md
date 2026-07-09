@@ -4,6 +4,24 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-09b (Partners->Brella CSV re-run + staff title updates)
+
+### Partners 2026 -> Brella CSV (re-ran `scripts/partners-to-brella-csv.mjs`)
+- Output: `scripts/out/partners-brella.csv`. **47 confirmed partners** (Status 2026 = Confirmed,
+  view "Partners on Brella"). Columns: Company Name, Category(=Partnership Tier), Website, Logo URL.
+- Fill: Tier 47/47, Website **2/47**, Logo **0/47** (same logo blocker as before, the Airtable logo
+  lookup field is broken). Names + tiers are clean, which is the core Brella needs.
+- Tiers: Challenger 17 · Core 9 · Pioneer 8 · Main 8 · Conqueror 4 · Prime 1.
+- **Upload = manual**: Brella has no write API for sponsors. Path = Brella admin -> Sponsors ->
+  Import/Export -> import this CSV -> map Company Name->Name, Category->tier. Auri does this in Brella.
+- Logo plan: import names+tiers now, add logos directly in Brella per partner (not worth scripting 47).
+
+### Staff title updates (#TechBBCuties `tbldWne3PnvebIwif`)
+Website (`techbbq.dk/about-us/`) had newer titles than Airtable. Verified verbatim (2 reads), updated:
+- Charles Kinga (`recKiMaqCcfNge3xJ`): Project Leader -> **Head of Africa**
+- Shri Harsha (`recVrvKUcFgCYW9he`): Project Leader -> **Head of Asia Pacific**
+Note: site WAF now blocks my direct curl (454), used the render-based fetch instead.
+
 ## Session 2026-07-09 (Special Offers populated + Airtable seat/billing audit)
 
 ### Special Offers 2026 (Offers table `tblWDtFY9DJfRSFAF`, view `viwbiWP2xi23ZnMN4`)
