@@ -4,6 +4,89 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-09 (Special Offers populated + Airtable seat/billing audit)
+
+### Special Offers 2026 (Offers table `tblWDtFY9DJfRSFAF`, view `viwbiWP2xi23ZnMN4`)
+Populated the attendee Special Offers, first from the PDF, then enriched from the live page
+`techbbq.dk/special-offers/`.
+- Table = **Offers**. The Special Offers view is gated to `Offer for Who = Attendees`.
+- Source 1 = `Downloads/Special Offers 2026.pdf` (3 offers). Source 2 = the live page (9 offers).
+- **9 offers now live in the view**, each with description + link + an image in `Visual`:
+  - Accommodation: Go Hotel (`TechBBQ2026`), AC Hotel Bella Sky (no code), Hoperfy (no code),
+    Zoku Copenhagen (`ZokuLovesTechBBQ`).
+  - Transportation: Donkey Republic (`TECHBBQ25`), Lime (`LIMEBBQ2025`).
+  - Food & Beverages: Brite Drinks (`TECHBBQ20`), Matrikel1 Workbar (no code, show badge).
+  - Support: Wing People (no code, no link).
+- **Added a `Category` single-select** (Accommodation / Transportation / Food & Beverages / Support),
+  the table had no field for the page's grouping.
+- **Images**: read the real image URLs from page source, mapped each to its card, then had
+  **Airtable fetch them** into `Visual`. My curl is blocked by the site WAF (454/455), but
+  Airtable's own fetcher passes. All 9 have a visual (Airtable fetches async, larger PNGs lag a
+  few seconds). SVG (Matrikel1) also stored fine.
+
+**FLAGS to resolve:**
+- **Donkey Republic + Lime carry 2025 copy/codes** ("TechBBQ 2025", `TECHBBQ25` / `LIMEBBQ2025`).
+  These 5 (Transportation / Food / Support) are **hidden last-year sections still in the page
+  markup**, NOT visible on the published page (which shows only the 4 Accommodation cards). Kept
+  per Auri ("Brite still an option, maybe I'll add them"). CONFIRM the codes still work for 2026
+  with the partners before publishing.
+- Wing People has no link on the page. Its `Visual` uses `Tjena_circle_2000x2000.png` (odd
+  filename, verify it is really their logo).
+- Missing codes left blank on purpose (Auri: fine if no code): AC Bella Sky, Matrikel1, Wing People.
+
+### Airtable seat / billing audit (workspace `wspUXPEi1gset4k0T`)
+From `Downloads/Invoice-3BD9F1F-0046.pdf`:
+- Plan = **NFP Monthly Pro** (nonprofit rate **$12/seat/month**, ~50% off standard Pro).
+- **56 billable seats · $672/month · ~$8,064/year.** Invoice total $712.69 includes mid-cycle
+  proration as seats grew 48 to 56 over May/June.
+- Active team is only **27** (from `/api/team`), so ~29 seats beyond the active team. Big trim room.
+
+**Billing model (for tomorrow):**
+- Billed **per person per workspace**, NOT per base. One person on 3 bases in the same workspace
+  = 1 seat. Different workspaces = separate seats. Keep bases in one workspace.
+- Billed roles = **Owner, Creator, Editor**. **Read-only + Commenter are free.** No free "edit" tier.
+- **Only Owner/Creator can invite people** (add paid seats). Editors cannot. Cost risk = anyone
+  with Creator, and almost everyone here is Creator. Downgrading non-admins to Editor does NOT
+  save money (both billed) but closes the add-a-seat hole. Only Read-only / Commenter / remove saves.
+- Downgrade to Read-only should drop the seat. VERIFY: change one person, watch the Billing seat
+  count go 56 to 55 (monthly plan gives a prorated credit).
+- **Volunteers**: keep them OFF billable seats. Use **Forms** (free, unlimited, create-only, no
+  account) for what they submit. Reserve Editor seats for the few who must edit existing records,
+  and timebox those to event week + remove after (post-event sweep).
+
+**Confirmed seats to REMOVE (do in the UI, API cannot manage collaborators):**
+- Tansu Kjerimi `tkj@techbbq.org` (Archive; access points at a 2024 base)
+- Allan Nielsen Hadzimahovic `alh@techbbq.org` (Archive)
+- Sandra Frandsen `sfr@techbbq.org` (left; staff record still under Operations, move her to Archive)
+- Andrei Ratcu duplicate `ratcuandrei3@gmail.com` (personal Gmail, he already has `anr@techbbq.org`),
+  also a security cleanup.
+- => ~4 seats ~= **$576/year**.
+- Note: a second Owner besides Auri exists, Sadia Beg `sab@techbbq.org`. Confirm intended.
+
+**Finding inactive volunteers on Pro (no Enterprise admin panel = no last-login report):**
+- Proxy = add `Last Modified By` + `Last Modified Time` fields to main tables, group a view by
+  modifier => shows each person's last footprint. No footprint = dormant seat.
+- "Last Modified by **Anonymous**" = change by a non-account source (Form submission, editable
+  share link, automation / API, or a since-removed collaborator). Never a billable seat, ignore it
+  for the activity audit. If Anonymous edits are NOT from forms/automations, check for an open
+  "anyone with link can edit" share.
+- Simplest path: trim / downgrade volunteers to free, restore edit access on request.
+
+### #TechBBCuties edit lock (RESOLVED)
+Auri could not edit the `#TechBBCuties` table despite being Owner. Not synced, not field-locked,
+a no-op API write succeeded (data is editable). Cause = a **locked view**. Fixed by creating a
+fresh Grid view.
+
+### Next (tomorrow)
+1. Decide remove vs downgrade for the ~29 extra seats. Start with the 4 confirmed removals (~$576/yr).
+2. Get the **Members list with last activity** (or add the Last Modified fields) to find the silent
+   inactive seats. I will reconcile against the active-27.
+3. Confirm Donkey Republic + Lime 2026 codes with the partners before those offers go public.
+4. Re-pull staff whose `Active Team Member` box is unchecked (not just Archive), likely more hidden
+   leavers. Sandra proved the unchecked-box signal is real.
+5. Set up volunteer intake **Forms** so future volunteers do not consume seats. Add a post-event
+   seat sweep to the calendar.
+
 ## Session 2026-07-08 (Prints 2026 board + day wrap-up)
 
 **`Prints 2026` table (`tbluSfDoEXnvOquvE`, view `viwds5x6kwU2Mg1hP`) made project-based.** Mirror of
