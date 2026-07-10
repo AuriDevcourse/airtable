@@ -360,6 +360,16 @@ a { color: inherit; }
   pointer-events: none;
 }
 .s-card:hover::after { opacity: 1; }
+/* Life Science & Deep Tech: cyan -> teal glow (#27C7E7 -> #00EAC0) instead of fire. */
+.s-card--ls::after {
+  background: linear-gradient(
+    115deg,
+    rgba(0,0,0,0.95) 0%,
+    rgba(39,199,231,0.92) 26%,
+    rgba(0,234,192,0.6) 48%,
+    transparent 72%
+  );
+}
 .s-card__role {
   display: inline-flex;
   align-items: center;

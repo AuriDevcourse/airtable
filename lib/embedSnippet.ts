@@ -18,6 +18,16 @@ export type EmbedOptions = {
   // Mobile layout. "grid" = 2 cards per row (default). "rows" = photo-left, name+title-right
   // list rows — good for short lists like moderators. Desktop is a grid either way.
   mobileLayout?: "grid" | "rows";
+  // Hover-glow palette. "fire" = the red/orange TechBBQ gradient (default). "ls" = the
+  // cyan->teal Life Science & Deep Tech gradient (#27C7E7 -> #00EAC0).
+  gradient?: "fire" | "ls";
+};
+
+// The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
+// only the two mid-stops change so each feed keeps a consistent card style.
+const GRADIENTS: Record<"fire" | "ls", string> = {
+  fire: "linear-gradient(115deg,rgba(0,0,0,.95) 0%,rgba(206,15,46,.92) 26%,rgba(250,112,0,.6) 48%,transparent 72%)",
+  ls: "linear-gradient(115deg,rgba(0,0,0,.95) 0%,rgba(39,199,231,.92) 26%,rgba(0,234,192,.6) 48%,transparent 72%)",
 };
 
 export function buildEmbedSnippet({
@@ -26,9 +36,11 @@ export function buildEmbedSnippet({
   uid,
   loadMore = true,
   mobileLayout = "grid",
+  gradient = "fire",
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
+  const hoverGradient = GRADIENTS[gradient];
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -57,7 +69,7 @@ export function buildEmbedSnippet({
   .tbbq-card__body{position:relative;padding:12px 8px 4px}
   .tbbq-card__body h3{position:relative;z-index:1;font-family:var(--head)!important;font-weight:500;letter-spacing:-.02em;font-size:17px;line-height:1.2;margin:0;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.5)}
   .tbbq-card__body p{position:relative;z-index:1;font-family:var(--sans)!important;margin:6px 0 0;color:rgba(255,255,255,.82);font-size:14px;line-height:1.4;text-shadow:0 1px 6px rgba(0,0,0,.5)}
-  .tbbq-card::after{content:"";position:absolute;inset:-8px;background:linear-gradient(115deg,rgba(0,0,0,.95) 0%,rgba(206,15,46,.92) 26%,rgba(250,112,0,.6) 48%,transparent 72%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+  .tbbq-card::after{content:"";position:absolute;inset:-8px;background:${hoverGradient};opacity:0;transition:opacity .25s ease;pointer-events:none}
   .tbbq-card:hover::after{opacity:1}
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
   @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}

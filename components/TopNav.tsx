@@ -8,6 +8,7 @@ import Link from "next/link";
 const PROJECTS = [
   { href: "/speakers-2026", label: "Speakers 2026" },
   { href: "/", label: "Speakers (all)" },
+  { href: "/life-science", label: "Life Science 2026" },
   { href: "/niss", label: "NISS 2026" },
   { href: "/niss-2025", label: "NISS 2025" },
 ];
