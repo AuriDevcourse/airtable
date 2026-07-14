@@ -12,6 +12,7 @@ const PROJECTS = [
   { href: "/niss", label: "NISS 2026" },
   { href: "/niss-2025", label: "NISS 2025" },
   { href: "/team", label: "Team" },
+  { href: "/team/departments", label: "Team by dept" },
 ];
 
 export function TopNav() {
