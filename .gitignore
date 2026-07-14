@@ -11,3 +11,5 @@ next-env.d.ts
 
 # TS incremental build cache
 tsconfig.tsbuildinfo
+
+.env*

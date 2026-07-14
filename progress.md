@@ -321,11 +321,16 @@ Rui Eduardo). Airtable now 115; Supabase 114 (one Airtable name isn't in the Hub
   cron can't). Needs GitHub secrets `SYNC_URL` + `CRON_SECRET`. Has `workflow_dispatch` for manual runs.
 - `.env.example` updated (CRON_SECRET added; stale NISS gate vars replaced with the real NISS 2026 table/view).
 
-**NOT LIVE YET — remaining manual steps (Auri):**
-1. Add `CRON_SECRET` to Vercel env (value is in local `.env.local`). Token also needs `data.records:write`.
-2. Branch + push (repo auto-deploys from main; don't edit main directly — WORKFLOW r1). Merge to deploy.
-3. GitHub repo secrets: `SYNC_URL=https://airtable-woad.vercel.app/api/sync-speakers` + `CRON_SECRET` (same value).
-4. Then run the Actions workflow once manually (Actions tab -> Run workflow) to confirm.
+**LIVE as of 2026-07-14.** Sync confirmed working (HTTP 200, ok:true, 128 hub / added 15).
+Both schedulers now succeed: GitHub Actions every-3h pinger + Vercel daily cron backstop.
+1. ~~Add `CRON_SECRET` to Vercel env~~ DONE — added to Production + Preview (matches `.env.local`), then redeployed prod so it takes effect.
+2. ~~Branch + push / deploy~~ DONE — production redeployed via `vercel --prod`.
+3. ~~GitHub repo secrets~~ DONE — `SYNC_URL=https://airtable-woad.vercel.app/api/sync-speakers` + `CRON_SECRET` (same value) set via `gh secret set`.
+4. ~~Run workflow once to confirm~~ DONE — manual `workflow_dispatch` returned 200.
+
+Root cause of the recurring failure emails: both GitHub secrets were never set (blank -> curl exit 3),
+and even after that `CRON_SECRET` was missing from Vercel entirely, so the route failed closed with 401.
+The daily Vercel cron had been failing the same silent 401 the whole time.
 
 **Base-structure notes (from a Tier question, read-only — nothing wired to the connector):**
 - The write target `Marketing Project Overview` (`tblTecOBecLQCNIeD`) also holds partner marketing
