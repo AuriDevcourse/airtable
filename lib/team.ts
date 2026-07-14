@@ -1,8 +1,8 @@
-// Server-only access to the internal "#TechBBCuties" staff directory. This table is the
-// most PII-heavy in the base: it holds phone numbers, private notes, responsibilities and
-// internal task fields. NONE of those are exposed here. Only an allow-list of the exact
-// fields the public techbbq.dk "Our Team" section needs is ever requested from Airtable,
-// and only CURRENT team members (Active, not Archived) are returned.
+// Server-only access to the "#TechBBCuties" staff directory. This table holds phone numbers,
+// private notes, responsibilities and internal task fields. Those stay OUT. Only an allow-list
+// (name/title/photo/LinkedIn/department/email) is ever requested from Airtable, and only CURRENT
+// team members (Active, not Archived) are returned. Email is public by product decision; phone
+// and everything else remain server-private.
 
 import { fetchWithTimeout } from "@/lib/http";
 
@@ -14,9 +14,10 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 // Pinned in code (not env) on purpose — a stale env table id silently breaks the feed.
 const TABLE = "tbldWne3PnvebIwif"; // #TechBBCuties staff directory
 
-// SAFE allow-list. Deliberately excludes Email, Phone, Responsibilities and every internal
-// field. Widening this list exposes staff PII — do not add a field without checking it.
-const SAFE_FIELDS = ["Name", "Title", "LinkedIn", "Picture", "Department"];
+// PUBLIC allow-list. Email is intentionally included: TechBBQ treats staff contact emails as
+// public info (product decision). Phone, Responsibilities and every internal field stay OUT —
+// do not add a field without checking it.
+const SAFE_FIELDS = ["Name", "Title", "LinkedIn", "Picture", "Department", "Email"];
 
 // The known department options (minus "Archive", which marks people who have left).
 export const DEPARTMENTS = [
@@ -57,19 +58,18 @@ function firstDept(v: unknown): string {
   return Array.isArray(v) && v.length ? String(v[0]) : "";
 }
 
-function mapRecord(rec: AirtableRecord, includeEmail: boolean): TeamMember {
+function mapRecord(rec: AirtableRecord): TeamMember {
   const f = rec.fields;
   const link = str(f["LinkedIn"]);
-  const member: TeamMember = {
+  return {
     id: rec.id,
     name: str(f["Name"]),
     title: str(f["Title"]),
     photo: firstPhoto(f["Picture"]),
     linkedin: link.startsWith("http") ? link : null,
     department: firstDept(f["Department"]),
+    email: str(f["Email"]) || null,
   };
-  if (includeEmail) member.email = str(f["Email"]) || null;
-  return member;
 }
 
 export class TeamError extends Error {
@@ -84,12 +84,7 @@ function esc(v: string): string {
   return v.replace(/'/g, "\\'");
 }
 
-// includeEmail is ONLY passed by the auth-gated internal route. The public route never sets it,
-// so Email is never even requested from Airtable on the public path.
-export async function fetchTeam(
-  departmentFilter?: string,
-  includeEmail = false
-): Promise<TeamMember[]> {
+export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]> {
   if (!TOKEN || !BASE_ID) {
     throw new TeamError("Airtable env vars are not set on the server.", 503);
   }
@@ -109,8 +104,7 @@ export async function fetchTeam(
       : gate;
     params.set("filterByFormula", formula);
     params.set("pageSize", "100");
-    const fields = includeEmail ? [...SAFE_FIELDS, "Email"] : SAFE_FIELDS;
-    for (const field of fields) params.append("fields[]", field);
+    for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
     const res = await fetchWithTimeout(`${API}/${BASE_ID}/${TABLE}?${params.toString()}`, {
@@ -126,7 +120,7 @@ export async function fetchTeam(
 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
-      const m = mapRecord(rec, includeEmail);
+      const m = mapRecord(rec);
       if (m.name) members.push(m); // skip blank rows
     }
     offset = data.offset;

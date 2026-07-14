@@ -11,10 +11,7 @@ const PROJECTS = [
   { href: "/life-science", label: "Life Science 2026" },
   { href: "/niss", label: "NISS 2026" },
   { href: "/niss-2025", label: "NISS 2025" },
-  // One "Team" tab → the internal, password-gated view: grouped by department, filterable,
-  // and it shows emails in the cards. The public /api/team feed (email-free) still powers the
-  // techbbq.dk embed in the background; it doesn't need its own nav tab.
-  { href: "/internal/team", label: "Team" },
+  { href: "/team", label: "Team" },
 ];
 
 export function TopNav() {

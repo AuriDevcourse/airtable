@@ -26,18 +26,15 @@ dashboard and two missing full-timers to `#TechBBCuties`.
 4. Commit `/team/departments` + TopNav (branch + merge to main, auto-deploys) if wanted in prod.
 
 ### Decisions
-- **Emails stay OFF the public feed.** `/api/team` + `/team*` are public (power techbbq.dk "Our
-  Team"), so they show name/title/photo/LinkedIn/department only. Do NOT add `Email` to
-  `SAFE_FIELDS`.
-- **Emails ARE shown on a separate INTERNAL view**, gated by Basic auth. `middleware.ts` protects
-  `/internal/*` + `/api/internal/*` (fails closed if `INTERNAL_USER`/`INTERNAL_PASS` unset).
-  `fetchTeam(dept, includeEmail=true)` only requests Email on that gated path. Internal page
-  `/internal/team` uses a plain fetch (no localStorage) so emails never persist on disk.
-  Creds: user `techbbq`, pass in `.env.local` (+ Vercel Prod/Preview). NOT the same as the public site.
-- **Nav has ONE "Team" tab → `/internal/team`** (the gated email view: grouped by department,
-  filter tabs, email+LinkedIn in cards). Redundant public `/team/departments` page was DELETED.
-  `/team` (Elementor CopyEmbed helper) + `/api/team` still exist for the website feed but are
-  off-nav. Public site auto-updates via the API; the visible Team tab is the internal dashboard.
+- **Emails are PUBLIC (Auri's call, 2026-07-14).** Staff contact emails treated as public info.
+  `Email` is in `SAFE_FIELDS`, so `/api/team` returns it and the `/team` page shows it. Phone +
+  internal fields still excluded.
+- **ONE team surface: `/team`.** Rewrote it to group by department, filter tabs, photo, email
+  (mailto), and a LinkedIn SVG icon (no icon lib installed, icon inlined in `app/team/page.tsx`).
+  It still hosts the CopyEmbed for the techbbq.dk feed. Nav has a single "Team" tab → `/team`.
+- **Removed the whole auth/internal experiment:** deleted `middleware.ts`, `app/api/internal/*`,
+  `app/internal/*`, `/team/departments`, the `INTERNAL_USER/PASS` env (also removed from Vercel),
+  and the `includeEmail` param on `fetchTeam`. Basic-auth was scrapped because emails went public.
 
 ### Gotchas
 - New `#TechBBCuties` rows need `Active Team Member`=true or they never appear in `/api/team`
