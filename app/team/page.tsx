@@ -27,21 +27,6 @@ function TeamPhoto({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function LinkedInIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.55V9h3.57v11.45zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0z" />
-    </svg>
-  );
-}
-
 type TeamMember = {
   id: string;
   name: string;
@@ -83,45 +68,38 @@ function groupByDepartment(members: TeamMember[]): [string, TeamMember[]][] {
 }
 
 function MemberCard({ m }: { m: TeamMember }) {
+  const media = m.photo ? (
+    <TeamPhoto src={m.photo} alt={m.name} />
+  ) : (
+    <div className="s-card__media">
+      <div className="s-card__img--empty" />
+    </div>
+  );
   return (
     <article className="s-card">
-      {m.photo ? (
-        <TeamPhoto src={m.photo} alt={m.name} />
+      {/* Clicking the photo opens the person's LinkedIn (if they have one). */}
+      {m.linkedin ? (
+        <a
+          href={m.linkedin}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`${m.name} on LinkedIn`}
+        >
+          {media}
+        </a>
       ) : (
-        <div className="s-card__media">
-          <div className="s-card__img--empty" />
-        </div>
+        media
       )}
       <div className="s-card__overlay">
         <h3 className="s-card__name">{m.name}</h3>
         <p className="s-card__meta">{m.title}</p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 6,
-            fontSize: 13,
-            flexWrap: "wrap",
-          }}
-        >
-          {m.email && (
+        {m.email && (
+          <div style={{ marginTop: 6, fontSize: 13 }}>
             <a href={`mailto:${m.email}`} style={{ textDecoration: "underline" }}>
               {m.email}
             </a>
-          )}
-          {m.linkedin && (
-            <a
-              href={m.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${m.name} on LinkedIn`}
-              style={{ display: "inline-flex", alignItems: "center", color: "inherit", opacity: 0.85 }}
-            >
-              <LinkedInIcon />
-            </a>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </article>
   );

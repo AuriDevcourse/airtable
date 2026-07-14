@@ -30,8 +30,8 @@ dashboard and two missing full-timers to `#TechBBCuties`.
   `Email` is in `SAFE_FIELDS`, so `/api/team` returns it and the `/team` page shows it. Phone +
   internal fields still excluded.
 - **ONE team surface: `/team`.** Rewrote it to group by department, filter tabs, photo, email
-  (mailto), and a LinkedIn SVG icon (no icon lib installed, icon inlined in `app/team/page.tsx`).
-  It still hosts the CopyEmbed for the techbbq.dk feed. Nav has a single "Team" tab → `/team`.
+  (mailto). The photo itself links to the person's LinkedIn (no separate icon). It still hosts
+  the CopyEmbed for the techbbq.dk feed. Nav has a single "Team" tab → `/team`.
 - **Removed the whole auth/internal experiment:** deleted `middleware.ts`, `app/api/internal/*`,
   `app/internal/*`, `/team/departments`, the `INTERNAL_USER/PASS` env (also removed from Vercel),
   and the `includeEmail` param on `fetchTeam`. Basic-auth was scrapped because emails went public.
