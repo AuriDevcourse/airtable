@@ -4,6 +4,301 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-09b (Partners->Brella CSV re-run + staff title updates)
+
+### Partners 2026 -> Brella CSV (re-ran `scripts/partners-to-brella-csv.mjs`)
+- Output: `scripts/out/partners-brella.csv`. **47 confirmed partners** (Status 2026 = Confirmed,
+  view "Partners on Brella"). Columns: Company Name, Category(=Partnership Tier), Website, Logo URL.
+- Fill: Tier 47/47, Website **2/47**, Logo **0/47** (same logo blocker as before, the Airtable logo
+  lookup field is broken). Names + tiers are clean, which is the core Brella needs.
+- Tiers: Challenger 17 · Core 9 · Pioneer 8 · Main 8 · Conqueror 4 · Prime 1.
+- **Upload = manual**: Brella has no write API for sponsors. Path = Brella admin -> Sponsors ->
+  Import/Export -> import this CSV -> map Company Name->Name, Category->tier. Auri does this in Brella.
+- Logo plan: import names+tiers now, add logos directly in Brella per partner (not worth scripting 47).
+
+### Staff title updates (#TechBBCuties `tbldWne3PnvebIwif`)
+Website (`techbbq.dk/about-us/`) had newer titles than Airtable. Verified verbatim (2 reads), updated:
+- Charles Kinga (`recKiMaqCcfNge3xJ`): Project Leader -> **Head of Africa**
+- Shri Harsha (`recVrvKUcFgCYW9he`): Project Leader -> **Head of Asia Pacific**
+Note: site WAF now blocks my direct curl (454), used the render-based fetch instead.
+
+## Session 2026-07-09 (Special Offers populated + Airtable seat/billing audit)
+
+### Special Offers 2026 (Offers table `tblWDtFY9DJfRSFAF`, view `viwbiWP2xi23ZnMN4`)
+Populated the attendee Special Offers, first from the PDF, then enriched from the live page
+`techbbq.dk/special-offers/`.
+- Table = **Offers**. The Special Offers view is gated to `Offer for Who = Attendees`.
+- Source 1 = `Downloads/Special Offers 2026.pdf` (3 offers). Source 2 = the live page (9 offers).
+- **9 offers now live in the view**, each with description + link + an image in `Visual`:
+  - Accommodation: Go Hotel (`TechBBQ2026`), AC Hotel Bella Sky (no code), Hoperfy (no code),
+    Zoku Copenhagen (`ZokuLovesTechBBQ`).
+  - Transportation: Donkey Republic (`TECHBBQ25`), Lime (`LIMEBBQ2025`).
+  - Food & Beverages: Brite Drinks (`TECHBBQ20`), Matrikel1 Workbar (no code, show badge).
+  - Support: Wing People (no code, no link).
+- **Added a `Category` single-select** (Accommodation / Transportation / Food & Beverages / Support),
+  the table had no field for the page's grouping.
+- **Images**: read the real image URLs from page source, mapped each to its card, then had
+  **Airtable fetch them** into `Visual`. My curl is blocked by the site WAF (454/455), but
+  Airtable's own fetcher passes. All 9 have a visual (Airtable fetches async, larger PNGs lag a
+  few seconds). SVG (Matrikel1) also stored fine.
+
+**FLAGS to resolve:**
+- **Donkey Republic + Lime carry 2025 copy/codes** ("TechBBQ 2025", `TECHBBQ25` / `LIMEBBQ2025`).
+  These 5 (Transportation / Food / Support) are **hidden last-year sections still in the page
+  markup**, NOT visible on the published page (which shows only the 4 Accommodation cards). Kept
+  per Auri ("Brite still an option, maybe I'll add them"). CONFIRM the codes still work for 2026
+  with the partners before publishing.
+- Wing People has no link on the page. Its `Visual` uses `Tjena_circle_2000x2000.png` (odd
+  filename, verify it is really their logo).
+- Missing codes left blank on purpose (Auri: fine if no code): AC Bella Sky, Matrikel1, Wing People.
+
+### Airtable seat / billing audit (workspace `wspUXPEi1gset4k0T`)
+From `Downloads/Invoice-3BD9F1F-0046.pdf`:
+- Plan = **NFP Monthly Pro** (nonprofit rate **$12/seat/month**, ~50% off standard Pro).
+- **56 billable seats · $672/month · ~$8,064/year.** Invoice total $712.69 includes mid-cycle
+  proration as seats grew 48 to 56 over May/June.
+- Active team is only **27** (from `/api/team`), so ~29 seats beyond the active team. Big trim room.
+
+**Billing model (for tomorrow):**
+- Billed **per person per workspace**, NOT per base. One person on 3 bases in the same workspace
+  = 1 seat. Different workspaces = separate seats. Keep bases in one workspace.
+- Billed roles = **Owner, Creator, Editor**. **Read-only + Commenter are free.** No free "edit" tier.
+- **Only Owner/Creator can invite people** (add paid seats). Editors cannot. Cost risk = anyone
+  with Creator, and almost everyone here is Creator. Downgrading non-admins to Editor does NOT
+  save money (both billed) but closes the add-a-seat hole. Only Read-only / Commenter / remove saves.
+- Downgrade to Read-only should drop the seat. VERIFY: change one person, watch the Billing seat
+  count go 56 to 55 (monthly plan gives a prorated credit).
+- **Volunteers**: keep them OFF billable seats. Use **Forms** (free, unlimited, create-only, no
+  account) for what they submit. Reserve Editor seats for the few who must edit existing records,
+  and timebox those to event week + remove after (post-event sweep).
+
+**Confirmed seats to REMOVE (do in the UI, API cannot manage collaborators):**
+- Tansu Kjerimi `tkj@techbbq.org` (Archive; access points at a 2024 base)
+- Allan Nielsen Hadzimahovic `alh@techbbq.org` (Archive)
+- Sandra Frandsen `sfr@techbbq.org` (left; staff record still under Operations, move her to Archive)
+- Andrei Ratcu duplicate `ratcuandrei3@gmail.com` (personal Gmail, he already has `anr@techbbq.org`),
+  also a security cleanup.
+- => ~4 seats ~= **$576/year**.
+- Note: a second Owner besides Auri exists, Sadia Beg `sab@techbbq.org`. Confirm intended.
+
+**Finding inactive volunteers on Pro (no Enterprise admin panel = no last-login report):**
+- Proxy = add `Last Modified By` + `Last Modified Time` fields to main tables, group a view by
+  modifier => shows each person's last footprint. No footprint = dormant seat.
+- "Last Modified by **Anonymous**" = change by a non-account source (Form submission, editable
+  share link, automation / API, or a since-removed collaborator). Never a billable seat, ignore it
+  for the activity audit. If Anonymous edits are NOT from forms/automations, check for an open
+  "anyone with link can edit" share.
+- Simplest path: trim / downgrade volunteers to free, restore edit access on request.
+
+### #TechBBCuties edit lock (RESOLVED)
+Auri could not edit the `#TechBBCuties` table despite being Owner. Not synced, not field-locked,
+a no-op API write succeeded (data is editable). Cause = a **locked view**. Fixed by creating a
+fresh Grid view.
+
+### Next (tomorrow)
+1. Decide remove vs downgrade for the ~29 extra seats. Start with the 4 confirmed removals (~$576/yr).
+2. Get the **Members list with last activity** (or add the Last Modified fields) to find the silent
+   inactive seats. I will reconcile against the active-27.
+3. Confirm Donkey Republic + Lime 2026 codes with the partners before those offers go public.
+4. Re-pull staff whose `Active Team Member` box is unchecked (not just Archive), likely more hidden
+   leavers. Sandra proved the unchecked-box signal is real.
+5. Set up volunteer intake **Forms** so future volunteers do not consume seats. Add a post-event
+   seat sweep to the calendar.
+
+## Session 2026-07-08 (Prints 2026 board + day wrap-up)
+
+**`Prints 2026` table (`tbluSfDoEXnvOquvE`, view `viwds5x6kwU2Mg1hP`) made project-based.** Mirror of
+the Deadlines board approach. Added: **`Project`** single-select (same 15 projects + colors as the
+Deadlines board), plus a date `Deadline`. NOTE Auri then edited the table live in the UI: renamed
+the primary to **`Name of the Print`**, deleted the `Details` field I added and the `Attachment
+Summary` aiText field, and added a **`Size`** multiline field for dimensions. Current fields:
+`Name of the Print` (primary) · `Status` (Todo/In progress/Done) · `Attachments` · `Notes` · `Size` ·
+`Deadline` · `Project` · `Assignee`. Group the view by `Project`.
+- First print item added: **Startup Capital Roll-up Banner** (Project = Startup Capital, Size =
+  "Roll-up banner, 85 x 200 cm", Status = Todo). Auri adds the print file to `Attachments`.
+- Workflow going forward: Auri sends project + type + dimensions, I create the row + name it.
+
+**MISTAKE + fix (important lesson):** I reused a record ID from an earlier fetch (when rows were
+empty) and PATCHed it — but Auri had filled that row in the UI meanwhile, so I overwrote real data.
+Auri restored it via Airtable cell revision history. **RULE: never reuse a stale record ID and never
+overwrite existing rows in a table the user is actively editing. Always create a NEW row, and
+re-fetch current state right before any write.**
+
+---
+
+### State of play for tomorrow (both Airtable boards, all UI-only steps left for Auri)
+
+**Deadlines board (`tblKdmTuZRcCFMGjK`)** — DONE: 26 rows, one per deadline, across 15 projects.
+Fields: `Project Name` (primary text) · `Project` (colored) · `Department` (colored, ownership) ·
+`Deadline type` (select) · `Date` · `Days left`+`Flag` (auto) · `Lead` (linked to #TechBBCuties) ·
+`Contact` (from page) · `Details` · `Page`. Leads set from page contacts on 22 rows.
+Left for Auri (UI only — API can't do these):
+- Group by `Department` → `Project`, sort by `Date`.
+- Hide leftover fields: `Notes` (dup of Details), `Assignee` (use Lead), `Open date` (dup of Date),
+  `Attachments` (empty). Optional: clear the 4 stray `Open date` values first (offered, not done).
+- Assign `Lead` on the 3 blank projects: Startup Capital, Event Day Volunteers, TechBBQ Summit.
+- OPTIONAL: to make the primary show the deadline type, edit the primary field → type Formula →
+  `{Deadline type}` (API can't change field TYPE, only the UI can). Single-selects can't be primary.
+- Re-run the site crawl each season (several source pages still showed 2025 dates).
+
+**Prints 2026 board** — structure ready, 1 item in, Auri fills the rest.
+
+**Team feed (`feature/team-feed`, unmerged)** — still needs: commit → review diff → merge to main;
+confirm `ALLOWED_ORIGIN` on Vercel; paste `/team` embed into About Us. (See 2026-07-08 team entry.)
+
+## Session 2026-07-08 (Brella) · Partners → Brella sponsors CSV
+
+**Goal (Auri):** use the Airtable token to pull partner **name + tier + logo** and populate the
+**Brella TechBBQ 2026 Sponsors page.** An external company reads the Brella API to render partners
+on techbbq.dk; TechBBQ's job is getting the partners INTO Brella first.
+
+**Key decision — it's two systems, two auths.** The Airtable token only READS Airtable. You cannot
+write to Brella with it. Brella's write side: there is **no "Create Sponsor" API/Zapier action**
+(Zapier only exposes Create Speaker/Invite; "New Sponsor Created" is a read-only trigger). So the
+realistic path = **Brella admin → Import/Export Sponsor Profiles & Booths → CSV import.** Chosen
+with Auri: **CSV import**, gate = **Status 2026 = Confirmed only**.
+
+**Built:** `scripts/partners-to-brella-csv.mjs` → writes `scripts/out/partners-brella.csv`.
+Reads `Partners 2026` (`tbl9V6ZtxEbR4uELC`) view **"Partners on Brella"**, keeps Status 2026 =
+Confirmed, outputs columns `Company Name, Category(=Partnership Tier), Website, Logo URL`. Marketing-
+safe allow-list (only those fields requested — deal/VAT/contacts never touched). Re-run anytime:
+`node scripts/partners-to-brella-csv.mjs`. **Result: 47 confirmed partners, Name + Tier clean.**
+Tiers: Challenger 17, Core 9, Pioneer 8, Main 8, Conqueror 4, Prime 1.
+
+**Hard finding — logos are NOT usable from Airtable.** 0/47 confirmed have a usable logo. The
+`Partner logo (from Partner logo (from Partner logo))` lookup returns the string `"0"` (broken) for
+~30; 3 have `.zip` brand-asset bundles (not images); the rest blank. Airtable attachment URLs
+(`v5.airtableusercontent.com`) also expire. Website is filled on only 2/47; LinkedIn/FB ~0. So the
+CSV is effectively **name + tier**. Logos + socials must come from elsewhere.
+
+**Source ambiguity to resolve:** Auri said "Partner Deliverables 2026", which is a REAL view
+(`viw7FVbsTb9IRaWF0`) but on **`Marketing Project Overview`** (`tblTecOBecLQCNIeD`) — and per the
+2026-07-07 note those rows are raw web-form submissions with almost no fields / no tier. The clean
+tier+status data used here is the **`Partners 2026` CRM, view "Partners on Brella"**. Confirm which
+source is the intended one before relying on the CSV.
+
+**Next steps:**
+1. **Confirm source view** — `Partners on Brella` (used, has tier) vs the `Marketing Project
+   Overview` "Partner Deliverables 2026" view Auri named (no tier). One-line repoint in the script.
+2. **In Brella:** create sponsorship **Categories** matching the tiers (Prime, Main, Core, Pioneer,
+   Conqueror, Challenger) — Category is mandatory on import and must pre-exist.
+3. **Import** `scripts/out/partners-brella.csv` via Import/Export Sponsor Profiles & Booths; map
+   `Company Name`→Name, `Category`→category. Save as CSV (Comma Delimited) UTF-8, NOT MS-DOS.
+4. **Logos:** marketing uploads 200×200 PNG/JPG per sponsor in Brella, OR enable Brella's **sponsor
+   portal** so each partner self-uploads (recommended — offloads it). Airtable can't supply them.
+5. Re-run the script as more partners flip to Confirmed to refresh the CSV.
+6. **If full automation wanted later:** email Brella's integration team to confirm whether their
+   REST API exposes sponsor create + get an API key + event ID; if yes, swap the CSV output for a
+   direct push using the same mapping.
+
+**Gotchas:**
+- Airtable token **cannot write to Brella** — Brella needs its own credentials. Populating = CSV
+  import (manual) unless Brella confirms an API sponsor-write.
+- `source .env.local` in bash breaks on line 7 (`AIRTABLE_GATE_FIELD=On Website?` unquoted → shell
+  parses `Website?`). The `.mjs` parses env itself, so run the script with `node`, not via sourcing.
+- CSV is written with UTF-8 BOM + CRLF so Brella/Excel read `ø`/`ö` correctly.
+- Two tier columns in `Partners 2026`: `Partnership Tier` (FORMULA, populated for all) vs `Tier`
+  (manual single-select, blank for everyone). Always use `Partnership Tier`.
+
+## Session 2026-07-08 · Team directory reconciled + new /api/team feed
+
+**Reconciled `#TechBBCuties` (`tbldWne3PnvebIwif`, view `viwqFe9nMJGgytsRP`) against techbbq.dk/about-us.**
+Source of truth = the public About Us page (27 people). Applied via Airtable REST (token has
+records read+write, but NOT delete — see gotcha):
+- Updated 6 stale titles (Benjamin +CIO, Thomas = Chief Projects and Strategy Officer, Maria
+  Krupa = Growth & Data Scientist, Mette = Senior Event Manager, Roxy expanded, Jean-Jacques =
+  Head of Partnerships). Fixed Mikael Hansen typo. Reactivated Jean-Jacques + Alixe (Alixe
+  retitled to plain "Project Manager" per Auri).
+- Added 8 new hires (Jutta Ruusunen CXO, Alev Burcin Aydin Jensen HR Manager, Maria Novytska,
+  David Cabezon Egurrola, Mischa Dannerup Marais, Andrei Ratcu, Marie-Louise Nielsen, Sanne
+  Gjedsted Sørensen) with name/title/email/photo/LinkedIn/department.
+- Created a new **`LinkedIn`** URL field (`fldU5kG56RiVOFXem`); populated all 27 current people
+  (URLs scraped off the About Us page via claude-in-chrome).
+- **Replaced every current person's `Picture`** with their website headshot (all 27, verified
+  ingested). Photos scraped as Elementor CSS-background URLs (`data-photo` tagging trick).
+
+**Built the `/api/team` connector feed** (branch `feature/team-feed`, NOT merged). 4-file recipe:
+- `lib/team.ts` — allow-list Name/Title/LinkedIn/Picture/Department ONLY (no email/phone/notes).
+  Gate = `AND(Active=TRUE, NOT(FIND('Archive', ARRAYJOIN({Department}))))` — robust even while
+  archived rows are still ticked Active. Optional `?department=` filter.
+- `app/api/team/route.ts` — CORS + rate-limit + 1h cache, like the other feeds.
+- `app/team/page.tsx` — dashboard w/ department filter tabs + CopyEmbed (bg-landscape-3).
+- `TopNav` "Team" link; `embedSnippet` listKey union gained `"team"`.
+- Verified: tsc clean, `/api/team` = 27, dept filter works, JSON has no PII keys, `/team` = 200.
+
+**Decisions made w/ Auri:** feed exposes NO email (website shows it, but keep it out of a
+machine-readable feed); gate = Active AND not-Archived.
+
+**NOT done / next steps:**
+1. Commit `feature/team-feed` → Auri reviews diff → merge to `main` (auto-deploys). Set/confirm
+   `ALLOWED_ORIGIN=https://techbbq.dk` on Vercel. Copy `/team` embed into the About Us widget.
+2. 16 people are `Department=Archive` but still ticked `Active` — untick to clean the table
+   (feed already excludes them via the Archive guard). List captured this session.
+3. New hires have no `Direct Report` (reporting lines) — needs managers from Auri.
+4. 7 empty rows (1 fully empty + 6 department-only, blank Name) to delete — BLOCKED, see gotcha.
+   Record ids: recCiVI7fTUhqhJF8, recun7VB0eFFoszOj, recUdIqY3yXruLdWo, rec62xJQqrtCVrfHF,
+   recO8P8Qn2z0iL0qO, recSz3PqVqSImWBTj, rec44smW3zBaKmfuk. Plus 1 "IF big setup happens" note row.
+
+**Gotchas:**
+- **The Airtable token CANNOT delete records** (PATCH/POST work, DELETE → 403 INVALID_PERMISSIONS).
+  Deletions must be done in the UI or the token/collaborator perms fixed.
+- `Department` "Archive" is the existing convention for people who left; everyone off the public
+  site already has it. Sandra Frandsen is the one exception (dept Operations, Active=False).
+- Shell heredocs mangle `ø` — patch Sørensen by record id (`reco96rkUBbKnp8cw`), not by name match.
+
+## Session 2026-07-08 (later) · Deadlines board set up
+
+Built out the empty **`Deadlines`** table (`tblKdmTuZRcCFMGjK`, view `viw1eb9ExvXwvZv5t`
+"Deadlines of projects and applications") into a project-deadline board per Auri's spec:
+project name, lead, status, open date, close date, specific deadlines, associated page.
+- Renamed `Date` -> **`Close date`** (formulas auto-follow by field id).
+- Added fields: **Open date** (date), **Lead** (link to `#TechBBCuties`), **Specific deadlines**
+  (multiline), **Page** (url).
+- Added auto formulas: **Days left** = `DATETIME_DIFF({Close date},TODAY(),'days')`; **Flag** =
+  Open / Closing soon (<=14d) / Expired.
+- COULD NOT via API (token quirk): edit the `Status` single-select choices (rename + field-create
+  work, but PATCHing select `choices` 422s every variant). Add `Open/Closing soon/Submitted/Won/
+  Rejected` in the UI if wanted — the auto `Flag` already covers at-a-glance status. Also views
+  can't be sorted/grouped via API (known limit) — do the date sort in the UI.
+- **No data seeded from the base.** The base has NO current deadline data. Checked Projects &
+  Fundraising (81 rows, all dated rows 2022-2025 / expired), Tasks (42 dated, 0 future), Marketing
+  Project Overview (42 dated, 0 future). Held off dumping expired rows.
+- **Seeded from techbbq.dk instead.** Crawled the site (WAF blocks curl -> use WebFetch; sitemap
+  index at /wp-sitemap.xml). Fanned out 4 parallel agents over ~30 project/program/summit pages to
+  extract real dates. Wrote **15 rows** (A: 6 application cycles + B: 9 dated 2026 events). Skipped
+  stale prior-year pages (North Star 2025, Tech Talent 2025, Hardware 2023, Green Startups 2022,
+  Board Summit/Policy Lounge/Side Events 2025) and no-date pages (Nordic 100, UrbanTech, Bridging
+  the Gap, Founder Wellbeing, Social Impact, Impact Series, Register). Flag/Days left compute right
+  (4 application cycles Expired, the Aug 25-27 summit cluster Open ~48d out).
+- Lead left blank on all rows (Auri assigns). Next: assign Leads; refresh when 2026 pages update
+  (several pitch pages still showed 2025 cycle info). Re-run the crawl each season to refresh.
+- **Restructured to one-row-per-deadline (2026-07-08).** Primary field `Name` -> `Project Name`.
+  `Close date` -> `Date`; `Specific deadlines` -> `Details`. Added `Deadline type` single-select
+  (Applications open / Application deadline / Submission deadline / Announcement / Final pitch /
+  Event / Other) — NOTE creating a NEW select w/ choices works via API; only EDITING an existing
+  select's choices 422s. Exploded the 15 project rows into **26 rows**: multi-deadline projects
+  (Life Science Pitch, Deep Tech Pitch, Startup Showcase, Hero, Volunteers) now have one row per
+  milestone, each with its own Date + auto Flag/Days left; the 9 summits stay single Event rows.
+  Approx dates (e.g. "end of June") stored as month-end with an "Approx" note in Details.
+  UI-only left: group the view by `Project Name` + sort by Date (API can't edit views); hide the
+  now-unused `Open date` and legacy `Assignee` columns.
+- **Added colored `Project` + `Department` single-selects (2026-07-08).** Primary field can't be a
+  select in Airtable, so `Project` (15 colored options) is a separate field for grouping/coloring.
+  `Department` (8 dept options + auto-created "All departments") maps who owns each project:
+  Program = Showcase/LS Pitch/Deep Tech Pitch/Hero/LS x Deep Tech; Partnerships = Family Office/
+  Pension & Insurance/Investor Day/LP Forum/Startup Capital; Projects = Future of Fintech/Nordic
+  India/Nordic-Africa; Event = Volunteers; All departments = TechBBQ Summit. Group by Department ->
+  Project in UI. GOTCHA: setting a record's single-select to a NEW value with typecast:true
+  auto-creates the option — the workaround for not being able to PATCH select choices directly.
+- **Contact + Lead filled (2026-07-08).** Scanned each project page (3 agents) for the "who to
+  contact" info -> new `Contact` text field, filled per project. Every contact is a real team
+  member, so also set `Lead` (link to #TechBBCuties) from them: Jan Thordsen+Alixe Averty (LS/Deep
+  Tech/LS x Deep Tech), Charles Kinga (Hero, Nordic-Africa), Marie-Louise Nielsen (Showcase), Rares
+  Bagyo (Family Office/Pension&Insurance/Investor Day/LP Forum), Shri Harsha (Future of Fintech,
+  Nordic India). Blank Lead: Startup Capital, Volunteers, Summit (no named page contact). Decided
+  to use `Lead` (link, richer) over legacy `Assignee` (collaborator) — hide Assignee in UI.
+  Used record IDs (not name+typecast) for links to avoid accidentally creating stray team rows.
+
 ## Session 2026-07-07 · Speaker sync (Supabase Hub -> Airtable)
 
 **Re-ran the snapshot: Airtable 109 -> 115.** The Airtable "TechBBQ Summit" rows are a
@@ -26,11 +321,16 @@ Rui Eduardo). Airtable now 115; Supabase 114 (one Airtable name isn't in the Hub
   cron can't). Needs GitHub secrets `SYNC_URL` + `CRON_SECRET`. Has `workflow_dispatch` for manual runs.
 - `.env.example` updated (CRON_SECRET added; stale NISS gate vars replaced with the real NISS 2026 table/view).
 
-**NOT LIVE YET — remaining manual steps (Auri):**
-1. Add `CRON_SECRET` to Vercel env (value is in local `.env.local`). Token also needs `data.records:write`.
-2. Branch + push (repo auto-deploys from main; don't edit main directly — WORKFLOW r1). Merge to deploy.
-3. GitHub repo secrets: `SYNC_URL=https://airtable-woad.vercel.app/api/sync-speakers` + `CRON_SECRET` (same value).
-4. Then run the Actions workflow once manually (Actions tab -> Run workflow) to confirm.
+**LIVE as of 2026-07-14.** Sync confirmed working (HTTP 200, ok:true, 128 hub / added 15).
+Both schedulers now succeed: GitHub Actions every-3h pinger + Vercel daily cron backstop.
+1. ~~Add `CRON_SECRET` to Vercel env~~ DONE — added to Production + Preview (matches `.env.local`), then redeployed prod so it takes effect.
+2. ~~Branch + push / deploy~~ DONE — production redeployed via `vercel --prod`.
+3. ~~GitHub repo secrets~~ DONE — `SYNC_URL=https://airtable-woad.vercel.app/api/sync-speakers` + `CRON_SECRET` (same value) set via `gh secret set`.
+4. ~~Run workflow once to confirm~~ DONE — manual `workflow_dispatch` returned 200.
+
+Root cause of the recurring failure emails: both GitHub secrets were never set (blank -> curl exit 3),
+and even after that `CRON_SECRET` was missing from Vercel entirely, so the route failed closed with 401.
+The daily Vercel cron had been failing the same silent 401 the whole time.
 
 **Base-structure notes (from a Tier question, read-only — nothing wired to the connector):**
 - The write target `Marketing Project Overview` (`tblTecOBecLQCNIeD`) also holds partner marketing
