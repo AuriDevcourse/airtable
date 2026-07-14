@@ -34,8 +34,10 @@ dashboard and two missing full-timers to `#TechBBCuties`.
   `fetchTeam(dept, includeEmail=true)` only requests Email on that gated path. Internal page
   `/internal/team` uses a plain fetch (no localStorage) so emails never persist on disk.
   Creds: user `techbbq`, pass in `.env.local` (+ Vercel Prod/Preview). NOT the same as the public site.
-- `/team/departments` now has a department filter (click a dept tab to show only that group; "All"
-  shows every group). Cards intentionally omit the department chip (redundant under the heading).
+- **Nav has ONE "Team" tab → `/internal/team`** (the gated email view: grouped by department,
+  filter tabs, email+LinkedIn in cards). Redundant public `/team/departments` page was DELETED.
+  `/team` (Elementor CopyEmbed helper) + `/api/team` still exist for the website feed but are
+  off-nav. Public site auto-updates via the API; the visible Team tab is the internal dashboard.
 
 ### Gotchas
 - New `#TechBBCuties` rows need `Active Team Member`=true or they never appear in `/api/team`
