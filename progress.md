@@ -4,6 +4,46 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-14 (sync fix live + team-by-department view + staff adds)
+
+### State
+Speaker sync is LIVE (see earlier session note below). Added a department-grouped team
+dashboard and two missing full-timers to `#TechBBCuties`.
+
+### What was just done
+- **Team-by-department page**: new `app/team/departments/page.tsx` (route `/team/departments`),
+  linked in `components/TopNav.tsx` as "Team by dept". Reuses `/api/team` (same safe allow-list,
+  no email/phone) and groups current members under department headings with per-dept counts.
+  The original `/team` page (Elementor embed) is untouched. Verified locally: 29 members, 200 OK.
+- **Staff adds to `#TechBBCuties`** (`tbldWne3PnvebIwif`): created Sille Hassert (Senior
+  Partnerships Manager, Partnerships) + Charlotte Esmann (Head of Partnership Success,
+  Partnerships), both `Active Team Member`=true. Both now show in the feed.
+
+### Next steps
+1. Divya Thangadurai = volunteer, NOT added (Auri confirmed). Iñigo still Archive-but-active-in-Slack.
+2. Minor: Jean-Jacques title drift (base "Head of Partnerships" vs Slack "Senior Partnerships Manager").
+3. Sille + Charlotte now have LinkedIn + Email + Photo in Airtable (Auri filled the rest).
+4. Commit `/team/departments` + TopNav (branch + merge to main, auto-deploys) if wanted in prod.
+
+### Decisions
+- **Emails stay OFF the public feed.** `/api/team` is public and powers techbbq.dk "Our Team", so
+  publishing staff emails = scraper/spam bait + GDPR minimization breach. Public cards show
+  name/title/photo/LinkedIn/department only. Emails live in Airtable for internal use. Do NOT add
+  `Email` to `SAFE_FIELDS` in `lib/team.ts`.
+- `/team/departments` now has a department filter (click a dept tab to show only that group; "All"
+  shows every group). Cards intentionally omit the department chip (redundant under the heading).
+
+### Gotchas
+- New `#TechBBCuties` rows need `Active Team Member`=true or they never appear in `/api/team`
+  (the gate is `AND({Active Team Member}=TRUE(), NOT(FIND('Archive',ARRAYJOIN({Department}))))`).
+- Server cache TTL is 1h (`lib/rate-limit.ts`), so Airtable edits lag up to an hour on the live
+  site. In dev, restart `next dev` to clear it immediately.
+- The Slack "dreamteam" channel (64) is mostly volunteers; only current staff live in `#TechBBCuties`.
+
+### Files
+- `app/team/departments/page.tsx` (new, now with dept filter) · `components/TopNav.tsx` ·
+  `lib/team.ts` (unchanged, reused, email deliberately excluded).
+
 ## Session 2026-07-09b (Partners->Brella CSV re-run + staff title updates)
 
 ### Partners 2026 -> Brella CSV (re-ran `scripts/partners-to-brella-csv.mjs`)
