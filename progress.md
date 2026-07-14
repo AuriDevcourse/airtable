@@ -26,10 +26,14 @@ dashboard and two missing full-timers to `#TechBBCuties`.
 4. Commit `/team/departments` + TopNav (branch + merge to main, auto-deploys) if wanted in prod.
 
 ### Decisions
-- **Emails stay OFF the public feed.** `/api/team` is public and powers techbbq.dk "Our Team", so
-  publishing staff emails = scraper/spam bait + GDPR minimization breach. Public cards show
-  name/title/photo/LinkedIn/department only. Emails live in Airtable for internal use. Do NOT add
-  `Email` to `SAFE_FIELDS` in `lib/team.ts`.
+- **Emails stay OFF the public feed.** `/api/team` + `/team*` are public (power techbbq.dk "Our
+  Team"), so they show name/title/photo/LinkedIn/department only. Do NOT add `Email` to
+  `SAFE_FIELDS`.
+- **Emails ARE shown on a separate INTERNAL view**, gated by Basic auth. `middleware.ts` protects
+  `/internal/*` + `/api/internal/*` (fails closed if `INTERNAL_USER`/`INTERNAL_PASS` unset).
+  `fetchTeam(dept, includeEmail=true)` only requests Email on that gated path. Internal page
+  `/internal/team` uses a plain fetch (no localStorage) so emails never persist on disk.
+  Creds: user `techbbq`, pass in `.env.local` (+ Vercel Prod/Preview). NOT the same as the public site.
 - `/team/departments` now has a department filter (click a dept tab to show only that group; "All"
   shows every group). Cards intentionally omit the department chip (redundant under the heading).
 

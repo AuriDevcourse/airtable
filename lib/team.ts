@@ -37,6 +37,7 @@ export type TeamMember = {
   photo: string | null;
   linkedin: string | null;
   department: string;
+  email?: string | null; // ONLY populated for the internal, auth-gated feed. Never public.
 };
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
@@ -56,10 +57,10 @@ function firstDept(v: unknown): string {
   return Array.isArray(v) && v.length ? String(v[0]) : "";
 }
 
-function mapRecord(rec: AirtableRecord): TeamMember {
+function mapRecord(rec: AirtableRecord, includeEmail: boolean): TeamMember {
   const f = rec.fields;
   const link = str(f["LinkedIn"]);
-  return {
+  const member: TeamMember = {
     id: rec.id,
     name: str(f["Name"]),
     title: str(f["Title"]),
@@ -67,6 +68,8 @@ function mapRecord(rec: AirtableRecord): TeamMember {
     linkedin: link.startsWith("http") ? link : null,
     department: firstDept(f["Department"]),
   };
+  if (includeEmail) member.email = str(f["Email"]) || null;
+  return member;
 }
 
 export class TeamError extends Error {
@@ -81,7 +84,12 @@ function esc(v: string): string {
   return v.replace(/'/g, "\\'");
 }
 
-export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]> {
+// includeEmail is ONLY passed by the auth-gated internal route. The public route never sets it,
+// so Email is never even requested from Airtable on the public path.
+export async function fetchTeam(
+  departmentFilter?: string,
+  includeEmail = false
+): Promise<TeamMember[]> {
   if (!TOKEN || !BASE_ID) {
     throw new TeamError("Airtable env vars are not set on the server.", 503);
   }
@@ -101,7 +109,8 @@ export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]
       : gate;
     params.set("filterByFormula", formula);
     params.set("pageSize", "100");
-    for (const field of SAFE_FIELDS) params.append("fields[]", field);
+    const fields = includeEmail ? [...SAFE_FIELDS, "Email"] : SAFE_FIELDS;
+    for (const field of fields) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
     const res = await fetchWithTimeout(`${API}/${BASE_ID}/${TABLE}?${params.toString()}`, {
@@ -117,7 +126,7 @@ export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]
 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
-      const m = mapRecord(rec);
+      const m = mapRecord(rec, includeEmail);
       if (m.name) members.push(m); // skip blank rows
     }
     offset = data.offset;
