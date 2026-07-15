@@ -4,6 +4,37 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-15 (speaker detail modal on /speakers-2026)
+
+### State
+Speakers 2026 page now opens a detail pop-up on click instead of jumping straight to
+LinkedIn. Working + verified locally (dev on :3001, port 3000 was taken). Not committed.
+
+### What was just done
+- **Click-to-open speaker modal** on `/speakers-2026` (`app/speakers-2026/page.tsx`). New local
+  `SpeakerModal` component shows photo · name · `title · company` · bio · a "View LinkedIn
+  profile" button. Desktop cards and mobile rows are now `<button>`s that set `selected`
+  state (were `<a href={linkedin}>`). LinkedIn moved from the whole card into the modal.
+- **Modal styles** appended to `app/globals.css` (`.modal*`, `.s-card__button`, `.row__button`),
+  matching the dark/fire tokens.
+- A11y: `role="dialog"` + `aria-modal` + `aria-labelledby`, focus lands on close button, Escape /
+  backdrop / X close, body scroll lock, focus rings, honors `prefers-reduced-motion`.
+- Verified: `/speakers-2026` compiled 200, `/api/speakers-2026` returns 140 speakers with bio +
+  photo + linkedin. Opened modal (Adrian De Gendt) in browser, all 5 fields render; X closes it
+  (DOM check: `modalOpen:false`, 20 `.s-card__button`, no `.s-card a`).
+
+### Next steps
+1. Decide whether to clamp bio to a "short" cap (3-line fade). Currently shows full bio.
+2. Optional: apply the same modal to `/speakers` (Airtable feed, also has `bio`), `/life-science`,
+   `/niss`. Those still use click-to-LinkedIn.
+3. Commit if wanted (branch + merge to main; auto-deploys). Nothing committed this session.
+
+### Gotchas
+- Data for `/speakers-2026` is Supabase Speaker Hub, NOT Airtable (bio = `biography`). The Airtable
+  `/api/speakers` feed maps bio from `Text for website` → `Speaker Bio` → `Bio`.
+- The Chrome extension renderer was very flaky this session (screenshots timing out); used
+  `javascript_tool` DOM checks as a fallback to confirm behavior.
+
 ## Session 2026-07-14 (sync fix live + team-by-department view + staff adds)
 
 ### State

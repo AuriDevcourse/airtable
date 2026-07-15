@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
@@ -46,6 +46,111 @@ type Speaker = {
   role: string;
 };
 
+// Detail pop-up: photo, name, title · company, short bio and a LinkedIn link.
+// Opens when a card/row is clicked. Closes on Escape, backdrop click or the X.
+function SpeakerModal({
+  speaker,
+  onClose,
+}: {
+  speaker: Speaker;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  const meta = speaker.title + (speaker.company ? ` · ${speaker.company}` : "");
+
+  return (
+    <div className="modal" role="presentation" onMouseDown={onClose}>
+      <div
+        className="modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="speaker-modal-name"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          ref={closeRef}
+          type="button"
+          className="modal__close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+
+        <div className="modal__media">
+          {speaker.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={speaker.photo} alt={speaker.name} />
+          ) : (
+            <div className="s-card__img--empty" />
+          )}
+        </div>
+
+        <div className="modal__body">
+          <h2 id="speaker-modal-name" className="modal__name">
+            {speaker.name}
+          </h2>
+          {meta && <p className="modal__meta">{meta}</p>}
+          {speaker.bio ? (
+            <p className="modal__bio">{speaker.bio}</p>
+          ) : (
+            <p className="modal__bio modal__bio--empty">
+              No description available yet.
+            </p>
+          )}
+          {speaker.linkedin && (
+            <a
+              className="modal__linkedin"
+              href={speaker.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14zM8.34 18.34V9.9H5.67v8.44h2.67zM7 8.5a1.55 1.55 0 1 0 0-3.1 1.55 1.55 0 0 0 0 3.1zm11.34 9.84v-4.63c0-2.48-1.32-3.63-3.09-3.63-1.42 0-2.06.78-2.42 1.33V9.9h-2.67v8.44h2.67v-4.47c0-.24.02-.47.09-.64.19-.47.62-.96 1.34-.96.95 0 1.32.72 1.32 1.77v4.3h2.67z" />
+              </svg>
+              View LinkedIn profile
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Speakers2026() {
   const { data, loading, revalidating, error, updated } = useCachedList<Speaker>(
     "speakers-2026",
@@ -56,6 +161,7 @@ export default function Speakers2026() {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showTop, setShowTop] = useState(false);
+  const [selected, setSelected] = useState<Speaker | null>(null);
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 600);
@@ -167,13 +273,14 @@ export default function Speakers2026() {
                     );
                     return (
                       <article key={s.id} className="s-card">
-                        {s.linkedin ? (
-                          <a href={s.linkedin} target="_blank" rel="noopener noreferrer">
-                            {card}
-                          </a>
-                        ) : (
-                          card
-                        )}
+                        <button
+                          type="button"
+                          className="s-card__button"
+                          onClick={() => setSelected(s)}
+                          aria-haspopup="dialog"
+                        >
+                          {card}
+                        </button>
                       </article>
                     );
                   })}
@@ -204,13 +311,14 @@ export default function Speakers2026() {
                     );
                     return (
                       <li key={s.id} className="row">
-                        {s.linkedin ? (
-                          <a href={s.linkedin} target="_blank" rel="noopener noreferrer">
-                            {inner}
-                          </a>
-                        ) : (
-                          <div className="row__link">{inner}</div>
-                        )}
+                        <button
+                          type="button"
+                          className="row__link row__button"
+                          onClick={() => setSelected(s)}
+                          aria-haspopup="dialog"
+                        >
+                          {inner}
+                        </button>
                       </li>
                     );
                   })}
@@ -232,6 +340,10 @@ export default function Speakers2026() {
           </>
         )}
       </div>
+
+      {selected && (
+        <SpeakerModal speaker={selected} onClose={() => setSelected(null)} />
+      )}
 
       {showTop && (
         <button
