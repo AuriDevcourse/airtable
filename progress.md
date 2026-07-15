@@ -22,12 +22,17 @@ LinkedIn. Working + verified locally (dev on :3001, port 3000 was taken). Not co
 - Verified: `/speakers-2026` compiled 200, `/api/speakers-2026` returns 140 speakers with bio +
   photo + linkedin. Opened modal (Adrian De Gendt) in browser, all 5 fields render; X closes it
   (DOM check: `modalOpen:false`, 20 `.s-card__button`, no `.s-card a`).
+- **Added CopyEmbed** to `/speakers-2026` hero (`path="/api/speakers-2026" listKey="speakers"`),
+  matching /team, /life-science, /niss, /niss-2025. It was the only feed page missing one. Verified
+  `.copy-embed` renders. NOTE: the embed snippet renders its own cards and does NOT include the new
+  modal, so the pop-up shows on the Vercel page only, not on the techbbq.dk embed yet.
 
 ### Next steps
 1. Decide whether to clamp bio to a "short" cap (3-line fade). Currently shows full bio.
 2. Optional: apply the same modal to `/speakers` (Airtable feed, also has `bio`), `/life-science`,
    `/niss`. Those still use click-to-LinkedIn.
-3. Commit if wanted (branch + merge to main; auto-deploys). Nothing committed this session.
+3. To get the pop-up on the REAL techbbq.dk embed, add modal logic to `lib/embedSnippet.ts`
+   (the vanilla-JS snippet). The React modal alone does not reach the embedded site.
 
 ### Gotchas
 - Data for `/speakers-2026` is Supabase Speaker Hub, NOT Airtable (bio = `biography`). The Airtable

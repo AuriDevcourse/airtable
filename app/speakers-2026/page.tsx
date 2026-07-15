@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { CopyEmbed } from "@/components/CopyEmbed";
 import { useCachedList } from "@/lib/useCachedList";
 
 const PAGE_SIZE = 20;
@@ -195,6 +196,13 @@ export default function Speakers2026() {
             Live from the Speaker Hub · public directory profiles only (RLS-gated) ·
             served as JSON at <code>/api/speakers-2026</code>.
           </p>
+
+          <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <CopyEmbed path="/api/speakers-2026" listKey="speakers" />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Copies an Elementor snippet for this speaker grid.
+            </span>
+          </div>
         </div>
       </section>
 
