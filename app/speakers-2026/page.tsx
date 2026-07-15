@@ -198,7 +198,7 @@ export default function Speakers2026() {
           </p>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/speakers-2026" listKey="speakers" />
+            <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
             </span>

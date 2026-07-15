@@ -22,17 +22,25 @@ LinkedIn. Working + verified locally (dev on :3001, port 3000 was taken). Not co
 - Verified: `/speakers-2026` compiled 200, `/api/speakers-2026` returns 140 speakers with bio +
   photo + linkedin. Opened modal (Adrian De Gendt) in browser, all 5 fields render; X closes it
   (DOM check: `modalOpen:false`, 20 `.s-card__button`, no `.s-card a`).
-- **Added CopyEmbed** to `/speakers-2026` hero (`path="/api/speakers-2026" listKey="speakers"`),
-  matching /team, /life-science, /niss, /niss-2025. It was the only feed page missing one. Verified
-  `.copy-embed` renders. NOTE: the embed snippet renders its own cards and does NOT include the new
-  modal, so the pop-up shows on the Vercel page only, not on the techbbq.dk embed yet.
+- **Added CopyEmbed** to `/speakers-2026` hero, matching the other feed pages. It was the only
+  feed page missing one.
+- **Modal in the embed snippet** (`lib/embedSnippet.ts`): new opt-in `modal?: boolean` on
+  `EmbedOptions`. When true, the generated vanilla-JS cards open a detail pop-up (photo · name ·
+  `title · company` · bio · LinkedIn button) instead of linking to LinkedIn. Event-delegated by
+  `data-i` index; Escape / backdrop / X close; body scroll lock; styles scoped under
+  `.tbbq-speakers` so they can't leak into WordPress. `CopyEmbed` now forwards `modal`; the 2026
+  page passes `modal`. Other embeds (team, niss, life-science) are unchanged (flag defaults off).
+  Verified end-to-end: generated the real snippet, ran it in the browser, click opens the pop-up
+  with all fields (Adrian De Gendt), X / Escape / backdrop all close, scroll lock restores.
 
 ### Next steps
 1. Decide whether to clamp bio to a "short" cap (3-line fade). Currently shows full bio.
 2. Optional: apply the same modal to `/speakers` (Airtable feed, also has `bio`), `/life-science`,
    `/niss`. Those still use click-to-LinkedIn.
-3. To get the pop-up on the REAL techbbq.dk embed, add modal logic to `lib/embedSnippet.ts`
-   (the vanilla-JS snippet). The React modal alone does not reach the embedded site.
+3. Embed pop-up is DONE (opt-in `modal` flag). Auri must RE-COPY the embed from the deployed
+   /speakers-2026 and re-paste on techbbq.dk — the previously pasted snippet won't self-update.
+4. If we ever want the pop-up on team/niss/life-science embeds, pass `modal` on their CopyEmbed
+   too (team has no bio, so it'd show "No description available yet.").
 
 ### Gotchas
 - Data for `/speakers-2026` is Supabase Speaker Hub, NOT Airtable (bio = `biography`). The Airtable
