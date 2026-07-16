@@ -4,6 +4,32 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-16 (NISS presenters ordered by Airtable Hierarchy)
+
+### State
+NISS 2026 presenters now render in a manual sequence set from Airtable instead of
+alphabetically. Working + verified locally (dev on :3001). Not committed. On `main`.
+
+### What was just done
+- **Hierarchy-based ordering** on the NISS feed (`lib/niss.ts`). The `Hierarchy ` number field
+  (note the trailing space, like `Position at Company `) now drives display order. Added it to
+  `SAFE_FIELDS`, mapped it onto `NissPerson.hierarchy` (blank/non-numeric → `Infinity`), and
+  changed the sort from name-only to `hierarchy asc, then name`. Was `people.sort(localeCompare)`.
+- Verified live: `/api/niss-speakers?role=Speaker` returns presenters in Hierarchy order 1→19;
+  `?role=all` interleaves all roles by number with alphabetical tiebreak.
+
+### Gotchas
+- Real field name is `Hierarchy ` **with a trailing space**. Don't "fix" it.
+- Each Role (Presenter/Moderator/Team) has its own 1..n sequence, so the tabs stay clean.
+- Airtable currently skips **13** (jumps 12→14) — harmless gap, renumber in Airtable if wanted.
+- **Jesper Ludolph** has no Hierarchy value → sorts last (alphabetical fallback). Set his number
+  in Airtable to place him.
+- Reordering is now pure Airtable: change the Hierarchy cell, refresh, no redeploy.
+
+### Next steps
+1. Auri to test in browser, then decide: commit on `main` or branch it.
+2. Optional: apply the same Hierarchy ordering to the 2025 NISS feed if that event needs it.
+
 ## Session 2026-07-15 (speaker detail modal on /speakers-2026)
 
 ### State

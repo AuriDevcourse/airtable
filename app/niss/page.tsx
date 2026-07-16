@@ -6,10 +6,19 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
+// Manual per-person crop overrides. Default card crop is object-position 50% 30% (see
+// globals.css). Some portraits sit too high/low in the square; nudge the vertical % here.
+// Lower Y = image pushed DOWN (more headroom shown); higher Y = pushed up. Keyed by the
+// exact "Full Name" from Airtable.
+const PHOTO_POSITION: Record<string, string> = {
+  "Dr Nikhil Agarwal": "50% 8%",
+};
+
 // Same per-image shimmer loader as the main Speakers page: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
 function SpeakerPhoto({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false);
+  const position = PHOTO_POSITION[alt.trim()];
   return (
     <div className={"s-card__media" + (loaded ? "" : " shimmer")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -18,6 +27,7 @@ function SpeakerPhoto({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         loading="lazy"
+        style={position ? { objectPosition: position } : undefined}
         onLoad={() => setLoaded(true)}
         onError={() => setLoaded(true)}
       />

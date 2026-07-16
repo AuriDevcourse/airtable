@@ -17,7 +17,8 @@ const TABLE = "tblfIPjV4t1c1628h"; // Nordic India Startup Summit (Registrants),
 // The curated grid is a specific view; membership in it is the publish gate.
 const VIEW = "viwRMZMX5NeN68XX7";
 
-// Note the trailing space in "Position at Company " — it's part of the real field name.
+// Note the trailing space in "Position at Company " and "Hierarchy " — it's part of the
+// real field name in Airtable, don't "fix" it.
 const SAFE_FIELDS = [
   "Full Name",
   "Company Name",
@@ -25,6 +26,7 @@ const SAFE_FIELDS = [
   "Role",
   "Linkedin/Social Profile link",
   "Self Portrait",
+  "Hierarchy ",
 ];
 
 export type NissPerson = {
@@ -36,6 +38,8 @@ export type NissPerson = {
   photo: string | null;
   linkedin: string | null;
   role: string;
+  // Manual display order set in Airtable ("Hierarchy ", 1..n). Blank rows sort last.
+  hierarchy: number;
 };
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
@@ -43,6 +47,11 @@ type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
 function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
+}
+
+// Empty/non-numeric hierarchy → Infinity so those rows fall to the end.
+function num(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : Infinity;
 }
 
 function firstPhoto(v: unknown): string | null {
@@ -64,6 +73,7 @@ function mapRecord(rec: AirtableRecord): NissPerson {
     // Field is free text, so only treat it as a link if it's an actual URL.
     linkedin: link.startsWith("http") ? link : null,
     role: str(f["Role"]),
+    hierarchy: num(f["Hierarchy "]),
   };
 }
 
@@ -114,6 +124,8 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
     offset = data.offset;
   } while (offset);
 
-  people.sort((a, b) => a.name.localeCompare(b.name));
+  // Order by the manual "Hierarchy" number (1..n); blanks fall last. Ties (and blank
+  // rows) break alphabetically so the sequence stays stable.
+  people.sort((a, b) => a.hierarchy - b.hierarchy || a.name.localeCompare(b.name));
   return people;
 }
