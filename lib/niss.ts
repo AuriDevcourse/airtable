@@ -27,6 +27,7 @@ const SAFE_FIELDS = [
   "Linkedin/Social Profile link",
   "Self Portrait",
   "Hierarchy ",
+  "Should be On Website",
 ];
 
 export type NissPerson = {
@@ -118,6 +119,9 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
+      // Explicit opt-out only: hide anyone marked "NO" on the website flag. Blank or "YES"
+      // both stay visible (most rows are blank), so this never hides someone by omission.
+      if (str(rec.fields["Should be On Website"]) === "NO") continue;
       const p = mapRecord(rec);
       if (p.name) people.push(p); // skip blank rows
     }

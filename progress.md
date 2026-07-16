@@ -4,6 +4,28 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-16c (NISS "Should be On Website" opt-out filter)
+
+### State
+NISS 2026 feed now hides anyone with the new Airtable single-select `Should be On Website` =
+`NO`. Verified: Rasmus Abildgaard Kristensen (the only NO) is gone; counts 25→24 all / 19→18
+presenters; the 23 blank rows still show. On `main`, needs push + deploy (data-level, so NO
+re-copy of the embed).
+
+### What was just done
+- `lib/niss.ts`: added `Should be On Website` to SAFE_FIELDS and skip any record whose value
+  is exactly `"NO"`. Blank OR `"YES"` both stay visible — deliberately opt-out-only, because
+  right now 0 rows are YES and 23 are blank, so a "show only YES" rule would hide everyone.
+
+### Gotchas
+- Field is single-select YES/NO; today only NO and blank exist, no YES. Don't flip the logic
+  to require YES.
+- 2026 table only (tblfIPjV4t1c1628h). Other feeds (speakers-2026, life-science, team,
+  niss-2025) don't have this field; they'd each need their own to gain the same gate.
+
+### Next steps
+1. Push + deploy; Rasmus drops off the live site within the cache window (or instantly on deploy).
+
 ## Session 2026-07-16b (embed mobile default → list rows)
 
 ### State
