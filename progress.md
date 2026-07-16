@@ -7,9 +7,15 @@ reaching the browser.
 ## Session 2026-07-16d (Speakers 2026 random order every load)
 
 ### State
-Speakers 2026 renders in random order, re-rolled on every page load. Verified in browser:
-two reloads → two different orders; order stays stable while searching/paginating. On `main`,
-needs push + deploy. The EMBED is a structural change → RE-COPY the Speakers 2026 block.
+Speakers 2026 renders in random order, re-rolled on every page load. DEPLOYED + verified end
+to end (commit b70692c live on `airtable-nksgdgtwi`). React page shuffles; the COPIED embed
+now shuffles too (see bugfix below). ONLY remaining user action: Auri re-copies the Speakers
+2026 embed from the deployed dashboard (hard-refresh the dashboard first, then Copy) and pastes
+it into Elementor. Verify the copied text contains `si=list` before pasting.
+
+Prod aliases → latest deploy: airtable-woad.vercel.app, airtable-tech-bbq.vercel.app,
+airtable-git-main-tech-bbq.vercel.app. Vercel project: tech-bbq/airtable. `vercel ls`/`vercel
+inspect` work locally for deploy status.
 
 ### What was just done
 - Shuffle is CLIENT-SIDE on purpose. Server/CDN cache (1h) would freeze a server-side shuffle
