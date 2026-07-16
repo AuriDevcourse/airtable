@@ -23,6 +23,13 @@ needs push + deploy. The EMBED is a structural change → RE-COPY the Speakers 2
 ### Next steps
 1. Push + deploy, then RE-COPY the Speakers 2026 embed in Elementor (structural change).
 
+### BUGFIX (same session)
+- `components/CopyEmbed.tsx` never forwarded `shuffle` to `buildEmbedSnippet`, so the COPIED
+  embed silently dropped it and stayed alphabetical (the React page shuffled via its own code,
+  which masked the bug in local checks). Fixed: destructure `shuffle` + pass it through.
+  Verified end-to-end by intercepting the Copy button's clipboard write — copied string now
+  contains the Fisher-Yates block. Lesson: verify the EMBED output, not just the React page.
+
 ## Session 2026-07-16c (NISS "Should be On Website" opt-out filter)
 
 ### State
