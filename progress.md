@@ -4,6 +4,25 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-16d (Speakers 2026 random order every load)
+
+### State
+Speakers 2026 renders in random order, re-rolled on every page load. Verified in browser:
+two reloads → two different orders; order stays stable while searching/paginating. On `main`,
+needs push + deploy. The EMBED is a structural change → RE-COPY the Speakers 2026 block.
+
+### What was just done
+- Shuffle is CLIENT-SIDE on purpose. Server/CDN cache (1h) would freeze a server-side shuffle
+  for everyone for an hour; doing it in the browser after fetch means each refresh re-randomizes.
+- `lib/embedSnippet.ts`: new `shuffle?: boolean` option. When true, Fisher-Yates on `list`
+  right after fetch, before render. Only speakers-2026 passes it; all other feeds unchanged.
+- `app/speakers-2026/page.tsx`: `shuffle` on the CopyEmbed + client shuffle of the React grid.
+  Uses a mount-fixed seed (LCG) so search/pagination/revalidation don't re-jump the order;
+  a real page refresh remounts → new seed → new order.
+
+### Next steps
+1. Push + deploy, then RE-COPY the Speakers 2026 embed in Elementor (structural change).
+
 ## Session 2026-07-16c (NISS "Should be On Website" opt-out filter)
 
 ### State

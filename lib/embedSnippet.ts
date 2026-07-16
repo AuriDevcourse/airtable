@@ -25,6 +25,10 @@ export type EmbedOptions = {
   // card opens a detail pop-up (photo, name, title · company, bio, LinkedIn button) — matches
   // the React /speakers-2026 page. Needs a feed with a `bio` field to be useful.
   modal?: boolean;
+  // Shuffle the list on every page load (Fisher-Yates, client-side). Order is re-randomized
+  // each refresh — the 1-hour server/CDN cache can't freeze it because the shuffle runs in
+  // the browser after the fetch. Default false (feed's own order is kept).
+  shuffle?: boolean;
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -42,6 +46,7 @@ export function buildEmbedSnippet({
   mobileLayout = "rows",
   gradient = "fire",
   modal = false,
+  shuffle = false,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
@@ -161,7 +166,12 @@ export function buildEmbedSnippet({
   }
   fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){
     var list=(data&&data.${listKey})||[];
-    if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}
+    if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}${
+      shuffle
+        ? `
+    for(var si=list.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=list[si];list[si]=list[sj];list[sj]=st;}`
+        : ""
+    }
     grid.innerHTML="";${modalSetup}
     var shown=0;
     var more=document.createElement("button");

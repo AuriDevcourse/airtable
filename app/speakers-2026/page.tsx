@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
@@ -159,6 +159,20 @@ export default function Speakers2026() {
     "speakers"
   );
   const speakers = data ?? [];
+  // Random order, re-rolled on every page load. The seed is fixed for this mount so the
+  // order stays put while you search or paginate; a refresh remounts → a new seed → new
+  // order. (A small LCG keeps it deterministic within the mount even if data revalidates.)
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const shuffled = useMemo(() => {
+    const arr = [...speakers];
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [speakers, seed]);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showTop, setShowTop] = useState(false);
@@ -172,10 +186,10 @@ export default function Speakers2026() {
 
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? speakers.filter((s) =>
+    ? shuffled.filter((s) =>
         `${s.name} ${s.title} ${s.company}`.toLowerCase().includes(q)
       )
-    : speakers;
+    : shuffled;
   const visible = filtered.slice(0, visibleCount);
 
   function onSearch(value: string) {
@@ -198,7 +212,7 @@ export default function Speakers2026() {
           </p>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal />
+            <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal shuffle />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
             </span>
