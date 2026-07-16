@@ -15,8 +15,8 @@ export type EmbedOptions = {
   // Show the "Load more" button (reveal 20 at a time). Default true. Set false for small
   // sets (e.g. NISS 2025) where paginating a few extra cards adds no value.
   loadMore?: boolean;
-  // Mobile layout. "grid" = 2 cards per row (default). "rows" = photo-left, name+title-right
-  // list rows — good for short lists like moderators. Desktop is a grid either way.
+  // Mobile layout. "rows" = photo-left, name+title-right list rows (default — the standard
+  // mobile look for every feed). "grid" = 2 cards per row. Desktop is a grid either way.
   mobileLayout?: "grid" | "rows";
   // Hover-glow palette. "fire" = the red/orange TechBBQ gradient (default). "ls" = the
   // cyan->teal Life Science & Deep Tech gradient (#27C7E7 -> #00EAC0).
@@ -39,7 +39,7 @@ export function buildEmbedSnippet({
   listKey,
   uid,
   loadMore = true,
-  mobileLayout = "grid",
+  mobileLayout = "rows",
   gradient = "fire",
   modal = false,
 }: EmbedOptions): string {

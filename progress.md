@@ -4,6 +4,26 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-16b (embed mobile default → list rows)
+
+### State
+Every feed's embed now defaults to the list-rows mobile layout (was 2-col grid). Verified
+the generated snippet carries `tbbq-rows` + the rows media query, desktop grid intact. On
+`main`, needs push + deploy, then RE-COPY each block in Elementor to take effect.
+
+### What was just done
+- `lib/embedSnippet.ts`: default `mobileLayout` flipped `"grid"` → `"rows"`. Desktop
+  unchanged (still the auto-fill grid); only the ≤600px view changes to photo-left rows.
+- `app/niss/page.tsx` + `app/niss-2025/page.tsx`: dropped the `role === "Moderator" ? "rows"
+  : "grid"` override so all roles use the new rows default.
+- speakers-2026, life-science, team, home already passed no `mobileLayout`, so they inherit
+  the new default automatically.
+
+### Next steps
+1. Push + let Vercel deploy, then Auri RE-COPIES every speaker/presenter/team embed block in
+   Elementor (copy from the DEPLOYED site so `__ORIGIN__` resolves correctly).
+2. Optional still-open: bake Dr Nikhil Agarwal's photo crop into the embed (currently page-only).
+
 ## Session 2026-07-16 (NISS presenters ordered by Airtable Hierarchy)
 
 ### State
