@@ -11,6 +11,7 @@
 // pattern, one allowed origin, shared rate-limit + cache.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { fetchHierarchyMap, normName } from "@/lib/hierarchy";
 
 const URL_BASE = process.env.SPEAKERHUB_SUPABASE_URL;
 const ANON_KEY = process.env.SPEAKERHUB_SUPABASE_ANON_KEY;
@@ -38,6 +39,10 @@ export type HubSpeaker = {
   linkedin: string | null;
   location: string;
   role: string;
+  // Manual display order from Airtable (1 = first). null = unranked, which the UI
+  // shuffles in behind the ranked block. Null rather than Infinity because this is
+  // serialized to JSON, and JSON.stringify(Infinity) is null anyway.
+  hierarchy: number | null;
 };
 
 type Row = {
@@ -67,6 +72,7 @@ function mapRow(r: Row): HubSpeaker {
     linkedin: str(r.linkedin_profile) || null,
     location: str(r.location),
     role: str(r.ecosystem_role),
+    hierarchy: null, // filled in from Airtable by fetchHubSpeakers
   };
 }
 
@@ -105,5 +111,31 @@ export async function fetchHubSpeakers(): Promise<HubSpeaker[]> {
   }
 
   const rows = (await res.json()) as Row[];
-  return rows.map(mapRow).filter((s) => s.name);
+  const speakers = rows.map(mapRow).filter((s) => s.name);
+
+  // Join the curated order from Airtable. If that lookup fails the grid still renders —
+  // everyone just comes back unranked (i.e. fully shuffled), which is what the page did
+  // before the hierarchy existed. A broken side-table must not take the roster down.
+  try {
+    const ranks = await fetchHierarchyMap();
+    for (const s of speakers) {
+      const rank = ranks.get(normName(s.name));
+      s.hierarchy = rank === undefined ? null : rank;
+    }
+  } catch (err) {
+    console.error("[hub] hierarchy lookup failed, serving unranked", err);
+  }
+
+  // Ranked people first in Airtable's order, unranked after. The shuffle of the unranked
+  // tail is deliberately NOT done here: this response is cached for an hour, so shuffling
+  // server-side would freeze one "random" order for every visitor. The client re-rolls it
+  // per page load instead — see app/speakers-2026/page.tsx and lib/embedSnippet.ts.
+  speakers.sort((a, b) => {
+    if (a.hierarchy === null && b.hierarchy === null) return a.name.localeCompare(b.name);
+    if (a.hierarchy === null) return 1;
+    if (b.hierarchy === null) return -1;
+    return a.hierarchy - b.hierarchy;
+  });
+
+  return speakers;
 }

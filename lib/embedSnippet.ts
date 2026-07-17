@@ -28,7 +28,13 @@ export type EmbedOptions = {
   // Shuffle the list on every page load (Fisher-Yates, client-side). Order is re-randomized
   // each refresh — the 1-hour server/CDN cache can't freeze it because the shuffle runs in
   // the browser after the fetch. Default false (feed's own order is kept).
+  //
+  // Anyone the feed gives a numeric `hierarchy` is exempt: they hold that order at the top
+  // and only the rest is shuffled. On a feed with no `hierarchy` field this shuffles
+  // everything, which is the original behaviour.
   shuffle?: boolean;
+  // How many cards each "Load more" press reveals. Ignored when loadMore is false.
+  pageSize?: number;
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -47,6 +53,7 @@ export function buildEmbedSnippet({
   gradient = "fire",
   modal = false,
   shuffle = false,
+  pageSize = 20,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
@@ -148,7 +155,7 @@ export function buildEmbedSnippet({
 <script>
 (function(){
   var ENDPOINT = "__ORIGIN__${path}";
-  var STEP = ${loadMore ? "20" : "1000000"};
+  var STEP = ${loadMore ? String(pageSize) : "1000000"};
   var LOADMORE = ${loadMore ? "true" : "false"};
   var root = document.getElementById("${id}");
   var grid = root.querySelector(".tbbq-grid");
@@ -169,7 +176,13 @@ export function buildEmbedSnippet({
     if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}${
       shuffle
         ? `
-    for(var si=list.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=list[si];list[si]=list[sj];list[sj]=st;}`
+    function tbbqShuffle(a){for(var si=a.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=a[si];a[si]=a[sj];a[sj]=st;}return a;}
+    var tbbqRanked=[],tbbqRest=[];
+    for(var hi=0;hi<list.length;hi++){(typeof list[hi].hierarchy==="number"?tbbqRanked:tbbqRest).push(list[hi]);}
+    // Shuffle then sort — Array.sort is stable, so equal hierarchy values keep the shuffled
+    // order instead of one person always outranking their tie.
+    tbbqShuffle(tbbqRanked).sort(function(a,b){return a.hierarchy-b.hierarchy;});
+    list=tbbqRanked.concat(tbbqShuffle(tbbqRest));`
         : ""
     }
     grid.innerHTML="";${modalSetup}

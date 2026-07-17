@@ -30,6 +30,13 @@ type CacheEntry<T> = { value: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const TTL_MS = 60 * 60_000; // 1 hour
 
+// Drop a cached entry so the next read re-fetches. Used by the manual sync button:
+// without this, a sync would land in Airtable but the grid would keep serving the
+// hour-old list, making the button look broken.
+export function invalidate(key: string): void {
+  cache.delete(key);
+}
+
 export async function cached<T>(key: string, loader: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() < hit.expiresAt) return hit.value as T;

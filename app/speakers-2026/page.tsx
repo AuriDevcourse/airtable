@@ -4,9 +4,11 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { SyncButton } from "@/components/SyncButton";
 import { useCachedList } from "@/lib/useCachedList";
 
-const PAGE_SIZE = 20;
+// The curated Airtable hierarchy runs 1..30, so the first page is exactly the ranked block.
+const PAGE_SIZE = 30;
 
 // Shimmers until its own photo loads. State lives here so parent re-renders (SWR
 // revalidation) can't reset it. mediaClassName serves both card + mobile row.
@@ -45,6 +47,7 @@ type Speaker = {
   linkedin: string | null;
   location: string;
   role: string;
+  hierarchy: number | null;
 };
 
 // Detail pop-up: photo, name, title · company, short bio and a LinkedIn link.
@@ -159,19 +162,27 @@ export default function Speakers2026() {
     "speakers"
   );
   const speakers = data ?? [];
-  // Random order, re-rolled on every page load. The seed is fixed for this mount so the
-  // order stays put while you search or paginate; a refresh remounts → a new seed → new
-  // order. (A small LCG keeps it deterministic within the mount even if data revalidates.)
+  // Speakers ranked in Airtable (hierarchy 1..30) hold that exact order. Everyone else is
+  // randomized, re-rolled on every page load. The seed is fixed for this mount so the order
+  // stays put while you search or paginate; a refresh remounts → a new seed → a new order.
+  // (A small LCG keeps it deterministic within the mount even if data revalidates.)
   const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
   const shuffled = useMemo(() => {
-    const arr = [...speakers];
     let s = seed;
     const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+    const shuffle = (arr: Speaker[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+    const ranked = speakers.filter((x) => typeof x.hierarchy === "number");
+    const unranked = speakers.filter((x) => typeof x.hierarchy !== "number");
+    // Shuffle first, then sort: Array.sort is stable, so equal hierarchy values keep the
+    // shuffled order and no one is permanently listed above their tie.
+    shuffle(ranked).sort((a, b) => (a.hierarchy as number) - (b.hierarchy as number));
+    return [...ranked, ...shuffle(unranked)];
   }, [speakers, seed]);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -212,9 +223,17 @@ export default function Speakers2026() {
           </p>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal shuffle />
+            <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal shuffle pageSize={PAGE_SIZE} />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
+            </span>
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <SyncButton cacheKey="speakers-2026" />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Pulls new Speaker Hub profiles into Airtable and reloads the grid. Runs
+              automatically every 6 hours.
             </span>
           </div>
         </div>

@@ -7,6 +7,7 @@
 // Write side needs a token with data.records:write on the base.
 
 import { fetchHubSpeakers } from "@/lib/hub";
+import { UNRANKED_FROM } from "@/lib/hierarchy";
 import { fetchWithTimeout } from "@/lib/http";
 
 // Pinned Airtable target (stable IDs, not secrets).
@@ -88,6 +89,10 @@ async function createRecords(
       const fields: Record<string, unknown> = {
         "Full Name": s.name,
         "Project Name": PROJECT_NAME,
+        // New arrivals are never top speakers — park them in the unranked bucket so they
+        // join the random tail on the website and sink to the bottom of the Airtable view.
+        // The top 30 are curated by hand; promoting someone means editing this by hand too.
+        Hierarchy: UNRANKED_FROM,
       };
       if (s.title) fields["Job Title"] = s.title;
       if (s.company) fields["Company"] = s.company;
