@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_PATHS = new Set([
   "/api/speakers",
   "/api/speakers-2026",
+  "/api/main-speakers",
   "/api/niss-speakers",
   "/api/niss-2025",
   "/api/life-science",

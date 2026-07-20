@@ -260,6 +260,10 @@ a { color: inherit; }
 @media (max-width: 1000px) and (min-width: 641px) {
   .grid-cards { grid-template-columns: repeat(3, 1fr); }
 }
+/* Main-page feed opts into 4 per row on wide screens (tablet/mobile rules above still win). */
+@media (min-width: 1001px) {
+  .grid-cards--4 { grid-template-columns: repeat(4, 1fr); }
+}
 
 /* Mobile list rows: photo left, name + title right. Hidden on desktop. */
 .list-rows { display: none; list-style: none; margin: 20px 0 0; padding: 0; }

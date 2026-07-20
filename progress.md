@@ -4,6 +4,74 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-20 (New: Main Page 12 feed + embed)
+
+**Current state:** Built + verified locally. New page `/main-speakers` shows the 12 speakers
+marked `Main Page = "YES"` in Airtable (Marketing Project Overview, view `viwfIcQFDNQ9ggSqx`),
+in curated Hierarchy order, photos + name + title·company only (NO bio), with its own embed button.
+
+### What was just done
+- `lib/mainpage.ts` — `fetchMainPageSpeakers()`: reads Airtable `tblTecOBecLQCNIeD`,
+  filterByFormula `{Main Page}="YES"`, allow-listed fields (Full Name, Job Title, Company,
+  Profile Picture, Link to LinkedIn, Hierarchy). 10s timeout + retry (table is 3339 wide rows,
+  same abort risk as hierarchy). Sorted by Hierarchy asc. No bio field at all.
+- `app/api/main-speakers/route.ts` — feed, `cached("main-speakers")`, CORS, rate-limit,
+  `maxDuration = 30`. Returns `{count, speakers}`.
+- `app/main-speakers/page.tsx` — same card/row look as the others, no modal/search/load-more.
+  `CopyEmbed path="/api/main-speakers" loadMore={false}` (12 fixed, no bio popup, curated order).
+- `middleware.ts` — added `/api/main-speakers` to PUBLIC_PATHS (embeddable, un-gated).
+- `components/TopNav.tsx` — nav link "Main Page 12".
+- `tsc` clean. API returns 12 with photos (Jacob #1 … Ritika last). Desktop grid + mobile rows
+  both render all 12 (global ≤640px breakpoint, no page-specific CSS needed).
+
+**Follow-ups done same session:**
+- LinkedIn: `Link to LinkedIn` is empty for all 12, but `LinkedIn Handle` holds the full profile
+  URL. Feed now reads `linkedinUrl(Link to LinkedIn, LinkedIn Handle)` (http(s)-only guard) → 12/12
+  linked. Cards + embed open the profile in a new tab.
+- Grid: main page now 4 per row, not 5. Added `.grid-cards--4` (globals.css, `@media min-width:1001px`)
+  and the page uses `className="grid-cards grid-cards--4"`. Tablet (3) and mobile (rows) unchanged.
+
+### Gotchas
+- To change who appears: tick/untick `Main Page` in Airtable. No **Sync** button wired for this
+  feed — the 1h `cached("main-speakers")` TTL applies, or redeploy to clear.
+- Ordering is by `Hierarchy`; Ritika Pai is at 10000 (unranked) so she lands last of the 12.
+
+## Session 2026-07-20 (Speakers 2026 order: hierarchy fetch was timing out)
+
+**Current state:** Fixed + verified locally. `/speakers-2026` again shows the curated top 30
+(hierarchy 1..30, Jacob Lauritzen first) in order, then the other 113 shuffled.
+
+### What was wrong
+The "first 30 in order, then random" logic was already correct. The bug: the Airtable
+hierarchy fetch (`filterByFormula {Project Name}="TechBBQ Summit"` scans the whole, now-bigger
+Marketing Project Overview table — last session added 21 partner rows) intermittently aborted at
+the 8s fetch timeout. On abort, `fetchHubSpeakers` served everyone unranked and `cached()` froze
+that alphabetical roster for 1h. Airtable data itself is fine (exactly 30 rows ranked 1..30, rest
+at 10000). Confirmed via dev log: `[hub] hierarchy lookup failed … AbortError`.
+
+### What was just done
+- `lib/hierarchy.ts` — split into `fetchHierarchyMapOnce`; 10s timeout + retry once.
+- `lib/hub.ts` — hierarchy map now `cached("hierarchy-2026", …)` on its own key, so once loaded
+  it persists 1h and serves last-good on a later blip (can't un-rank the whole grid).
+- `app/api/speakers-2026/route.ts` — `export const maxDuration = 30` for retry headroom on Vercel.
+- `tsc --noEmit` clean. Browser-verified after clearing the stale `tbbq-cache:speakers-2026`
+  localStorage entry.
+
+### Next steps
+1. Commit (not done — Auri's call) and deploy to Vercel.
+2. After deploy, hit **Sync now** on `/speakers-2026` once to drop any prod cache holding the old
+   unranked order.
+
+### Gotchas
+- The roster still bakes hierarchy into the cached list at fetch time. If the VERY FIRST cold
+  load's hierarchy fails both attempts, that load caches unranked for 1h — rare, self-heals on the
+  6-hourly sync / **Sync now** / redeploy. A fuller fix (apply hierarchy at read time, not baked in)
+  was left out as over-engineering.
+- Client caches the list in `localStorage` (`tbbq-cache:speakers-2026`) via `useCachedList`. A
+  stale poisoned entry there survives a server fix until the SWR revalidation replaces it.
+- Dev only: React StrictMode double-invokes the fetch; with flaky network one of the two can cache
+  a degraded response. Not a prod issue.
+
 ## Session 2026-07-20 (Community partners → Partner Deliverables 2026: tag + backfill)
 
 ### The ask

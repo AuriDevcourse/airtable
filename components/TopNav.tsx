@@ -7,6 +7,7 @@ import Link from "next/link";
 // Add a new entry here when a new event table gets its own page.
 const PROJECTS = [
   { href: "/speakers-2026", label: "Speakers 2026" },
+  { href: "/main-speakers", label: "Main Page 12" },
   { href: "/", label: "Speakers (all)" },
   { href: "/life-science", label: "Life Science 2026" },
   { href: "/niss", label: "NISS 2026" },

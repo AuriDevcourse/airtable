@@ -35,6 +35,10 @@ export type EmbedOptions = {
   shuffle?: boolean;
   // How many cards each "Load more" press reveals. Ignored when loadMore is false.
   pageSize?: number;
+  // Fixed number of cards per row on desktop. Default (undefined) keeps the responsive
+  // auto-fill grid (~5-6 wide). Set e.g. 4 to pin the desktop grid to 4 columns. Tablet
+  // (≤900px → auto-fill) and mobile (≤600px → 2-up or rows) are unaffected.
+  columns?: number;
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -54,10 +58,19 @@ export function buildEmbedSnippet({
   modal = false,
   shuffle = false,
   pageSize = 20,
+  columns,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
   const hoverGradient = GRADIENTS[gradient];
+  // Pin the desktop grid to a fixed column count when asked. Scoped to ≥901px so the
+  // tablet (auto-fill) and mobile (2-up / rows) rules below are untouched. The #id makes
+  // it win over the base .tbbq-grid; minmax(0,1fr) stops long names overflowing the track.
+  const columnsCss =
+    columns && columns > 0
+      ? `
+  @media(min-width:901px){#${id}.tbbq-speakers .tbbq-grid{grid-template-columns:repeat(${columns},minmax(0,1fr))}}`
+      : "";
 
   // Extra CSS for the detail pop-up. Scoped so it can't leak into the host WordPress page.
   const modalStyles = modal
@@ -149,7 +162,7 @@ export function buildEmbedSnippet({
   .tbbq-card::after{content:"";position:absolute;inset:-8px;background:${hoverGradient};opacity:0;transition:opacity .25s ease;pointer-events:none}
   .tbbq-card:hover::after{opacity:1}
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
-  @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}${modalStyles}
+  @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}${modalStyles}${columnsCss}
 </style>
 
 <script>
