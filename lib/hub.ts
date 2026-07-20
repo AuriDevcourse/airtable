@@ -12,6 +12,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { fetchHierarchyMap, normName } from "@/lib/hierarchy";
+import { cached } from "@/lib/rate-limit";
 
 const URL_BASE = process.env.SPEAKERHUB_SUPABASE_URL;
 const ANON_KEY = process.env.SPEAKERHUB_SUPABASE_ANON_KEY;
@@ -117,7 +118,10 @@ export async function fetchHubSpeakers(): Promise<HubSpeaker[]> {
   // everyone just comes back unranked (i.e. fully shuffled), which is what the page did
   // before the hierarchy existed. A broken side-table must not take the roster down.
   try {
-    const ranks = await fetchHierarchyMap();
+    // Cached on its own key (not folded into the roster cache): once the ranking loads
+    // it persists for an hour, and cached() serves the last-good map if a later refresh
+    // blips. So a transient Airtable timeout can no longer un-rank the whole grid.
+    const ranks = await cached("hierarchy-2026", fetchHierarchyMap);
     for (const s of speakers) {
       const rank = ranks.get(normName(s.name));
       s.hierarchy = rank === undefined ? null : rank;

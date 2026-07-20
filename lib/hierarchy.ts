@@ -30,12 +30,16 @@ export function normName(name: string): string {
 // normalized full name -> rank (1 = first). Unranked people are simply absent.
 export type HierarchyMap = Map<string, number>;
 
-export async function fetchHierarchyMap(): Promise<HierarchyMap> {
-  const token = process.env.AIRTABLE_TOKEN;
-  const base = process.env.AIRTABLE_BASE_ID;
-  const map: HierarchyMap = new Map();
-  if (!token || !base) return map;
+// filterByFormula makes Airtable scan the whole (wide, growing) Marketing Project
+// Overview table, so this call is the slow one — normally ~1s, but it spikes past the
+// default 8s fetch timeout on a cold Airtable. When it aborts, the caller drops EVERY
+// speaker to unranked and that alphabetical roster gets cached for an hour. So give each
+// attempt 10s and retry once: a single latency blip must not un-rank the whole grid.
+const HIERARCHY_TIMEOUT_MS = 10_000;
+const HIERARCHY_ATTEMPTS = 2;
 
+async function fetchHierarchyMapOnce(token: string, base: string): Promise<HierarchyMap> {
+  const map: HierarchyMap = new Map();
   let offset: string | undefined;
   do {
     const params = new URLSearchParams();
@@ -45,10 +49,11 @@ export async function fetchHierarchyMap(): Promise<HierarchyMap> {
     params.append("fields[]", "Hierarchy");
     if (offset) params.set("offset", offset);
 
-    const res = await fetchWithTimeout(`${API}/${base}/${TABLE}?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const res = await fetchWithTimeout(
+      `${API}/${base}/${TABLE}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      HIERARCHY_TIMEOUT_MS
+    );
 
     if (!res.ok) {
       // Detail stays in the server log; the caller decides how to degrade.
@@ -76,4 +81,23 @@ export async function fetchHierarchyMap(): Promise<HierarchyMap> {
   } while (offset);
 
   return map;
+}
+
+export async function fetchHierarchyMap(): Promise<HierarchyMap> {
+  const token = process.env.AIRTABLE_TOKEN;
+  const base = process.env.AIRTABLE_BASE_ID;
+  if (!token || !base) return new Map();
+
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= HIERARCHY_ATTEMPTS; attempt++) {
+    try {
+      return await fetchHierarchyMapOnce(token, base);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < HIERARCHY_ATTEMPTS) {
+        console.error(`[hierarchy] attempt ${attempt} failed, retrying`, err);
+      }
+    }
+  }
+  throw lastErr;
 }

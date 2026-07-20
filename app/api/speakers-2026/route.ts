@@ -3,6 +3,8 @@ import { fetchHubSpeakers, HubError } from "@/lib/hub";
 import { rateLimit, cached } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+// Headroom for the hierarchy fetch's 10s timeout + one retry (see lib/hierarchy.ts).
+export const maxDuration = 30;
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
 
