@@ -4,6 +4,80 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-20 (Community partners → Partner Deliverables 2026: tag + backfill)
+
+### The ask
+Auri: make the 44 Community partners on his authoritative list show as `Community` in
+`Marketing Project Overview` → view **Partner Deliverables 2026** (`viw7FVbsTb9IRaWF0`).
+List saved to `scripts/community-partners-2026.txt`. Tier field used by THIS view is the
+table's own `Partnership Type 2026` **singleSelect** (hand-entered per row) — NOT the CRM
+formula (see "CRM formula" note below, left untouched).
+
+### Final state (all live in Airtable, verified)
+All 44 list partners are `Community` in the table. View row count 79 → **102**.
+- **4 rows** already correct at session start → left as-is.
+- **4 rows** corrected to Community: Beta Health (`recoDV31XucOrMh8X`), Copenhagen School of
+  Entrepreneurship (`recfKPWt7DKW9GfXf`), Nordic Women's Health Hub (`recDF5nW79QKBLtyN`),
+  Sri Sathya Sai Institute of Higher Learning = "SSSIHL" (`rec9SZjHsYaJ2boGz`, was Academic).
+- **21 rows CREATED** — the list partners that had no row in the view at all. Each: `Company`,
+  `Partnership Type 2026 = Community`, `Company Link` → their `Partners 2026` CRM record
+  (19/21; TiE Bangalore + RANNIS have no CRM record, so name+tier only).
+- **19 created rows backfilled** from the CRM: `Partner ID` (19/19) + `Contact Email` (19/19,
+  mostly via the CRM's linked **Contacts** table / `Email (from Contacts) 2` lookup, NOT the
+  flat `Contact Email` field which is mostly empty) + `Contact Name`/`Link to your website`
+  where present.
+- **4 of those 21 were dupes of legacy 2025 rows** (Nordic Music Tech, START Paris, Ignite
+  Sweden, DTU Science Park). Copied `Logo` + `Social Media Handles` + `Link to your website`
+  from each legacy row onto the new 2026 row → those 4 are now COMPLETE and visible in the view.
+
+### The view filter (this was the whole puzzle — Airtable API can't read view filters)
+`Partner Deliverables 2026` shows a row only if ALL of:
+`Company is not empty` AND `Created is after 1/1/2026` AND `Logo is not empty`.
+Consequences:
+- A new row needs a **Logo attachment** to appear. `Company` + `Created` (auto = today) pass free.
+- Legacy 2025 rows can NEVER appear here (Created < 2026), even with a logo — that's why the 4
+  dupes existed unseen. Their data was copied onto the new 2026 rows; the 2025 rows were LEFT in
+  place (redundant but harmless, and the original logo source). Delete only if tidying.
+- `Company Link` and `Partner ID` are NOT the filter (both tested empirically with a throwaway
+  row, both failed; test row was deleted).
+
+### Still needs Auri
+1. **Logos for 17 of the 21 new rows** — until each has a Logo it stays hidden by the filter.
+   To edit them: temporarily delete the `Logo is not empty` filter line, add logos, re-add it.
+   These 17 have Company + Community + Partner ID + Contact Email already; blank = Logo, Social
+   Media Handles (not in CRM for anyone), and most Contact Names.
+2. **TiE Bangalore (NISS)** + **RANNIS** — no CRM record; name + Community only.
+3. **3 rows tagged Community but NOT on the list** — Clean (`recjiZJvYtGVxECsn`),
+   DI (`recqHS4jaSNWj1cQb`), Embassy of India (`rec3kqghE4Nt7pmXF`). Auri said "not on the list =
+   not Community" but never supplied replacement values. NOT cleared (blanking a single-select
+   drops the row out of grouped views). Their CRM types: Clean=Community Main, DI=Community Core
+   Plus, Embassy of India=Community Non-commercial. Awaiting values.
+
+### CRM formula (root cause of the original "no Community anywhere" — LEFT UNTOUCHED)
+`Partners 2026`.`Partnership Tier (Based on Deal Size)` (`fldSGGxr4Tcg88ZvP`) is a FORMULA whose
+first branch is dead code: it compares the **multipleSelects** `Partnership Type 2026` to a string
+with `=`, which Airtable never evaluates true, so "Community" is unreachable (0 of 2615 records,
+despite 181 Community-typed). Fix = `FIND(...)` over `ARRAYJOIN(...)`. NOT applied: Meta API can't
+rewrite formulas (manual UI edit), it's Partnerships' shared field across 2615 records + other
+views, and Auri scoped this to the marketing view only. This view uses its OWN singleSelect, so the
+formula bug didn't block the task.
+
+### Gotchas
+- CRM contact/website/social fields are mostly EMPTY for these (mostly non-commercial) partners;
+  the real emails live in the linked **Contacts** table (`Email (from Contacts) 2` lookup). Social
+  handles exist NOWHERE in the CRM — only on legacy form-submitted deliverable rows.
+- `Partners 2026` logo fields are broken as a source: the URL lookup returns `"0"`, the linked-logo
+  field points every record at one placeholder, and the only real attachments are signed CONTRACTS
+  (`Contract 2026` etc.) — never use those as logos.
+- Name spellings differ across tables: `SSSIHL`=`Sri Sathya Sai Institute of Higher Learning`,
+  `IVC Association`=`Indian Venture & Alternate Capital Association`, `INCUBA x KITCHEN` row =
+  CRM `INCUBA` + `The Kitchen`, `Medicon Valleyh Alliance`(typo)=`Medicon Valley Alliance`.
+- Heavy CRM duplicates (Health Tech Hub ×5, INCUBA ×5, etc.): authoritative record = the one with
+  `Status 2026 = Confirmed` AND a non-blank `Partnership Type 2026`; rest are untyped stubs.
+- `scripts/community-tier-audit.mjs` reads the view vs the list (read-only; `--write` adds only the
+  safe "should be Community" additions, never clears). Its ALIAS map is incomplete (missed SSSIHL),
+  so trust the row work above over a bare audit run.
+
 ## Session 2026-07-16d (Speakers 2026 random order every load)
 
 ### State

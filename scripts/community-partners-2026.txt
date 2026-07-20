@@ -1,0 +1,51 @@
+# Authoritative list of TechBBQ 2026 Community partners, supplied by Auri 2026-07-17.
+# Names use the `Partners 2026` (CRM) spelling. One per line. Blank lines + # comments ignored.
+#
+# IMPORTANT: this list is NOT exhaustive. Kveikja is a Community partner (live on the website)
+# but is absent here and has no `Partners 2026` record under that name. Treat this as
+# "these are definitely Community", NOT "absence proves non-Community".
+
+CSE (Copenhagen School of Entrepreneurship)
+Business Turku Oy Ab
+TÜV SÜD Denmark Medical Health Services
+Teknologisk Institut (Humanoide robotter)
+Nordic Women's Health Hub
+ZOKU Copenhagen
+Nordic Music Tech
+Creative Girls Club
+BioMedical Design
+KLAK
+IVC Association
+Future Manufacturers (MADE)
+SSSIHL (NISS)
+Beta Health
+AISTART Incubator - Business Helsinki
+START Paris
+Gothenburg Tech Week
+Health Tech Hub Copenhagen
+Norway Health Tech
+Auxxo Management GmbH
+Nova talent
+imec vzw
+Voice AI Space
+TiE Bangalore (NISS)
+Terkko Health Hub -Do Company Oy
+Ignite Sweden
+FemTech Studios
+Humble AI Limited
+Arctic Startup
+LithuaniaBIO
+INNOVX BUSINESS ACCELERATOR S.R.L.
+Medicon Village
+IDA
+The Kitchen (Aarhus University Startup Hub)
+Medicon Valley Alliance
+Young AI Leaders Linz
+SPACES/REGUS
+The Residency Vienna
+INCUBA
+PWN Copenhagen
+RANNIS (The Icelandic Centre for Research)
+Royal Danish Academy
+Odense Robotics
+DTU Science Park
