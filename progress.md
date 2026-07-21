@@ -4,6 +4,63 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-20 (Event Room: up to 35 presenters submission — PLAN + prep)
+
+**The ask (Charlotte → Auri):** the "Side event & Event Room Info 2026" form must let a partner
+submit **up to 35 Event Room presenters** (Danish Entrepreneurs ~35, Creative Business Network ~25).
+Current form maxes at 5 (`Presenters` selector + `1st–5th Presenter Details` + photos, flat fields).
+
+**The form:** Airtable Interface form `pagMB9u1RJ4KZCpHJ`, **source table = `Partnership Success`**
+(`tbllvkwLhB4Omdphd`), NOT Side Events. (I initially mis-assumed Side Events.)
+
+### What was ruled out (tested live, not guessed)
+- **Interface-form linked field = dead end.** Airtable interface forms CANNOT create linked records.
+  A linked field only *selects* existing records (typing a new name → "No results", no create). So a
+  one-form "add 35 speakers with details" is impossible natively via a linked field.
+- **Fillout works but isn't a native Airtable form.** Built a Fillout form with a repeatable "Event
+  Room Speakers" block (create records + multiple, max 35, only-new-records for privacy; sub-form
+  Name/JobTitle/Company/Photo required). Proved end-to-end: a test "Jane Doe" landed as a real row in
+  the `Event Room Speakers` table, then deleted. Data lives in Airtable, but the FORM is Fillout's —
+  Auri wants the form itself native, so Fillout is parked (form id `iN9Hz9BUBBus`, can revisit).
+- **Flat 6th–35th fields on one form** = 60 columns + ~30 conditional rules; Auri rejected the bloat.
+
+### THE CHOSEN PLAN (native, two-form) — what we're building
+1. **Main form** keeps event info + presenters **1–5** as today. Add a **conditional link**
+   *"More than 5 presenters? Add the rest here → [link]"* shown when `How many presenters?`/`Presenters`
+   = 6+, and/or on the after-submit "thank you" message. (Both are native interface-form options.)
+2. **Separate native speaker form** = just speakers, with **"Submit another response"** on → partner
+   fills one → submit → "submit another" → repeat, unlimited. Each = one `Event Room Speakers` row.
+3. **Link speakers to the partner** via a **Partner ID** field on the speaker form (they already have it
+   from the main form); match speakers→event by Partner ID.
+
+**Open decision (asked Auri):** do presenters 1–5 stay on the main form (speaker form only for #6+
+overflow), or do ALL speakers go through the speaker form? Auri's wording → 1–5 stay on main, speaker
+form is the overflow. (Note: this splits speaker data — 1–5 as flat fields on Partnership Success,
+6+ as linked rows in Event Room Speakers. Accepted as pragmatic.)
+
+### Already built / prepped
+- **`Event Room Speakers` table** created (`tblg9iPj4XZK4RQZw`): Name, Job Title, Company, Photo, Bio,
+  Session/Stage, Time; linked to **Side Events** (`Event (Side Event)`) AND **Partnership Success**
+  (`Partner event (Partnership Success)`). Verified inserts link correctly.
+- **Classic Form view "Add Event Room Speakers"** on that table, **"Submit another response" ON** —
+  this IS the speaker form; needs finishing.
+- **60 fields** (`6th–35th Presenter Details` + `6th–35th Presenter Photo`) created on Partnership
+  Success (from the flat-field attempt; leftover, table now 174 fields — delete in UI if unused, API
+  can't). `Presenters` selector could NOT be extended past 7 via API (blocked, tied to form logic).
+- **Main form duplicated** → "Side event and Event room Info 2026 copy" (`pagTJwRiyFbxWNYk9`).
+
+### Next steps
+1. Finalize the speaker form: make Name/Position/Company/Photo **required**, add a **Partner ID** field
+   to the table + form, get the **share link**.
+2. On the main form: add the conditional "more than 5? use this form" link + after-submit message.
+3. Confirm the 1–5-stay-on-main decision, then wire it.
+
+### Gotchas
+- Airtable's interface editor **freezes browser automation** intermittently — the 35-block conditional
+  build stalled on this. A human clicks through it far more reliably than the automation.
+- Two front doors (old Airtable form vs any new form) both write to the same tables but don't sync —
+  everyone must use ONE form or speaker data splits across places.
+
 ## Session 2026-07-20 (New: Main Page 12 feed + embed)
 
 **Current state:** Built + verified locally. New page `/main-speakers` shows the 12 speakers
