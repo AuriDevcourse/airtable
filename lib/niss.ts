@@ -123,7 +123,10 @@ export async function fetchNiss(roleFilter?: string): Promise<NissPerson[]> {
       // both stay visible (most rows are blank), so this never hides someone by omission.
       if (str(rec.fields["Should be On Website"]) === "NO") continue;
       const p = mapRecord(rec);
-      if (p.name) people.push(p); // skip blank rows
+      // No portrait, no card: the table is registration data, so most rows lack a photo
+      // and would render as grey placeholders. Uploading a Self Portrait is what publishes
+      // a person; blank rows are skipped for the same reason.
+      if (p.name && p.photo) people.push(p);
     }
     offset = data.offset;
   } while (offset);

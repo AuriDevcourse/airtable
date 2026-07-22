@@ -4,6 +4,36 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-22b (NISS photo gate — branch `niss-photo-gate`, NOT yet deployed)
+
+State: filter written + verified locally, waiting on Auri's go-ahead to merge to main
+(main auto-deploys to airtable-woad.vercel.app).
+
+- **NISS 2026 feed now hides anyone without a Self Portrait.** `lib/niss.ts`: the record
+  loop keeps a person only `if (p.name && p.photo)`. Reason: the table is registration
+  data, so most Role-tagged rows have no photo and rendered as grey placeholder cards on
+  techbbq.dk/nordic-indiastartupsummit (34 of 53 speakers, 10 of 15 moderators).
+  Uploading a Self Portrait in Airtable is now the publish switch.
+- Side effect (wanted): duplicate people vanish — dupes were photo-less copies (Zenia W.
+  Francker/Zenia Worm Francke, Jose Jacob ×2, Jakob Williams Ørberg ×2, Peter
+  Winther-Schmidt ×2, Manish Prabhat ×2, Nikhil Tambe ×2).
+- Verified on local dev (port 3921) against live Airtable: Speaker 53→19, Moderator
+  15→5, zero photo-less, Hierarchy order intact. `npx tsc --noEmit` clean.
+- Same-day Elementor change (not this repo): moved "Meet the Moderators" section directly
+  under "Meet the speakers" on the NISS page (structure-panel drag, published, verified).
+
+Next steps:
+1. Auri confirms → merge `niss-photo-gate` to main, push, check prod feed
+   (`/api/niss-speakers?role=Speaker` should return 19).
+2. Content team uploads photos + `Position at Company ` for the ~17 new speakers and 10
+   moderators in the NISS table — they reappear automatically.
+3. Sheet asks: rename "Dr. Eswarappa Pradeep B." → "Dr. Pradeep B." + clean description
+   (fix in Airtable record, not code).
+4. Consider clearing Role on the photo-less dupe rows anyway (data hygiene).
+
+Gotchas: only the 2026 NISS feed is gated (niss-2025/team/life-science unchanged);
+`Should be On Website`=NO opt-out still applies on top.
+
 ## Session 2026-07-22 (Grill session Company values restored + main-page embed fix)
 
 - **Company values wiped → restored.** All 11 rows in Partnership Success view
