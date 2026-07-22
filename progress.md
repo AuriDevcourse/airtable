@@ -4,6 +4,104 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-22 (Grill session Company values restored + main-page embed fix)
+
+- **Company values wiped → restored.** All 11 rows in Partnership Success view
+  "2026 Grill session submissions" (`viwmxcuIN0SFe2tkF`) had the `Company` (primary) cell
+  emptied. Revision history: deleted by Auri's own account ~18h earlier (accidental bulk
+  clear, no automation involved). The field itself was never deleted. Restored all 11 via
+  API by matching each row's `Partner ID` to `Partners 2026` CRM `Company Name` (every ID
+  matched exactly one CRM record; email domains cross-checked). Re-fetched before writing,
+  only filled still-empty cells. Table-wide sweep: 0 other rows had Company emptied in the
+  last 3 days.
+- **Root cause (Auri):** the `Company` field was temporarily converted to a Number type;
+  Airtable wiped every non-numeric value table-wide, converting back left blanks. Field is
+  singleLineText again now.
+- **All other 2026 views restored too** (14 more records, same Partner ID → CRM method):
+  Badge pickup 4, pop-up 6, Event room form 4 (same records also in Experience view).
+  All 2026 views now 0 empty except one TEST row in "2026 Side event and event room info"
+  (`recPyYCxemm1SCS7t`, abs@techbbq.org, fake Partner ID 456654123) — left blank on purpose.
+- **2025/2024 data restored too: 51 more records** (49 by Partner ID → CRM, 2 by email
+  domain: SAP + Zendesk).
+- **FULL restore via snapshot (same day, later):** the CRM sweep missed ~173 rows (survey
+  rows with no Partner ID). Restored a pre-wipe snapshot (7/21 12:17 PM) as base copy
+  **TechBBQ (July 21, 2026)** (`appz3LBz1egRgxEkS`), read original Company values from its
+  UI (record IDs preserved; harvested grid DOM via claude-in-chrome JS + per-record URLs;
+  token can't see the copy base) and wrote the EXACT originals back: 162 + 8 + 34 writes.
+  This also upgraded the earlier CRM-generic values to true submissions (e.g. the three
+  um.dk rows are really Innovation Centre Denmark Bangalore / Shanghai / Silicon Valley;
+  8 rows had digit-artifacts from the number conversion: "Matrikel1 ApS"→"1",
+  "Latitude 59"→"59", "TechBBQ 2025"→"2025" — all fixed). Test rows restored to their
+  originals too ("Auri", "Auri again", "JJ (Test Partner)").
+  **FINAL: 269 rows, 14 empty Company — 13 were already empty pre-wipe (anonymous 2025/26
+  form submissions that never collected a company) + 1 created 2026-07-22 08:28 by
+  abs@techbbq.org (post-snapshot, born empty). Incident fully repaired.**
+  CLEANUP for Auri: delete the snapshot copy base "TechBBQ (July 21, 2026)" from the
+  workspace when comfortable (it also counts toward workspace size).
+- **Partnership Success field cleanup DONE (181 → 117 fields).** Via the field manager UI
+  (Manage fields, bulk checkbox + Actions · Delete; fields land in trash, recoverable):
+  deleted all 60 `6th–35th Presenter Details/Photo` leftovers, the empty orphan
+  `1st Presenter Details` dup (no interface refs; the real one is `1st Presenters details`),
+  and `Field 37`/`Field 54`/`Field 176` (all verified 0 values across 270 records first).
+  Renamed via Meta API: `Field 71` → **Special Offer** (held Zendesk's real offer text),
+  `test` → **Survey Intro Text** (constant boilerplate on 142 records, but USED by 2
+  interface forms — Partnership Evaluation Survey + 2025 edition — so renamed, not deleted).
+  Kept: `Presenter photos`, `1st/5th Presenters details/Photo` sets, `Presenter Details`,
+  `Presenters`, and the colleague's new `Presenters Company/Position/Profile Picture` fields.
+- **Main Page 12 embed "Could not load right now"**: the snippet in Elementor was copied
+  from localhost, so `ENDPOINT` was `http://localhost:3000/api/main-speakers`. Fix = change
+  it to `https://airtable-woad.vercel.app/api/main-speakers` (prod API verified live, 12
+  speakers). Rule: always copy embeds from the deployed dashboard.
+- Schema drift noticed (not acted on): checkbox renamed to "Extra presenters (5+) submitted",
+  new fields `Presenters Company` / `Presenters Position in the Company` / `LinkedIn Handle` /
+  `Presenters Profile Picture` on Partnership Success, plus a new form view
+  "More Event Room Speakers" (`viwaIyG5dUeSCOdTQ`) on Partnership Success itself. The 60
+  leftover 6th–35th Presenter fields still exist.
+
+## Session 2026-07-21 (>5 presenters flow BUILT on both forms — main form still unpublished)
+
+Executed the two-form plan from 2026-07-20. All work in the Airtable UI (browser "Work TechBBQ"),
+no repo code touched.
+
+### What was just done
+- **Main form** (`pagMB9u1RJ4KZCpHJ`, Forms tab · edit at
+  https://airtable.com/appgXNjXJqpk9Ebxd/pagMB9u1RJ4KZCpHJ/edit):
+  - `Presenters` select now has **"More than 5"** (option existed when session started).
+  - All 10 conditional fields (`1st–5th Event Room Speaker Details` + Photos) had "More than 5"
+    added to their visibility conditions, so presenters 1–5 still get entered when it's picked.
+  - New required checkbox **"Extra presenters (6+) submitted"** on Partnership Success, placed
+    right under Presenters, visible ONLY when Presenters = More than 5. Helper text links to the
+    speaker form share URL + says one submission per presenter + include Partner ID.
+  - Verified in Preview (Event Room → More than 5 → checkbox + all 5 speaker blocks show).
+  - **NOT PUBLISHED** — "unpublished changes" banner still up, Auri reviews then hits Publish.
+- **Speaker form** "Add Event Room Speakers" (legacy form view on `tblg9iPj4XZK4RQZw` · edit at
+  https://airtable.com/appgXNjXJqpk9Ebxd/tblg9iPj4XZK4RQZw/viwbtzN1ShGufUWOt · share link
+  https://airtable.com/appgXNjXJqpk9Ebxd/shrgoNWFrLloteBlE):
+  - Added required integer **`Partner ID`** field (after Job Title) = the matching key back to the
+    partner's main submission. LIVE immediately (legacy forms have no publish step).
+
+### Next steps
+1. **Auri flagged the speaker form "has wrong fields"** — review/fix its field list in the
+   viwbtzN1ShGufUWOt editor (likely candidates: Session/Stage, Time, the two linked-record
+   pickers `Event (Side Event)` / `Partner event (Partnership Success)`). Remember: edits go
+   live instantly on the share link.
+2. Publish the main form (top-right Publish button) after review.
+3. Decide extra-presenter matching: manual by Partner ID vs an Airtable automation that links
+   Event Room Speakers rows to the Partnership Success record.
+4. Cleanup still pending from 2026-07-20: delete the 60 leftover `6th–35th Presenter` flat fields
+   on Partnership Success (UI only) + the duplicated form copy `pagTJwRiyFbxWNYk9` if unused.
+
+### Gotchas
+- Public speaker form's linked-record pickers list existing records to outsiders, but all render
+  as "Unnamed record" — no real leak. Left in place pending the wrong-fields review.
+- Interface form builder right panel shifts rows by field type: on attachment fields the
+  **Required toggle sits where Visibility is on text fields**. A misclick silently turned
+  1st Photo's Required OFF — caught by comparing against 2nd Photo and re-enabled. Check
+  Required states after any panel clicking spree.
+- Airtable's form editor still freezes browser automation intermittently (screenshot timeouts);
+  actions land, verification screenshots need a retry.
+- Memory pointer: `project_tbbq_sideevent_form_2026`.
+
 ## Session 2026-07-20 (Event Room: up to 35 presenters submission — PLAN + prep)
 
 **The ask (Charlotte → Auri):** the "Side event & Event Room Info 2026" form must let a partner
