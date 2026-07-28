@@ -1,0 +1,157 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { useCachedList } from "@/lib/useCachedList";
+import { CopyEmbed } from "@/components/CopyEmbed";
+
+// Same per-image shimmer loader as the NISS page: state lives here so parent
+// re-renders (SWR revalidation) can't reset it back to shimmering.
+function SpeakerPhoto({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className={"s-card__media" + (loaded ? "" : " shimmer")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="s-card__img"
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+      />
+    </div>
+  );
+}
+
+type NassPerson = {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  bio: string;
+  photo: string | null;
+  linkedin: string | null;
+  role: string;
+};
+
+const ROLES = ["all", "Speaker", "Moderator"] as const;
+type Role = (typeof ROLES)[number];
+
+// Display label only — the underlying value stays "Speaker" so the Airtable role filter
+// keeps working. This event calls speakers "presenters", same as NISS.
+const roleLabel = (r: string) => (r === "all" ? "All" : r === "Speaker" ? "Presenter" : r);
+
+export default function NassPage() {
+  const [role, setRole] = useState<Role>("Speaker");
+
+  const url = role === "all" ? "/api/nass-speakers" : `/api/nass-speakers?role=${role}`;
+  const { data, loading, revalidating, error, updated } = useCachedList<NassPerson>(
+    `nass:${role}`,
+    url,
+    "people"
+  );
+  // Random order, re-rolled on every page load (same approach as Speakers 2026). The
+  // seed is fixed for this mount so revalidation or tab-switching doesn't re-jump the
+  // order mid-view; a refresh remounts → new seed → new order.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const people = useMemo(() => {
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    const arr = [...(data ?? [])];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [data, seed]);
+
+  return (
+    <main>
+      <section className="hero">
+        <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
+        <div className="wrap hero__inner">
+          <p className="eyebrow">Nordic Africa Startup Summit · Airtable 2026 grid</p>
+          <h1>
+            NASS 2026 <span className="text-tbbq-gradient">presenters</span>
+          </h1>
+          <p className="lede">
+            Live from Airtable · the curated 2026 grid (presenters, moderators) · served
+            as JSON at <code>/api/nass-speakers</code>.
+          </p>
+
+          <div className="seg" role="tablist" aria-label="Filter by role" style={{ marginTop: 28 }}>
+            {ROLES.map((r) => (
+              <button key={r} role="tab" aria-selected={role === r} onClick={() => setRole(r)}>
+                {roleLabel(r)}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {/* Mobile defaults to the list-rows layout for every role. */}
+            <CopyEmbed path={url} listKey="people" shuffle />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div className="wrap" style={{ paddingBottom: 80 }}>
+        {error && !data ? (
+          <div className="notice">
+            <strong>Could not load.</strong>
+            <p>{error}</p>
+          </div>
+        ) : loading ? (
+          <>
+            <p className="count-line">Loading…</p>
+            <SkeletonGrid count={10} />
+          </>
+        ) : (
+          <>
+            <p className="count-line">
+              {people.length} person(s).
+              {revalidating && <span className="reval"> · checking for updates…</span>}
+              {updated && <span className="reval"> · updated</span>}
+            </p>
+            <div className="grid-cards">
+              {people.map((p) => {
+                const meta = p.title + (p.company ? ` · ${p.company}` : "");
+                const card = (
+                  <>
+                    {p.photo ? (
+                      <SpeakerPhoto src={p.photo} alt={p.name} />
+                    ) : (
+                      <div className="s-card__media">
+                        <div className="s-card__img--empty" />
+                      </div>
+                    )}
+                    <div className="s-card__overlay">
+                      {p.role && <span className="s-card__role">{roleLabel(p.role)}</span>}
+                      <h3 className="s-card__name">{p.name}</h3>
+                      <p className="s-card__meta">{meta}</p>
+                    </div>
+                  </>
+                );
+                return (
+                  <article key={p.id} className="s-card">
+                    {p.linkedin ? (
+                      <a href={p.linkedin} target="_blank" rel="noopener noreferrer">
+                        {card}
+                      </a>
+                    ) : (
+                      card
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

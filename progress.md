@@ -4,6 +4,42 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-28 (NASS 2026 section — branch `nass-2026`, NOT committed)
+
+State: built + verified locally, completion-auditor GO. Mirrors NISS 2026 exactly.
+
+- **New feed `/api/nass-speakers`** (`lib/nass.ts` + `app/api/nass-speakers/route.ts`).
+  Source: table `tbl3dTaHrIFrHF6Mo` ("Ticketing Forms"), view `viw9pkLpUOThgHfGB`
+  ("Nordic-Africa Summit Presenters", NASS = Nordic-Africa Startup Summit). 26 records,
+  all with Headshots. Allow-listed fields only: Presenter's full name / job title /
+  bio, Company Name Investor Dinner (that IS the company column here), Headshots,
+  LinkedIn profile, Speaker or Moderator. Role filter `?role=Speaker|Moderator`
+  (24 + 2). Same rate-limit + 1h cache + CORS as NISS.
+- **New page `/nass`** (`app/nass/page.tsx`), nav tab "NASS 2026", middleware
+  PUBLIC_PATHS entry. Same card grid/tabs/CopyEmbed as `/niss`.
+- Dropped from the NISS copy on purpose: `Hierarchy ` sort (field doesn't exist here,
+  order = alphabetical), `Should be On Website` opt-out (no such field; view membership
+  + the name+photo gate are the publish switches), Team Member tab, photo crop override.
+- Verified: tsc clean, feed 26/2, page 200 on dev :3000.
+- **Random order added** (same pattern as Speakers 2026): client-side Fisher-Yates with
+  a mount-fixed LCG seed on the page (order stable during revalidation, re-rolls per
+  refresh) + `shuffle` flag on the CopyEmbed so the Elementor snippet shuffles too.
+  Browser-verified: two loads gave different orders. API stays alphabetical (cached 1h,
+  shuffling server-side would freeze one order for everyone).
+
+Next steps:
+1. Auri reviews /nass locally → merge `nass-2026` to main (auto-deploys) → copy the
+   embed from the DEPLOYED dashboard into Elementor.
+2. Airtable data fixes (in the view, not code): Jamie Thurston Wyngaard is in TWICE
+   (both with photos, slightly different titles — remove one); the two moderators have
+   "(Moderator)" baked into their Full Name cells ("Adama Ibrahim, EMBA (Moderator)",
+   "Joseph Yamoah (Moderator)") — strip it, the Role tag already shows it.
+3. Confirm the public event name spelling ("Nordic Africa Startup Summit" used in the
+   page eyebrow vs the view's "Nordic-Africa Summit").
+4. There is also a near-duplicate view "NASS Presenters 2026" (`viwCbSdP7li3GjOwK`,
+   27 rows, one with blank role) — feed uses Auri's specified view; consider deleting
+   the other to avoid two sources of truth.
+
 ## Session 2026-07-22b (NISS photo gate — branch `niss-photo-gate`, NOT yet deployed)
 
 State: filter written + verified locally, waiting on Auri's go-ahead to merge to main
