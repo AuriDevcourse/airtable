@@ -4,6 +4,38 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-28b (Investor speakers section — branch `investor-speakers`, NOT committed)
+
+State: built + verified locally (feed, tabs, browser), completion-auditor GO.
+
+- **New feed `/api/investor-speakers`** (`lib/investors.ts` + route). Source: Marketing
+  Project Overview (`tblTecOBecLQCNIeD`, same table as main-speakers/hierarchy), rows
+  with `Project Name` = "European Growth Pension & Insurance Summit" OR "LP Forum".
+  `?event=pension-summit|lp-forum` short keys (allow-listed, mapped to the exact select
+  option strings server-side). 10s timeout + retry + `maxDuration=30` (wide-table scan,
+  same risk as main-speakers). Fields: Full Name, Job Title, Company, Profile Picture,
+  Link to LinkedIn + LinkedIn Handle (http-guard helper), Hierarchy, Project Name.
+- **Dedupe in code**: the Speakers view holds real duplicate rows (Thomas Kristensen ×3,
+  Kasim Kutay/Torben Andersen/Treichl/Kiander etc. ×2). Collapse per event by normalized
+  name; keeper = has LinkedIn, then lower Hierarchy. 42 raw → 26 served
+  (7 pension-summit + 19 lp-forum).
+- **New page `/investors`**, nav tab "Investors". Tabs All / Pension & Insurance
+  Summit / LP Forum; on All each card shows its event tag. Same card grid + CopyEmbed
+  as NISS/NASS. Photo gate (name+photo) → 5 pension-summit people currently hidden
+  (Jens Munch Holst, Kent Damsgaard, Kjetil Houg, Merete Clausen, Rasmus Bessing —
+  no Profile Picture yet; upload = publish, same rule as NISS).
+- Order: Hierarchy asc then name (all Hierarchy blank today → alphabetical; set numbers
+  in Airtable to curate, no redeploy needed but 1h cache).
+- Verified: tsc clean; feed 26/7/19; browser tab-switch test 26→7→19 with event tags.
+
+Next steps:
+1. Auri reviews /investors locally → merge to main → copy embed(s) into Elementor.
+2. Airtable data fix: "Mads Krogsgaard" vs "Mads Krogsgaard Thomsen" (both CEO · Novo
+   Nordisk Foundation) are the same person with different name strings — code can't
+   safely auto-collapse; delete/rename one row.
+3. Photos for the 5 hidden pension-summit people when they should go live.
+4. Note: dupes remain in the Airtable view itself (code hides them); clean at leisure.
+
 ## Session 2026-07-28 (NASS 2026 section — branch `nass-2026`, NOT committed)
 
 State: built + verified locally, completion-auditor GO. Mirrors NISS 2026 exactly.
