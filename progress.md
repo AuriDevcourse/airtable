@@ -4,9 +4,29 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-07-28b (Investor speakers section — branch `investor-speakers`, NOT committed)
+## Session 2026-07-28c (Investors: random order + Investor Day — branch `investors-shuffle`, NOT committed)
+
+State: built + browser-verified locally on top of the deployed investors section.
+
+- **Random order on /investors** (same pattern as Speakers 2026 / NASS): mount-seeded
+  Fisher-Yates on the page, `shuffle` flag on the CopyEmbed. Anyone with a numeric
+  `Hierarchy` keeps that order at the top (page + embed both honor this); today everyone
+  is unranked so everything shuffles. Verified: two loads, different orders.
+- **Third event added: TechBBQ Investor Day** (`?event=investor-day`, tab "Investor
+  Day"). 3 people (Trine Hoffensetz Winther, Johan Bøe Bjørkevoll, Tamara Savic), all
+  complete. INVESTOR_EVENTS map drives the route allow-list + OR formula, so it was a
+  one-line lib change + page tab.
+- Data note: the Mads Krogsgaard duplicate got fixed in Airtable mid-session (LP Forum
+  19 → 18, one "Mads Krogsgaard" row left). All = 28 (7 + 18 + 3).
+- Gotcha hit: `next dev` (webpack, Win11) served a stale compile of the edited page —
+  file on disk was new, served bundle old, no compile error. Fix = restart dev server.
+  Also: TaskStop on the npm wrapper orphans the node child holding the port (next
+  instance silently moves to :3002); taskkill the child PID too.
+
+## Session 2026-07-28b (Investor speakers section — merged to main, LIVE)
 
 State: built + verified locally (feed, tabs, browser), completion-auditor GO.
+Committed `1f4f3e1`, merged to main `477df54`, deployed + prod-verified (26/7/19).
 
 - **New feed `/api/investor-speakers`** (`lib/investors.ts` + route). Source: Marketing
   Project Overview (`tblTecOBecLQCNIeD`, same table as main-speakers/hierarchy), rows

@@ -1,6 +1,7 @@
-// Server-only: investor speakers for the European Growth Pension & Insurance Summit and
-// the LP Forum. Same source as the Main Page 12 — the "Marketing Project Overview" table
-// (tblTecOBecLQCNIeD), rows whose Project Name is one of the two events. Only the
+// Server-only: investor speakers for the European Growth Pension & Insurance Summit,
+// the LP Forum and TechBBQ Investor Day. Same source as the Main Page 12 — the
+// "Marketing Project Overview" table (tblTecOBecLQCNIeD), rows whose Project Name is
+// one of those events. Only the
 // allow-listed marketing fields below are ever requested; the table is wide and holds
 // unrelated internal project data, none of it is read here.
 
@@ -16,6 +17,7 @@ const TABLE = "tblTecOBecLQCNIeD"; // Marketing Project Overview
 export const INVESTOR_EVENTS = {
   "pension-summit": "European Growth Pension & Insurance Summit",
   "lp-forum": "LP Forum",
+  "investor-day": "TechBBQ Investor Day",
 } as const;
 export type InvestorEventKey = keyof typeof INVESTOR_EVENTS;
 
