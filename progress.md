@@ -142,9 +142,28 @@ event isn't named on the sheet (possibly the "Founders event" in room 1, UNCONFI
 awaiting Auri). Rooms 2 + 6 are TechBBQ's own programs (India/Afrika, Quantum/
 Blockchain), no partner presenters. When the sheet moves an event, update HOST_ROOMS.
 
+**Round 9 (same day): Event Room shuffle + NISS/NASS → "Event Room 2"** (Auri's asks):
+- **Random order**: the Event Room group shuffles per page load. Page = seeded LCG
+  Fisher-Yates (mount-fixed seed, same pattern as /investors, order holds through SWR
+  revalidation). Embed = new per-tab `shuffle` flag on the tabs option
+  (`{key,label,shuffle:true}` → that group shuffles once per load; SHUFFLE array in the
+  snippet). Server keeps stable alphabetical (1h cache would freeze a server shuffle).
+  RE-COPY the embed for this (structural snippet change).
+- **NISS + NASS now tagged "Event Room 2"** (was "NISS 2026"/"NASS 2026"): per the
+  planning sheet, India (NISS, day 1) and Afrika (NASS, day 2) both run in Event room 2
+  · C1-M1. NOTE: Auri's message said Room 1 but the sheet clearly shows room 2 — went
+  with the sheet, flagged to Auri; one-line change in page + route if wrong.
+- Verified (fresh fetches, cache-bypassed): tags {ER1: 4, ER2: 46, ER3: 1, ER4: 2,
+  ER5: 5, Danish Entrepreneurs: 26}; page order non-alphabetical; copied snippet
+  contains SHUFFLE=["eventRoom"] and renders non-alphabetically.
+- Verification gotcha: browser HTTP cache + stale localStorage made the first
+  in-browser check look wrong (old tags); `fetch(..., {cache:'reload'})` showed the
+  server was right all along.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
-   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
+   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known. Also confirm
+   NISS/NASS = Event Room 2 (sheet) vs Room 1 (Auri's message).
 2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation

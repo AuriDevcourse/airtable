@@ -42,9 +42,11 @@ export type EmbedOptions = {
   // Multi-group tab mode (the /all-speakers-2026 embed). When set, ENDPOINT must return
   // { groups: { [key]: Person[] } } and the snippet renders a centered pill switcher
   // above the grid; clicking a pill swaps the rendered group without refetching. The
-  // first entry is selected by default. listKey, modal and shuffle are ignored in this
-  // mode. Cards with a `tag` (which event a person belongs to) show it above the name.
-  tabs?: { key: string; label: string }[];
+  // first entry is selected by default. listKey, modal and the top-level shuffle are
+  // ignored in this mode — set shuffle per tab instead (that group is Fisher-Yates
+  // shuffled once per page load). Cards with a `tag` (which event/room a person belongs
+  // to) show it above the name.
+  tabs?: { key: string; label: string; shuffle?: boolean }[];
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -222,6 +224,13 @@ export function buildEmbedSnippet({
     tabs?.length
       ? `
     var groups=(data&&data.groups)||{};
+    // Shuffle the flagged groups once per page load (re-rolls on refresh; switching
+    // tabs back keeps this load's order).
+    var SHUFFLE=${JSON.stringify(tabs!.filter((t) => t.shuffle).map((t) => t.key))};
+    for(var sk=0;sk<SHUFFLE.length;sk++){
+      var sg=groups[SHUFFLE[sk]];
+      if(sg)for(var si=sg.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=sg[si];sg[si]=sg[sj];sg[sj]=st;}
+    }
     var list=[];
     var shown=0;
     var more=document.createElement("button");
