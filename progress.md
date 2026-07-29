@@ -272,6 +272,20 @@ copied snippet: bg rgb(17,24,39), blue border, 0 icons, 8 rows, "Opening" title 
 Divergence note: the shared dim rule still dims Networking/Break rows on Fintech
 (Auri's fintech mock showed Networking in blue) — flagged, awaiting his call.
 
+**Round 18 (same day): agenda uniformity + NISS Brand Ambassadors** (Auri's fixes):
+- **Agenda embeds: dim styling REMOVED entirely** — every tag/title one color per
+  theme (Auri: "Networking has to look the same", "all labels the same color").
+  New `bigOpening` option (default true); Fintech passes false so "Unicorn to
+  Decacorn" renders 19px like the rest. Verified on the executed Fintech snippet:
+  one tag color, one title size, 0 dim elements, 0 big titles.
+- **NISS speakers: "Brand Ambassadors" role tab added** (page ROLES + the route's
+  ALLOWED_ROLES — the route silently fell back to "all" for unknown roles, which is
+  why the first test returned 32). 3 people today (Jesper Ludolph, Kunal Singla,
+  Rajeev Suri). Grid pinned to 3 per row for that tab (`.grid-cards--3` added to
+  globals.css) and the CopyEmbed passes `columns={3}`. Verified: tab renders 3 cards
+  in 3 columns; copied embed carries repeat(3,minmax(0,1fr)).
+- RE-COPY any pasted NISS/Fintech agenda embeds (styling is snippet-side).
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
