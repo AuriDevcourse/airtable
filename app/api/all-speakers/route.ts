@@ -89,7 +89,9 @@ export async function GET(req: NextRequest) {
     ...val(nassR)
       .filter((p) => p.role === "Speaker")
       .map((p) => ({ ...p, tag: "NASS 2026" })),
-    ...val(roomsR).map((p) => ({ ...p, tag: p.host })),
+    // Tag with the assigned room ("Event Room 1".."6") once marketing sets it in the
+    // Marketing Project Overview; until then the hosting partner's name.
+    ...val(roomsR).map((p) => ({ ...p, tag: p.room ?? p.host })),
   ].sort((a, b) => a.name.localeCompare(b.name));
   const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({
     ...p,

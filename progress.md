@@ -114,10 +114,29 @@ one row PER SPEAKER PER SESSION). 31 rows today, all Danish Entrepreneurs.
 - Embeds pick the fix up automatically (they render the feed's linkedin value at
   runtime, no re-copy needed for this).
 
+**Round 7 (same day): room-number tags** (Auri: show "Event Room 1..6" instead of the
+partner name). Source found by schema search: Marketing Project Overview has
+`Project Name` options "Event Room 1"/"Event Room 2" (+ a `Which Event Room` 1–6 select,
+currently 0 rows, unused). Marketing assigns a person a room by creating a marketing row
+with Project Name = "Event Room N"; today 4 real rows exist (Lars Horsholt Jensen, Randi
+Wahlsten, Thomas Grotkjær, Adrian Larsen → Room 1) + one test row ("asd", ignored via the
+strict `^Event Room [1-6]$` + name join).
+- `lib/eventrooms.ts`: new `fetchRoomAssignments()` (FIND filter on the wide marketing
+  table, 10s timeout, failure only loses labels, never people) → `room` field on each
+  presenter, joined by normalized Full Name. Route + page tag with `p.room ?? p.host`.
+- To assign a room in Airtable: add the person to Marketing Project Overview with
+  Project Name = "Event Room N" (exact match, N = 1–6). Name must match the form
+  submission's name (case-insensitive, whitespace-normalized).
+- Verified: tsc clean; feed + page show "Event Room 1" ×4, others still host-tagged.
+- Stale-compile gotcha hit AGAIN after these edits (page bundle old while API new);
+  dev-server restart fixed it, same as before.
+
 Next steps:
 1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
-2. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
+2. Marketing to add the remaining partner presenters to Marketing Project Overview with
+   their "Event Room N" Project Name (34 people still show the host-name fallback).
+3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
    (every other page does); add if missed.
 
 Gotchas:
