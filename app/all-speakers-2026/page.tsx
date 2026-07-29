@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
@@ -8,8 +8,10 @@ import { CopyEmbed } from "@/components/CopyEmbed";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
 // Event Room shuffles per page load (fair exposure across the rooms' partners).
+// Speakers is the only group with bios, so it alone opens the detail pop-up; the other
+// groups' cards link straight to LinkedIn.
 const EMBED_TABS = [
-  { key: "speakers", label: "Speakers" },
+  { key: "speakers", label: "Speakers", modal: true },
   { key: "eventRoom", label: "Event Room Speakers", shuffle: true },
   { key: "investors", label: "Investor Speakers" },
 ];
@@ -42,6 +44,8 @@ type FeedPerson = {
   company: string;
   photo: string | null;
   linkedin: string | null;
+  // Only the Speakers 2026 hub feed carries a bio; it powers the detail pop-up.
+  bio?: string;
   role?: string;
   event?: string;
   // Partner event room presenters only: which partner's event room they present at,
@@ -69,8 +73,101 @@ const INVESTOR_EVENT_LABELS: Record<string, string> = {
   "investor-day": "Investor Day",
 };
 
+// Detail pop-up for the Speakers group — same look/behavior as /speakers-2026
+// (photo · name · title · company · bio · LinkedIn button; Escape/backdrop/X close).
+function SpeakerModal({ speaker, onClose }: { speaker: Card; onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  const meta = speaker.title + (speaker.company ? ` · ${speaker.company}` : "");
+
+  return (
+    <div className="modal" role="presentation" onMouseDown={onClose}>
+      <div
+        className="modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="all-speaker-modal-name"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          ref={closeRef}
+          type="button"
+          className="modal__close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+
+        <div className="modal__media">
+          {speaker.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={speaker.photo} alt={speaker.name} />
+          ) : (
+            <div className="s-card__img--empty" />
+          )}
+        </div>
+
+        <div className="modal__body">
+          <h2 id="all-speaker-modal-name" className="modal__name">
+            {speaker.name}
+          </h2>
+          {meta && <p className="modal__meta">{meta}</p>}
+          {speaker.bio ? (
+            <p className="modal__bio">{speaker.bio}</p>
+          ) : (
+            <p className="modal__bio modal__bio--empty">No description available yet.</p>
+          )}
+          {speaker.linkedin && (
+            <a
+              className="modal__linkedin"
+              href={speaker.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14zM8.34 18.34V9.9H5.67v8.44h2.67zM7 8.5a1.55 1.55 0 1 0 0-3.1 1.55 1.55 0 0 0 0 3.1zm11.34 9.84v-4.63c0-2.48-1.32-3.63-3.09-3.63-1.42 0-2.06.78-2.42 1.33V9.9h-2.67v8.44h2.67v-4.47c0-.24.02-.47.09-.64.19-.47.62-.96 1.34-.96.95 0 1.32.72 1.32 1.77v4.3h2.67z" />
+              </svg>
+              View LinkedIn profile
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AllSpeakers2026Page() {
   const [group, setGroup] = useState<GroupKey>("speakers");
+  // Speakers-group detail pop-up (the only group with bios).
+  const [selected, setSelected] = useState<Card | null>(null);
 
   // All four sources load on mount so switching groups is instant. Cache keys are
   // shared with the standalone pages, so a warm localStorage entry paints instantly.
@@ -232,7 +329,12 @@ export default function AllSpeakers2026Page() {
                 );
                 return (
                   <article key={`${group}:${p.id}`} className="s-card">
-                    {p.linkedin ? (
+                    {group === "speakers" ? (
+                      // Only Speakers have bios: click opens the detail pop-up.
+                      <button type="button" className="s-card__button" onClick={() => setSelected(p)}>
+                        {card}
+                      </button>
+                    ) : p.linkedin ? (
                       <a href={p.linkedin} target="_blank" rel="noopener noreferrer">
                         {card}
                       </a>
@@ -246,6 +348,8 @@ export default function AllSpeakers2026Page() {
           </>
         )}
       </div>
+
+      {selected && <SpeakerModal speaker={selected} onClose={() => setSelected(null)} />}
     </main>
   );
 }
