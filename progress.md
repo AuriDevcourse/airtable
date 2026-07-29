@@ -4,9 +4,13 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-07-28c (Investors: random order + Investor Day — branch `investors-shuffle`, NOT committed)
+## Session 2026-07-28c (Investors: random order + Investor Day — merged to main, LIVE)
 
-State: built + browser-verified locally on top of the deployed investors section.
+State: DONE. Commit `fb9c2df` on `investors-shuffle`, merged to main `d0b61f3`, Vercel
+deployed + prod-verified (`?event=investor-day` returns 3; old deploy briefly served
+the unknown param as "all", correct fail-safe). If a Pension Summit / LP Forum embed
+was already pasted in Elementor, RE-COPY it from the deployed /investors so the
+snippet gains the shuffle block (pasted snippets never self-update).
 
 - **Random order on /investors** (same pattern as Speakers 2026 / NASS): mount-seeded
   Fisher-Yates on the page, `shuffle` flag on the CopyEmbed. Anyone with a numeric
@@ -50,15 +54,16 @@ Committed `1f4f3e1`, merged to main `477df54`, deployed + prod-verified (26/7/19
 
 Next steps:
 1. Auri reviews /investors locally → merge to main → copy embed(s) into Elementor.
-2. Airtable data fix: "Mads Krogsgaard" vs "Mads Krogsgaard Thomsen" (both CEO · Novo
-   Nordisk Foundation) are the same person with different name strings — code can't
-   safely auto-collapse; delete/rename one row.
+2. ~~Airtable data fix: Mads Krogsgaard vs Mads Krogsgaard Thomsen dupe~~ FIXED in
+   Airtable same day (LP Forum 19 → 18).
 3. Photos for the 5 hidden pension-summit people when they should go live.
 4. Note: dupes remain in the Airtable view itself (code hides them); clean at leisure.
 
-## Session 2026-07-28 (NASS 2026 section — branch `nass-2026`, NOT committed)
+## Session 2026-07-28 (NASS 2026 section — merged to main, LIVE)
 
-State: built + verified locally, completion-auditor GO. Mirrors NISS 2026 exactly.
+State: DONE. Commit `2f9986c` on `nass-2026`, merged to main `a808b91`, deployed +
+prod-verified (26 people). Built + verified locally, completion-auditor GO. Mirrors
+NISS 2026 exactly. Random order added same day (see the merged shuffle notes below).
 
 - **New feed `/api/nass-speakers`** (`lib/nass.ts` + `app/api/nass-speakers/route.ts`).
   Source: table `tbl3dTaHrIFrHF6Mo` ("Ticketing Forms"), view `viw9pkLpUOThgHfGB`
