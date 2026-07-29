@@ -20,6 +20,7 @@ type Session = {
 const EVENTS = [
   { key: "techbbq", label: "TechBBQ 2026" },
   { key: "niss", label: "NISS 2026" },
+  { key: "fintech", label: "Future of Fintech" },
 ] as const;
 type EventKey = (typeof EVENTS)[number]["key"];
 
