@@ -19,6 +19,10 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 // Pinned in code on purpose (stable Airtable ids, not secrets — see lib/niss.ts).
 const TABLE = "tbllvkwLhB4Omdphd"; // Partnership Success
 const VIEW = "viwcC25ENg2ELGszH"; // 2026 Side event and event room info
+// Overflow speakers ("More than 5" partners submit one row PER SPEAKER via the More
+// Event Room Speakers form). The row's `Company` field holds the PARTNER ID as text —
+// that's the join key back to the event-room row, which gives the hosting company.
+const OVERFLOW_VIEW = "viw8pHmY9hNN8z7Zn";
 
 // Only rows with this event type are event rooms; the view also holds Side Events.
 const EVENT_ROOM_TYPE = "Event Room at TechBBQ";
@@ -41,14 +45,25 @@ const SAFE_FIELDS = [
   ...SLOTS.flatMap((s) => [s.details, s.photo]),
 ];
 
+// Overflow rows reuse some field names with different meanings: `Presenter Details`
+// holds just the speaker's NAME there, and `Company` holds the partner id.
+const OVERFLOW_FIELDS = [
+  "Company",
+  "Presenter Details",
+  "Presenters Position in the Company",
+  "Presenters Company",
+  "Presenters Profile Picture",
+  "LinkedIn Handle",
+];
+
 export type EventRoomPresenter = {
   id: string;
   name: string;
   title: string;
   company: string;
   photo: string | null;
-  // The source form has no LinkedIn field; kept null so cards render as plain cards.
-  linkedin: null;
+  // The 1st–5th slot fields carry no LinkedIn; the overflow form does (LinkedIn Handle).
+  linkedin: string | null;
   // Which partner's event room the person presents at (the row's Company).
   host: string;
 };
@@ -101,19 +116,15 @@ export class EventRoomsError extends Error {
   }
 }
 
-export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> {
-  if (!TOKEN || !BASE_ID) {
-    throw new EventRoomsError("Airtable env vars are not set on the server.", 503);
-  }
-
+async function fetchView(view: string, fields: string[]): Promise<AirtableRecord[]> {
   const records: AirtableRecord[] = [];
   let offset: string | undefined;
 
   do {
     const params = new URLSearchParams();
-    params.set("view", VIEW);
+    params.set("view", view);
     params.set("pageSize", "100");
-    for (const field of SAFE_FIELDS) params.append("fields[]", field);
+    for (const field of fields) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
     const res = await fetchWithTimeout(
@@ -123,7 +134,7 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
 
     if (!res.ok) {
       const detail = await res.text();
-      console.error("[eventrooms] fetch failed", res.status, detail);
+      console.error("[eventrooms] fetch failed", view, res.status, detail);
       throw new EventRoomsError("Could not reach the event rooms source.", 502);
     }
 
@@ -131,6 +142,29 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
     records.push(...data.records);
     offset = data.offset;
   } while (offset);
+
+  return records;
+}
+
+export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> {
+  if (!TOKEN || !BASE_ID) {
+    throw new EventRoomsError("Airtable env vars are not set on the server.", 503);
+  }
+
+  const [records, overflow] = await Promise.all([
+    fetchView(VIEW, SAFE_FIELDS),
+    fetchView(OVERFLOW_VIEW, OVERFLOW_FIELDS),
+  ]);
+
+  // Partner ID → hosting company, from every event-room row (presenter-less ones too —
+  // Danish Entrepreneurs' own row has no slots but names the host for their overflow).
+  const hostByPartner = new Map<string, string>();
+  for (const rec of records) {
+    if (str(rec.fields["Type of Event"]) !== EVENT_ROOM_TYPE) continue;
+    const partnerId = String(rec.fields["Partner ID"] ?? "");
+    const company = str(rec.fields["Company"]);
+    if (partnerId && company && !hostByPartner.has(partnerId)) hostByPartner.set(partnerId, company);
+  }
 
   // Event Room rows only, then one winning row per Partner ID: the newest submission
   // that actually carries presenters. Rows with zero filled slots never win (they're
@@ -146,6 +180,12 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
   }
 
   const people: EventRoomPresenter[] = [];
+  // One entry per person per event room: the overflow form takes one row per SESSION,
+  // so the same speaker can appear several times (Peter Kofler is in five sessions).
+  const seen = new Set<string>();
+  const personKey = (host: string, name: string) =>
+    `${host.toLowerCase()}|${name.toLowerCase().replace(/\s+/g, " ")}`;
+
   for (const rec of byPartner.values()) {
     const host = str(rec.fields["Company"]);
     SLOTS.forEach((slot, i) => {
@@ -154,8 +194,30 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       const { name, title, company } = parseDetails(blob);
       const photo = firstPhoto(rec.fields[slot.photo]);
       // Same publish rule as NISS/NASS: no name or no photo, no card.
-      if (!name || !photo) return;
+      if (!name || !photo || seen.has(personKey(host, name))) return;
+      seen.add(personKey(host, name));
       people.push({ id: `${rec.id}-${i + 1}`, name, title, company, photo, linkedin: null, host });
+    });
+  }
+
+  for (const rec of overflow) {
+    const f = rec.fields;
+    // Overflow field meanings differ from the main view: Presenter Details = the NAME,
+    // Company = the partner id (join key to the host).
+    const name = str(f["Presenter Details"]);
+    const photo = firstPhoto(f["Presenters Profile Picture"]);
+    const host = hostByPartner.get(str(f["Company"])) ?? "Event Room";
+    if (!name || !photo || seen.has(personKey(host, name))) continue;
+    seen.add(personKey(host, name));
+    const link = str(f["LinkedIn Handle"]);
+    people.push({
+      id: rec.id,
+      name,
+      title: str(f["Presenters Position in the Company"]),
+      company: str(f["Presenters Company"]),
+      photo,
+      linkedin: link.startsWith("http") ? link : null,
+      host,
     });
   }
 
