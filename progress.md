@@ -180,10 +180,22 @@ linking straight to LinkedIn (no bios in those sources).
   opens with bio + LinkedIn, Escape closes, Event Room cards stay links.
 - RE-COPY the embed in Elementor (structural snippet change).
 
+**Round 11 (same day): NISS+NASS populated into the marketing Event Room view**
+(Auri's ask; room CONFIRMED as Event Room 2 via AskUserQuestion — Auri had said "room
+one" twice but chose "per sheet" when shown the conflict; website tags unchanged).
+- **46 rows created** in Marketing Project Overview (`tblTecOBecLQCNIeD`, view
+  `viwLptcHWF3Wce6Im`): the exact NISS (21) + NASS (25) role=Speaker roster the website
+  shows, fields Full Name / Job Title / Company / Profile Picture (Airtable re-ingested
+  all 46 photos) / LinkedIn Handle / Project Name="Event Room 2".
+- Script: `scripts/populate-eventroom2.mjs` (dry-run by default, `--write` to apply;
+  idempotent — skips names already in any "Event Room N" row, safe to re-run when new
+  speakers land in NISS/NASS).
+- View after write: 56 rows = ER1 4 real + ER2 47 (46 real + 1 "asd" test) + test rows
+  in 3–6. CLEANUP for Auri: the six "asd"/empty test rows (rooms 2–6) can be deleted.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
-   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known. Also confirm
-   NISS/NASS = Event Room 2 (sheet) vs Room 1 (Auri's message).
+   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
 2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
