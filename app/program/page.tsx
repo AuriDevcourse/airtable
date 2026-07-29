@@ -16,22 +16,28 @@ type Session = {
 };
 
 // One tab per event program. techbbq reads the purpose-built Program 2026 table;
-// niss reads the program view the NISS team fills inside their own table.
-const EVENTS = [
+// niss/fintech read the program views the teams fill inside their own tables.
+// heading/note bake a fixed date line + ticket notice into that event's embed.
+type EventKey = "techbbq" | "niss" | "fintech";
+const EVENTS: { key: EventKey; label: string; heading?: string; note?: string }[] = [
   { key: "techbbq", label: "TechBBQ 2026" },
-  { key: "niss", label: "NISS 2026" },
+  {
+    key: "niss",
+    label: "NISS 2026",
+    heading: "August 26th",
+    note: "Access to the program on 26th of August is for the holders of TechBBQ tickets only",
+  },
   { key: "fintech", label: "Future of Fintech" },
-] as const;
-type EventKey = (typeof EVENTS)[number]["key"];
+];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
 // the speakers CopyEmbed. Same behavior: fresh uid per copy, __ORIGIN__ → live URL.
-function CopyAgendaEmbed({ path }: { path: string }) {
+function CopyAgendaEmbed({ path, heading, note }: { path: string; heading?: string; note?: string }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = buildAgendaSnippet({ uid, path, heading, note }).replace(/__ORIGIN__/g, window.location.origin);
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -93,7 +99,11 @@ export default function ProgramPage() {
           </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyAgendaEmbed path={path} />
+            <CopyAgendaEmbed
+              path={path}
+              heading={EVENTS.find((e) => e.key === event)?.heading}
+              note={EVENTS.find((e) => e.key === event)?.note}
+            />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
             </span>
