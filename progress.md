@@ -4,371 +4,104 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-07-29 (All Speakers 2026 combined page + tabbed embed — merged to main, pushed)
+## Session 2026-07-29 (All Speakers 2026, Programs, Fintech — 20 rounds, ALL LIVE)
 
-State: page + tabbed embed built, browser-verified locally (embed verified by running the
-actual copied snippet, not just the React page), merged to main and pushed on Auri's go
-(auto-deploys on Vercel). Dev server left on :3001 (:3000 held by an older orphaned next).
+State: DONE and prod-verified after every round (last commit `b89f6f0`). Everything
+below auto-deployed from main to airtable-woad.vercel.app. Dev server left on :3001
+(:3000 held by an older orphaned next process). Round-by-round detail: git log of this
+file for 2026-07-29.
 
-**Round 2 (same day): tabbed Elementor embed + combined feed** (Auri: "the copied embed
-must have the tab switcher too, centered"):
-- **New feed `/api/all-speakers`** (route only, no new lib): one response with all three
-  groups `{counts, groups: {speakers, eventRoom, investors}}` so the embed fetches ONCE.
-  Reuses the SAME server cache keys as the individual routes (`speakers-2026`,
-  `niss:all`, `nass:all`, `investors:all`) via `Promise.allSettled` — one source failing
-  degrades that group to [] (error logged) instead of 502'ing the embed; all-dead = 502.
-  Event room rows get `tag: "NISS 2026" | "NASS 2026"`, investors get the short event
-  labels. Added to middleware PUBLIC_PATHS. `maxDuration = 30`.
-- **`lib/embedSnippet.ts`: new `tabs` option** — when set, ENDPOINT must return the
-  groups shape; the snippet renders a CENTERED pill switcher (`.tbbq-tabs`, same look as
-  the dashboard `.seg`) above the grid, swaps groups client-side without refetching,
-  resets Load more per tab, first tab default. `modal`/`shuffle`/`listKey` are ignored in
-  tab mode. Cards with a `tag` show it above the name (`.tbbq-card__tag`, orange 12px) —
-  harmless for all single-feed embeds (no `tag` field there).
-- **CopyEmbed forwards `tabs`** (remember the 2026-07-16 lesson: it silently dropping an
-  option is exactly how the shuffle bug happened). Page passes
-  `tabs=[speakers/eventRoom/investors]` on `path="/api/all-speakers"`.
-- **Auditor fix on the page**: when exactly one event-room feed fails with no cache, the
-  count line now says "NISS 2026 could not load · showing NASS 2026 only" (or mirrored)
-  instead of silently showing half a roster.
-- Verified: tsc clean; `/api/all-speakers` counts {173, 53, 29}, eventRoom tags
-  {NISS 28, NASS 25}, investor tags {LP Forum 17, Pension 9, Investor Day 3}; copied the
-  real snippet via clipboard intercept, injected + executed it in the browser: 20 cards
-  (Load more), tab clicks swap groups with correct tags, back to Speakers works,
-  `.tbbq-tabs` computed justify-content = center.
+### What exists now (the day's net result)
 
-**Round 1: the dashboard page** (see commit 95fbaf2):
-- **New page `/all-speakers-2026`** (`app/all-speakers-2026/page.tsx`), nav tab
-  "All Speakers 2026" (first entry in `components/TopNav.tsx`). Groups via segmented
-  control: **Speakers** (default, `/api/speakers-2026`, 173), **Event Room Speakers**
-  (NISS + NASS merged client-side, alphabetical, tagged, NISS `Team Member` rows
-  excluded, 53), **Investor Speakers** (`/api/investor-speakers`, tagged, 29).
-  localStorage cache keys shared with the standalone pages (auditor-confirmed no
-  collision: the `tag` field never reaches storage on this page's path).
+**1. All Speakers 2026** — page `/all-speakers-2026` + ONE tabbed Elementor embed.
+- Feed `/api/all-speakers` returns `{counts, groups: {speakers, eventRoom, investors}}`
+  in one response (Promise.allSettled over the per-source caches; one dead source
+  degrades to [], all-dead = 502).
+- Groups: **Speakers** = Speaker Hub + Airtable-only "TechBBQ Summit" rows (176; bio
+  pop-up on click, modal like /speakers-2026) · **Event Room Speakers** = NISS + NASS
+  (role "Speaker" ONLY) + partner form presenters + Danish Entrepreneurs overflow,
+  deduped, shuffled per load, no bios → cards link to LinkedIn · **Investor Speakers**
+  = Pension Summit + LP Forum + Investor Day (33).
+- Event Room tags = the ROOM: "Event Room 2" for NISS+NASS (per the planning sheet;
+  Auri confirmed vs his "room one" wording), partner presenters via person-level
+  marketing rows ("Event Room N" Project Name, joined by normName) → HOST_ROOMS map in
+  `lib/eventrooms.ts` (1=Erhvervshus+Boardway, 3=Flatpay+FBV, 4=Microsoft, 5=CBN) →
+  host company name as fallback (Danish Entrepreneurs' 26, room unknown).
+- Embed tab mode (`tabs` option in `lib/embedSnippet.ts`): centered pill switcher,
+  per-tab `shuffle` + `modal` flags, `.tbbq-card__tag` labels.
 
-Completion-auditor result (round 1): BLOCK → both blockers resolved (partial-outage
-warning shipped in round 2; process point moot, Auri explicitly said push). Minor
-findings left open, see next steps.
+**2. Programs** — page `/program` + per-event agenda embeds (`lib/agendaSnippet.ts`).
+- Multi-source `lib/program.ts` (`PROGRAM_SOURCES` map): **techbbq** = new "Program
+  2026" table `tblI4IW0b3sLxNWgz` (Day/Time Slot/Type/Description/Event Room; 3 SAMPLE
+  rows to delete) · **niss** = NISS table view `viwMqDT1GMW7AwOtQ` (15 sessions,
+  opt-out gate `Should be On Website`="NO") · **fintech** = Fintech table view
+  `viw0mk6kOUKxNqgzU` (8 sessions). `/api/program?event=…`. Publish rule: Session Name
+  + Time Slot (+ Day where the source has one). Sorted day → parsed start time.
+- Agenda embed design (Auri's mocks): glow border, big date heading, note pill,
+  uppercase outlined tags (ONE color per theme, dim variants removed), per-type Lucide
+  icons, `bigOpening` big title on type "Opening". Options: `heading`, `note`,
+  `theme: "orange" | "blue"`, `icons`, `bigOpening`; CSS scoped per uid. NISS = orange
+  + "August 26th" + tickets note; Fintech = blue on #111827, no icons, no bigOpening.
+- Adding another event's program = one PROGRAM_SOURCES entry + one EVENTS entry in
+  `app/program/page.tsx`.
 
-**Round 3 (same day): Event Room = role "Speaker" ONLY** (Auri: "if the speaker doesn't
-have role Speaker, don't show it"). Filter flipped from exclude-Team-Member to
-`role === "Speaker"` in BOTH places (page + /api/all-speakers). Drops moderators, Brand
-Ambassadors (Jesper Ludolph), blank-role rows (Sara Petrycer Hansen). Event Room
-53 → **44** (21 NISS + 23 NASS). Verified on dev API + browser (roles = ["Speaker"]
-only, no Ludolph/Petrycer/"(Moderator)" names).
+**3. Fintech speakers** — page `/fintech-speakers` + `/api/fintech-speakers`
+(`lib/fintechspeakers.ts`, view `viwsqDRAVlgJh3STT`). Role "Speaker" only (keynote +
+moderator excluded per Auri), curated `Hierarchy ` TEXT 1..9 order, 9 people, no
+shuffle. Table holds PII (email/phone) — strict allow-list, response verified clean.
+Embed passes `transparent` (new option: wrapper bg/padding/radius removed; cards sit
+on the host page's background).
 
-**Round 4 (same day): partner Event Room presenters added** (Auri's ask): third source
-for the Event Room group = Partnership Success (`tbllvkwLhB4Omdphd`) view "2026 Side
-event and event room info" (`viwcC25ENg2ELGszH`), rows with `Type of Event` =
-"Event Room at TechBBQ" only.
-- **New `lib/eventrooms.ts` + `/api/event-room-presenters`** (public path added).
-  Parses the five flat text fields `1st–5th Presenter(s) details/Details` (format
-  "Name: X\nPosition: Y\nCompany: Z", messy — parser handles "Name::", "Name:,",
-  missing spaces; field names are NOT uniform, exact strings pinned in SLOTS) +
-  matching `1st–5th Presenters Photo`. No LinkedIn in the source → `linkedin: null`
-  (cards render unlinked). Publish rule: name + photo, like NISS/NASS.
-- **Dedupe: partners resubmit the whole form.** One winning row per Partner ID = the
-  NEWEST `createdTime` row with ≥1 presenter (CBN's 07-28 5-presenter row supersedes
-  the 07-22 3-presenter; Flatpay's 07-21 supersedes an empty 06-30). 12 people from
-  4 partners today: Ehvervshus Sjælland 4, Creative Business Network 5, Microsoft 2,
-  Flatpay 1. Danish Entrepreneurs picked "More than 5" and filled NO slots → 0 (their
-  people live in the Event Room Speakers overflow table, NOT wired in — see next steps).
-- Cards tagged with the HOST partner's company name (tells you whose event room).
-- Wired into both `/api/all-speakers` (5th settled source, cache key `eventrooms`) and
-  the page (4th useCachedList; partial-outage warning generalized to the three
-  event-room sources). Event Room now **57** (21 NISS + 24 NASS + 12 partner; NASS
-  drifted 23→24 mid-session, Airtable data change, not code).
-- Verified: tsc clean; feed returns exactly the 12 with correct hosts/titles/photos;
-  page tab shows 57 with all six tags.
+**4. Cross-cutting**
+- TopNav is a DROPDOWN now (11 entries; trigger shows current page).
+- `lib/linkedin.ts` `normalizeLinkedInUrl()` in ALL feed libs: accepts www./
+  scheme-less/lnkd.in/country-subdomain, rewrites i./m./touch. mobile hosts → www.
+- NISS speakers: "Brand Ambassadors" role tab (3 people, 3-per-row grid via
+  `.grid-cards--3` + embed `columns={3}`; route ALLOWED_ROLES updated — it silently
+  falls back to "all" for unknown roles).
+- Speakers 2026 merges Airtable-only rows (`lib/summitextras.ts`: "TechBBQ Summit"
+  rows not in the Hub, normName dedupe both directions). Ken Villum Klausen (name
+  fixed Klause→Klausen in both rows) + Caspar Hoegh live this way.
 
-**Round 5 (same day): overflow speakers wired in** (Auri's link): second view on
-Partnership Success, `viw8pHmY9hNN8z7Zn` (the "More Event Room Speakers" form's rows,
-one row PER SPEAKER PER SESSION). 31 rows today, all Danish Entrepreneurs.
-- **Field meanings differ from the main view**: there `Presenter Details` = just the
-  NAME, `Company` = the PARTNER ID as text ("1526") — that's the join key. Host resolved
-  via Partner ID → the event-room row's Company (works even though DE's own row has no
-  slot presenters). Unmatched partner id falls back to host "Event Room".
-- **These rows DO have LinkedIn** (`LinkedIn Handle`, full URLs) — included with the
-  http guard, so DE cards are clickable unlike the slot-parsed ones.
-- **Dedupe per person per host** (same speaker sits in several sessions: Kofler ×4,
-  Lantz ×2, van Sabben ×2 → 31 rows = 26 people). The seen-set also spans the 1st–5th
-  slot people, so a person can't appear twice for one event room.
-- Event Room total now **83** (21 NISS + 24 NASS + 38 partner: DE 26 + CBN 5 +
-  Ehvervshus 4 + Microsoft 2 + Flatpay 1). Verified: tsc clean, feed 38 with correct
-  hosts, page tab 83 with all seven tags, Kofler card links to LinkedIn.
-- (Airtable data drifted again mid-session: investors 29 → 33. Data, not code.)
+### Airtable writes made today (data, not code)
+- 46 NISS/NASS speakers created as "Event Room 2" rows in Marketing Project Overview
+  (photos + LinkedIn re-ingested), Session Name set to Nordic India / Nordic Africa
+  Startup Summit. Scripts (idempotent, dry-run default, `--write` to apply):
+  `scripts/populate-eventroom2.mjs` + `scripts/set-eventroom2-sessions.mjs`.
+- New table "Program 2026" (`tblI4IW0b3sLxNWgz`) created via Meta API + 3 sample rows.
 
-**Round 6 (same day): nav dropdown + LinkedIn URL normalization** (Auri's asks):
-- **TopNav is now a dropdown** (10 entries outgrew the tab row): trigger shows the
-  current page + chevron, menu lists all projects, closes on outside click / Escape /
-  navigation. New `.topnav__dropdown/__trigger/__menu` styles replace `.topnav__links`.
-- **New `lib/linkedin.ts` · `normalizeLinkedInUrl()`** used by ALL nine feed libs (hub,
-  niss, nass, niss2025, lifescience, team, eventrooms, investors, mainpage, airtable).
-  The old `startsWith("http")` guards silently DROPPED "www.linkedin.com/...",
-  scheme-less "linkedin.com/..." / "dk.linkedin.com/..." / "lnkd.in/..." values →
-  unclickable cards (the "LinkedIn doesn't open" reports). Also rewrites mobile hosts
-  (i./m./touch.linkedin.com) to www. hub.ts previously had NO guard, so a scheme-less
-  value there rendered as a broken relative link. Recovered: NASS 1, Life Science 3
-  nulls → 0. The 2 remaining NISS 2025 nulls (Satya Prakash Singh, Shri Harsha) have
-  genuinely EMPTY LinkedIn cells in Airtable.
-- Embeds pick the fix up automatically (they render the feed's linkedin value at
-  runtime, no re-copy needed for this).
+### Next steps
+1. **Auri: Danish Entrepreneurs' room number** — 26 Event Room cards still show the
+   company name; one HOST_ROOMS line once known.
+2. **Elementor RE-COPIES** (all snippet-side changes; always copy from the DEPLOYED
+   dashboard): All Speakers 2026 · NISS agenda · Fintech agenda · Fintech speakers ·
+   optionally Brand Ambassadors (select the tab first — copy follows the active
+   filter).
+3. **Airtable cleanups**: delete the 3 Program 2026 sample rows + the "asd" test rows
+   in the marketing Event Room view; NISS time typos ("13:30-14-30", "16:30-16-50")
+   and the 15:30 overlap; trim the Fintech "Opening" Session Name cell (pasted
+   leftovers); retype the NISS opener "Fireside"→"Opening" for the big title; fill
+   real TechBBQ program sessions.
+4. Minor from auditor: /all-speakers-2026 doesn't show the "· updated" badge after
+   revalidation (every other page does).
+5. Parked: keynote speaker + moderator on the Fintech speakers feed (relax the Role
+   filter when wanted); partner-domain CORS allow-list if an external site ever needs
+   browser-side fetch (server-side fetch works for them today).
 
-**Round 7 (same day): room-number tags** (Auri: show "Event Room 1..6" instead of the
-partner name). Source found by schema search: Marketing Project Overview has
-`Project Name` options "Event Room 1"/"Event Room 2" (+ a `Which Event Room` 1–6 select,
-currently 0 rows, unused). Marketing assigns a person a room by creating a marketing row
-with Project Name = "Event Room N"; today 4 real rows exist (Lars Horsholt Jensen, Randi
-Wahlsten, Thomas Grotkjær, Adrian Larsen → Room 1) + one test row ("asd", ignored via the
-strict `^Event Room [1-6]$` + name join).
-- `lib/eventrooms.ts`: new `fetchRoomAssignments()` (FIND filter on the wide marketing
-  table, 10s timeout, failure only loses labels, never people) → `room` field on each
-  presenter, joined by normalized Full Name. Route + page tag with `p.room ?? p.host`.
-- To assign a room in Airtable: add the person to Marketing Project Overview with
-  Project Name = "Event Room N" (exact match, N = 1–6). Name must match the form
-  submission's name (case-insensitive, whitespace-normalized).
-- Verified: tsc clean; feed + page show "Event Room 1" ×4, others still host-tagged.
-- Stale-compile gotcha hit AGAIN after these edits (page bundle old while API new);
-  dev-server restart fixed it, same as before.
-
-**Round 8 (same day): host→room map from the planning sheet** (Auri's screenshot of the
-Event Rooms schedule; labels without the "- C1-M0" endings). `HOST_ROOMS` in
-`lib/eventrooms.ts`: room 1 = Erhvervshus Sjælland + Boardway, 3 = Flatpay + FBV,
-4 = Microsoft, 5 = Creative Business Network (BRIGHT//). Substring-matched both ways so
-the form's "Ehvervshus" typo still hits. Precedence: person-level marketing row
-("Event Room N" Project Name) → host map → host company name. Result: Room 1 ×4,
-Room 5 ×5, Room 4 ×2, Room 3 ×1; Danish Entrepreneurs (26) still host-tagged — their
-event isn't named on the sheet (possibly the "Founders event" in room 1, UNCONFIRMED,
-awaiting Auri). Rooms 2 + 6 are TechBBQ's own programs (India/Afrika, Quantum/
-Blockchain), no partner presenters. When the sheet moves an event, update HOST_ROOMS.
-
-**Round 9 (same day): Event Room shuffle + NISS/NASS → "Event Room 2"** (Auri's asks):
-- **Random order**: the Event Room group shuffles per page load. Page = seeded LCG
-  Fisher-Yates (mount-fixed seed, same pattern as /investors, order holds through SWR
-  revalidation). Embed = new per-tab `shuffle` flag on the tabs option
-  (`{key,label,shuffle:true}` → that group shuffles once per load; SHUFFLE array in the
-  snippet). Server keeps stable alphabetical (1h cache would freeze a server shuffle).
-  RE-COPY the embed for this (structural snippet change).
-- **NISS + NASS now tagged "Event Room 2"** (was "NISS 2026"/"NASS 2026"): per the
-  planning sheet, India (NISS, day 1) and Afrika (NASS, day 2) both run in Event room 2
-  · C1-M1. NOTE: Auri's message said Room 1 but the sheet clearly shows room 2 — went
-  with the sheet, flagged to Auri; one-line change in page + route if wrong.
-- Verified (fresh fetches, cache-bypassed): tags {ER1: 4, ER2: 46, ER3: 1, ER4: 2,
-  ER5: 5, Danish Entrepreneurs: 26}; page order non-alphabetical; copied snippet
-  contains SHUFFLE=["eventRoom"] and renders non-alphabetically.
-- Verification gotcha: browser HTTP cache + stale localStorage made the first
-  in-browser check look wrong (old tags); `fetch(..., {cache:'reload'})` showed the
-  server was right all along.
-
-**Round 10 (same day): Speakers-group bio pop-up** (Auri's ask): on /all-speakers-2026
-AND its embed, clicking a Speakers card opens the detail pop-up (photo · name · title ·
-company · bio · LinkedIn button) like /speakers-2026; Event Room + Investor cards keep
-linking straight to LinkedIn (no bios in those sources).
-- Page: local `SpeakerModal` (same markup/classes as /speakers-2026, reuses the global
-  `.modal*` CSS), speakers cards render as `.s-card__button`, other groups unchanged.
-- Embed: `modal` is now a PER-TAB flag (`{key:"speakers",modal:true}`); tab mode emits
-  a MODAL map + `modalOn` switch in `card()` so the pop-up markup/styles/handlers ship
-  once and only the flagged group uses them.
-- BUG caught by running the real snippet: `modalOn` was declared inside the fetch
-  callback but `card()` lives at the IIFE top level → ReferenceError, embed showed
-  "Could not load right now" (the fetch .catch also swallows THEN-callback errors —
-  debug by patching the catch to expose err, see session transcript). Fix = hoist
-  `var modalOn=false` next to root/grid.
-- Verified (real copied snippet executed): Speakers tab 20 modal cards, click opens
-  pop-up with real bio (Jacob Lauritzen), close works; Event Room tab 0 modal cards /
-  17 LinkedIn links; back to Speakers restores buttons. Page: 173 button cards, modal
-  opens with bio + LinkedIn, Escape closes, Event Room cards stay links.
-- RE-COPY the embed in Elementor (structural snippet change).
-
-**Round 11 (same day): NISS+NASS populated into the marketing Event Room view**
-(Auri's ask; room CONFIRMED as Event Room 2 via AskUserQuestion — Auri had said "room
-one" twice but chose "per sheet" when shown the conflict; website tags unchanged).
-- **46 rows created** in Marketing Project Overview (`tblTecOBecLQCNIeD`, view
-  `viwLptcHWF3Wce6Im`): the exact NISS (21) + NASS (25) role=Speaker roster the website
-  shows, fields Full Name / Job Title / Company / Profile Picture (Airtable re-ingested
-  all 46 photos) / LinkedIn Handle / Project Name="Event Room 2".
-- Script: `scripts/populate-eventroom2.mjs` (dry-run by default, `--write` to apply;
-  idempotent — skips names already in any "Event Room N" row, safe to re-run when new
-  speakers land in NISS/NASS).
-- View after write: 56 rows = ER1 4 real + ER2 47 (46 real + 1 "asd" test) + test rows
-  in 3–6. CLEANUP for Auri: the six "asd"/empty test rows (rooms 2–6) can be deleted.
-
-**Round 12 (same day): Airtable-only speakers merge into Speakers 2026** (Auri: Ken
-Villum Klause added in Airtable only; "sometimes a speaker is only on Airtable").
-- **New `lib/summitextras.ts`**: reads Marketing Project Overview rows with
-  `Project Name = "TechBBQ Summit"` (allow-listed fields, name+photo publish gate).
-  `lib/hub.ts` appends anyone NOT already in the Hub roster (normName match — same key
-  the daily Hub→Airtable sync uses, so the two directions can't duplicate a person).
-  Own cache key `summit-extras` + try/catch: a blip serves the hub-only roster, never
-  a 502. Extras have no bio (table has no bio column) → modal says "No description
-  available yet."; hierarchy joins from the same table as everyone else.
-- Result: 176 speakers = 174 Hub (drifted +1 mid-session) + Ken Villum Klause (Lunar)
-  + Caspar Hoegh (NOON Ventures) — both real Airtable-only rows, dupe-checked.
-- To add an Airtable-only speaker: Marketing Project Overview row, Project Name =
-  "TechBBQ Summit", Full Name + Profile Picture required (no photo, no card). Shows
-  within the 1h cache or instantly via Sync now / redeploy.
-- Data flag for Auri: the row says "Ken Villum Klause" — usual spelling is "Klausen",
-  fix in Airtable if wrong (name is also the dedupe key vs a future Hub entry).
-
-**Round 13 (same day): Program 2026 agenda** (Auri's ask: team fills time slots /
-session type / name / description in Airtable, usable in Elementor).
-- **New Airtable table "Program 2026"** (`tblI4IW0b3sLxNWgz`, created via Meta API):
-  Session Name (primary) · Day (Day 1 · 26 Aug / Day 2 · 27 Aug) · Time Slot (text,
-  "09:30 - 11:00") · Session Type (Keynote/Panel/Fireside Chat/Workshop/Networking/
-  Break/Other) · Description · Event Room (1–6). 3 SAMPLE rows seeded (edit/delete).
-- **`lib/program.ts` + `/api/program`** (public path): publish rule = Session Name +
-  Day + Time Slot all set (drafts stay hidden). Sorted Day → parsed start time → name.
-- **New page `/program`** (nav "Program 2026") grouped by day, with its own agenda
-  embed: `lib/agendaSnippet.ts` + a local CopyAgendaEmbed button (the speakers
-  CopyEmbed doesn't fit — different markup). Embed = day headings + rows of time ·
-  name · type/room pill tags · description, dark TechBBQ style, scoped CSS.
-- Verified: tsc clean; feed 3 sessions in right order; page renders both day groups;
-  copied snippet executed in-browser renders days/sessions/tags correctly.
-
-**Round 14 (same day): NISS program added — program system is now multi-source**
-(Auri's link: the NISS team fills their agenda INSIDE the NISS table, view
-`viwMqDT1GMW7AwOtQ` — 15 real sessions already, filled by Auri + Irina today).
-- `lib/program.ts` rewritten around a `PROGRAM_SOURCES` map: `techbbq` (Program 2026
-  table) + `niss` (NISS table program view; fields Session Name / Time Slot /
-  Type of Session; opt-out gate `Should be On Website`="NO"; single-day → `day:""`,
-  page + embed skip empty day headings). Adding another event's program = one entry
-  in the map.
-- `/api/program?event=niss` (validated key, default techbbq, cache `program:<source>`).
-  Page has TechBBQ 2026 / NISS 2026 tabs; the copy button embeds the ACTIVE tab's
-  agenda (`path` option on buildAgendaSnippet).
-- Time-sort survives the messy real data (en-dashes "09:00–09:30", typos "13:30-14-30"
-  — parser reads the first hh:mm).
-- Verified: tsc clean; niss feed 15 in time order, techbbq 3; page tabs 3↔15; copied
-  NISS snippet executed in-browser renders 15 sessions, no day headings, endpoint
-  carries ?event=niss.
-
-**Round 15 (same day): Future of Fintech program** (Auri's link): third source in
-PROGRAM_SOURCES — table `tbleh7Lqv1zMQaUKx`, view `viw0mk6kOUKxNqgzU`, same fields as
-NISS but NO website-gate column. `?event=fintech`, tab "Future of Fintech". 8 sessions.
-Proved the multi-source design: this round was one map entry + one tab line.
-Verified: tsc clean, feed 8 in time order, tab renders, copied snippet carries
-`?event=fintech`.
-
-**Round 16 (same day): agenda embed redesigned to Auri's NISS mock.** New look for ALL
-program embeds (`lib/agendaSnippet.ts` rewrite): orange glow border (rgba 255,106,43
-.45 + shadow), big orange date heading, pill note, grid rows (150px time | content),
-uppercase orange outlined tags, dim treatment for Break/Networking rows, per-type
-Lucide icons (coffee=networking/break, users=panel, chart=showcase/pitch), big title
-when Session Type = "Opening". New options: `heading` (fixed date line, e.g.
-"August 26th") + `note` (tickets-only pill) — set per event in the page's EVENTS list
-(NISS has both baked in). Multi-day feeds still get per-day date headings when no
-fixed heading is set. Verified via executed copied snippet: date, note, 15 rows,
-13 orange + 2 dim tags, 9 icons, orange border. RE-COPY any pasted agenda embeds.
-Note: NISS opener is typed "Fireside" in Airtable — retype it "Opening" for the big
-title style.
-
-**Round 17 (same day): blue Fintech theme for the agenda embed** (Auri's second mock).
-`buildAgendaSnippet` gains `theme: "orange" | "blue"` (THEMES map holds every color
-that differs: bg #111827, border/tags blue #2563EB/#93C5FD, slate row borders) and
-`icons: boolean` (Fintech mock has none). All agenda CSS now scoped under `#<uid>` so
-two differently-themed agendas can share one WordPress page. Fintech tab passes
-theme=blue + icons=false; NISS/TechBBQ stay orange with icons. Verified via executed
-copied snippet: bg rgb(17,24,39), blue border, 0 icons, 8 rows, "Opening" title big.
-Divergence note: the shared dim rule still dims Networking/Break rows on Fintech
-(Auri's fintech mock showed Networking in blue) — flagged, awaiting his call.
-
-**Round 18 (same day): agenda uniformity + NISS Brand Ambassadors** (Auri's fixes):
-- **Agenda embeds: dim styling REMOVED entirely** — every tag/title one color per
-  theme (Auri: "Networking has to look the same", "all labels the same color").
-  New `bigOpening` option (default true); Fintech passes false so "Unicorn to
-  Decacorn" renders 19px like the rest. Verified on the executed Fintech snippet:
-  one tag color, one title size, 0 dim elements, 0 big titles.
-- **NISS speakers: "Brand Ambassadors" role tab added** (page ROLES + the route's
-  ALLOWED_ROLES — the route silently fell back to "all" for unknown roles, which is
-  why the first test returned 32). 3 people today (Jesper Ludolph, Kunal Singla,
-  Rajeev Suri). Grid pinned to 3 per row for that tab (`.grid-cards--3` added to
-  globals.css) and the CopyEmbed passes `columns={3}`. Verified: tab renders 3 cards
-  in 3 columns; copied embed carries repeat(3,minmax(0,1fr)).
-- RE-COPY any pasted NISS/Fintech agenda embeds (styling is snippet-side).
-
-**Round 19 (same day): Future of Fintech speakers feed** (Auri's link, view
-`viwsqDRAVlgJh3STT` on the Fintech table `tbleh7Lqv1zMQaUKx`).
-- **New `lib/fintechspeakers.ts` + `/api/fintech-speakers` + page `/fintech-speakers`**
-  (nav "Fintech Speakers", middleware public path). The table is FORM DATA with PII
-  (Email, Phone Number, consents) — strict allow-list: Name / Job title / Company Name
-  / LinkedIn / Attachments (photo) / `Role ` / `Hierarchy ` (both trailing-space).
-- **Only Role = "Speaker"** (trimmed; keynote speaker + moderator excluded per Auri
-  "don't touch them right now"). `Hierarchy ` is TEXT: "1".."9" on speakers, role
-  names on keynote/moderator rows — parseInt, curated order, no shuffle. 9 speakers,
-  Rico Andersen (1) → Hasan Surtiwala (9), all photos + LinkedIn.
-- Embed: standard speaker grid, `loadMore={false}` (9 fixed). Verified: tsc clean,
-  feed 9 in order, zero PII keys in the response, page renders 9, snippet endpoint ok.
-- To show the keynote/moderator later: relax the Role filter + decide their order
-  (their Hierarchy cells hold text, not numbers).
-
-**Round 20 (same day): transparent wrapper for the Fintech speakers embed** (Auri:
-"remove the grey background behind the Fintech speakers"). New `transparent` option on
-`buildEmbedSnippet`/CopyEmbed: wrapper gets background:transparent, padding 0 (desktop
-+ the 600px mobile override), radius 0 — cards sit straight on the host page's own
-background. Only the fintech-speakers page passes it; every other embed keeps the dark
-panel. Individual card frames (#131313) unchanged — if Auri meant those too, that's a
-follow-up. Verified on the executed snippet over a white body: wrapper rgba(0,0,0,0),
-padding 0px, 9 cards. RE-COPY the Fintech speakers embed.
-
-Next steps:
-1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
-   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
-2. Team fills real sessions in the Program 2026 table; delete the 3 sample rows.
-3. NISS data nits (fix in Airtable, not code): "13:30-14-30" and "16:30-16-50" time
-   typos; "15:30-16:00" overlaps the 14:35-15:35 pitch slot.
-4. Fintech data nit: the "Opening" row's Session Name cell has pasted leftovers
-   ("…Scale Leap\n10:10–10:30\nFireside") — trim it in Airtable.
-2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
-   Elementor (never from localhost — ENDPOINT bakes in the origin).
-3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
-   (every other page does); add if missed.
-
-Gotchas:
-- Event Room merge filters `role === "Speaker"` in TWO places (page client-side +
-  /api/all-speakers server-side) — keep them in sync if the rule changes.
-- Prod serves the OLD group counts for up to 1h after a data-rule change (server cache
-  on `niss:all`/`nass:all` + CDN s-maxage) — but a redeploy restarts the lambda, so in
-  practice each merge to main resets it.
-- The stale-compile gotcha struck again: after adding CopyEmbed the dev server served
-  the old page bundle (no error). Restart `next dev`, and kill the node CHILD holding
-  the port, not just the npm wrapper.
-- Playwright MCP browser kept dying mid-session ("browser already in use" → kill
-  `mcp-chrome-*` chrome.exe processes; contexts reset between evaluate calls, so
-  capture+inject+assert must run in ONE evaluate).
-
-- **New page `/all-speakers-2026`** (`app/all-speakers-2026/page.tsx`), nav tab
-  "All Speakers 2026" (first entry in `components/TopNav.tsx`). One page, three groups via
-  the segmented control:
-  - **Speakers** (default): `/api/speakers-2026` as-is (173 today, API hierarchy order).
-  - **Event Room Speakers**: `/api/niss-speakers` + `/api/nass-speakers` merged
-    client-side, alphabetical, each card tagged "NISS 2026" / "NASS 2026". NISS rows with
-    role `Team Member` are EXCLUDED (they're staff, not event room speakers). 53 today
-    (28 NISS + 25 NASS).
-  - **Investor Speakers**: `/api/investor-speakers` (all three events), cards tagged
-    Pension & Insurance Summit / LP Forum / Investor Day. 29 today.
-- **No new API route, no middleware change** — the page reuses the four existing public
-  feeds and the dashboard password gate already covers every page. All four feeds load on
-  mount so group switching is instant; localStorage cache keys are shared with the
-  standalone pages (`speakers-2026`, `niss:all`, `nass:all`, `investors:all`), stored
-  shapes are the same raw API arrays.
-- **No CopyEmbed on this page** on purpose: the Event Room group has no single endpoint
-  to embed (it's a client-side merge of two feeds). If an Elementor embed for the combined
-  view is ever wanted, build a `/api/event-room-speakers` merge route first.
-- Verified: `tsc --noEmit` clean; page 200 on :3001; fresh load defaults to Speakers
-  (173, no tags); tab clicks give 53 with both event tags, then 29 with the three
-  investor tags, then back to 173.
-
-Next steps:
-1. Auditor verdict, then Auri reviews /all-speakers-2026 on :3001, commits the branch,
-   merges to main (auto-deploys).
-2. Decide whether Event Room should also include the two NASS moderators' "(Moderator)"
-   name suffix cleanup (Airtable data fix from the 2026-07-28 NASS list, still open).
-
-Gotchas:
-- Event Room "all" pulls NISS's full feed and filters `role !== "Team Member"`
-  client-side; if NISS ever renames that role value, staff cards reappear here.
-- If BOTH event-room feeds fail cold, the page shows the NISS error; if only one fails,
-  the healthy feed still renders (that's deliberate).
+### Gotchas
+- Event Room merge rules live in TWO places (page + /api/all-speakers) — keep in sync.
+- 1h server cache + CDN s-maxage on every feed; any deploy resets instantly (empty
+  commit works). Airtable edits lag up to an hour otherwise.
+- Photo URLs in Airtable-backed feeds are signed and expire (~2h) — consumers must
+  re-fetch the feed, never hot-link the URLs.
+- The `Hierarchy `/`Role `/`Position at Company ` fields have TRAILING SPACES; Fintech
+  `Hierarchy ` is TEXT ("1".."9" or role names). Don't "fix" the field names.
+- Dev stale-compile struck repeatedly: after edits the server can serve an old bundle
+  with no error — restart `next dev` and kill the node CHILD holding the port.
+- Playwright MCP kept dying ("browser already in use") — kill `mcp-chrome-*`
+  chrome.exe; contexts reset between evaluate calls, so capture+inject+assert must run
+  in ONE evaluate. Embed verification = execute the real copied snippet, not the React
+  page (caught the modalOn scope bug the fetch .catch was swallowing).
 
 ## Session 2026-07-28c (Investors: random order + Investor Day — merged to main, LIVE)
 
