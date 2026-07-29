@@ -5,6 +5,7 @@
 // Ticketing Forms field are deliberately NOT exposed.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -52,7 +53,6 @@ function firstPhoto(v: unknown): string | null {
 
 function mapRecord(rec: AirtableRecord): NassPerson {
   const f = rec.fields;
-  const link = str(f["LinkedIn profile"]);
   return {
     id: rec.id,
     name: str(f["Presenter's full name"]),
@@ -60,8 +60,8 @@ function mapRecord(rec: AirtableRecord): NassPerson {
     // The table is a shared multi-form dump; company lives in this oddly named column.
     company: str(f["Company Name Investor Dinner"]),
     bio: str(f["Presenter's bio"]),
-    // Field is free text, so only treat it as a link if it's an actual URL.
-    linkedin: link.startsWith("http") ? link : null,
+    // Free-text field — normalized (www./scheme-less/mobile variants) or dropped.
+    linkedin: normalizeLinkedInUrl(f["LinkedIn profile"]),
     role: str(f["Speaker or Moderator"]),
     photo: firstPhoto(f["Headshots"]),
   };

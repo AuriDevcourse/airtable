@@ -5,6 +5,7 @@
 // deliberately NOT exposed.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -63,7 +64,6 @@ function firstPhoto(v: unknown): string | null {
 
 function mapRecord(rec: AirtableRecord): NissPerson {
   const f = rec.fields;
-  const link = str(f["Linkedin/Social Profile link"]);
   return {
     id: rec.id,
     name: str(f["Full Name"]),
@@ -71,8 +71,8 @@ function mapRecord(rec: AirtableRecord): NissPerson {
     company: str(f["Company Name"]),
     bio: "", // 2026 table has no bio/description field
     photo: firstPhoto(f["Self Portrait"]),
-    // Field is free text, so only treat it as a link if it's an actual URL.
-    linkedin: link.startsWith("http") ? link : null,
+    // Free-text field — normalized (www./scheme-less/mobile variants) or dropped.
+    linkedin: normalizeLinkedInUrl(f["Linkedin/Social Profile link"]),
     role: str(f["Role"]),
     hierarchy: num(f["Hierarchy "]),
   };

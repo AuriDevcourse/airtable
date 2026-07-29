@@ -5,6 +5,7 @@
 // and everything else remain server-private.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -60,13 +61,12 @@ function firstDept(v: unknown): string {
 
 function mapRecord(rec: AirtableRecord): TeamMember {
   const f = rec.fields;
-  const link = str(f["LinkedIn"]);
   return {
     id: rec.id,
     name: str(f["Name"]),
     title: str(f["Title"]),
     photo: firstPhoto(f["Picture"]),
-    linkedin: link.startsWith("http") ? link : null,
+    linkedin: normalizeLinkedInUrl(f["LinkedIn"]),
     department: firstDept(f["Department"]),
     email: str(f["Email"]) || null,
   };

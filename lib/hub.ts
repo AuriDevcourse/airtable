@@ -11,6 +11,7 @@
 // pattern, one allowed origin, shared rate-limit + cache.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { fetchHierarchyMap, normName } from "@/lib/hierarchy";
 import { cached } from "@/lib/rate-limit";
 
@@ -70,7 +71,7 @@ function mapRow(r: Row): HubSpeaker {
     company: str(r.company),
     bio: str(r.biography),
     photo: str(r.photo_url) || null,
-    linkedin: str(r.linkedin_profile) || null,
+    linkedin: normalizeLinkedInUrl(r.linkedin_profile),
     location: str(r.location),
     role: str(r.ecosystem_role),
     hierarchy: null, // filled in from Airtable by fetchHubSpeakers

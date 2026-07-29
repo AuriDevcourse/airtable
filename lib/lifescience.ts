@@ -5,6 +5,7 @@
 // phone, GDPR flags, survey answers); none of it is exposed here.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -60,7 +61,6 @@ function firstTag(v: unknown): string {
 
 function mapRecord(rec: AirtableRecord): LsPerson {
   const f = rec.fields;
-  const link = str(f["Linkedin"]);
   return {
     id: rec.id,
     name: str(f["Stakeholder"]),
@@ -68,8 +68,8 @@ function mapRecord(rec: AirtableRecord): LsPerson {
     company: str(f["Company"]),
     bio: str(f["Speaker bio"]) || str(f["Description"]),
     photo: firstPhoto(f["Headshot"]),
-    // Field is a URL type, but guard anyway so a stray non-URL never renders as a link.
-    linkedin: link.startsWith("http") ? link : null,
+    // Normalized (www./scheme-less/mobile variants) or dropped.
+    linkedin: normalizeLinkedInUrl(f["Linkedin"]),
     role: firstTag(f["LS Type"]),
   };
 }
