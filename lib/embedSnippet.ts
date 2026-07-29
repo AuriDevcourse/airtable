@@ -39,6 +39,10 @@ export type EmbedOptions = {
   // auto-fill grid (~5-6 wide). Set e.g. 4 to pin the desktop grid to 4 columns. Tablet
   // (≤900px → auto-fill) and mobile (≤600px → 2-up or rows) are unaffected.
   columns?: number;
+  // Drop the dark panel behind the grid: no background, padding or rounding on the
+  // wrapper, so the cards sit directly on the host page's own background. Used by the
+  // Fintech speakers embed (their page brings its own backdrop).
+  transparent?: boolean;
   // Multi-group tab mode (the /all-speakers-2026 embed). When set, ENDPOINT must return
   // { groups: { [key]: Person[] } } and the snippet renders a centered pill switcher
   // above the grid; clicking a pill swaps the rendered group without refetching. The
@@ -68,6 +72,7 @@ export function buildEmbedSnippet({
   shuffle = false,
   pageSize = 20,
   columns,
+  transparent = false,
   tabs,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
@@ -175,12 +180,12 @@ export function buildEmbedSnippet({
 <section id="${id}" class="tbbq-speakers${rowsClass}">${tabsHtml}<div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
 
 <style>
-  .tbbq-speakers{--bg:#0d0d0d;--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:clamp(24px,4vw,48px);border-radius:20px}
+  .tbbq-speakers{--bg:${transparent ? "transparent" : "#0d0d0d"};--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:${transparent ? "0" : "clamp(24px,4vw,48px)"};border-radius:${transparent ? "0" : "20px"}}
   .tbbq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:20px}
   .tbbq-speakers__loading{grid-column:1/-1;color:var(--muted);margin:0}
   .tbbq-more{display:block;margin:24px auto 0;padding:12px 28px;border:1px solid #2a2a2a;border-radius:9999px;background:#131313;color:#f2f2f2;font-family:"Onest",sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:background .18s}
   .tbbq-more:hover{background:#1b1b1b}
-  @media(max-width:600px){.tbbq-grid{grid-template-columns:repeat(2,1fr);gap:12px}.tbbq-speakers{padding:16px}}
+  @media(max-width:600px){.tbbq-grid{grid-template-columns:repeat(2,1fr);gap:12px}.tbbq-speakers{padding:${transparent ? "0" : "16px"}}}
   @media(max-width:600px){
     .tbbq-rows .tbbq-grid{grid-template-columns:1fr;gap:10px}
     .tbbq-rows .tbbq-card,.tbbq-rows .tbbq-card>a{display:flex;align-items:center;gap:14px;text-align:left}
