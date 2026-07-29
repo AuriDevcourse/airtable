@@ -7,9 +7,10 @@ import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
+// Event Room shuffles per page load (fair exposure across the rooms' partners).
 const EMBED_TABS = [
   { key: "speakers", label: "Speakers" },
-  { key: "eventRoom", label: "Event Room Speakers" },
+  { key: "eventRoom", label: "Event Room Speakers", shuffle: true },
   { key: "investors", label: "Investor Speakers" },
 ];
 
@@ -79,6 +80,10 @@ export default function AllSpeakers2026Page() {
   const rooms = useCachedList<FeedPerson>("eventrooms", "/api/event-room-presenters", "people");
   const investors = useCachedList<FeedPerson>("investors:all", "/api/investor-speakers", "people");
 
+  // Mount-fixed seed so revalidation/tab-switching doesn't re-jump the shuffled order;
+  // a real refresh remounts → new seed → new order (same pattern as /investors).
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+
   const people = useMemo<Card[]>(() => {
     if (group === "speakers") {
       // Speakers 2026 hub feed, already hierarchy-ordered by the API.
@@ -87,24 +92,34 @@ export default function AllSpeakers2026Page() {
     if (group === "event-room") {
       // NISS 2026 + NASS 2026 (only actual speakers, Auri's rule: the feeds also carry
       // Moderators, Team Members, Brand Ambassadors and blank-role rows) + the partner
-      // event room presenters, tagged with the hosting partner's name. Same merge lives
-      // in /api/all-speakers for the embed; keep them in sync.
+      // event room presenters. Tags are the ROOM: per the planning sheet NISS (India,
+      // day 1) and NASS (Afrika, day 2) both run in Event Room 2. Same merge lives in
+      // /api/all-speakers for the embed; keep them in sync.
       const fromNiss: Card[] = (niss.data ?? [])
         .filter((p) => p.role === "Speaker")
-        .map((p) => ({ ...p, tag: "NISS 2026" }));
+        .map((p) => ({ ...p, tag: "Event Room 2" }));
       const fromNass: Card[] = (nass.data ?? [])
         .filter((p) => p.role === "Speaker")
-        .map((p) => ({ ...p, tag: "NASS 2026" }));
-      // Room label ("Event Room 1".."6") once assigned; the hosting partner until then.
+        .map((p) => ({ ...p, tag: "Event Room 2" }));
+      // Room label ("Event Room 1".."6") once known; the hosting partner until then.
       const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.room ?? p.host }));
-      return [...fromNiss, ...fromNass, ...fromRooms].sort((a, b) => a.name.localeCompare(b.name));
+      // Random order per page load (Auri's rule), seeded LCG so the order holds
+      // during SWR revalidation.
+      const merged = [...fromNiss, ...fromNass, ...fromRooms];
+      let s = seed;
+      const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+      for (let i = merged.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [merged[i], merged[j]] = [merged[j], merged[i]];
+      }
+      return merged;
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
     return (investors.data ?? []).map((p) => ({
       ...p,
       tag: p.event ? INVESTOR_EVENT_LABELS[p.event] ?? p.event : undefined,
     }));
-  }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data]);
+  }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data, seed]);
 
   // A source feed down while the others render would silently show a partial roster;
   // surface it instead (completion-auditor finding).

@@ -80,17 +80,19 @@ export async function GET(req: NextRequest) {
   const speakers: Tagged<HubSpeaker>[] = val(hubR);
   // Only actual speakers (Auri's rule): the NISS/NASS feeds also carry Moderators,
   // Team Members, Brand Ambassadors and blank-role rows — none of those are event room
-  // speakers. Partner event room presenters (Partnership Success form) are tagged with
-  // the hosting partner's name. Same merge lives on the /all-speakers-2026 page.
+  // speakers. Tags are the ROOM: per the planning sheet NISS (India, day 1) and NASS
+  // (Afrika, day 2) both run in Event Room 2; partner presenters get their assigned
+  // room or the hosting partner's name until it's known. Same merge lives on the
+  // /all-speakers-2026 page. The order here is stable alphabetical — the embed and the
+  // page shuffle client-side per load (a server-side shuffle would freeze in the 1h
+  // cache).
   const eventRoom: Tagged<NissPerson | NassPerson | EventRoomPresenter>[] = [
     ...val(nissR)
       .filter((p) => p.role === "Speaker")
-      .map((p) => ({ ...p, tag: "NISS 2026" })),
+      .map((p) => ({ ...p, tag: "Event Room 2" })),
     ...val(nassR)
       .filter((p) => p.role === "Speaker")
-      .map((p) => ({ ...p, tag: "NASS 2026" })),
-    // Tag with the assigned room ("Event Room 1".."6") once marketing sets it in the
-    // Marketing Project Overview; until then the hosting partner's name.
+      .map((p) => ({ ...p, tag: "Event Room 2" })),
     ...val(roomsR).map((p) => ({ ...p, tag: p.room ?? p.host })),
   ].sort((a, b) => a.name.localeCompare(b.name));
   const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({
