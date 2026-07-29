@@ -75,12 +75,16 @@ export async function GET(req: NextRequest) {
   }
 
   const speakers: Tagged<HubSpeaker>[] = val(hubR);
+  // Only actual speakers (Auri's rule): the source feeds also carry Moderators, Team
+  // Members, Brand Ambassadors and blank-role rows — none of those are event room
+  // speakers. Same filter lives on the /all-speakers-2026 page; keep them in sync.
   const eventRoom: Tagged<NissPerson | NassPerson>[] = [
-    // NISS "all" also carries TechBBQ Team Members — staff, not event room speakers.
     ...val(nissR)
-      .filter((p) => p.role !== "Team Member")
+      .filter((p) => p.role === "Speaker")
       .map((p) => ({ ...p, tag: "NISS 2026" })),
-    ...val(nassR).map((p) => ({ ...p, tag: "NASS 2026" })),
+    ...val(nassR)
+      .filter((p) => p.role === "Speaker")
+      .map((p) => ({ ...p, tag: "NASS 2026" })),
   ].sort((a, b) => a.name.localeCompare(b.name));
   const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({
     ...p,
