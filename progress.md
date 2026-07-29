@@ -57,10 +57,38 @@ Ambassadors (Jesper Ludolph), blank-role rows (Sara Petrycer Hansen). Event Room
 53 → **44** (21 NISS + 23 NASS). Verified on dev API + browser (roles = ["Speaker"]
 only, no Ludolph/Petrycer/"(Moderator)" names).
 
+**Round 4 (same day): partner Event Room presenters added** (Auri's ask): third source
+for the Event Room group = Partnership Success (`tbllvkwLhB4Omdphd`) view "2026 Side
+event and event room info" (`viwcC25ENg2ELGszH`), rows with `Type of Event` =
+"Event Room at TechBBQ" only.
+- **New `lib/eventrooms.ts` + `/api/event-room-presenters`** (public path added).
+  Parses the five flat text fields `1st–5th Presenter(s) details/Details` (format
+  "Name: X\nPosition: Y\nCompany: Z", messy — parser handles "Name::", "Name:,",
+  missing spaces; field names are NOT uniform, exact strings pinned in SLOTS) +
+  matching `1st–5th Presenters Photo`. No LinkedIn in the source → `linkedin: null`
+  (cards render unlinked). Publish rule: name + photo, like NISS/NASS.
+- **Dedupe: partners resubmit the whole form.** One winning row per Partner ID = the
+  NEWEST `createdTime` row with ≥1 presenter (CBN's 07-28 5-presenter row supersedes
+  the 07-22 3-presenter; Flatpay's 07-21 supersedes an empty 06-30). 12 people from
+  4 partners today: Ehvervshus Sjælland 4, Creative Business Network 5, Microsoft 2,
+  Flatpay 1. Danish Entrepreneurs picked "More than 5" and filled NO slots → 0 (their
+  people live in the Event Room Speakers overflow table, NOT wired in — see next steps).
+- Cards tagged with the HOST partner's company name (tells you whose event room).
+- Wired into both `/api/all-speakers` (5th settled source, cache key `eventrooms`) and
+  the page (4th useCachedList; partial-outage warning generalized to the three
+  event-room sources). Event Room now **57** (21 NISS + 24 NASS + 12 partner; NASS
+  drifted 23→24 mid-session, Airtable data change, not code).
+- Verified: tsc clean; feed returns exactly the 12 with correct hosts/titles/photos;
+  page tab shows 57 with all six tags.
+
 Next steps:
 1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
-2. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
+2. Danish Entrepreneurs (~35 presenters) submitted "More than 5" with no slot data —
+   their people go through the "Add Event Room Speakers" overflow table
+   (`tblg9iPj4XZK4RQZw`, Partner ID matching). NOT in the feed yet; wire it in when
+   Auri confirms rows exist there.
+3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
    (every other page does); add if missed.
 
 Gotchas:

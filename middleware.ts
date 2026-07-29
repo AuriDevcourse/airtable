@@ -20,6 +20,7 @@ const PUBLIC_PATHS = new Set([
   "/api/niss-speakers",
   "/api/niss-2025",
   "/api/nass-speakers",
+  "/api/event-room-presenters",
   "/api/investor-speakers",
   "/api/life-science",
   "/api/team",
