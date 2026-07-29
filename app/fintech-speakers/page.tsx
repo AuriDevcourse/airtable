@@ -58,7 +58,9 @@ export default function FintechSpeakersPage() {
           </p>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/fintech-speakers" listKey="people" loadMore={false} />
+            {/* transparent: no dark panel behind the grid — the Fintech page on
+                techbbq.dk brings its own background. */}
+            <CopyEmbed path="/api/fintech-speakers" listKey="people" loadMore={false} transparent />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the speakers in Hierarchy order.
             </span>

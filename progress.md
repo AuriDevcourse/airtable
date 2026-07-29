@@ -301,6 +301,15 @@ Divergence note: the shared dim rule still dims Networking/Break rows on Fintech
 - To show the keynote/moderator later: relax the Role filter + decide their order
   (their Hierarchy cells hold text, not numbers).
 
+**Round 20 (same day): transparent wrapper for the Fintech speakers embed** (Auri:
+"remove the grey background behind the Fintech speakers"). New `transparent` option on
+`buildEmbedSnippet`/CopyEmbed: wrapper gets background:transparent, padding 0 (desktop
++ the 600px mobile override), radius 0 — cards sit straight on the host page's own
+background. Only the fintech-speakers page passes it; every other embed keeps the dark
+panel. Individual card frames (#131313) unchanged — if Auri meant those too, that's a
+follow-up. Verified on the executed snippet over a white body: wrapper rgba(0,0,0,0),
+padding 0px, 9 cards. RE-COPY the Fintech speakers embed.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
