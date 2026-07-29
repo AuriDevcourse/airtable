@@ -7,9 +7,11 @@
 export type AgendaOptions = {
   // Unique element id so several embeds can share one WordPress page.
   uid?: string;
+  // Which program feed to render, e.g. "/api/program?event=niss". Default = TechBBQ.
+  path?: string;
 };
 
-export function buildAgendaSnippet({ uid }: AgendaOptions = {}): string {
+export function buildAgendaSnippet({ uid, path = "/api/program" }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,7 +41,7 @@ export function buildAgendaSnippet({ uid }: AgendaOptions = {}): string {
 
 <script>
 (function(){
-  var ENDPOINT = "__ORIGIN__/api/program";
+  var ENDPOINT = "__ORIGIN__${path}";
   var root = document.getElementById("${id}");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){
@@ -49,7 +51,7 @@ export function buildAgendaSnippet({ uid }: AgendaOptions = {}): string {
     var day="";
     for(var i=0;i<list.length;i++){
       var s=list[i];
-      if(s.day!==day){day=s.day;html+='<h3 class="tbbq-program__day">'+esc(day)+'</h3>';}
+      if(s.day!==day){day=s.day;if(day)html+='<h3 class="tbbq-program__day">'+esc(day)+'</h3>';}
       var tags="";
       if(s.type)tags+='<span class="tbbq-session__tag">'+esc(s.type)+'</span>';
       if(s.room)tags+='<span class="tbbq-session__tag">'+esc(s.room)+'</span>';
