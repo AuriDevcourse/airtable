@@ -155,6 +155,31 @@ async function fetchView(view: string, fields: string[]): Promise<AirtableRecord
   return records;
 }
 
+// Host partner → room number, from the Event Rooms planning sheet (2026-07-29 state:
+// room 1 = Erhvervshus Sjælland + Boardway, 3 = Flatpay + FBV + Nvidia/AWS,
+// 4 = Microsoft + Industriens Fond + Play&Plug, 5 = Creative Business Network + Google,
+// 2 and 6 are TechBBQ's own programs). Keys are normalized (lowercase, trimmed) and
+// matched by substring both ways so "Ehvervshus Sjælland" (form typo) still hits
+// "erhvervshus sjælland". Update here when the sheet moves an event.
+const HOST_ROOMS: [string, number][] = [
+  ["erhvervshus sjælland", 1],
+  ["ehvervshus sjælland", 1],
+  ["boardway", 1],
+  ["flatpay", 3],
+  ["fbv", 3],
+  ["microsoft", 4],
+  ["creative business network", 5],
+];
+
+function roomFromHost(host: string): string | null {
+  const h = host.toLowerCase().trim();
+  if (!h) return null;
+  for (const [key, n] of HOST_ROOMS) {
+    if (h.includes(key) || key.includes(h)) return `Event Room ${n}`;
+  }
+  return null;
+}
+
 // Normalized person name → "Event Room N", from the marketing rows. A failure here
 // only loses the room labels (cards fall back to the host name), never the people.
 async function fetchRoomAssignments(): Promise<Map<string, string>> {
@@ -197,8 +222,9 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       return new Map<string, string>();
     }),
   ]);
-  const roomFor = (name: string): string | null =>
-    roomsByName.get(name.toLowerCase().replace(/\s+/g, " ")) ?? null;
+  // Person-level marketing assignment wins; the planning-sheet host map fills the rest.
+  const roomFor = (name: string, host: string): string | null =>
+    roomsByName.get(name.toLowerCase().replace(/\s+/g, " ")) ?? roomFromHost(host);
 
   // Partner ID → hosting company, from every event-room row (presenter-less ones too —
   // Danish Entrepreneurs' own row has no slots but names the host for their overflow).
@@ -248,7 +274,7 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
         photo,
         linkedin: null,
         host,
-        room: roomFor(name),
+        room: roomFor(name, host),
       });
     });
   }
@@ -270,7 +296,7 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       photo,
       linkedin: normalizeLinkedInUrl(f["LinkedIn Handle"]),
       host,
-      room: roomFor(name),
+      room: roomFor(name, host),
     });
   }
 
