@@ -4,12 +4,70 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-07-29 (All Speakers 2026 combined page — merged to main, pushed)
+## Session 2026-07-29 (All Speakers 2026 combined page + tabbed embed — merged to main, pushed)
 
-State: built + browser-verified locally, committed on `all-speakers-2026`, merged to main
-and pushed on Auri's go (auto-deploys on Vercel). Completion-auditor was still in flight
-at push time; its verdict lands in the session log. Dev server left running on :3001
-(:3000 was already taken by an older orphaned next process).
+State: page + tabbed embed built, browser-verified locally (embed verified by running the
+actual copied snippet, not just the React page), merged to main and pushed on Auri's go
+(auto-deploys on Vercel). Dev server left on :3001 (:3000 held by an older orphaned next).
+
+**Round 2 (same day): tabbed Elementor embed + combined feed** (Auri: "the copied embed
+must have the tab switcher too, centered"):
+- **New feed `/api/all-speakers`** (route only, no new lib): one response with all three
+  groups `{counts, groups: {speakers, eventRoom, investors}}` so the embed fetches ONCE.
+  Reuses the SAME server cache keys as the individual routes (`speakers-2026`,
+  `niss:all`, `nass:all`, `investors:all`) via `Promise.allSettled` — one source failing
+  degrades that group to [] (error logged) instead of 502'ing the embed; all-dead = 502.
+  Event room rows get `tag: "NISS 2026" | "NASS 2026"`, investors get the short event
+  labels. Added to middleware PUBLIC_PATHS. `maxDuration = 30`.
+- **`lib/embedSnippet.ts`: new `tabs` option** — when set, ENDPOINT must return the
+  groups shape; the snippet renders a CENTERED pill switcher (`.tbbq-tabs`, same look as
+  the dashboard `.seg`) above the grid, swaps groups client-side without refetching,
+  resets Load more per tab, first tab default. `modal`/`shuffle`/`listKey` are ignored in
+  tab mode. Cards with a `tag` show it above the name (`.tbbq-card__tag`, orange 12px) —
+  harmless for all single-feed embeds (no `tag` field there).
+- **CopyEmbed forwards `tabs`** (remember the 2026-07-16 lesson: it silently dropping an
+  option is exactly how the shuffle bug happened). Page passes
+  `tabs=[speakers/eventRoom/investors]` on `path="/api/all-speakers"`.
+- **Auditor fix on the page**: when exactly one event-room feed fails with no cache, the
+  count line now says "NISS 2026 could not load · showing NASS 2026 only" (or mirrored)
+  instead of silently showing half a roster.
+- Verified: tsc clean; `/api/all-speakers` counts {173, 53, 29}, eventRoom tags
+  {NISS 28, NASS 25}, investor tags {LP Forum 17, Pension 9, Investor Day 3}; copied the
+  real snippet via clipboard intercept, injected + executed it in the browser: 20 cards
+  (Load more), tab clicks swap groups with correct tags, back to Speakers works,
+  `.tbbq-tabs` computed justify-content = center.
+
+**Round 1: the dashboard page** (see commit 95fbaf2):
+- **New page `/all-speakers-2026`** (`app/all-speakers-2026/page.tsx`), nav tab
+  "All Speakers 2026" (first entry in `components/TopNav.tsx`). Groups via segmented
+  control: **Speakers** (default, `/api/speakers-2026`, 173), **Event Room Speakers**
+  (NISS + NASS merged client-side, alphabetical, tagged, NISS `Team Member` rows
+  excluded, 53), **Investor Speakers** (`/api/investor-speakers`, tagged, 29).
+  localStorage cache keys shared with the standalone pages (auditor-confirmed no
+  collision: the `tag` field never reaches storage on this page's path).
+
+Completion-auditor result (round 1): BLOCK → both blockers resolved (partial-outage
+warning shipped in round 2; process point moot, Auri explicitly said push). Minor
+findings left open, see next steps.
+
+Next steps:
+1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
+   Elementor (never from localhost — ENDPOINT bakes in the origin).
+2. Auri decision: Event Room currently excludes only NISS `Team Member`. NISS rows with
+   role "Brand Ambassadors" (Jesper Ludolph) and blank role (Sara Petrycer Hansen) DO
+   show as Event Room speakers. If unwanted, switch to an allow-list (Speaker/Moderator).
+3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
+   (every other page does); add if missed.
+
+Gotchas:
+- Event Room merge filters `role !== "Team Member"` in TWO places (page client-side +
+  /api/all-speakers server-side) — keep them in sync if the rule changes.
+- The stale-compile gotcha struck again: after adding CopyEmbed the dev server served
+  the old page bundle (no error). Restart `next dev`, and kill the node CHILD holding
+  the port, not just the npm wrapper.
+- Playwright MCP browser kept dying mid-session ("browser already in use" → kill
+  `mcp-chrome-*` chrome.exe processes; contexts reset between evaluate calls, so
+  capture+inject+assert must run in ONE evaluate).
 
 - **New page `/all-speakers-2026`** (`app/all-speakers-2026/page.tsx`), nav tab
   "All Speakers 2026" (first entry in `components/TopNav.tsx`). One page, three groups via

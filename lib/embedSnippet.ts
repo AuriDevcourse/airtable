@@ -39,6 +39,12 @@ export type EmbedOptions = {
   // auto-fill grid (~5-6 wide). Set e.g. 4 to pin the desktop grid to 4 columns. Tablet
   // (≤900px → auto-fill) and mobile (≤600px → 2-up or rows) are unaffected.
   columns?: number;
+  // Multi-group tab mode (the /all-speakers-2026 embed). When set, ENDPOINT must return
+  // { groups: { [key]: Person[] } } and the snippet renders a centered pill switcher
+  // above the grid; clicking a pill swaps the rendered group without refetching. The
+  // first entry is selected by default. listKey, modal and shuffle are ignored in this
+  // mode. Cards with a `tag` (which event a person belongs to) show it above the name.
+  tabs?: { key: string; label: string }[];
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -59,10 +65,16 @@ export function buildEmbedSnippet({
   shuffle = false,
   pageSize = 20,
   columns,
+  tabs,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
   const hoverGradient = GRADIENTS[gradient];
+  // Tab mode renders its own multi-group script; the single-list extras don't apply.
+  if (tabs?.length) {
+    modal = false;
+    shuffle = false;
+  }
   // Pin the desktop grid to a fixed column count when asked. Scoped to ≥901px so the
   // tablet (auto-fill) and mobile (2-up / rows) rules below are untouched. The #id makes
   // it win over the base .tbbq-grid; minmax(0,1fr) stops long names overflowing the track.
@@ -131,11 +143,31 @@ export function buildEmbedSnippet({
     grid.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){var c=e.target.closest(".tbbq-card");if(c&&c.getAttribute("data-i")!=null){e.preventDefault();openModal(list[+c.getAttribute("data-i")]);}}});`
     : "";
 
+  // Centered pill switcher markup + styles, only in tab mode.
+  const tabsHtml = tabs?.length
+    ? `<div class="tbbq-tabs" role="tablist" aria-label="Speaker group"><div class="tbbq-tabs__pills">${tabs
+        .map(
+          (t, i) =>
+            `<button type="button" role="tab" data-k="${t.key}" aria-selected="${i === 0 ? "true" : "false"}">${t.label}</button>`
+        )
+        .join("")}</div></div>`
+    : "";
+  const tabsStyles = tabs?.length
+    ? `
+  .tbbq-tabs{display:flex;justify-content:center;margin:0 0 24px}
+  .tbbq-tabs__pills{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;border-radius:9999px;background:#131313;padding:4px}
+  .tbbq-tabs button{height:36px;padding:0 16px;border:0;border-radius:9999px;background:transparent;color:#9a9a9c;font-family:var(--head)!important;font-size:14px;font-weight:500;cursor:pointer;transition:color .15s,background .15s}
+  .tbbq-tabs button:hover{color:#f2f2f2}
+  .tbbq-tabs button[aria-selected="true"]{background:#f2f2f2;color:#0d0d0d}
+  .tbbq-tabs button:focus-visible{outline:2px solid #ce0f2e;outline-offset:2px}
+  @media(max-width:600px){.tbbq-tabs{margin:0 0 16px}}`
+    : "";
+
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-<section id="${id}" class="tbbq-speakers${rowsClass}"><div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
+<section id="${id}" class="tbbq-speakers${rowsClass}">${tabsHtml}<div class="tbbq-grid"><p class="tbbq-speakers__loading">Loading…</p></div></section>
 
 <style>
   .tbbq-speakers{--bg:#0d0d0d;--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:clamp(24px,4vw,48px);border-radius:20px}
@@ -162,7 +194,8 @@ export function buildEmbedSnippet({
   .tbbq-card::after{content:"";position:absolute;inset:-8px;background:${hoverGradient};opacity:0;transition:opacity .25s ease;pointer-events:none}
   .tbbq-card:hover::after{opacity:1}
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
-  @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}${modalStyles}${columnsCss}
+  @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}
+  .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 4px;color:#fa7000;font-size:12px;font-weight:600;letter-spacing:.02em}${tabsStyles}${modalStyles}${columnsCss}
 </style>
 
 <script>
@@ -176,7 +209,8 @@ export function buildEmbedSnippet({
   function card(s,i){
     var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'" alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
     var meta=esc(s.title)+(s.company?" · "+esc(s.company):"");
-    var inner=media+'<div class="tbbq-card__body"><h3>'+esc(s.name)+'</h3><p>'+meta+'</p></div>';
+    var tag=s.tag?'<p class="tbbq-card__tag">'+esc(s.tag)+'</p>':'';
+    var inner=media+'<div class="tbbq-card__body">'+tag+'<h3>'+esc(s.name)+'</h3><p>'+meta+'</p></div>';
     ${
       modal
         ? `return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';`
@@ -184,7 +218,40 @@ export function buildEmbedSnippet({
     return '<article class="tbbq-card">'+body+'</article>';`
     }
   }
-  fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){
+  fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){${
+    tabs?.length
+      ? `
+    var groups=(data&&data.groups)||{};
+    var list=[];
+    var shown=0;
+    var more=document.createElement("button");
+    more.type="button";more.className="tbbq-more";more.textContent="Load more";
+    function fill(){
+      var next=Math.min(shown+STEP,list.length);
+      var html="";for(var i=shown;i<next;i++){html+=card(list[i],i);}
+      grid.insertAdjacentHTML("beforeend",html);
+      shown=next;
+      more.style.display=shown>=list.length?"none":"";
+    }
+    more.onclick=fill;
+    if(LOADMORE)root.appendChild(more);
+    function show(key){
+      list=groups[key]||[];
+      shown=0;
+      more.style.display="none";
+      if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}
+      grid.innerHTML="";
+      fill();
+    }
+    var tabBtns=root.querySelectorAll(".tbbq-tabs button");
+    for(var t=0;t<tabBtns.length;t++){
+      tabBtns[t].addEventListener("click",function(){
+        for(var u=0;u<tabBtns.length;u++)tabBtns[u].setAttribute("aria-selected",tabBtns[u]===this?"true":"false");
+        show(this.getAttribute("data-k"));
+      });
+    }
+    show(${JSON.stringify(tabs[0].key)});`
+      : `
     var list=(data&&data.${listKey})||[];
     if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}${
       shuffle
@@ -211,7 +278,8 @@ export function buildEmbedSnippet({
     }
     more.onclick=fill;
     if(LOADMORE)root.appendChild(more);
-    fill();
+    fill();`
+  }
   }).catch(function(){grid.innerHTML='<p class="tbbq-speakers__loading">Could not load right now.</p>';});
 })();
 </script>`;

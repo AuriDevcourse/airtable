@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
+import { CopyEmbed } from "@/components/CopyEmbed";
+
+// The tab set the embed snippet renders — keys match the /api/all-speakers groups.
+const EMBED_TABS = [
+  { key: "speakers", label: "Speakers" },
+  { key: "eventRoom", label: "Event Room Speakers" },
+  { key: "investors", label: "Investor Speakers" },
+];
 
 // Same per-image shimmer loader as the NISS/NASS/Investors pages: state lives here so
 // parent re-renders (SWR revalidation) can't reset it back to shimmering.
@@ -87,6 +95,17 @@ export default function AllSpeakers2026Page() {
     }));
   }, [group, speakers.data, niss.data, nass.data, investors.data]);
 
+  // One event-room feed down while the other renders would silently show half the
+  // roster; surface it instead (completion-auditor finding).
+  const partialWarning =
+    group === "event-room"
+      ? niss.error && !niss.data && nass.data
+        ? "NISS 2026 could not load · showing NASS 2026 only"
+        : nass.error && !nass.data && niss.data
+          ? "NASS 2026 could not load · showing NISS 2026 only"
+          : null
+      : null;
+
   // The active group's load state. Event room is "loading" until both feeds landed
   // and "failed" only if both did (one healthy feed still renders).
   const active =
@@ -133,6 +152,16 @@ export default function AllSpeakers2026Page() {
               </button>
             ))}
           </div>
+
+          <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {/* One snippet carries all three groups: it fetches /api/all-speakers once and
+                renders its own centered tab switcher, so the WordPress visitor can flip
+                between Speakers / Event Room / Investors inside the embed. */}
+            <CopyEmbed path="/api/all-speakers" listKey="people" tabs={EMBED_TABS} />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Copies one Elementor snippet with the tab switcher built in.
+            </span>
+          </div>
         </div>
       </section>
 
@@ -151,6 +180,7 @@ export default function AllSpeakers2026Page() {
           <>
             <p className="count-line">
               {people.length} person(s).
+              {partialWarning && <span className="reval"> · {partialWarning}</span>}
               {active.revalidating && <span className="reval"> · checking for updates…</span>}
             </p>
             <div className="grid-cards">
