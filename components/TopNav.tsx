@@ -6,6 +6,7 @@ import Link from "next/link";
 // Top menu shared across pages. Each link points at one speaker project/feed.
 // Add a new entry here when a new event table gets its own page.
 const PROJECTS = [
+  { href: "/all-speakers-2026", label: "All Speakers 2026" },
   { href: "/speakers-2026", label: "Speakers 2026" },
   { href: "/main-speakers", label: "Main Page 12" },
   { href: "/", label: "Speakers (all)" },
