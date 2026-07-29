@@ -81,14 +81,27 @@ event and event room info" (`viwcC25ENg2ELGszH`), rows with `Type of Event` =
 - Verified: tsc clean; feed returns exactly the 12 with correct hosts/titles/photos;
   page tab shows 57 with all six tags.
 
+**Round 5 (same day): overflow speakers wired in** (Auri's link): second view on
+Partnership Success, `viw8pHmY9hNN8z7Zn` (the "More Event Room Speakers" form's rows,
+one row PER SPEAKER PER SESSION). 31 rows today, all Danish Entrepreneurs.
+- **Field meanings differ from the main view**: there `Presenter Details` = just the
+  NAME, `Company` = the PARTNER ID as text ("1526") — that's the join key. Host resolved
+  via Partner ID → the event-room row's Company (works even though DE's own row has no
+  slot presenters). Unmatched partner id falls back to host "Event Room".
+- **These rows DO have LinkedIn** (`LinkedIn Handle`, full URLs) — included with the
+  http guard, so DE cards are clickable unlike the slot-parsed ones.
+- **Dedupe per person per host** (same speaker sits in several sessions: Kofler ×4,
+  Lantz ×2, van Sabben ×2 → 31 rows = 26 people). The seen-set also spans the 1st–5th
+  slot people, so a person can't appear twice for one event room.
+- Event Room total now **83** (21 NISS + 24 NASS + 38 partner: DE 26 + CBN 5 +
+  Ehvervshus 4 + Microsoft 2 + Flatpay 1). Verified: tsc clean, feed 38 with correct
+  hosts, page tab 83 with all seven tags, Kofler card links to LinkedIn.
+- (Airtable data drifted again mid-session: investors 29 → 33. Data, not code.)
+
 Next steps:
 1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
-2. Danish Entrepreneurs (~35 presenters) submitted "More than 5" with no slot data —
-   their people go through the "Add Event Room Speakers" overflow table
-   (`tblg9iPj4XZK4RQZw`, Partner ID matching). NOT in the feed yet; wire it in when
-   Auri confirms rows exist there.
-3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
+2. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
    (every other page does); add if missed.
 
 Gotchas:
