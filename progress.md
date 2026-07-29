@@ -193,6 +193,23 @@ one" twice but chose "per sheet" when shown the conflict; website tags unchanged
 - View after write: 56 rows = ER1 4 real + ER2 47 (46 real + 1 "asd" test) + test rows
   in 3–6. CLEANUP for Auri: the six "asd"/empty test rows (rooms 2–6) can be deleted.
 
+**Round 12 (same day): Airtable-only speakers merge into Speakers 2026** (Auri: Ken
+Villum Klause added in Airtable only; "sometimes a speaker is only on Airtable").
+- **New `lib/summitextras.ts`**: reads Marketing Project Overview rows with
+  `Project Name = "TechBBQ Summit"` (allow-listed fields, name+photo publish gate).
+  `lib/hub.ts` appends anyone NOT already in the Hub roster (normName match — same key
+  the daily Hub→Airtable sync uses, so the two directions can't duplicate a person).
+  Own cache key `summit-extras` + try/catch: a blip serves the hub-only roster, never
+  a 502. Extras have no bio (table has no bio column) → modal says "No description
+  available yet."; hierarchy joins from the same table as everyone else.
+- Result: 176 speakers = 174 Hub (drifted +1 mid-session) + Ken Villum Klause (Lunar)
+  + Caspar Hoegh (NOON Ventures) — both real Airtable-only rows, dupe-checked.
+- To add an Airtable-only speaker: Marketing Project Overview row, Project Name =
+  "TechBBQ Summit", Full Name + Profile Picture required (no photo, no card). Shows
+  within the 1h cache or instantly via Sync now / redeploy.
+- Data flag for Auri: the row says "Ken Villum Klause" — usual spelling is "Klausen",
+  fix in Airtable if wrong (name is also the dedupe key vs a future Hub entry).
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.

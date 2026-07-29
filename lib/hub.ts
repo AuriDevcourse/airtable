@@ -13,6 +13,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { fetchHierarchyMap, normName } from "@/lib/hierarchy";
+import { fetchSummitExtras } from "@/lib/summitextras";
 import { cached } from "@/lib/rate-limit";
 
 const URL_BASE = process.env.SPEAKERHUB_SUPABASE_URL;
@@ -114,6 +115,22 @@ export async function fetchHubSpeakers(): Promise<HubSpeaker[]> {
 
   const rows = (await res.json()) as Row[];
   const speakers = rows.map(mapRow).filter((s) => s.name);
+
+  // Append speakers who exist ONLY as Airtable "TechBBQ Summit" rows (sometimes a
+  // person is added there and never makes it into the Hub — Ken Villum Klause was the
+  // first). Matched by normalized name so the daily Hub→Airtable sync can't create
+  // duplicates. Failure here must not take the roster down: the Hub list still serves.
+  try {
+    const extras = await cached("summit-extras", fetchSummitExtras);
+    const known = new Set(speakers.map((s) => normName(s.name)));
+    for (const e of extras) {
+      if (known.has(normName(e.name))) continue;
+      known.add(normName(e.name));
+      speakers.push({ ...e, hierarchy: null });
+    }
+  } catch (err) {
+    console.error("[hub] summit-extras lookup failed, serving hub-only roster", err);
+  }
 
   // Join the curated order from Airtable. If that lookup fails the grid still renders —
   // everyone just comes back unranked (i.e. fully shuffled), which is what the page did
