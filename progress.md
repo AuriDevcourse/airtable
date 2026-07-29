@@ -286,6 +286,21 @@ Divergence note: the shared dim rule still dims Networking/Break rows on Fintech
   in 3 columns; copied embed carries repeat(3,minmax(0,1fr)).
 - RE-COPY any pasted NISS/Fintech agenda embeds (styling is snippet-side).
 
+**Round 19 (same day): Future of Fintech speakers feed** (Auri's link, view
+`viwsqDRAVlgJh3STT` on the Fintech table `tbleh7Lqv1zMQaUKx`).
+- **New `lib/fintechspeakers.ts` + `/api/fintech-speakers` + page `/fintech-speakers`**
+  (nav "Fintech Speakers", middleware public path). The table is FORM DATA with PII
+  (Email, Phone Number, consents) — strict allow-list: Name / Job title / Company Name
+  / LinkedIn / Attachments (photo) / `Role ` / `Hierarchy ` (both trailing-space).
+- **Only Role = "Speaker"** (trimmed; keynote speaker + moderator excluded per Auri
+  "don't touch them right now"). `Hierarchy ` is TEXT: "1".."9" on speakers, role
+  names on keynote/moderator rows — parseInt, curated order, no shuffle. 9 speakers,
+  Rico Andersen (1) → Hasan Surtiwala (9), all photos + LinkedIn.
+- Embed: standard speaker grid, `loadMore={false}` (9 fixed). Verified: tsc clean,
+  feed 9 in order, zero PII keys in the response, page renders 9, snippet endpoint ok.
+- To show the keynote/moderator later: relax the Role filter + decide their order
+  (their Hierarchy cells hold text, not numbers).
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
