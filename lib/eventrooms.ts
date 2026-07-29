@@ -20,6 +20,11 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 // Pinned in code on purpose (stable Airtable ids, not secrets — see lib/niss.ts).
 const TABLE = "tbllvkwLhB4Omdphd"; // Partnership Success
 const VIEW = "viwcC25ENg2ELGszH"; // 2026 Side event and event room info
+// Marketing assigns each event-room speaker a room by creating a row here with
+// Project Name = "Event Room 1".."Event Room 6". Joined by normalized person name.
+const MARKETING_TABLE = "tblTecOBecLQCNIeD"; // Marketing Project Overview
+// Wide 3k+ row table — same scan risk as lib/investors.ts, give the filter scan 10s.
+const MARKETING_TIMEOUT_MS = 10_000;
 // Overflow speakers ("More than 5" partners submit one row PER SPEAKER via the More
 // Event Room Speakers form). The row's `Company` field holds the PARTNER ID as text —
 // that's the join key back to the event-room row, which gives the hosting company.
@@ -67,6 +72,9 @@ export type EventRoomPresenter = {
   linkedin: string | null;
   // Which partner's event room the person presents at (the row's Company).
   host: string;
+  // "Event Room 1".."Event Room 6" once marketing assigns the person a room in the
+  // Marketing Project Overview table; null until then (cards fall back to `host`).
+  room: string | null;
 };
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
@@ -147,15 +155,50 @@ async function fetchView(view: string, fields: string[]): Promise<AirtableRecord
   return records;
 }
 
+// Normalized person name → "Event Room N", from the marketing rows. A failure here
+// only loses the room labels (cards fall back to the host name), never the people.
+async function fetchRoomAssignments(): Promise<Map<string, string>> {
+  const rooms = new Map<string, string>();
+  const params = new URLSearchParams();
+  params.set("filterByFormula", `FIND('Event Room ',{Project Name})=1`);
+  params.set("pageSize", "100");
+  params.append("fields[]", "Full Name");
+  params.append("fields[]", "Project Name");
+
+  const res = await fetchWithTimeout(
+    `${API}/${BASE_ID}/${MARKETING_TABLE}?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" },
+    MARKETING_TIMEOUT_MS
+  );
+  if (!res.ok) {
+    console.error("[eventrooms] room-assignment fetch failed", res.status, await res.text());
+    return rooms;
+  }
+
+  const data = (await res.json()) as { records: AirtableRecord[] };
+  for (const rec of data.records) {
+    const name = str(rec.fields["Full Name"]).toLowerCase().replace(/\s+/g, " ");
+    const project = str(rec.fields["Project Name"]);
+    if (name && /^Event Room [1-6]$/.test(project)) rooms.set(name, project);
+  }
+  return rooms;
+}
+
 export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> {
   if (!TOKEN || !BASE_ID) {
     throw new EventRoomsError("Airtable env vars are not set on the server.", 503);
   }
 
-  const [records, overflow] = await Promise.all([
+  const [records, overflow, roomsByName] = await Promise.all([
     fetchView(VIEW, SAFE_FIELDS),
     fetchView(OVERFLOW_VIEW, OVERFLOW_FIELDS),
+    fetchRoomAssignments().catch((err) => {
+      console.error("[eventrooms] room assignments unavailable", err);
+      return new Map<string, string>();
+    }),
   ]);
+  const roomFor = (name: string): string | null =>
+    roomsByName.get(name.toLowerCase().replace(/\s+/g, " ")) ?? null;
 
   // Partner ID → hosting company, from every event-room row (presenter-less ones too —
   // Danish Entrepreneurs' own row has no slots but names the host for their overflow).
@@ -197,7 +240,16 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       // Same publish rule as NISS/NASS: no name or no photo, no card.
       if (!name || !photo || seen.has(personKey(host, name))) return;
       seen.add(personKey(host, name));
-      people.push({ id: `${rec.id}-${i + 1}`, name, title, company, photo, linkedin: null, host });
+      people.push({
+        id: `${rec.id}-${i + 1}`,
+        name,
+        title,
+        company,
+        photo,
+        linkedin: null,
+        host,
+        room: roomFor(name),
+      });
     });
   }
 
@@ -218,6 +270,7 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       photo,
       linkedin: normalizeLinkedInUrl(f["LinkedIn Handle"]),
       host,
+      room: roomFor(name),
     });
   }
 

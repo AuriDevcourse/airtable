@@ -43,8 +43,10 @@ type FeedPerson = {
   linkedin: string | null;
   role?: string;
   event?: string;
-  // Partner event room presenters only: which partner's event room they present at.
+  // Partner event room presenters only: which partner's event room they present at,
+  // and the assigned room label ("Event Room 1".."6") once marketing sets it.
   host?: string;
+  room?: string | null;
 };
 
 // What a card renders: a feed person plus which source it came from.
@@ -93,7 +95,8 @@ export default function AllSpeakers2026Page() {
       const fromNass: Card[] = (nass.data ?? [])
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "NASS 2026" }));
-      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.host }));
+      // Room label ("Event Room 1".."6") once assigned; the hosting partner until then.
+      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.room ?? p.host }));
       return [...fromNiss, ...fromNass, ...fromRooms].sort((a, b) => a.name.localeCompare(b.name));
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
