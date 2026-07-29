@@ -131,11 +131,22 @@ strict `^Event Room [1-6]$` + name join).
 - Stale-compile gotcha hit AGAIN after these edits (page bundle old while API new);
   dev-server restart fixed it, same as before.
 
+**Round 8 (same day): host→room map from the planning sheet** (Auri's screenshot of the
+Event Rooms schedule; labels without the "- C1-M0" endings). `HOST_ROOMS` in
+`lib/eventrooms.ts`: room 1 = Erhvervshus Sjælland + Boardway, 3 = Flatpay + FBV,
+4 = Microsoft, 5 = Creative Business Network (BRIGHT//). Substring-matched both ways so
+the form's "Ehvervshus" typo still hits. Precedence: person-level marketing row
+("Event Room N" Project Name) → host map → host company name. Result: Room 1 ×4,
+Room 5 ×5, Room 4 ×2, Room 3 ×1; Danish Entrepreneurs (26) still host-tagged — their
+event isn't named on the sheet (possibly the "Founders event" in room 1, UNCONFIRMED,
+awaiting Auri). Rooms 2 + 6 are TechBBQ's own programs (India/Afrika, Quantum/
+Blockchain), no partner presenters. When the sheet moves an event, update HOST_ROOMS.
+
 Next steps:
-1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
+1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
+   "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
+2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
-2. Marketing to add the remaining partner presenters to Marketing Project Overview with
-   their "Event Room N" Project Name (34 people still show the host-name fallback).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
    (every other page does); add if missed.
 
