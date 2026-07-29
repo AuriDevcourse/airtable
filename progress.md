@@ -4,6 +4,47 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-29 (All Speakers 2026 combined page — merged to main, pushed)
+
+State: built + browser-verified locally, committed on `all-speakers-2026`, merged to main
+and pushed on Auri's go (auto-deploys on Vercel). Completion-auditor was still in flight
+at push time; its verdict lands in the session log. Dev server left running on :3001
+(:3000 was already taken by an older orphaned next process).
+
+- **New page `/all-speakers-2026`** (`app/all-speakers-2026/page.tsx`), nav tab
+  "All Speakers 2026" (first entry in `components/TopNav.tsx`). One page, three groups via
+  the segmented control:
+  - **Speakers** (default): `/api/speakers-2026` as-is (173 today, API hierarchy order).
+  - **Event Room Speakers**: `/api/niss-speakers` + `/api/nass-speakers` merged
+    client-side, alphabetical, each card tagged "NISS 2026" / "NASS 2026". NISS rows with
+    role `Team Member` are EXCLUDED (they're staff, not event room speakers). 53 today
+    (28 NISS + 25 NASS).
+  - **Investor Speakers**: `/api/investor-speakers` (all three events), cards tagged
+    Pension & Insurance Summit / LP Forum / Investor Day. 29 today.
+- **No new API route, no middleware change** — the page reuses the four existing public
+  feeds and the dashboard password gate already covers every page. All four feeds load on
+  mount so group switching is instant; localStorage cache keys are shared with the
+  standalone pages (`speakers-2026`, `niss:all`, `nass:all`, `investors:all`), stored
+  shapes are the same raw API arrays.
+- **No CopyEmbed on this page** on purpose: the Event Room group has no single endpoint
+  to embed (it's a client-side merge of two feeds). If an Elementor embed for the combined
+  view is ever wanted, build a `/api/event-room-speakers` merge route first.
+- Verified: `tsc --noEmit` clean; page 200 on :3001; fresh load defaults to Speakers
+  (173, no tags); tab clicks give 53 with both event tags, then 29 with the three
+  investor tags, then back to 173.
+
+Next steps:
+1. Auditor verdict, then Auri reviews /all-speakers-2026 on :3001, commits the branch,
+   merges to main (auto-deploys).
+2. Decide whether Event Room should also include the two NASS moderators' "(Moderator)"
+   name suffix cleanup (Airtable data fix from the 2026-07-28 NASS list, still open).
+
+Gotchas:
+- Event Room "all" pulls NISS's full feed and filters `role !== "Team Member"`
+  client-side; if NISS ever renames that role value, staff cards reappear here.
+- If BOTH event-room feeds fail cold, the page shows the NISS error; if only one fails,
+  the healthy feed still renders (that's deliberate).
+
 ## Session 2026-07-28c (Investors: random order + Investor Day — merged to main, LIVE)
 
 State: DONE. Commit `fb9c2df` on `investors-shuffle`, merged to main `d0b61f3`, Vercel
