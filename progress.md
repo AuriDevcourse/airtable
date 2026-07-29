@@ -249,6 +249,19 @@ Proved the multi-source design: this round was one map entry + one tab line.
 Verified: tsc clean, feed 8 in time order, tab renders, copied snippet carries
 `?event=fintech`.
 
+**Round 16 (same day): agenda embed redesigned to Auri's NISS mock.** New look for ALL
+program embeds (`lib/agendaSnippet.ts` rewrite): orange glow border (rgba 255,106,43
+.45 + shadow), big orange date heading, pill note, grid rows (150px time | content),
+uppercase orange outlined tags, dim treatment for Break/Networking rows, per-type
+Lucide icons (coffee=networking/break, users=panel, chart=showcase/pitch), big title
+when Session Type = "Opening". New options: `heading` (fixed date line, e.g.
+"August 26th") + `note` (tickets-only pill) — set per event in the page's EVENTS list
+(NISS has both baked in). Multi-day feeds still get per-day date headings when no
+fixed heading is set. Verified via executed copied snippet: date, note, 15 rows,
+13 orange + 2 dim tags, 9 icons, orange border. RE-COPY any pasted agenda embeds.
+Note: NISS opener is typed "Fireside" in Airtable — retype it "Opening" for the big
+title style.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
