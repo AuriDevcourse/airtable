@@ -43,6 +43,8 @@ type FeedPerson = {
   linkedin: string | null;
   role?: string;
   event?: string;
+  // Partner event room presenters only: which partner's event room they present at.
+  host?: string;
 };
 
 // What a card renders: a feed person plus which source it came from.
@@ -72,6 +74,7 @@ export default function AllSpeakers2026Page() {
   const speakers = useCachedList<FeedPerson>("speakers-2026", "/api/speakers-2026", "speakers");
   const niss = useCachedList<FeedPerson>("niss:all", "/api/niss-speakers", "people");
   const nass = useCachedList<FeedPerson>("nass:all", "/api/nass-speakers", "people");
+  const rooms = useCachedList<FeedPerson>("eventrooms", "/api/event-room-presenters", "people");
   const investors = useCachedList<FeedPerson>("investors:all", "/api/investor-speakers", "people");
 
   const people = useMemo<Card[]>(() => {
@@ -80,37 +83,41 @@ export default function AllSpeakers2026Page() {
       return speakers.data ?? [];
     }
     if (group === "event-room") {
-      // NISS 2026 + NASS 2026 merged, only actual speakers (Auri's rule): the feeds
-      // also carry Moderators, Team Members, Brand Ambassadors and blank-role rows.
-      // Same filter lives in /api/all-speakers for the embed; keep them in sync.
+      // NISS 2026 + NASS 2026 (only actual speakers, Auri's rule: the feeds also carry
+      // Moderators, Team Members, Brand Ambassadors and blank-role rows) + the partner
+      // event room presenters, tagged with the hosting partner's name. Same merge lives
+      // in /api/all-speakers for the embed; keep them in sync.
       const fromNiss: Card[] = (niss.data ?? [])
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "NISS 2026" }));
       const fromNass: Card[] = (nass.data ?? [])
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "NASS 2026" }));
-      return [...fromNiss, ...fromNass].sort((a, b) => a.name.localeCompare(b.name));
+      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.host }));
+      return [...fromNiss, ...fromNass, ...fromRooms].sort((a, b) => a.name.localeCompare(b.name));
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
     return (investors.data ?? []).map((p) => ({
       ...p,
       tag: p.event ? INVESTOR_EVENT_LABELS[p.event] ?? p.event : undefined,
     }));
-  }, [group, speakers.data, niss.data, nass.data, investors.data]);
+  }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data]);
 
-  // One event-room feed down while the other renders would silently show half the
-  // roster; surface it instead (completion-auditor finding).
+  // A source feed down while the others render would silently show a partial roster;
+  // surface it instead (completion-auditor finding).
+  const roomFeeds = [
+    { label: "NISS 2026", state: niss },
+    { label: "NASS 2026", state: nass },
+    { label: "Partner event rooms", state: rooms },
+  ];
+  const failedFeeds = roomFeeds.filter((f) => f.state.error && !f.state.data);
   const partialWarning =
-    group === "event-room"
-      ? niss.error && !niss.data && nass.data
-        ? "NISS 2026 could not load · showing NASS 2026 only"
-        : nass.error && !nass.data && niss.data
-          ? "NASS 2026 could not load · showing NISS 2026 only"
-          : null
+    group === "event-room" && failedFeeds.length > 0 && failedFeeds.length < roomFeeds.length
+      ? failedFeeds.map((f) => f.label).join(" + ") + " could not load · showing the rest"
       : null;
 
-  // The active group's load state. Event room is "loading" until both feeds landed
-  // and "failed" only if both did (one healthy feed still renders).
+  // The active group's load state. Event room is "loading" until all three feeds
+  // landed and "failed" only if all did (any healthy feed still renders).
   const active =
     group === "speakers"
       ? {
@@ -121,10 +128,10 @@ export default function AllSpeakers2026Page() {
         }
       : group === "event-room"
         ? {
-            loading: niss.loading || nass.loading,
-            revalidating: niss.revalidating || nass.revalidating,
-            error: niss.error && nass.error ? niss.error : null,
-            empty: !niss.data && !nass.data,
+            loading: niss.loading || nass.loading || rooms.loading,
+            revalidating: niss.revalidating || nass.revalidating || rooms.revalidating,
+            error: failedFeeds.length === roomFeeds.length ? niss.error : null,
+            empty: !niss.data && !nass.data && !rooms.data,
           }
         : {
             loading: investors.loading,
