@@ -11,6 +11,7 @@
 // 3-presenter one; Flatpay's 07-21 row supersedes an empty 06-30 one).
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -209,14 +210,13 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
     const host = hostByPartner.get(str(f["Company"])) ?? "Event Room";
     if (!name || !photo || seen.has(personKey(host, name))) continue;
     seen.add(personKey(host, name));
-    const link = str(f["LinkedIn Handle"]);
     people.push({
       id: rec.id,
       name,
       title: str(f["Presenters Position in the Company"]),
       company: str(f["Presenters Company"]),
       photo,
-      linkedin: link.startsWith("http") ? link : null,
+      linkedin: normalizeLinkedInUrl(f["LinkedIn Handle"]),
       host,
     });
   }

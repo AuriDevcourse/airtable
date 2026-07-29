@@ -10,6 +10,7 @@
 // and holds unrelated internal project data; none of it is read here.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -59,12 +60,12 @@ function firstPhoto(v: unknown): string | null {
   return att?.thumbnails?.large?.url || att?.url || null;
 }
 
-// Only accept an http(s) URL — the "LinkedIn Handle" field mostly holds a full profile URL,
-// but guard against a bare handle sneaking in as a broken href.
+// First value that normalizes to a working LinkedIn URL wins (handles www./scheme-less/
+// mobile variants; a bare non-URL handle still never renders as a broken href).
 function linkedinUrl(...vals: unknown[]): string | null {
   for (const v of vals) {
-    const s = str(v);
-    if (/^https?:\/\//i.test(s)) return s;
+    const s = normalizeLinkedInUrl(v);
+    if (s) return s;
   }
   return null;
 }

@@ -98,6 +98,22 @@ one row PER SPEAKER PER SESSION). 31 rows today, all Danish Entrepreneurs.
   hosts, page tab 83 with all seven tags, Kofler card links to LinkedIn.
 - (Airtable data drifted again mid-session: investors 29 → 33. Data, not code.)
 
+**Round 6 (same day): nav dropdown + LinkedIn URL normalization** (Auri's asks):
+- **TopNav is now a dropdown** (10 entries outgrew the tab row): trigger shows the
+  current page + chevron, menu lists all projects, closes on outside click / Escape /
+  navigation. New `.topnav__dropdown/__trigger/__menu` styles replace `.topnav__links`.
+- **New `lib/linkedin.ts` · `normalizeLinkedInUrl()`** used by ALL nine feed libs (hub,
+  niss, nass, niss2025, lifescience, team, eventrooms, investors, mainpage, airtable).
+  The old `startsWith("http")` guards silently DROPPED "www.linkedin.com/...",
+  scheme-less "linkedin.com/..." / "dk.linkedin.com/..." / "lnkd.in/..." values →
+  unclickable cards (the "LinkedIn doesn't open" reports). Also rewrites mobile hosts
+  (i./m./touch.linkedin.com) to www. hub.ts previously had NO guard, so a scheme-less
+  value there rendered as a broken relative link. Recovered: NASS 1, Life Science 3
+  nulls → 0. The 2 remaining NISS 2025 nulls (Satya Prakash Singh, Shri Harsha) have
+  genuinely EMPTY LinkedIn cells in Airtable.
+- Embeds pick the fix up automatically (they render the feed's linkedin value at
+  runtime, no re-copy needed for this).
+
 Next steps:
 1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).

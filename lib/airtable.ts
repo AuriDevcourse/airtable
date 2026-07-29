@@ -4,6 +4,7 @@
 // birth, phone numbers and emails — none of those fields are read here.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
 const API = "https://api.airtable.com/v0";
 
@@ -65,7 +66,7 @@ function mapRecord(rec: AirtableRecord): Speaker {
     bio: str(f["Text for website"]) || str(f["Speaker Bio"]) || str(f["Bio"]),
     quote: str(f["Personal Quote for Marketing Purposes"]),
     photo: firstPhoto(f["Picture"]) || firstPhoto(f["Headshots For marketing?"]),
-    linkedin: str(f["Linkedin (Personal)"]) || null,
+    linkedin: normalizeLinkedInUrl(f["Linkedin (Personal)"]),
     website: str(f["Company website"]) || str(f["Company LinkedIn"]) || null,
   };
 }
