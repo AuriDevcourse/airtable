@@ -50,18 +50,25 @@ Completion-auditor result (round 1): BLOCK → both blockers resolved (partial-o
 warning shipped in round 2; process point moot, Auri explicitly said push). Minor
 findings left open, see next steps.
 
+**Round 3 (same day): Event Room = role "Speaker" ONLY** (Auri: "if the speaker doesn't
+have role Speaker, don't show it"). Filter flipped from exclude-Team-Member to
+`role === "Speaker"` in BOTH places (page + /api/all-speakers). Drops moderators, Brand
+Ambassadors (Jesper Ludolph), blank-role rows (Sara Petrycer Hansen). Event Room
+53 → **44** (21 NISS + 23 NASS). Verified on dev API + browser (roles = ["Speaker"]
+only, no Ludolph/Petrycer/"(Moderator)" names).
+
 Next steps:
 1. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
-2. Auri decision: Event Room currently excludes only NISS `Team Member`. NISS rows with
-   role "Brand Ambassadors" (Jesper Ludolph) and blank role (Sara Petrycer Hansen) DO
-   show as Event Room speakers. If unwanted, switch to an allow-list (Speaker/Moderator).
-3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
+2. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
    (every other page does); add if missed.
 
 Gotchas:
-- Event Room merge filters `role !== "Team Member"` in TWO places (page client-side +
+- Event Room merge filters `role === "Speaker"` in TWO places (page client-side +
   /api/all-speakers server-side) — keep them in sync if the rule changes.
+- Prod serves the OLD group counts for up to 1h after a data-rule change (server cache
+  on `niss:all`/`nass:all` + CDN s-maxage) — but a redeploy restarts the lambda, so in
+  practice each merge to main resets it.
 - The stale-compile gotcha struck again: after adding CopyEmbed the dev server served
   the old page bundle (no error). Restart `next dev`, and kill the node CHILD holding
   the port, not just the npm wrapper.

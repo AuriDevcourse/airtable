@@ -80,12 +80,15 @@ export default function AllSpeakers2026Page() {
       return speakers.data ?? [];
     }
     if (group === "event-room") {
-      // NISS 2026 + NASS 2026 merged. NISS also carries TechBBQ Team Members in its
-      // "all" feed; they aren't event room speakers, so they're filtered out.
+      // NISS 2026 + NASS 2026 merged, only actual speakers (Auri's rule): the feeds
+      // also carry Moderators, Team Members, Brand Ambassadors and blank-role rows.
+      // Same filter lives in /api/all-speakers for the embed; keep them in sync.
       const fromNiss: Card[] = (niss.data ?? [])
-        .filter((p) => p.role !== "Team Member")
+        .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "NISS 2026" }));
-      const fromNass: Card[] = (nass.data ?? []).map((p) => ({ ...p, tag: "NASS 2026" }));
+      const fromNass: Card[] = (nass.data ?? [])
+        .filter((p) => p.role === "Speaker")
+        .map((p) => ({ ...p, tag: "NASS 2026" }));
       return [...fromNiss, ...fromNass].sort((a, b) => a.name.localeCompare(b.name));
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
