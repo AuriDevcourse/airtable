@@ -46,7 +46,7 @@ type NissPerson = {
   role: string;
 };
 
-const ROLES = ["all", "Speaker", "Moderator", "Team Member"] as const;
+const ROLES = ["all", "Speaker", "Moderator", "Brand Ambassadors", "Team Member"] as const;
 type Role = (typeof ROLES)[number];
 
 // Display label only — the underlying value stays "Speaker" so the Airtable role filter
@@ -87,8 +87,13 @@ export default function NissPage() {
           </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {/* Mobile defaults to the list-rows layout for every role now. */}
-            <CopyEmbed path={url} listKey="people" />
+            {/* Mobile defaults to the list-rows layout for every role now. The Brand
+                Ambassadors embed pins desktop to 3 per row (only 3 people). */}
+            <CopyEmbed
+              path={url}
+              listKey="people"
+              columns={role === "Brand Ambassadors" ? 3 : undefined}
+            />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>
@@ -114,7 +119,9 @@ export default function NissPage() {
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}
             </p>
-            <div className="grid-cards">
+            {/* Brand Ambassadors are only 3 people: pin the grid to 3 per row so they
+                sit as one full row instead of a lonely auto-fill 5-wide grid. */}
+            <div className={"grid-cards" + (role === "Brand Ambassadors" ? " grid-cards--3" : "")}>
               {people.map((p) => {
                 const meta = p.title + (p.company ? ` · ${p.company}` : "");
                 const card = (

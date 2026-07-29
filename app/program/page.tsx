@@ -26,6 +26,7 @@ const EVENTS: {
   note?: string;
   theme?: "orange" | "blue";
   icons?: boolean;
+  bigOpening?: boolean;
 }[] = [
   { key: "techbbq", label: "TechBBQ 2026" },
   {
@@ -34,8 +35,9 @@ const EVENTS: {
     heading: "August 26th",
     note: "Access to the program on 26th of August is for the holders of TechBBQ tickets only",
   },
-  // Fintech's design (Auri's mock): blue palette on #111827, no title icons.
-  { key: "fintech", label: "Future of Fintech", theme: "blue", icons: false },
+  // Fintech's design (Auri's mock): blue palette on #111827, no title icons, and
+  // every title the same size (no oversized Opening).
+  { key: "fintech", label: "Future of Fintech", theme: "blue", icons: false, bigOpening: false },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -46,18 +48,20 @@ function CopyAgendaEmbed({
   note,
   theme,
   icons,
+  bigOpening,
 }: {
   path: string;
   heading?: string;
   note?: string;
   theme?: "orange" | "blue";
   icons?: boolean;
+  bigOpening?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening }).replace(/__ORIGIN__/g, window.location.origin);
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -125,6 +129,7 @@ export default function ProgramPage() {
               note={EVENTS.find((e) => e.key === event)?.note}
               theme={EVENTS.find((e) => e.key === event)?.theme}
               icons={EVENTS.find((e) => e.key === event)?.icons}
+              bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.

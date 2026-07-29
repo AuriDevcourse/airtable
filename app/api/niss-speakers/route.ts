@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   // Optional ?role=Speaker | Moderator | Team. Validated against an allow-list.
   const roleParam = req.nextUrl.searchParams.get("role");
-  const ALLOWED_ROLES = ["Speaker", "Moderator", "Team Member"];
+  const ALLOWED_ROLES = ["Speaker", "Moderator", "Brand Ambassadors", "Team Member"];
   const role = roleParam && ALLOWED_ROLES.includes(roleParam) ? roleParam : undefined;
 
   try {

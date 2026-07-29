@@ -1,8 +1,8 @@
 // Elementor snippet for the program/agenda — the schedule equivalent of
 // lib/embedSnippet.ts. Fetches /api/program, renders rows: time · type pill · title.
-// Design (Auri, 2026-07-29): orange glow border around the block, uppercase orange
-// outlined tags, dim treatment for Break/Networking rows, per-type Lucide icons,
-// big title on the Opening. All styles scoped under the unique id.
+// Design (Auri, 2026-07-29): glow border around the block, uppercase outlined tags
+// (one color per theme, no dim variants), per-type Lucide icons, optional big title
+// on the Opening. All styles scoped under the unique id.
 // __ORIGIN__ is swapped for the live URL at copy time (see the page's copy button).
 
 export type AgendaOptions = {
@@ -20,6 +20,9 @@ export type AgendaOptions = {
   theme?: "orange" | "blue";
   // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
   icons?: boolean;
+  // Oversized title on Session Type = "Opening". Default true (the NISS look);
+  // Fintech wants every title the same size, so it passes false.
+  bigOpening?: boolean;
 };
 
 // Everything that differs between the two looks lives here.
@@ -35,7 +38,6 @@ const THEMES = {
     bg: "transparent",
     rowBorder: "rgba(255,255,255,.09)",
     time: "#d8d0c7",
-    dimInk: "#b3aba2",
     noteInk: "#cfc6bd",
   },
   blue: {
@@ -49,7 +51,6 @@ const THEMES = {
     bg: "#111827",
     rowBorder: "#1E293B",
     time: "#CBD5E1",
-    dimInk: "#A8B1BD",
     noteInk: "#CBD5E1",
   },
 } as const;
@@ -74,6 +75,7 @@ export function buildAgendaSnippet({
   note,
   theme = "orange",
   icons = true,
+  bigOpening = true,
 }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
   const t = THEMES[theme];
@@ -95,13 +97,10 @@ export function buildAgendaSnippet({
   #${id} .tbbq-agenda__row:last-child{border-bottom:0}
   #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
   #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
-  #${id} .tbbq-agenda__tag--dim{color:var(--muted);border-color:rgba(255,255,255,.18)}
   #${id} .tbbq-agenda__title{font-family:"Onest",sans-serif;font-weight:600;font-size:19px;line-height:1.3;color:var(--fg)}
-  #${id} .tbbq-agenda__title--dim{color:${t.dimInk};font-weight:500;font-size:16px}
   #${id} .tbbq-agenda__title--big{font-size:26px;font-weight:700;letter-spacing:-.01em}
   #${id} .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
   #${id} .tbbq-agenda__ic{display:inline-block;width:19px;height:19px;vertical-align:-3px;margin-right:9px;color:var(--acc)}
-  #${id} .tbbq-agenda__title--dim .tbbq-agenda__ic{color:${t.dimInk}}
   @media(max-width:640px){#${id} .tbbq-agenda__row{grid-template-columns:1fr;gap:6px;padding:16px 2px}#${id} .tbbq-agenda__time{padding-top:0}#${id} .tbbq-agenda__title--big{font-size:21px}}
 </style>
 
@@ -111,6 +110,7 @@ export function buildAgendaSnippet({
   var HEADING = ${JSON.stringify(heading || "")};
   var NOTE = ${JSON.stringify(note || "")};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
+  var BIG_OPENING = ${bigOpening ? "true" : "false"};
   var root = document.getElementById("${id}");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function icon(type){
@@ -130,11 +130,10 @@ export function buildAgendaSnippet({
       // is set, or for single-day feeds where day is empty).
       if(!HEADING&&s.day!==day){day=s.day;if(day)html+='<div class="tbbq-agenda__date">'+esc(day)+'</div>';}
       var t=String(s.type||"").toLowerCase();
-      var dim=(t==="break"||t==="networking")?"--dim":"";
-      var big=(t==="opening")?" tbbq-agenda__title--big":"";
+      var big=(BIG_OPENING&&t==="opening")?" tbbq-agenda__title--big":"";
       html+='<div class="tbbq-agenda__row"><div class="tbbq-agenda__time">'+esc(s.timeSlot)+'</div><div>'
-        +(s.type?'<span class="tbbq-agenda__tag'+(dim?' tbbq-agenda__tag'+dim:'')+'">'+esc(s.type)+'</span>':'')
-        +'<div class="tbbq-agenda__title'+(dim?' tbbq-agenda__title'+dim:'')+big+'">'+icon(s.type)+esc(s.name)+'</div>'
+        +(s.type?'<span class="tbbq-agenda__tag">'+esc(s.type)+'</span>':'')
+        +'<div class="tbbq-agenda__title'+big+'">'+icon(s.type)+esc(s.name)+'</div>'
         +(s.description?'<p class="tbbq-agenda__desc">'+esc(s.description)+'</p>':'')
         +'</div></div>';
     }
