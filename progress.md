@@ -262,6 +262,16 @@ fixed heading is set. Verified via executed copied snippet: date, note, 15 rows,
 Note: NISS opener is typed "Fireside" in Airtable — retype it "Opening" for the big
 title style.
 
+**Round 17 (same day): blue Fintech theme for the agenda embed** (Auri's second mock).
+`buildAgendaSnippet` gains `theme: "orange" | "blue"` (THEMES map holds every color
+that differs: bg #111827, border/tags blue #2563EB/#93C5FD, slate row borders) and
+`icons: boolean` (Fintech mock has none). All agenda CSS now scoped under `#<uid>` so
+two differently-themed agendas can share one WordPress page. Fintech tab passes
+theme=blue + icons=false; NISS/TechBBQ stay orange with icons. Verified via executed
+copied snippet: bg rgb(17,24,39), blue border, 0 icons, 8 rows, "Opening" title big.
+Divergence note: the shared dim rule still dims Networking/Break rows on Fintech
+(Auri's fintech mock showed Networking in blue) — flagged, awaiting his call.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.

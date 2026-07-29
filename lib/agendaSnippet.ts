@@ -15,7 +15,44 @@ export type AgendaOptions = {
   heading?: string;
   // Small pill note under the heading (e.g. the tickets-only notice).
   note?: string;
+  // Color theme. "orange" = the TechBBQ fire look (default, used by NISS/TechBBQ).
+  // "blue" = the Future of Fintech look (blue border/tags on #111827).
+  theme?: "orange" | "blue";
+  // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
+  icons?: boolean;
 };
+
+// Everything that differs between the two looks lives here.
+const THEMES = {
+  orange: {
+    ink: "#f2f2f2",
+    muted: "#9a9a9c",
+    acc: "#ff6a2b",
+    tagInk: "#ff6a2b",
+    tagBorder: "rgba(255,106,43,.5)",
+    border: "rgba(255,106,43,.45)",
+    glow: "rgba(255,106,43,.08)",
+    bg: "transparent",
+    rowBorder: "rgba(255,255,255,.09)",
+    time: "#d8d0c7",
+    dimInk: "#b3aba2",
+    noteInk: "#cfc6bd",
+  },
+  blue: {
+    ink: "#F1F5F9",
+    muted: "#94A3B8",
+    acc: "#2563EB",
+    tagInk: "#93C5FD",
+    tagBorder: "rgba(37,99,235,.55)",
+    border: "rgba(37,99,235,.45)",
+    glow: "rgba(37,99,235,.10)",
+    bg: "#111827",
+    rowBorder: "#1E293B",
+    time: "#CBD5E1",
+    dimInk: "#A8B1BD",
+    noteInk: "#CBD5E1",
+  },
+} as const;
 
 // Lucide icon paths per session type (stroke icons, inherit currentColor).
 // Types not listed render without an icon.
@@ -30,8 +67,16 @@ const ICONS: Record<string, string> = {
   pitch: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
 };
 
-export function buildAgendaSnippet({ uid, path = "/api/program", heading, note }: AgendaOptions = {}): string {
+export function buildAgendaSnippet({
+  uid,
+  path = "/api/program",
+  heading,
+  note,
+  theme = "orange",
+  icons = true,
+}: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
+  const t = THEMES[theme];
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,24 +85,24 @@ export function buildAgendaSnippet({ uid, path = "/api/program", heading, note }
 <section id="${id}" class="tbbq-agenda"><p class="tbbq-agenda__loading">Loading…</p></section>
 
 <style>
-  .tbbq-agenda{--fg:#f2f2f2;--muted:#9a9a9c;--acc:#ff6a2b;font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid rgba(255,106,43,.45);border-radius:24px;padding:clamp(20px,4vw,44px);box-shadow:0 0 45px rgba(255,106,43,.08),inset 0 0 60px rgba(0,0,0,.35);color:var(--fg)}
-  .tbbq-agenda__loading{color:var(--muted);margin:0}
-  .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;color:var(--acc);text-shadow:0 0 26px rgba(255,106,43,.4);margin:2px 6px 16px}
-  .tbbq-agenda__date:not(:first-child){margin-top:34px}
-  .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:#cfc6bd;border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
-  .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background:var(--acc)}
-  .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid rgba(255,255,255,.09);align-items:start}
-  .tbbq-agenda__row:last-child{border-bottom:0}
-  .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:#d8d0c7;letter-spacing:.03em;padding-top:4px;white-space:nowrap}
-  .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);border:1px solid rgba(255,106,43,.5);border-radius:9999px;padding:3px 12px;margin-bottom:8px}
-  .tbbq-agenda__tag--dim{color:var(--muted);border-color:rgba(255,255,255,.18)}
-  .tbbq-agenda__title{font-family:"Onest",sans-serif;font-weight:600;font-size:19px;line-height:1.3;color:var(--fg)}
-  .tbbq-agenda__title--dim{color:#b3aba2;font-weight:500;font-size:16px}
-  .tbbq-agenda__title--big{font-size:27px;font-weight:700;letter-spacing:-.01em}
-  .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
-  .tbbq-agenda__ic{display:inline-block;width:19px;height:19px;vertical-align:-3px;margin-right:9px;color:var(--acc)}
-  .tbbq-agenda__title--dim .tbbq-agenda__ic{color:#b3aba2}
-  @media(max-width:640px){.tbbq-agenda__row{grid-template-columns:1fr;gap:6px;padding:16px 2px}.tbbq-agenda__time{padding-top:0}.tbbq-agenda__title--big{font-size:21px}}
+  #${id}.tbbq-agenda{--fg:${t.ink};--muted:${t.muted};--acc:${t.acc};font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid ${t.border};border-radius:24px;padding:clamp(20px,4vw,44px);background:${t.bg};box-shadow:0 0 45px ${t.glow},inset 0 0 60px rgba(0,0,0,.3);color:var(--fg)}
+  #${id} .tbbq-agenda__loading{color:var(--muted);margin:0}
+  #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;color:var(--acc);text-shadow:0 0 26px ${t.glow};margin:2px 6px 16px}
+  #${id} .tbbq-agenda__date:not(:first-child){margin-top:34px}
+  #${id} .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:${t.noteInk};border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
+  #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background:var(--acc)}
+  #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
+  #${id} .tbbq-agenda__row:last-child{border-bottom:0}
+  #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
+  #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
+  #${id} .tbbq-agenda__tag--dim{color:var(--muted);border-color:rgba(255,255,255,.18)}
+  #${id} .tbbq-agenda__title{font-family:"Onest",sans-serif;font-weight:600;font-size:19px;line-height:1.3;color:var(--fg)}
+  #${id} .tbbq-agenda__title--dim{color:${t.dimInk};font-weight:500;font-size:16px}
+  #${id} .tbbq-agenda__title--big{font-size:26px;font-weight:700;letter-spacing:-.01em}
+  #${id} .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
+  #${id} .tbbq-agenda__ic{display:inline-block;width:19px;height:19px;vertical-align:-3px;margin-right:9px;color:var(--acc)}
+  #${id} .tbbq-agenda__title--dim .tbbq-agenda__ic{color:${t.dimInk}}
+  @media(max-width:640px){#${id} .tbbq-agenda__row{grid-template-columns:1fr;gap:6px;padding:16px 2px}#${id} .tbbq-agenda__time{padding-top:0}#${id} .tbbq-agenda__title--big{font-size:21px}}
 </style>
 
 <script>
@@ -65,7 +110,7 @@ export function buildAgendaSnippet({ uid, path = "/api/program", heading, note }
   var ENDPOINT = "__ORIGIN__${path}";
   var HEADING = ${JSON.stringify(heading || "")};
   var NOTE = ${JSON.stringify(note || "")};
-  var ICONS = ${JSON.stringify(ICONS)};
+  var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var root = document.getElementById("${id}");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function icon(type){
