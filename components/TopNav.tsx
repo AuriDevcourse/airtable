@@ -17,6 +17,7 @@ const PROJECTS = [
   { href: "/niss-2025", label: "NISS 2025" },
   { href: "/nass", label: "NASS 2026" },
   { href: "/investors", label: "Investors" },
+  { href: "/program", label: "Program 2026" },
   { href: "/team", label: "Team" },
 ];
 
