@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchProgram, ProgramError } from "@/lib/program";
+import { fetchProgram, ProgramError, PROGRAM_SOURCES, ProgramSourceKey } from "@/lib/program";
 import { rateLimit, cached } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -32,9 +32,17 @@ export async function GET(req: NextRequest) {
     return withCors(res);
   }
 
+  // Optional ?event=techbbq|niss — validated against the known sources.
+  const eventParam = req.nextUrl.searchParams.get("event");
+  const source: ProgramSourceKey =
+    eventParam && eventParam in PROGRAM_SOURCES ? (eventParam as ProgramSourceKey) : "techbbq";
+
   try {
-    const sessions = await cached("program", fetchProgram);
-    const res = NextResponse.json({ count: sessions.length, sessions }, { status: 200 });
+    const sessions = await cached(`program:${source}`, () => fetchProgram(source));
+    const res = NextResponse.json(
+      { count: sessions.length, event: source, sessions },
+      { status: 200 }
+    );
     res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
     return withCors(res);
   } catch (err) {

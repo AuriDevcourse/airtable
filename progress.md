@@ -225,10 +225,29 @@ session type / name / description in Airtable, usable in Elementor).
 - Verified: tsc clean; feed 3 sessions in right order; page renders both day groups;
   copied snippet executed in-browser renders days/sessions/tags correctly.
 
+**Round 14 (same day): NISS program added — program system is now multi-source**
+(Auri's link: the NISS team fills their agenda INSIDE the NISS table, view
+`viwMqDT1GMW7AwOtQ` — 15 real sessions already, filled by Auri + Irina today).
+- `lib/program.ts` rewritten around a `PROGRAM_SOURCES` map: `techbbq` (Program 2026
+  table) + `niss` (NISS table program view; fields Session Name / Time Slot /
+  Type of Session; opt-out gate `Should be On Website`="NO"; single-day → `day:""`,
+  page + embed skip empty day headings). Adding another event's program = one entry
+  in the map.
+- `/api/program?event=niss` (validated key, default techbbq, cache `program:<source>`).
+  Page has TechBBQ 2026 / NISS 2026 tabs; the copy button embeds the ACTIVE tab's
+  agenda (`path` option on buildAgendaSnippet).
+- Time-sort survives the messy real data (en-dashes "09:00–09:30", typos "13:30-14-30"
+  — parser reads the first hh:mm).
+- Verified: tsc clean; niss feed 15 in time order, techbbq 3; page tabs 3↔15; copied
+  NISS snippet executed in-browser renders 15 sessions, no day headings, endpoint
+  carries ?event=niss.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
 2. Team fills real sessions in the Program 2026 table; delete the 3 sample rows.
+3. NISS data nits (fix in Airtable, not code): "13:30-14-30" and "16:30-16-50" time
+   typos; "15:30-16:00" overlaps the 14:35-15:35 pitch slot.
 2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
