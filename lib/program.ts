@@ -66,6 +66,15 @@ export const PROGRAM_SOURCES = {
       gate: "Should be On Website",
     },
   },
+  fintech: {
+    table: "tbleh7Lqv1zMQaUKx", // Future of Fintech
+    view: "viw0mk6kOUKxNqgzU", // program rows (no website gate on this one)
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Type of Session",
+    },
+  },
 } satisfies Record<string, SourceConfig>;
 
 export type ProgramSourceKey = keyof typeof PROGRAM_SOURCES;

@@ -242,12 +242,21 @@ session type / name / description in Airtable, usable in Elementor).
   NISS snippet executed in-browser renders 15 sessions, no day headings, endpoint
   carries ?event=niss.
 
+**Round 15 (same day): Future of Fintech program** (Auri's link): third source in
+PROGRAM_SOURCES — table `tbleh7Lqv1zMQaUKx`, view `viw0mk6kOUKxNqgzU`, same fields as
+NISS but NO website-gate column. `?event=fintech`, tab "Future of Fintech". 8 sessions.
+Proved the multi-source design: this round was one map entry + one tab line.
+Verified: tsc clean, feed 8 in time order, tab renders, copied snippet carries
+`?event=fintech`.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
 2. Team fills real sessions in the Program 2026 table; delete the 3 sample rows.
 3. NISS data nits (fix in Airtable, not code): "13:30-14-30" and "16:30-16-50" time
    typos; "15:30-16:00" overlaps the 14:35-15:35 pitch slot.
+4. Fintech data nit: the "Opening" row's Session Name cell has pasted leftovers
+   ("…Scale Leap\n10:10–10:30\nFireside") — trim it in Airtable.
 2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
