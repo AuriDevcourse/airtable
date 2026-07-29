@@ -42,11 +42,12 @@ export type EmbedOptions = {
   // Multi-group tab mode (the /all-speakers-2026 embed). When set, ENDPOINT must return
   // { groups: { [key]: Person[] } } and the snippet renders a centered pill switcher
   // above the grid; clicking a pill swaps the rendered group without refetching. The
-  // first entry is selected by default. listKey, modal and the top-level shuffle are
-  // ignored in this mode — set shuffle per tab instead (that group is Fisher-Yates
-  // shuffled once per page load). Cards with a `tag` (which event/room a person belongs
-  // to) show it above the name.
-  tabs?: { key: string; label: string; shuffle?: boolean }[];
+  // first entry is selected by default. listKey and the top-level modal/shuffle are
+  // ignored in this mode — set them per tab instead: `shuffle` Fisher-Yates shuffles
+  // that group once per page load; `modal` makes that group's cards open the detail
+  // pop-up (needs bio data) while other groups link straight to LinkedIn. Cards with a
+  // `tag` (which event/room a person belongs to) show it above the name.
+  tabs?: { key: string; label: string; shuffle?: boolean; modal?: boolean }[];
 };
 
 // The diagonal hover glow, per palette. Same shape (black -> colour -> colour -> fade),
@@ -72,7 +73,9 @@ export function buildEmbedSnippet({
   const id = uid || "tbbq-speakers";
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
   const hoverGradient = GRADIENTS[gradient];
-  // Tab mode renders its own multi-group script; the single-list extras don't apply.
+  // Tab mode renders its own multi-group script; the single-list extras don't apply
+  // (modal/shuffle are per-tab there). tabModal keeps the pop-up styles + setup in.
+  const tabModal = Boolean(tabs?.length && tabs.some((t) => t.modal));
   if (tabs?.length) {
     modal = false;
     shuffle = false;
@@ -87,7 +90,7 @@ export function buildEmbedSnippet({
       : "";
 
   // Extra CSS for the detail pop-up. Scoped so it can't leak into the host WordPress page.
-  const modalStyles = modal
+  const modalStyles = modal || tabModal
     ? `
   .tbbq-speakers .tbbq-card--btn{cursor:pointer}
   .tbbq-speakers .tbbq-card--btn:focus-visible{outline:2px solid #ce0f2e;outline-offset:2px}
@@ -108,7 +111,7 @@ export function buildEmbedSnippet({
 
   // Extra JS that builds the pop-up and wires clicks (event-delegated by card index).
   // Injected inside the fetch callback, right after the grid is cleared, so `list` exists.
-  const modalSetup = modal
+  const modalSetup = modal || tabModal
     ? `
     var docOverflow="";
     var lastFocus=null;
@@ -206,7 +209,14 @@ export function buildEmbedSnippet({
   var STEP = ${loadMore ? String(pageSize) : "1000000"};
   var LOADMORE = ${loadMore ? "true" : "false"};
   var root = document.getElementById("${id}");
-  var grid = root.querySelector(".tbbq-grid");
+  var grid = root.querySelector(".tbbq-grid");${
+    tabs?.length
+      ? `
+  // Whether the currently shown group opens the detail pop-up (card() reads this,
+  // show() sets it — both live at this scope).
+  var modalOn=false;`
+      : ""
+  }
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function card(s,i){
     var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'" alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
@@ -214,9 +224,13 @@ export function buildEmbedSnippet({
     var tag=s.tag?'<p class="tbbq-card__tag">'+esc(s.tag)+'</p>':'';
     var inner=media+'<div class="tbbq-card__body">'+tag+'<h3>'+esc(s.name)+'</h3><p>'+meta+'</p></div>';
     ${
-      modal
-        ? `return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';`
-        : `var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
+      tabs?.length
+        ? `if(modalOn){return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';}
+    var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
+    return '<article class="tbbq-card">'+body+'</article>';`
+        : modal
+          ? `return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';`
+          : `var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
     return '<article class="tbbq-card">'+body+'</article>';`
     }
   }
@@ -231,6 +245,8 @@ export function buildEmbedSnippet({
       var sg=groups[SHUFFLE[sk]];
       if(sg)for(var si=sg.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=sg[si];sg[si]=sg[sj];sg[sj]=st;}
     }
+    // Groups whose cards open the detail pop-up instead of linking to LinkedIn.
+    var MODAL=${JSON.stringify(Object.fromEntries((tabs ?? []).filter((t) => t.modal).map((t) => [t.key, true])))};
     var list=[];
     var shown=0;
     var more=document.createElement("button");
@@ -243,8 +259,9 @@ export function buildEmbedSnippet({
       more.style.display=shown>=list.length?"none":"";
     }
     more.onclick=fill;
-    if(LOADMORE)root.appendChild(more);
+    if(LOADMORE)root.appendChild(more);${tabModal ? modalSetup : ""}
     function show(key){
+      modalOn=!!MODAL[key];
       list=groups[key]||[];
       shown=0;
       more.style.display="none";

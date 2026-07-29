@@ -160,6 +160,26 @@ Blockchain), no partner presenters. When the sheet moves an event, update HOST_R
   in-browser check look wrong (old tags); `fetch(..., {cache:'reload'})` showed the
   server was right all along.
 
+**Round 10 (same day): Speakers-group bio pop-up** (Auri's ask): on /all-speakers-2026
+AND its embed, clicking a Speakers card opens the detail pop-up (photo · name · title ·
+company · bio · LinkedIn button) like /speakers-2026; Event Room + Investor cards keep
+linking straight to LinkedIn (no bios in those sources).
+- Page: local `SpeakerModal` (same markup/classes as /speakers-2026, reuses the global
+  `.modal*` CSS), speakers cards render as `.s-card__button`, other groups unchanged.
+- Embed: `modal` is now a PER-TAB flag (`{key:"speakers",modal:true}`); tab mode emits
+  a MODAL map + `modalOn` switch in `card()` so the pop-up markup/styles/handlers ship
+  once and only the flagged group uses them.
+- BUG caught by running the real snippet: `modalOn` was declared inside the fetch
+  callback but `card()` lives at the IIFE top level → ReferenceError, embed showed
+  "Could not load right now" (the fetch .catch also swallows THEN-callback errors —
+  debug by patching the catch to expose err, see session transcript). Fix = hoist
+  `var modalOn=false` next to root/grid.
+- Verified (real copied snippet executed): Speakers tab 20 modal cards, click opens
+  pop-up with real bio (Jacob Lauritzen), close works; Event Room tab 0 modal cards /
+  17 LinkedIn links; back to Speakers restores buttons. Page: 173 button cards, modal
+  opens with bio + LinkedIn, Escape closes, Event Room cards stay links.
+- RE-COPY the embed in Elementor (structural snippet change).
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known. Also confirm
