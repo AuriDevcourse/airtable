@@ -22,6 +22,7 @@ const PUBLIC_PATHS = new Set([
   "/api/nass-speakers",
   "/api/event-room-presenters",
   "/api/investor-speakers",
+  "/api/program",
   "/api/life-science",
   "/api/team",
   "/api/sync-speakers", // guarded by CRON_SECRET instead

@@ -210,9 +210,25 @@ Villum Klause added in Airtable only; "sometimes a speaker is only on Airtable")
 - Data flag for Auri: the row says "Ken Villum Klause" — usual spelling is "Klausen",
   fix in Airtable if wrong (name is also the dedupe key vs a future Hub entry).
 
+**Round 13 (same day): Program 2026 agenda** (Auri's ask: team fills time slots /
+session type / name / description in Airtable, usable in Elementor).
+- **New Airtable table "Program 2026"** (`tblI4IW0b3sLxNWgz`, created via Meta API):
+  Session Name (primary) · Day (Day 1 · 26 Aug / Day 2 · 27 Aug) · Time Slot (text,
+  "09:30 - 11:00") · Session Type (Keynote/Panel/Fireside Chat/Workshop/Networking/
+  Break/Other) · Description · Event Room (1–6). 3 SAMPLE rows seeded (edit/delete).
+- **`lib/program.ts` + `/api/program`** (public path): publish rule = Session Name +
+  Day + Time Slot all set (drafts stay hidden). Sorted Day → parsed start time → name.
+- **New page `/program`** (nav "Program 2026") grouped by day, with its own agenda
+  embed: `lib/agendaSnippet.ts` + a local CopyAgendaEmbed button (the speakers
+  CopyEmbed doesn't fit — different markup). Embed = day headings + rows of time ·
+  name · type/room pill tags · description, dark TechBBQ style, scoped CSS.
+- Verified: tsc clean; feed 3 sessions in right order; page renders both day groups;
+  copied snippet executed in-browser renders days/sessions/tags correctly.
+
 Next steps:
 1. Auri: which room is Danish Entrepreneurs in? (Not on the sheet; 26 cards still say
    "Danish Entrepreneurs".) One-line HOST_ROOMS addition once known.
+2. Team fills real sessions in the Program 2026 table; delete the 3 sample rows.
 2. RE-COPY the All Speakers embed from the DEPLOYED dashboard when pasting into
    Elementor (never from localhost — ENDPOINT bakes in the origin).
 3. Minor from auditor: this page doesn't show the "· updated" badge after revalidation
