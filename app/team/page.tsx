@@ -10,7 +10,7 @@ import { CopyEmbed } from "@/components/CopyEmbed";
 // LinkedIn. Fed by /api/team (which also powers the techbbq.dk embed). Email is public by
 // product decision.
 
-function TeamPhoto({ src, alt }: { src: string; alt: string }) {
+function TeamPhoto({ src, alt, focus }: { src: string; alt: string; focus?: string | null }) {
   const [loaded, setLoaded] = useState(false);
   return (
     <div className={"s-card__media" + (loaded ? "" : " shimmer")}>
@@ -20,6 +20,8 @@ function TeamPhoto({ src, alt }: { src: string; alt: string }) {
         src={src}
         alt={alt}
         loading="lazy"
+        // Per-person vertical crop from the feed; without one the stylesheet's 50% 30% applies.
+        style={focus ? { objectPosition: `50% ${focus}` } : undefined}
         onLoad={() => setLoaded(true)}
         onError={() => setLoaded(true)}
       />
@@ -37,6 +39,8 @@ type TeamMember = {
   email?: string | null;
   // Set by /api/team for chief officers only (1 = CEO, 2 = other chiefs). See lib/team.ts.
   hierarchy: number | null;
+  // Per-person object-position Y for the card photo (e.g. "40%"); null = stylesheet default.
+  focus: string | null;
 };
 
 // Tab order. Anything not listed lands in "Other", so keep this in step with the Department
@@ -74,7 +78,7 @@ function groupByDepartment(members: TeamMember[]): [string, TeamMember[]][] {
 
 function MemberCard({ m }: { m: TeamMember }) {
   const media = m.photo ? (
-    <TeamPhoto src={m.photo} alt={m.name} />
+    <TeamPhoto src={m.photo} alt={m.name} focus={m.focus} />
   ) : (
     <div className="s-card__media">
       <div className="s-card__img--empty" />
@@ -180,7 +184,16 @@ export default function TeamPage() {
           )}
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path={embedUrl} listKey="team" shuffle={active === TABS_ALL} />
+            {/* Team-specific: the whole team shows at once (no Load more — it is 27 people,
+                not 179 speakers), every card carries its email, and photos honour the
+                per-person crop from the feed. */}
+            <CopyEmbed
+              path={embedUrl}
+              listKey="team"
+              shuffle={active === TABS_ALL}
+              loadMore={false}
+              email
+            />
           </div>
         </div>
       </section>

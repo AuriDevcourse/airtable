@@ -53,6 +53,9 @@ export type TeamMember = {
   // a line of new ordering code. Derived from the job title, NOT stored in Airtable — there
   // is no rank column in #TechBBCuties to maintain.
   hierarchy: number | null;
+  // Vertical crop for the card photo as a CSS object-position Y value ("40%"). Only set for
+  // the few people in PHOTO_FOCUS_Y; null means the card's own 30% default applies.
+  focus: string | null;
 };
 
 // People Auri wants surfaced above the random block regardless of title (asked for by name,
@@ -67,7 +70,31 @@ const PINNED_AFTER_HEADS = [
   "Alev Burcin Aydin Jensen",
   "Andrei Ratcu",
   "Marie-Louise Nielsen",
-].map((n) => n.toLowerCase().replace(/\s+/g, " ").trim());
+].map(normName);
+
+// Per-person photo crop, for the handful whose headshot sits wrong in a square card.
+//
+// Cards use `object-fit: cover` with a default `object-position: 50% 30%`. That Y value is
+// how far DOWN the photo the visible window sits, so a BIGGER number moves the subject UP in
+// the frame and a smaller one moves them down. Values here are that Y percentage; anyone not
+// listed keeps the 30% default.
+//
+// Hand-maintained like PINNED_AFTER_HEADS, and for the same reason: there is no crop field in
+// Airtable. A name that no longer matches simply has no effect. Re-check a value if someone
+// swaps their photo — this is tuned to the specific image, not to the person.
+const PHOTO_FOCUS_Y: Record<string, number> = {
+  // Asked for 10% higher (2026-07-30).
+  "andrei ratcu": 40,
+  "marie-louise nielsen": 40,
+  "alev burcin aydin jensen": 40,
+  // Asked for lower.
+  "charlotte esmann": 20,
+  "stephan evon": 20,
+};
+
+function normName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, " ").trim();
+}
 
 // Leadership rank, derived from the job title (and the pin list above):
 //   1  CEO
@@ -97,7 +124,7 @@ function leadershipRank(name: string, title: string): number | null {
   // that line is Auri's to draw, and guessing would quietly promote people.
   if (/\bhead of\b/.test(t)) return 3;
 
-  if (PINNED_AFTER_HEADS.includes(name.toLowerCase().replace(/\s+/g, " ").trim())) return 4;
+  if (PINNED_AFTER_HEADS.includes(normName(name))) return 4;
 
   return null;
 }
@@ -123,6 +150,7 @@ function mapRecord(rec: AirtableRecord): TeamMember {
   const f = rec.fields;
   const title = str(f["Title"]);
   const name = str(f["Name"]);
+  const focusY = PHOTO_FOCUS_Y[normName(name)];
   return {
     id: rec.id,
     name,
@@ -132,6 +160,7 @@ function mapRecord(rec: AirtableRecord): TeamMember {
     department: firstDept(f["Department"]),
     email: str(f["Email"]) || null,
     hierarchy: leadershipRank(name, title),
+    focus: focusY === undefined ? null : `${focusY}%`,
   };
 }
 

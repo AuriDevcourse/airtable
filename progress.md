@@ -4,6 +4,47 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30f (Team embed: emails, no Load more, per-person photo crop)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, verified by EXECUTING the copied snippet
+(not by string-matching it). Committed + pushed 2026-07-30.
+
+**1. No Load more on the team embed.** `loadMore={false}` on the team `CopyEmbed` only — all 27
+render at once (snippet emits `STEP = 1000000`, `LOADMORE = false`). Every other feed keeps
+20-at-a-time; it still matters for 179 speakers.
+
+**2. Emails were missing from the EMBED, not the data.** All 27 addresses were already in
+Airtable, in `/api/team` and on the dashboard page. `lib/embedSnippet.ts` simply had no email
+support, so techbbq.dk showed name + title only. New `email?: boolean` option (default FALSE so
+no speaker feed can start printing addresses by accident), threaded through `CopyEmbed`, enabled
+on team. Renders `.tbbq-card__mail` with a mailto.
+
+**3. Per-person photo crop.** `PHOTO_FOCUS_Y` in `lib/team.ts` maps a normalized name to an
+`object-position` Y percentage; the feed exposes it as `focus` ("40%"), and both the page
+(`TeamPhoto` inline style) and the snippet (`s.focus` → inline style on the img) honour it.
+Default stays the stylesheet's `50% 30%`.
+- Asked for higher → **40%**: Andrei Ratcu, Marie-Louise Nielsen, Alev Burcin Aydin Jensen.
+- Asked for lower → **20%**: Charlotte Esmann, Stephan Evon.
+- **Direction, verified empirically** (rendered one photo at 20/30/40 side by side rather than
+  reasoning about it): a BIGGER Y moves the subject UP in the frame. Getting this backwards
+  would move every face the wrong way.
+- Hand-maintained like `PINNED_AFTER_HEADS` — no crop field exists in Airtable. Values are
+  tuned to the SPECIFIC image, so re-check one if someone swaps their photo.
+
+### Bug introduced and caught in the same session
+The mailto started out INSIDE the card's LinkedIn `<a>`. An anchor inside an anchor is invalid:
+the browser silently splits the card, which showed up as **54 mailto links for 27 people**, and
+an email click could have followed the outer LinkedIn href. The mail block now sits after the
+linked region (`body+mail` inside the `<article>`), with its own horizontal padding to line up
+with the body text. Re-verified: 27 cards, 27 mailto links, no nesting.
+Lesson: string-matching a generated snippet would have passed this. Execute it.
+
+### Next steps
+1. **Re-copy the team embed** from the deployed dashboard — none of this reaches techbbq.dk
+   until then (pasted snippets never self-update).
+3. Still open: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; decide whether Director/Lead
+   titles count as heads of department; `/api/team` still has no retry.
+
 ## Session 2026-07-30e (Team: LTV gate, leadership order, daily refresh)
 
 State: works locally, `tsc --noEmit` + `npm run build` clean. Committed + pushed 2026-07-30.

@@ -43,6 +43,10 @@ export type EmbedOptions = {
   // wrapper, so the cards sit directly on the host page's own background. Used by the
   // Fintech speakers embed (their page brings its own backdrop).
   transparent?: boolean;
+  // Render each person's email as a mailto link under the title. Only useful on a feed that
+  // returns `email` — today that is /api/team, where staff contact addresses are public by
+  // product decision. Default false so no other feed can start printing addresses by accident.
+  email?: boolean;
   // Multi-group tab mode (the /all-speakers-2026 embed). When set, ENDPOINT must return
   // { groups: { [key]: Person[] } } and the snippet renders a centered pill switcher
   // above the grid; clicking a pill swaps the rendered group without refetching. The
@@ -73,6 +77,7 @@ export function buildEmbedSnippet({
   pageSize = 20,
   columns,
   transparent = false,
+  email = false,
   tabs,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
@@ -205,7 +210,11 @@ export function buildEmbedSnippet({
   .tbbq-card:hover::after{opacity:1}
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
   @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}
-  .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 4px;color:#fa7000;font-size:12px;font-weight:600;letter-spacing:.02em}${tabsStyles}${modalStyles}${columnsCss}
+  .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 4px;color:#fa7000;font-size:12px;font-weight:600;letter-spacing:.02em}
+  /* Sits outside the card's link wrapper, so it carries the body's own horizontal padding. */
+  .tbbq-card__mail{position:relative;z-index:1;font-family:var(--sans)!important;margin:6px 0 0;padding:0 8px 4px;font-size:13px;line-height:1.4;overflow-wrap:anywhere;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+  .tbbq-card__mail a{color:rgba(255,255,255,.72);text-decoration:underline}
+  .tbbq-card__mail a:hover{color:#fff}${tabsStyles}${modalStyles}${columnsCss}
 </style>
 
 <script>
@@ -224,19 +233,30 @@ export function buildEmbedSnippet({
   }
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function card(s,i){
-    var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'" alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
+    // Per-person vertical crop when the feed supplies one (team photos); otherwise the
+    // stylesheet's 50% 30% applies.
+    var pos=s.focus?' style="object-position:50% '+esc(s.focus)+'"':'';
+    var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'"'+pos+' alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
     var meta=esc(s.title)+(s.company?" · "+esc(s.company):"");
     var tag=s.tag?'<p class="tbbq-card__tag">'+esc(s.tag)+'</p>':'';
+    ${
+      email
+        ? `var mail=s.email?'<p class="tbbq-card__mail"><a href="mailto:'+esc(s.email)+'">'+esc(s.email)+'</a></p>':'';`
+        : `var mail="";`
+    }
     var inner=media+'<div class="tbbq-card__body">'+tag+'<h3>'+esc(s.name)+'</h3><p>'+meta+'</p></div>';
+    // The mailto sits AFTER the linked/clickable region, never inside it. An <a> nested in
+    // another <a> is invalid: the browser silently splits the card open and the email click
+    // can end up following the outer LinkedIn link instead.
     ${
       tabs?.length
         ? `if(modalOn){return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';}
     var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
-    return '<article class="tbbq-card">'+body+'</article>';`
+    return '<article class="tbbq-card">'+body+mail+'</article>';`
         : modal
           ? `return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';`
           : `var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
-    return '<article class="tbbq-card">'+body+'</article>';`
+    return '<article class="tbbq-card">'+body+mail+'</article>';`
     }
   }
   fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){${
