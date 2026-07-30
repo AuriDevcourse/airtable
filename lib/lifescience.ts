@@ -27,7 +27,17 @@ const SAFE_FIELDS = [
   "Headshot",
   "Linkedin",
   "LS Type", // Human Health / Planetary Health / Intersection / Deep Tech
+  // NOTE the trailing space in the field name — it is real, same trap as the `Hierarchy `
+  // and `Role ` fields elsewhere in this base. Don't "fix" it.
+  "Which LS DT stage? ",
 ];
+
+// Which of the two stages a speaker is on, and the colour that stage is shown in. Auri's
+// palette: Deep Tech blue, Life Science green. Keys are the exact Airtable select options.
+const STAGE_COLORS: Record<string, string> = {
+  "Deep Tech Event Day": "#2BB4E1",
+  "Life Science x Deep Tech Stage": "#5CBC8B",
+};
 
 export type LsPerson = {
   id: string;
@@ -38,6 +48,11 @@ export type LsPerson = {
   photo: string | null;
   linkedin: string | null;
   role: string; // LS Type, used as the card badge
+  // Which stage this person speaks on. Named `tag`/`tagColor` because that is what the
+  // Elementor snippet already renders directly under the photo — no new snippet field needed,
+  // it only had to learn the colour.
+  tag: string;
+  tagColor: string | null;
 };
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
@@ -61,6 +76,9 @@ function firstTag(v: unknown): string {
 
 function mapRecord(rec: AirtableRecord): LsPerson {
   const f = rec.fields;
+  // Multi-select, so it arrives as an array; today nobody is on both stages, and if that
+  // changes the first one wins rather than printing a joined string into a small label.
+  const stage = firstTag(f["Which LS DT stage? "]);
   return {
     id: rec.id,
     name: str(f["Stakeholder"]),
@@ -71,6 +89,8 @@ function mapRecord(rec: AirtableRecord): LsPerson {
     // Normalized (www./scheme-less/mobile variants) or dropped.
     linkedin: normalizeLinkedInUrl(f["Linkedin"]),
     role: firstTag(f["LS Type"]),
+    tag: stage,
+    tagColor: STAGE_COLORS[stage] ?? null,
   };
 }
 
@@ -116,6 +136,10 @@ export async function fetchLifeScience(): Promise<LsPerson[]> {
     offset = data.offset;
   } while (offset);
 
+  // Alphabetical only as a stable base. The published order is RANDOM on every page load, and
+  // that shuffle deliberately happens client-side: this response sits in a 1h cache, so
+  // shuffling here would freeze one "random" order for every visitor for an hour.
+  // See app/life-science/page.tsx and the embed's `shuffle` flag.
   people.sort((a, b) => a.name.localeCompare(b.name));
   return people;
 }

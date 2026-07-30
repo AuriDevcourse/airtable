@@ -4,6 +4,47 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30i (Life Science: stage labels + always-random order)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, verified on the page AND in the executed
+embed snippet. Committed + pushed 2026-07-30.
+
+**Stage under each photo, coloured per stage.** Field `Which LS DT stage? ` — **trailing space
+is real**, same trap as `Hierarchy ` / `Role ` in this base. Two options, both present in the
+`Speakers Library 2026` view (34 people):
+- `Life Science x Deep Tech Stage` → green **#5CBC8B** (31)
+- `Deep Tech Event Day` → blue **#2BB4E1** (3)
+
+`lib/lifescience.ts` maps it to **`tag` + `tagColor`** rather than new field names, because the
+Elementor snippet already renders `tag` directly under the photo — it only had to learn the
+colour (`s.tagColor` → inline `color`, falls back to brand orange when absent, so every other
+feed using `tag` is unaffected). Page renders `.s-card__stage` (10px, uppercase, inline colour,
+no leading dot so it never reads as the `.s-card__role` badge). Label size settled at **10px /
+700** after two passes (8.5px was too small) — kept in step in BOTH places.
+
+**Shared-style consequence:** `.tbbq-card__tag` is used by other embeds too, so the All Speakers
+2026 room labels and the Fintech tags are now 10px uppercase as well (were 12px). Only reaches
+techbbq.dk when those embeds are re-copied. Split the rule if the speaker tags should stay 12px.
+
+**Random order at all times** (Auri's rule): mount-seeded shuffle on the page + `shuffle` on the
+CopyEmbed. Kept client-side ON PURPOSE — the API response is cached 1h, so a server-side shuffle
+would freeze one "random" order for every visitor for an hour. The lib's alphabetical sort stays
+as a stable base underneath.
+
+### Gotchas
+- **`LS Type` is empty for all 34 people**, so the existing `.s-card__role` badge renders
+  nothing on this page. Data, not code — fill it in Airtable if that badge is wanted.
+- Nobody is on both stages today; if that changes, the FIRST value wins rather than printing a
+  joined string into a 10px label.
+- This table is wide and slow: a python fetch of the view timed out at 2 minutes while curl
+  returned in 1s. Prefer curl with `-m` when poking at it.
+
+### Next steps
+1. **Re-copy the Life Science embed** from the deployed dashboard (stage colours + shuffle are
+   snippet-side).
+3. Still open: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; team embed re-copy;
+   Director/Lead titles as heads of department?; `/api/team` has no retry.
+
 ## Session 2026-07-30h (Team embed: mobile fixes)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean, verified inside a 400px iframe.

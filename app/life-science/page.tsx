@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
@@ -34,6 +34,10 @@ type LsPerson = {
   photo: string | null;
   linkedin: string | null;
   role: string;
+  // Which of the two stages this person speaks on, plus its colour (Deep Tech blue,
+  // Life Science green). Set by /api/life-science; see lib/lifescience.ts.
+  tag: string;
+  tagColor: string | null;
 };
 
 export default function LifeSciencePage() {
@@ -42,7 +46,23 @@ export default function LifeSciencePage() {
     "/api/life-science",
     "people"
   );
-  const people = data ?? [];
+  const all = data ?? [];
+
+  // Random order at all times (Auri's rule). Seeded so a background revalidation cannot
+  // reshuffle the grid while it is being read; a refresh re-rolls it. The API sorts
+  // alphabetically only as a stable base — it cannot shuffle server-side because that
+  // response is cached for an hour and every visitor would get the same "random" order.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const people = useMemo(() => {
+    let x = seed;
+    const rand = () => ((x = (x * 9301 + 49297) % 233280), x / 233280);
+    const arr = all.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [all, seed]);
 
   return (
     <main>
@@ -60,7 +80,7 @@ export default function LifeSciencePage() {
           </p>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/life-science" listKey="people" loadMore={false} gradient="ls" />
+            <CopyEmbed path="/api/life-science" listKey="people" loadMore={false} gradient="ls" shuffle />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
             </span>
@@ -99,6 +119,15 @@ export default function LifeSciencePage() {
                       </div>
                     )}
                     <div className="s-card__overlay">
+                      {/* Stage sits first, directly under the photo, in that stage's colour. */}
+                      {p.tag && (
+                        <span
+                          className="s-card__stage"
+                          style={p.tagColor ? { color: p.tagColor } : undefined}
+                        >
+                          {p.tag}
+                        </span>
+                      )}
                       {p.role && <span className="s-card__role">{p.role}</span>}
                       <h3 className="s-card__name">{p.name}</h3>
                       <p className="s-card__meta">{meta}</p>

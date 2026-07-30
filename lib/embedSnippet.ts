@@ -240,7 +240,9 @@ export function buildEmbedSnippet({
   .tbbq-card:hover::after{opacity:1}
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
   @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}
-  .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 4px;color:#fa7000;font-size:12px;font-weight:600;letter-spacing:.02em}
+  /* Small on purpose — a label on the card, not content. Sized to match .s-card__stage on the
+     dashboard so the embed and the preview read the same. */
+  .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 3px!important;color:#fa7000;font-size:10px!important;font-weight:700!important;letter-spacing:.05em!important;line-height:1.3!important;text-transform:uppercase!important}
   /* Sits outside the card's link wrapper, so it carries the body's own horizontal padding.
      Every property is !important and the anchor rules are scoped through #id: WordPress
      themes style ALL links globally (their own colour, underline, hover, sometimes a
@@ -279,7 +281,9 @@ export function buildEmbedSnippet({
     var pos=s.focus?' style="object-position:50% '+esc(s.focus)+'"':'';
     var media='<div class="tbbq-card__media'+(s.photo?' shimmer':'')+'">'+(s.photo?'<img src="'+esc(s.photo)+'"'+pos+' alt="'+esc(s.name)+'" loading="lazy" onload="this.parentNode.classList.remove(\\'shimmer\\')" onerror="this.parentNode.classList.remove(\\'shimmer\\')">':'')+'</div>';
     var meta=esc(s.title)+(s.company?" · "+esc(s.company):"");
-    var tag=s.tag?'<p class="tbbq-card__tag">'+esc(s.tag)+'</p>':'';
+    // The tag sits directly under the photo. A feed may colour it per person (Life Science
+    // uses one colour per stage); without tagColor it stays the brand orange.
+    var tag=s.tag?'<p class="tbbq-card__tag"'+(s.tagColor?' style="color:'+esc(s.tagColor)+'"':'')+'>'+esc(s.tag)+'</p>':'';
     ${
       email
         ? `var mail=s.email?'<p class="tbbq-card__mail"><a href="mailto:'+esc(s.email)+'">'+esc(s.email)+'</a></p>':'';`

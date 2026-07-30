@@ -484,6 +484,24 @@ a { color: inherit; }
   margin-bottom: 8px;
 }
 .s-card__role::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
+
+/* Which stage a Life Science speaker is on. Sits directly under the photo, above the role
+   badge, and takes its colour inline per stage (Deep Tech blue / Life Science green). Smaller
+   than the role badge and no leading dot, so the two never read as the same kind of label. */
+.s-card__stage {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin: 0 0 3px;
+  /* Small: it labels the card, it isn't content. Weight 700 and tight tracking keep it legible.
+     Kept in step with .tbbq-card__tag in lib/embedSnippet.ts so the preview matches the embed. */
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
 .s-card__name { position: relative; z-index: 1; font-size: 17px; line-height: 1.2; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 .s-card__meta { position: relative; z-index: 1; margin: 6px 0 0; color: rgba(255,255,255,0.82); font-size: 14px; line-height: 1.4; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 
