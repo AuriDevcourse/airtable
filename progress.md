@@ -4,6 +4,43 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30h (Team embed: mobile fixes)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, verified inside a 400px iframe.
+Committed + pushed 2026-07-30.
+
+**1. Department pills were a giant ellipse on mobile.** 10 pills wrapped onto 5 lines inside a
+container with `border-radius:9999px` — on a tall box that renders as a circle. Fixes in
+`lib/embedSnippet.ts`: radius `22px` (identical to a pill for one 36px row, a rounded rect when
+wrapped) and a mobile block that makes the strip ONE swipeable line — `flex-wrap:nowrap`,
+`overflow-x:auto`, scroll-snap, hidden scrollbar, and `justify-content:flex-start` (a CENTERED
+overflowing strip clips its first pills with no way to scroll back to them).
+
+**2. Mobile rows were three squashed columns — a regression from 30f.** Moving the mailto
+outside the LinkedIn anchor (to fix the nested-`<a>` bug) made it a SIBLING of the photo+text
+wrapper, and in rows mode the card itself is the flex row, so the email became a third column.
+Now: `.tbbq-rows .tbbq-card{display:block}`, the inner wrapper is the flex row, and
+`.tbbq-card__mail` is indented `98px` (84px photo + 14px gap) so the address lines up under the
+name, not under the photo.
+
+**3. Also fixed: people with no LinkedIn had no wrapper element at all**, so their photo and
+text were separate flex children and their row broke on its own. New `wrapRow()` always wraps
+the row — an `<a>` when there is a LinkedIn URL, a `.tbbq-card__row` div when there isn't.
+
+### Gotchas learned while verifying this
+- `resize_window` reported success but `innerWidth` stayed 2560, so media queries never fired
+  and mobile CSS looked untested. **Inject the snippet into a 400px `<iframe>` instead** — an
+  iframe has its own viewport, so media queries resolve correctly.
+- The browser tab wedged (CDP `Runtime.evaluate` timeouts, 3 in a row) while the dev server was
+  answering in 0.18s. It was the tab, not the code; a fresh tab fixed it. Check server health
+  with curl before debugging the app.
+
+### Next steps
+1. **Re-copy the team embed** from the deployed dashboard — mobile stays broken on techbbq.dk
+   until then.
+2. Still open: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; Director/Lead titles as heads of
+   department?; `/api/team` has no retry.
+
 ## Session 2026-07-30g (Team embed: forced styles + department pills)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean, verified by EXECUTING the copied snippet

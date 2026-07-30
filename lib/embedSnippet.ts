@@ -181,12 +181,24 @@ export function buildEmbedSnippet({
      background, border, radius, uppercase, full width), which flattened these pills into
      theme buttons on techbbq.dk. Every property a theme touches is nailed down here. */
   #${id} .tbbq-tabs{display:flex!important;justify-content:center!important;margin:0 0 24px!important;padding:0!important;width:100%!important}
-  #${id} .tbbq-tabs__pills{display:inline-flex!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;justify-content:center!important;border-radius:9999px!important;background:#131313!important;padding:4px!important;margin:0 auto!important;max-width:100%!important;box-shadow:none!important}
+  /* radius 22px, not 9999px: with a 36px button + 4px padding a single row still reads as a
+     pill, but once 10 departments wrap onto several lines a 9999px radius turns the container
+     into a giant ellipse (which is exactly what it did on mobile). */
+  #${id} .tbbq-tabs__pills{display:inline-flex!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;justify-content:center!important;border-radius:22px!important;background:#131313!important;padding:4px!important;margin:0 auto!important;max-width:100%!important;box-shadow:none!important}
   #${id} .tbbq-tabs button{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;height:36px!important;line-height:1!important;padding:0 16px!important;margin:0!important;border:0!important;border-radius:9999px!important;background:transparent!important;color:#9a9a9c!important;font-family:var(--head)!important;font-size:14px!important;font-weight:500!important;letter-spacing:normal!important;text-transform:none!important;text-decoration:none!important;box-shadow:none!important;cursor:pointer!important;transition:color .15s,background .15s}
   #${id} .tbbq-tabs button:hover{color:#f2f2f2!important;background:transparent!important}
   #${id} .tbbq-tabs button[aria-selected="true"]{background:#f2f2f2!important;color:#0d0d0d!important}
   #${id} .tbbq-tabs button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px}
-  @media(max-width:600px){#${id} .tbbq-tabs{margin:0 0 16px!important}}`
+  /* Mobile: one swipeable line instead of a 5-line block. The strip scrolls horizontally,
+     starts at "All", and hides its own scrollbar; snap keeps a pill from resting half cut off.
+     justify-content must go back to flex-start, or an overflowing centered strip clips its
+     first pills with no way to reach them. */
+  @media(max-width:600px){
+    #${id} .tbbq-tabs{margin:0 0 16px!important;justify-content:flex-start!important}
+    #${id} .tbbq-tabs__pills{display:flex!important;flex-wrap:nowrap!important;justify-content:flex-start!important;overflow-x:auto!important;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:22px!important;width:100%!important}
+    #${id} .tbbq-tabs__pills::-webkit-scrollbar{display:none}
+    #${id} .tbbq-tabs button{flex:0 0 auto!important;scroll-snap-align:start}
+  }`
     : "";
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -204,11 +216,18 @@ export function buildEmbedSnippet({
   @media(max-width:600px){.tbbq-grid{grid-template-columns:repeat(2,1fr);gap:12px}.tbbq-speakers{padding:${transparent ? "0" : "16px"}}}
   @media(max-width:600px){
     .tbbq-rows .tbbq-grid{grid-template-columns:1fr;gap:10px}
-    .tbbq-rows .tbbq-card,.tbbq-rows .tbbq-card>a{display:flex;align-items:center;gap:14px;text-align:left}
+    /* The CARD is a block; the row is its inner wrapper (the link, or .tbbq-card__row when
+       there is no LinkedIn). The card itself must NOT be the flex row: the email paragraph is
+       a sibling of that wrapper, so it became a third squashed column next to the photo and
+       the name. It now sits under the row, indented to line up with the text. */
+    .tbbq-rows .tbbq-card{display:block;text-align:left}
+    .tbbq-rows .tbbq-card>a,.tbbq-rows .tbbq-card__row{display:flex!important;align-items:center;gap:14px;text-align:left}
     .tbbq-rows .tbbq-card__media{width:84px;height:84px;flex:0 0 auto}
     .tbbq-rows .tbbq-card__body{padding:0;flex:1 1 auto;min-width:0}
     .tbbq-rows .tbbq-card__body h3{font-size:19px}
     .tbbq-rows .tbbq-card__body p{white-space:normal;overflow-wrap:break-word}
+    /* 84px photo + 14px gap, so the address starts under the name rather than under the photo. */
+    .tbbq-rows .tbbq-card__mail{padding:6px 0 0 98px!important;margin:0!important}
   }
   .tbbq-card{position:relative;background:var(--card);border-radius:20px;padding:8px;overflow:hidden}
   .tbbq-card a{text-decoration:none;color:inherit;display:block}
@@ -246,6 +265,14 @@ export function buildEmbedSnippet({
       : ""
   }
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+  // Photo + text always share ONE wrapper, whether or not the person has a LinkedIn URL. On
+  // mobile that wrapper is the flex row; without it, an unlinked person's photo and text
+  // became separate flex children of the card and the row layout broke for them alone.
+  function wrapRow(s,inner){
+    return s.linkedin
+      ? '<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>'
+      : '<div class="tbbq-card__row">'+inner+'</div>';
+  }
   function card(s,i){
     // Per-person vertical crop when the feed supplies one (team photos); otherwise the
     // stylesheet's 50% 30% applies.
@@ -265,11 +292,11 @@ export function buildEmbedSnippet({
     ${
       tabs?.length
         ? `if(modalOn){return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';}
-    var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
+    var body=wrapRow(s,inner);
     return '<article class="tbbq-card">'+body+mail+'</article>';`
         : modal
           ? `return '<article class="tbbq-card tbbq-card--btn" data-i="'+i+'" role="button" tabindex="0" aria-haspopup="dialog">'+inner+'</article>';`
-          : `var body=s.linkedin?'<a href="'+esc(s.linkedin)+'" target="_blank" rel="noopener">'+inner+'</a>':inner;
+          : `var body=wrapRow(s,inner);
     return '<article class="tbbq-card">'+body+mail+'</article>';`
     }
   }
