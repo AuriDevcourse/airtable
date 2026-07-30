@@ -4,6 +4,72 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30e (Team: LTV gate, leadership order, daily refresh)
+
+State: works locally, `tsc --noEmit` + `npm run build` clean. Committed + pushed 2026-07-30.
+
+**1. Long term volunteers off the team list.** `#TechBBCuties` has an `LTV` singleSelect
+(YES/NO) = long term volunteer. The gate in `lib/team.ts` is now Active + not Archive +
+`{LTV}!='YES'`. 28 → 27 people; the only row it removes is Lennert Jessen (AI & Automation
+Intern, the single YES). Every LTV=NO person was already listed, so this ADDS nobody.
+Implemented as **exclude YES, not require NO**: today it makes no difference (27 NO, 1 YES,
+0 blank), but under require-NO a new hire whose LTV nobody set would silently vanish from
+the team page. Blank means "not marked a volunteer", so they stay listed.
+
+**2. "All" is one flat grid, chiefs first, rest random** (Auri's rule). Department sections
+and headings only render when a specific department tab is picked.
+- `lib/team.ts` derives a `hierarchy` per member from the job TITLE (1 = CEO, 2 = any other
+  chief, null = everyone else). Named `hierarchy` on purpose: the page and
+  `lib/embedSnippet.ts` already shuffle-while-pinning anyone with a numeric hierarchy, so
+  this needed no new ordering code in either place. There is no rank column in Airtable to
+  maintain. `CopyEmbed` gets `shuffle` on the All tab → **the team embed needs a RE-COPY**
+  from the deployed dashboard, pasted snippets never self-update.
+- Page shuffle is the standard mount-seeded LCG, so tab switches and SWR revalidation can't
+  reshuffle mid-view; a refresh re-rolls.
+
+**3. Leadership tiers.** `leadershipRank(name, title)` in `lib/team.ts` derives the order from
+the job TITLE, since there is no rank column in Airtable:
+- `1` CEO — Avnit Singh
+- `2` other chiefs (4: Benjamin Notlev, Jutta Ruusunen, Sadia Beg, Thomas Ebdrup)
+- `3` **heads of department** (7), directly after the chiefs (Auri's rule)
+- `4` `PINNED_AFTER_HEADS` — a hand-maintained NAME list Auri asked for: Alev Burcin Aydin
+  Jensen, Andrei Ratcu, Marie-Louise Nielsen. They land at positions 13-15.
+- `null` the remaining 12, random.
+Ties shuffle among themselves so nobody is permanently above their peers.
+**Line deliberately NOT crossed:** only "Head of …" counts as a head. Commercial Director,
+Program Lead and the Senior * Managers stay unranked — promoting Director/Lead titles is
+Auri's call, not a guess. If the pin list grows past a handful, add a number field to
+Airtable and read that instead of maintaining names in code.
+
+**4. Team refreshes ONCE A DAY** (Auri's rule), everything else stays hourly. `cached()` now
+takes a per-call `ttlMs` (default still 1h) and `/api/team` passes the new `DAY_MS`; the route's
+CDN header went to `s-maxage=86400, stale-while-revalidate=86400`. Consequence: an Airtable
+team edit can take up to 24h to show — a deploy (empty commit) resets the in-memory cache
+instantly. Note the random ORDER still re-rolls per page load; only the data is daily.
+
+### Two bugs this surfaced (both fixed)
+- **"PA to CEO" ranked as a chief.** Sanne Gjedsted Sørensen was joint-top of the team page
+  because her title contains "CEO". `chiefRank()` now rejects anything reporting `to` a
+  chief, and any assistant/PA/EA, BEFORE the chief match. 6 false chiefs → the correct 5.
+- **`Finance` was missing from the known departments** in BOTH `DEPARTMENTS` (lib/team.ts)
+  and `DEPARTMENT_ORDER` (app/team/page.tsx). Stephan Evon (Head of Finance) was bucketed
+  into a catch-all "Other" tab and `?department=Finance` was silently rejected by the route
+  and served as "all". Added to both. Keep the two lists in step with Airtable's Department
+  select — a real department missing from them fails this exact way, silently.
+
+### Also worth knowing
+- `/api/team` timed out once during this session (ABORT_ERR = the 8s `fetchWithTimeout`
+  budget against Airtable's wide-table scan, not a code fault; retries were clean). Unlike
+  the hierarchy and summit-extras fetches, `lib/team.ts` has **no retry** — if the team page
+  fails intermittently in prod, give it the same 10s + one retry treatment.
+
+### Next steps
+1. Re-copy the **team** embed from the deployed dashboard so techbbq.dk gets the
+   leadership-first random order.
+3. Still outstanding from earlier sessions: set `TITO_API_TOKEN` and `BRELLA_API_KEY` in
+   Vercel (both fail closed; /lookup 503s and the default /program tab 503s without them),
+   and re-copy the All Speakers 2026 + Fintech/NISS agenda embeds.
+
 ## Session 2026-07-30d (Airtable check-in routine + grouped nav + scroll styling)
 
 **1. Airtable check-in routine.** Some Airtable tables are inboxes other people file rows

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
@@ -35,8 +35,12 @@ type TeamMember = {
   linkedin: string | null;
   department: string;
   email?: string | null;
+  // Set by /api/team for chief officers only (1 = CEO, 2 = other chiefs). See lib/team.ts.
+  hierarchy: number | null;
 };
 
+// Tab order. Anything not listed lands in "Other", so keep this in step with the Department
+// select in Airtable and with DEPARTMENTS in lib/team.ts.
 const DEPARTMENT_ORDER = [
   "Management",
   "Program",
@@ -46,6 +50,7 @@ const DEPARTMENT_ORDER = [
   "PR and Communication",
   "Event",
   "Operations",
+  "Finance",
 ];
 const OTHER = "Other";
 
@@ -117,11 +122,35 @@ export default function TeamPage() {
   );
   const members = data ?? [];
   const allSections = groupByDepartment(members);
-  const sections =
-    active === TABS_ALL ? allSections : allSections.filter(([dept]) => dept === active);
+  // Department tabs still come from the grouping, but "All" no longer renders those groups.
   const tabs = [TABS_ALL, ...allSections.map(([dept]) => dept)];
+  const sections = active === TABS_ALL ? [] : allSections.filter(([dept]) => dept === active);
 
-  // Embed snippet still targets the plain feed for the website.
+  // "All" is one flat list, not department sections (Auri's rule): chief officers first, then
+  // everyone else in a random order that re-rolls on every page load. The seed is fixed for
+  // this mount so switching tabs or a background revalidation can't reshuffle mid-view.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const flat = useMemo(() => {
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    const shuffle = (arr: TeamMember[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+    const chiefs = members.filter((m) => typeof m.hierarchy === "number");
+    const rest = members.filter((m) => typeof m.hierarchy !== "number");
+    // Shuffle then sort: Array.sort is stable, so the CEO (rank 1) leads and the other chiefs
+    // (all rank 2) keep the shuffled order instead of one of them always being listed first.
+    shuffle(chiefs).sort((a, b) => (a.hierarchy as number) - (b.hierarchy as number));
+    return [...chiefs, ...shuffle(rest)];
+  }, [members, seed]);
+
+  // Embed snippet targets the plain feed for the website. On "All" it carries the same
+  // chiefs-first random order: the snippet's shuffle exempts anyone with a numeric hierarchy,
+  // which is exactly the chiefs. A pasted snippet never self-updates, so re-copy it after this.
   const embedUrl =
     active === TABS_ALL ? "/api/team" : `/api/team?department=${encodeURIComponent(active)}`;
 
@@ -135,8 +164,9 @@ export default function TeamPage() {
             Our <span className="text-tbbq-gradient">team</span>
           </h1>
           <p className="lede">
-            Current team only · grouped by department, with email and LinkedIn. Served as JSON at{" "}
-            <code>/api/team</code> for the techbbq.dk embed.
+            Current team only, long term volunteers excluded. All shows everyone together with
+            the chief officers first and the rest in a random order; pick a department to see
+            just that team. Served as JSON at <code>/api/team</code> for the techbbq.dk embed.
           </p>
 
           {members.length > 0 && (
@@ -150,7 +180,7 @@ export default function TeamPage() {
           )}
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path={embedUrl} listKey="team" />
+            <CopyEmbed path={embedUrl} listKey="team" shuffle={active === TABS_ALL} />
           </div>
         </div>
       </section>
@@ -169,10 +199,22 @@ export default function TeamPage() {
         ) : (
           <>
             <p className="count-line">
-              {members.length} team member(s) across {allSections.length} department(s).
+              {active === TABS_ALL
+                ? `${members.length} team member(s) across ${allSections.length} department(s).`
+                : `${sections[0]?.[1].length ?? 0} in ${active}.`}
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}
             </p>
+
+            {/* All: one flat grid, chiefs first, everyone else random. */}
+            {active === TABS_ALL && (
+              <div className="grid-cards" style={{ marginTop: 28 }}>
+                {flat.map((m) => (
+                  <MemberCard key={m.id} m={m} />
+                ))}
+              </div>
+            )}
+
             {sections.map(([dept, list]) => (
               <section key={dept} style={{ marginTop: 40 }}>
                 <div

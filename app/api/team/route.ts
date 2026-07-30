@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchTeam, TeamError, DEPARTMENTS } from "@/lib/team";
-import { rateLimit, cached } from "@/lib/rate-limit";
+import { rateLimit, cached, DAY_MS } from "@/lib/rate-limit";
 
+// The team list changes a few times a year, so it refreshes ONCE A DAY rather than hourly
+// like the speaker feeds (Auri's rule, 2026-07-30). Two layers, both set to a day:
+// the in-memory cache below and the CDN's s-maxage. Consequence to know about: an Airtable
+// edit can take up to 24h to appear. A deploy resets the in-memory cache instantly, so an
+// empty commit is the way to force it sooner.
 export const dynamic = "force-dynamic";
 
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
@@ -37,12 +42,18 @@ export async function GET(req: NextRequest) {
   const department = deptParam && DEPARTMENTS.includes(deptParam) ? deptParam : undefined;
 
   try {
-    const members = await cached(`team:${department || "all"}`, () => fetchTeam(department));
+    const members = await cached(
+      `team:${department || "all"}`,
+      () => fetchTeam(department),
+      DAY_MS
+    );
     const res = NextResponse.json(
       { count: members.length, department: department || "all", team: members },
       { status: 200 }
     );
-    res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    // Fresh for a day, then servable stale for another day while it refetches — so the
+    // once-a-day refresh never makes a visitor wait on Airtable.
+    res.headers.set("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=86400");
     return withCors(res);
   } catch (err) {
     const status = err instanceof TeamError ? err.status : 500;

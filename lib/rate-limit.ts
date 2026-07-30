@@ -24,11 +24,15 @@ export function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
 }
 
 // TTL cache so we don't hit Airtable on every page view (also dodges Airtable's
-// 5 req/sec limit). Refreshes once an hour: a speaker list barely changes, so an
+// 5 req/sec limit). Refreshes once an hour by default: a speaker list barely changes, so an
 // Airtable edit can take up to TTL_MS to show. Lower TTL_MS if you need it faster.
 type CacheEntry<T> = { value: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const TTL_MS = 60 * 60_000; // 1 hour
+
+// For feeds that should refresh once a day rather than hourly. Pass as cached()'s third
+// argument — used by /api/team, where the staff list changes a few times a year.
+export const DAY_MS = 24 * 60 * 60_000;
 
 // Drop a cached entry so the next read re-fetches. Used by the manual sync button:
 // without this, a sync would land in Airtable but the grid would keep serving the
@@ -37,12 +41,14 @@ export function invalidate(key: string): void {
   cache.delete(key);
 }
 
-export async function cached<T>(key: string, loader: () => Promise<T>): Promise<T> {
+// ttlMs is per call, so one feed can refresh on a different schedule from the rest without
+// changing the default for everything.
+export async function cached<T>(key: string, loader: () => Promise<T>, ttlMs = TTL_MS): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() < hit.expiresAt) return hit.value as T;
   try {
     const value = await loader();
-    cache.set(key, { value, expiresAt: Date.now() + TTL_MS });
+    cache.set(key, { value, expiresAt: Date.now() + ttlMs });
     return value;
   } catch (err) {
     // Airtable/Supabase failed on refresh. Serve the last good value (even if
