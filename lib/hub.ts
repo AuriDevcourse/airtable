@@ -12,7 +12,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
-import { fetchHierarchyMap, normName } from "@/lib/hierarchy";
+import { fetchHierarchyMap, isPlaceholderBio, normName } from "@/lib/hierarchy";
 import { fetchSummitExtras } from "@/lib/summitextras";
 import { cached } from "@/lib/rate-limit";
 
@@ -132,17 +132,27 @@ export async function fetchHubSpeakers(): Promise<HubSpeaker[]> {
     console.error("[hub] summit-extras lookup failed, serving hub-only roster", err);
   }
 
-  // Join the curated order from Airtable. If that lookup fails the grid still renders —
-  // everyone just comes back unranked (i.e. fully shuffled), which is what the page did
-  // before the hierarchy existed. A broken side-table must not take the roster down.
+  // Speakers sometimes park a placeholder in their own Hub profile ("TBD"). Drop it so the
+  // Airtable override below can fill in, and so an un-overridden card shows the empty-state
+  // line instead of publishing the literal word.
+  for (const s of speakers) {
+    if (s.bio && isPlaceholderBio(s.bio)) s.bio = "";
+  }
+
+  // Join the curated order + bio overrides from Airtable. If that lookup fails the grid
+  // still renders — everyone just comes back unranked (i.e. fully shuffled) with their own
+  // Hub bio, which is what the page did before. A broken side-table must not take the
+  // roster down.
   try {
     // Cached on its own key (not folded into the roster cache): once the ranking loads
     // it persists for an hour, and cached() serves the last-good map if a later refresh
     // blips. So a transient Airtable timeout can no longer un-rank the whole grid.
-    const ranks = await cached("hierarchy-2026", fetchHierarchyMap);
+    const curated = await cached("hierarchy-2026", fetchHierarchyMap);
     for (const s of speakers) {
-      const rank = ranks.get(normName(s.name));
-      s.hierarchy = rank === undefined ? null : rank;
+      const row = curated.get(normName(s.name));
+      s.hierarchy = row?.rank ?? null;
+      // Marketing's Bio cell wins over the Hub biography when it's filled in.
+      if (row?.bio) s.bio = row.bio;
     }
   } catch (err) {
     console.error("[hub] hierarchy lookup failed, serving unranked", err);

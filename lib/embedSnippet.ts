@@ -244,11 +244,18 @@ export function buildEmbedSnippet({
       ? `
     var groups=(data&&data.groups)||{};
     // Shuffle the flagged groups once per page load (re-rolls on refresh; switching
-    // tabs back keeps this load's order).
+    // tabs back keeps this load's order). Anyone with a numeric \`hierarchy\` is exempt:
+    // they keep that curated order at the top and only the unranked tail is shuffled.
     var SHUFFLE=${JSON.stringify(tabs!.filter((t) => t.shuffle).map((t) => t.key))};
+    function tbbqShuffle(a){for(var si=a.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=a[si];a[si]=a[sj];a[sj]=st;}return a;}
     for(var sk=0;sk<SHUFFLE.length;sk++){
       var sg=groups[SHUFFLE[sk]];
-      if(sg)for(var si=sg.length-1;si>0;si--){var sj=Math.floor(Math.random()*(si+1));var st=sg[si];sg[si]=sg[sj];sg[sj]=st;}
+      if(!sg)continue;
+      var sRanked=[],sRest=[];
+      for(var hi=0;hi<sg.length;hi++){(typeof sg[hi].hierarchy==="number"?sRanked:sRest).push(sg[hi]);}
+      // Shuffle then sort — Array.sort is stable, so hierarchy ties keep the shuffled order.
+      tbbqShuffle(sRanked).sort(function(a,b){return a.hierarchy-b.hierarchy;});
+      groups[SHUFFLE[sk]]=sRanked.concat(tbbqShuffle(sRest));
     }
     // Groups whose cards open the detail pop-up instead of linking to LinkedIn.
     var MODAL=${JSON.stringify(Object.fromEntries((tabs ?? []).filter((t) => t.modal).map((t) => [t.key, true])))};

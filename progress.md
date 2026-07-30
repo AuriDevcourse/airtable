@@ -4,6 +4,43 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30 (Airtable Bio override + Speakers tail shuffle — built, NOT committed)
+
+State: code done, `npx tsc --noEmit` clean, `npm run build` clean, verified on
+localhost:3007. Not committed, not pushed, not deployed.
+
+**1. Bio now overridable from Airtable.** Jacob Lauritzen's card said "TBD" because bios
+come from the Supabase Speaker Hub (self-service) and the connector can only read it.
+The Marketing Project Overview table already had an unused `Bio` multilineText column —
+`lib/hierarchy.ts` now reads it in the same call as `Hierarchy` (so no extra Airtable
+round-trip) and returns `Map<name, {rank?, bio?}>`; `lib/hub.ts` applies `row.bio` over
+the Hub biography when filled. Placeholder bios ("TBD"/"TBA"/"n/a"/"-"/"."/empty →
+`isPlaceholderBio`) are treated as no bio, so an un-overridden card shows the
+"No description available yet." line instead of publishing the word. Works for the
+Airtable-only extras (Ken Villum Klausen, Caspar Hoegh) too — fill their Bio cell and
+they get one. Fixed Jacob's cell: it already held the sentence minus its first letter
+("acob Lauritzen serves as the CTO at Legora…").
+Still bio-less after this: Nour Alnuaimi (had "."), Ken Villum Klausen, Caspar Hoegh.
+
+**2. Speakers group randomizes its tail.** Hierarchy 1..30 stay pinned in Airtable order,
+everyone after them re-rolls per page load (was alphabetical). Two places, because the
+page and the pasted snippet each order the list: `app/all-speakers-2026/page.tsx`
+(ranked/unranked split, shared shuffle helper — Event Room reuses it) and
+`lib/embedSnippet.ts` (**tabs-mode shuffle had NO hierarchy exemption** — flagging the
+Speakers tab without fixing that would have scrambled the curated 30; it now mirrors the
+non-tabs branch). `EMBED_TABS` speakers gets `shuffle: true`.
+Verified: two loads → identical first 30, different tail; the real copied snippet run
+against 30-ranked + 50-unranked kept the ranked order, shuffled the 50, lost nobody.
+
+### Next steps
+1. Commit + push (branch off main first), let Vercel deploy, then **RE-COPY the All
+   Speakers 2026 embed** from the deployed dashboard into Elementor — pasted snippets
+   never self-update, so the tail shuffle only reaches techbbq.dk after a re-copy.
+2. Tell marketing the `Bio` column in Marketing Project Overview is now live on the
+   website for "TechBBQ Summit" rows.
+3. Feeds cache 1h — an empty commit / redeploy flushes it if an Airtable edit must show
+   up immediately. The page's localStorage cache paints the old bio once, then heals.
+
 ## Session 2026-07-29 (All Speakers 2026, Programs, Fintech — 20 rounds, ALL LIVE)
 
 State: DONE and prod-verified after every round (last commit `b89f6f0`). Everything

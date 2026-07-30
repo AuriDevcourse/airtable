@@ -7,11 +7,13 @@ import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
-// Event Room shuffles per page load (fair exposure across the rooms' partners).
+// Speakers + Event Room shuffle per page load (fair exposure). The snippet's shuffle
+// exempts anyone with a numeric `hierarchy`, so the curated Speakers 1..30 stay pinned
+// at the top and only the tail re-rolls.
 // Speakers is the only group with bios, so it alone opens the detail pop-up; the other
 // groups' cards link straight to LinkedIn.
 const EMBED_TABS = [
-  { key: "speakers", label: "Speakers", modal: true },
+  { key: "speakers", label: "Speakers", modal: true, shuffle: true },
   { key: "eventRoom", label: "Event Room Speakers", shuffle: true },
   { key: "investors", label: "Investor Speakers" },
 ];
@@ -47,6 +49,9 @@ type FeedPerson = {
   // Only the Speakers 2026 hub feed carries a bio; it powers the detail pop-up.
   bio?: string;
   role?: string;
+  // Speakers group only: curated Airtable order (1..30). null/absent = unranked, which the
+  // page shuffles in behind the ranked block.
+  hierarchy?: number | null;
   event?: string;
   // Partner event room presenters only: which partner's event room they present at,
   // and the assigned room label ("Event Room 1".."6") once marketing sets it.
@@ -182,9 +187,29 @@ export default function AllSpeakers2026Page() {
   const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
 
   const people = useMemo<Card[]>(() => {
+    // Seeded LCG shuffle, shared by the groups that randomize. Seed is mount-fixed so the
+    // order holds during SWR revalidation and tab switching; a refresh re-rolls it.
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    const shuffle = <T,>(arr: T[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+
     if (group === "speakers") {
-      // Speakers 2026 hub feed, already hierarchy-ordered by the API.
-      return speakers.data ?? [];
+      // Speakers ranked in Airtable (hierarchy 1..30) hold that exact order at the top;
+      // everyone else is randomized per page load, same rule as /speakers-2026. The API
+      // sorts the tail alphabetically because its response is cached for an hour — the
+      // re-roll has to happen client-side.
+      const all = speakers.data ?? [];
+      const ranked = all.filter((x) => typeof x.hierarchy === "number");
+      const unranked = all.filter((x) => typeof x.hierarchy !== "number");
+      // Shuffle then sort: Array.sort is stable, so hierarchy ties keep the shuffled order.
+      shuffle(ranked).sort((a, b) => (a.hierarchy as number) - (b.hierarchy as number));
+      return [...ranked, ...shuffle(unranked)];
     }
     if (group === "event-room") {
       // NISS 2026 + NASS 2026 (only actual speakers, Auri's rule: the feeds also carry
@@ -200,16 +225,8 @@ export default function AllSpeakers2026Page() {
         .map((p) => ({ ...p, tag: "Event Room 2" }));
       // Room label ("Event Room 1".."6") once known; the hosting partner until then.
       const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.room ?? p.host }));
-      // Random order per page load (Auri's rule), seeded LCG so the order holds
-      // during SWR revalidation.
-      const merged = [...fromNiss, ...fromNass, ...fromRooms];
-      let s = seed;
-      const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
-      for (let i = merged.length - 1; i > 0; i--) {
-        const j = Math.floor(rand() * (i + 1));
-        [merged[i], merged[j]] = [merged[j], merged[i]];
-      }
-      return merged;
+      // Random order per page load (Auri's rule); nobody here is ranked.
+      return shuffle([...fromNiss, ...fromNass, ...fromRooms]);
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
     return (investors.data ?? []).map((p) => ({
