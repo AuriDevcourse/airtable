@@ -1,33 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-// Top menu shared across pages. Each entry points at one speaker project/feed.
-// Add a new entry here when a new event table gets its own page. Rendered as a
-// dropdown — the tab row outgrew the header once the project count hit double digits.
-const PROJECTS = [
-  { href: "/all-speakers-2026", label: "All Speakers 2026" },
-  { href: "/speakers-2026", label: "Speakers 2026" },
-  { href: "/main-speakers", label: "Main Page 12" },
-  { href: "/", label: "Speakers (all)" },
-  { href: "/life-science", label: "Life Science 2026" },
-  { href: "/niss", label: "NISS 2026" },
-  { href: "/niss-2025", label: "NISS 2025" },
-  { href: "/nass", label: "NASS 2026" },
-  { href: "/investors", label: "Investors" },
-  { href: "/fintech-speakers", label: "Fintech Speakers" },
-  { href: "/program", label: "Program 2026" },
-  { href: "/team", label: "Team" },
+// Top menu shared across pages, rendered as a grouped dropdown. The flat list outgrew
+// itself once the page count passed a dozen, so entries are grouped by what they are:
+//
+//   Speakers            the main 2026 rosters
+//   Projects            the per-event speaker feeds (Life Science, NISS, NASS, Fintech)
+//   Investors           the investor roster plus one entry per investor event
+//   Program & internal  agendas, the staff directory, and the ticket lookup
+//
+// Investor-event entries deep-link into /investors with ?event=… preselected; that page
+// reads the param on mount (see app/investors/page.tsx).
+//
+// Adding a page = one line in the right group.
+type MenuItem = { href: string; label: string };
+type MenuGroup = { heading: string; items: MenuItem[] };
+
+const MENU: MenuGroup[] = [
+  {
+    heading: "Speakers",
+    items: [
+      { href: "/all-speakers-2026", label: "All Speakers 2026" },
+      { href: "/speakers-2026", label: "Speakers 2026" },
+      { href: "/main-speakers", label: "Main Page 12" },
+      { href: "/", label: "Speakers (all)" },
+    ],
+  },
+  {
+    heading: "Projects",
+    items: [
+      { href: "/life-science", label: "Life Science 2026" },
+      { href: "/niss", label: "NISS 2026" },
+      { href: "/nass", label: "NASS 2026" },
+      { href: "/fintech-speakers", label: "Fintech Speakers" },
+      { href: "/niss-2025", label: "NISS 2025" },
+    ],
+  },
+  {
+    heading: "Investors",
+    items: [
+      { href: "/investors", label: "All investor speakers" },
+      { href: "/investors?event=lp-forum", label: "LP Forum" },
+      { href: "/investors?event=investor-day", label: "TechBBQ Investor Day" },
+      { href: "/investors?event=pension-summit", label: "Pension & Insurance Summit" },
+    ],
+  },
+  {
+    heading: "Program & internal",
+    items: [
+      { href: "/program", label: "Program 2026" },
+      { href: "/team", label: "Team" },
+      { href: "/lookup", label: "Ticket lookup" },
+    ],
+  },
 ];
 
+// This nav sits in the root layout, so useSearchParams needs a Suspense boundary here or
+// every prerendered page inherits the requirement. Until the params resolve, the fallback
+// renders the same header matched on pathname alone — the only difference is which investor
+// event reads as current, so nothing visibly jumps.
 export function TopNav() {
+  return (
+    <Suspense fallback={<TopNavShell search="" />}>
+      <TopNavShellWithParams />
+    </Suspense>
+  );
+}
+
+function TopNavShellWithParams() {
+  // Query-only navigations (/investors?event=lp-forum → ?event=investor-day) do not change
+  // the pathname and do not remount this component, so reading window.location in an effect
+  // keyed on pathname left the trigger showing the previous event. useSearchParams re-renders
+  // on every navigation, query included.
+  const search = useSearchParams().toString();
+  return <TopNavShell search={search ? `?${search}` : ""} />;
+}
+
+function TopNavShell({ search }: { search: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const current = PROJECTS.find((p) => p.href === pathname);
+  // The trigger shows where you are. Exact href match (path + query) wins so
+  // "/investors?event=lp-forum" beats the bare "/investors" entry; a path-only match is
+  // the fallback for a page reached without the param.
+  const current = useMemo(() => {
+    const items = MENU.flatMap((g) => g.items);
+    const full = pathname + search;
+    return (
+      items.find((i) => i.href === full) ??
+      items.find((i) => i.href === pathname) ??
+      items.find((i) => i.href.split("?")[0] === pathname)
+    );
+  }, [pathname, search]);
 
   // Close on outside click and on Escape.
   useEffect(() => {
@@ -84,15 +152,20 @@ export function TopNav() {
           </button>
 
           {open && (
-            <nav className="topnav__menu" aria-label="Speaker projects">
-              {PROJECTS.map((p) => (
-                <Link
-                  key={p.href}
-                  href={p.href}
-                  aria-current={pathname === p.href ? "page" : undefined}
-                >
-                  {p.label}
-                </Link>
+            <nav className="topnav__menu" aria-label="Pages">
+              {MENU.map((group) => (
+                <div key={group.heading} className="topnav__group">
+                  <p className="topnav__heading">{group.heading}</p>
+                  {group.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={item.href === current?.href ? "page" : undefined}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               ))}
             </nav>
           )}

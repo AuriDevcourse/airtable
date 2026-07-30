@@ -4,10 +4,189 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-07-30 (Airtable Bio override + Speakers tail shuffle — built, NOT committed)
+## Session 2026-07-30d (Airtable check-in routine + grouped nav + scroll styling)
 
-State: code done, `npx tsc --noEmit` clean, `npm run build` clean, verified on
-localhost:3007. Not committed, not pushed, not deployed.
+**1. Airtable check-in routine.** Some Airtable tables are inboxes other people file rows
+into, and opening each view by hand is the thing that gets skipped.
+- `scripts/checkin.mjs` — READ-ONLY, config-driven. Three modes: plain report, `--json` for
+  an agent, `--hook` for the session hook. Adding a table = one entry in `WATCHES`
+  (table id, view id, fields to read, a `needsAction` rule, a `missing` rule for the cells
+  Auri has to fill). Each watch ranks EITHER by deadline or by age (`waitingSince`).
+- `.claude/settings.json` — SessionStart hook `node scripts/checkin.mjs --hook`, 25s timeout,
+  so every session in this repo opens with what is waiting. **It can never break a session**:
+  no `.env.local`, no token, no network → prints `{"suppressOutput":true}` and exits 0
+  (verified by running the script from a directory with no `.env.local`). Silent when nothing
+  is outstanding. NOTE: Claude Code only watches `.claude/` for settings that existed at
+  session start, so the hook goes live in the NEXT session (or after opening `/hooks`).
+- `.claude/commands/checkin.md` — `/checkin` for running it mid-session.
+- Watch 1: **Prints 2026** (`tbluSfDoEXnvOquvE` / `viwds5x6kwU2Mg1hP`), rule = Status != Done.
+- Watch 2: **Partner Deliverables 2026** (`tblTecOBecLQCNIeD` / `viw7FVbsTb9IRaWF0`), rule =
+  `Put on web` unchecked. Two findings: the signal is the **`Put on web` checkbox** (the older
+  `Logo website status` select is blank on all 120 rows — a rule built on it reports zero
+  forever), and the name lives in **`Company`**, not `Organization name - partner logos`
+  (empty on exactly these form-submitted rows). `Contact Name`/`Contact Email` are partner PII
+  and deliberately NOT in the field allow-list.
+- Bug caught in testing: `Submitted` is a full timestamp, not a date. `daysUntil` returned
+  null, unary minus turned it into `-0`, and every row read "waiting 0d". `daysUntil` now
+  slices to the date part and `daysSince` guards the null separately.
+- Standing at the time: 5 prints open (4 overdue), 7 partners not on web. InvestEU appears
+  TWICE (same Partner ID 1438, tiers Prime and Challenger) — one is wrong, resolve before
+  publishing.
+
+**2. Grouped TopNav** (Auri's ask). Four labelled groups: Speakers · Projects (Life Science,
+NISS 2026, NASS 2026, Fintech Speakers, NISS 2025) · Investors (all + LP Forum + TechBBQ
+Investor Day + Pension & Insurance Summit, deep-linked as `/investors?event=…`) · Program &
+internal. Sticky group headings, capped height, `overscroll-behavior: contain`.
+
+**Two bugs from the same root cause — Next does NOT remount on a query-only navigation:**
+- `/investors` kept tab state in `useState` seeded by a mount-only effect, so clicking an
+  investor event from the nav changed the URL while the page still showed the previous event.
+  Fixed by making the URL the single source of truth (`useSearchParams` + `router.replace`),
+  no local tab state. Back button works now too.
+- `TopNav`'s trigger label went stale the same way. Same fix.
+- Both need a Suspense boundary (`useSearchParams` on a prerendered page). `TopNav` provides
+  its own internally so no page inherits the requirement.
+- **The deep link worked on the first try; only navigating BETWEEN events was broken.**
+  Testing one link would have shipped both bugs.
+
+**3. Scroll styling.** Thin rounded pill thumb (`#2a2a2a`, transparent track, inset via a
+transparent border + `background-clip: padding-box`), lighter on hover, brand orange while
+dragging. Both `scrollbar-color` (Firefox) and `::-webkit-scrollbar` declared. `scroll-behavior:
+smooth` with a `prefers-reduced-motion` opt-out.
+
+## Session 2026-07-30c (Brella program as a /program source)
+
+State: works end to end locally, `tsc --noEmit` + `npm run build` clean. Committed + pushed
+2026-07-30. **`BRELLA_API_KEY` must be set in Vercel** or the default /program tab 503s.
+
+The Airtable "Program 2026" table is still near-empty; the REAL TechBBQ 2026 schedule lives
+in Brella. So Brella is now a program source and the DEFAULT tab on /program.
+
+- `lib/brellaprogram.ts` — read-only GET of `organizations/109/events/10356/timeslots?page[size]=500`.
+  One call also returns tracks, tags and speaker-assignments via `included`. Maps onto the
+  existing `ProgramSession` shape, so the /program page and the agenda embed needed no
+  changes beyond a tab.
+- `lib/program.ts` — `PROGRAM_SOURCES` is now a discriminated union (`kind: "airtable" | "brella"`);
+  `fetchProgram` dispatches, dynamically importing the Brella lib and re-wrapping
+  `BrellaError` as `ProgramError`. Existing Airtable sources gained `kind: "airtable"`.
+- `app/program/page.tsx` — tabs are now "TechBBQ 2026 (Brella)" (default) · "TechBBQ 2026
+  (Airtable)" · NISS · Fintech.
+- Env key renamed `BRELLA` → `BRELLA_API_KEY` in `.env.local` (the lib still accepts bare
+  `BRELLA` as a fallback) and documented in `.env.example`.
+
+**Mapping decisions (all in the lib, all commented):**
+- **80 timeslots → 30 published sessions.** 50 are untitled 15-minute networking rows on the
+  "1:1 meetings" track. Filtered by both the no-title rule and the track name.
+- **Times are UTC in Brella**, converted to Europe/Copenhagen via `Intl` (08:00Z → 10:00).
+  This also means the three "2026-08-25T22:00Z" side-event rows are really 26 Aug local, so
+  the program is 2 days: Day 1 · 26 August (17) and Day 2 · 27 August (13).
+- **Day labels are derived** — Brella has no Day field. Distinct local dates are numbered
+  ("Day 1 · 26 August") so they still sort by `localeCompare` like the Airtable sources.
+- **Duration ≥ 360 min → "All day"** rather than printing "00:00 - 12:00" for a side-event promo.
+- **track → `room`** (the stage: Founders Stage, Blue/Green/Orange Grill Session, Event Room
+  1/2/4, Rooms 5,6,7, Future of FinTech, Side Event Promotion). **first non-room tag → `type`**
+  (the topic: AI, DeepTech, Life Science…). Tags also hold hall labels, so `ROOMISH_TAG`
+  skips those when picking a topic.
+- **Emoji stripped from track/tag names.** Brella's admin names them "⭐ Founders Stage" and
+  those strings become labels on techbbq.dk. DESIGN.md r1, enforced in `label()`.
+- **`content` is Draft.js block JSON**, flattened to plain text (23 of 30 have one), with
+  Brella's `subtitle` leading it. No entity maps exist in the data, so no link URLs are being
+  lost — the "LINK TO REGISTER" wording in two side-event descriptions is literal text
+  someone typed, with no href anywhere in the API.
+
+**Not carried over:** speaker names. Only 2 of 30 sessions have speaker-assignments in
+Brella, so a "Speakers:" line would be blank almost everywhere. Some descriptions list
+presenters as free text instead.
+
+### Airtable cleanups this created
+- **Delete the "Meeting with Auri" test session in Brella** (Day 1, 00:00-01:00, Founders
+  Stage, "Some random talk with this random dude"). It is a real published session as far as
+  the feed is concerned and would appear on techbbq.dk. Not filtered in code on purpose:
+  hardcoding a person's name to hide a row is the kind of thing nobody remembers later.
+- Two side-event descriptions end in "LINK TO REGISTER" with no link. Either add the URL in
+  Brella or drop the line.
+
+## Session 2026-07-30b (Tito ticket lookup + Brella API recon)
+
+State: works end to end locally, `tsc --noEmit` + `npm run build` clean. Committed + pushed
+2026-07-30. **`TITO_API_TOKEN` must be set in Vercel**, else /lookup returns 503 in prod
+(fails closed on purpose).
+
+### Tito ticket lookup — the first non-public feature in this repo
+
+Purpose (Auri): someone emails asking to change the name on their ticket or reassign it,
+and we need to see whether that person actually has one. Search by email, name or company;
+Tito's own `search[q]` spans all three.
+
+- `lib/tito.ts` — searches 4 events in parallel (`2026`, `lp-forum-2026`, `lp-dinner-2026`,
+  `investor-dinner-2026`; `TITO_EVENTS` is the list to extend). Auth `Authorization: Token
+  token=<key>`, base `https://api.tito.io/v3/techbbq/<event>/tickets`. Passes all 7
+  `search[states][]` so void/archived tickets appear (Tito hides them by default, and a
+  silent omission reads as "no ticket"). 25 hits per event, 12s timeout each,
+  `Promise.allSettled` so one dead event degrades and is reported; all-dead = 502, never
+  an empty "no ticket found".
+- `app/api/tito-lookup/route.ts` — **deliberately NOT in middleware's `PUBLIC_PATHS`**, so
+  the dashboard password applies. No CORS headers, `Cache-Control: no-store`, nothing
+  cached, min 3 / max 120 chars, rate-limited. Nothing about the query or the people found
+  is ever logged.
+- `app/lookup/page.tsx` + `.lk-*` styles — one card per ticket: name, email, company,
+  event, ticket type, reference, **who bought it** (often the answer to "I never got a
+  confirmation"), a plain-English state line, and "can they edit it" derived from
+  `changes_locked` + void/archived. Links to the ticket's `unique_url`, which is usually
+  the whole fix: the holder renames or reassigns it themselves, no admin needed.
+  Deliberately does NOT use `useCachedList` — no attendee PII in localStorage (verified).
+- Only marketing-safe-ish fields are mapped. `phone_number`, `price`, `discount_code_used`
+  and `metadata` are never read, so they cannot leak into a response.
+
+Verified: `q=klak.is` → 10 tickets across TechBBQ 2026, correct states/badges; `q=ab` → 400;
+no CORS header; `no-store` present; prod gating mechanism confirmed (`/team` 401 while
+`/api/speakers-2026` 200); browser localStorage holds no ticket data.
+
+Live Tito numbers (2026-07-30): TechBBQ 2026 = 1,774 visible tickets (1,850 overall, 76
+void/archived hidden by default) · LP Forum 99 · LP Dinner 16 · Investor Dinner 22.
+
+### Brella API recon — the July "no write API" finding is WRONG
+
+Org `109`, event `10356` = TechBBQ 2026 (slug `techbbq2026`). Key in `.env.local` as
+`BRELLA` (note: written `BRELLA = value` with spaces; dotenv trims it, bash `source` would
+not). Base `https://api.brella.io/api/integration`, headers `Brella-API-Access-Token: <key>`
++ `Accept: application/vnd.brella.v4+json`. Docs: developer.brella.io.
+
+The REST API DOES expose create/update/delete for **speakers, sponsors and timeslots**,
+plus speaker↔timeslot assignment and REST-managed webhooks. The 2026-07-08 conclusion
+("no Create Sponsor API, CSV import is the only path") was true for Zapier only. So the
+annual manual sponsor CSV import and manual speaker entry are both automatable.
+
+Inventory of event 10356: **147 speakers** (140 with bios, 146 with photos, **0 with an
+external_id**) · 260 sponsors (looks like last year's carry-over) · 78 timeslots · 1,305
+invites (Brella already ingests Tito) · 5 attendees.
+
+**44 people are on techbbq.dk but NOT in Brella** (Aditi Mishra, Aileen Lee, Aino Bergius,
+Ben Choi, Carlo Biggio, Christina Grumstrup Sørensen…); 12 are in Brella but not on the
+site, several of those being malformed rows with the full name in `first-name` and
+`last-name` empty.
+
+Gotchas for whoever builds the sync: nothing has an `external_id`, so run one has to match
+on normalized name and then write our id into `external_id`; `external_id` is **not** an
+upsert (docs describe find-then-update as two calls), so a blind POST creates duplicates in
+the live attendee app; speaker `bio` comes back as DraftJS block JSON on read but is
+accepted as a plain rich-text string on write.
+
+Auri's steer this session: **Airtable is the main system, Brella is not** — recon only,
+no Brella code written.
+
+### Next steps
+1. Add `TITO_API_TOKEN` to Vercel (and confirm `DASHBOARD_PASSWORD` is set there), then
+   commit + push. /lookup must never become public.
+2. Optional: same lookup over Brella invites, so one search answers "ticket in Tito, and
+   are they in the app".
+3. Brella speaker sync (44 missing) — only if Auri asks. Dry-run-by-default script like
+   `scripts/populate-eventroom2.mjs`.
+
+## Session 2026-07-30 (Airtable Bio override + Speakers tail shuffle — LIVE)
+
+State: DONE. Commit `805b451` on main, deployed and prod-verified (Jacob's bio serves from
+the live feed; ranked top 30 hold while the tail re-rolls across loads).
 
 **1. Bio now overridable from Airtable.** Jacob Lauritzen's card said "TBD" because bios
 come from the Supabase Speaker Hub (self-service) and the connector can only read it.

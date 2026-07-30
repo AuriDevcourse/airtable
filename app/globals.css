@@ -41,6 +41,37 @@
    whole page sideways. */
 html { scrollbar-gutter: stable; }
 
+/* Scrollbars, styled to belong to the dark UI instead of Chrome's default grey slab.
+   Thin, rounded, transparent track, and a thumb that only asserts itself on hover.
+   Firefox gets the standard two-value `scrollbar-color`; WebKit/Blink get the pseudo
+   elements below. Both are declared because neither covers every browser Auri uses. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #2f2f2f transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 999px;
+  /* Transparent border + padding-box keeps the visible thumb narrower than the track,
+     so it reads as a floating pill rather than a full-width bar. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  transition: background 0.18s;
+}
+::-webkit-scrollbar-thumb:hover { background: #3d3d3d; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:active { background: var(--color-orange); background-clip: padding-box; }
+/* The default corner is a light square where the two bars meet. */
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* Smooth anchor + back-to-top scrolling, switched off for anyone who asked for less
+   motion (the .scrolltop button passes behavior:"smooth", which this respects too). */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
 body {
   margin: 0;
   background: var(--color-background);
@@ -148,6 +179,43 @@ a { color: inherit; }
   color: var(--color-foreground);
 }
 .topnav__menu a:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+
+/* Grouped dropdown: a labelled section per group, hairline divider between them. */
+.topnav__group { display: flex; flex-direction: column; }
+.topnav__group + .topnav__group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
+.topnav__heading {
+  /* Sticky so the section you are inside stays named while you scroll, and so rows never
+     slide out from under the panel's rounded top edge with nothing above them. The
+     background is opaque for exactly that reason — a transparent heading would let the
+     scrolling rows show through it. */
+  position: sticky;
+  top: -6px; /* cancels the menu's 6px padding so it sits flush with the panel edge */
+  z-index: 1;
+  margin: 4px 0 2px;
+  padding: 8px 14px 4px;
+  background: var(--color-card);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-muted);
+  opacity: 1;
+}
+/* The menu is tall enough now to need a cap on short screens. overscroll-behavior stops a
+   scroll that reaches the end of the menu from carrying on into the page behind it. The
+   inner scrollbar is narrower than the page one so it doesn't dominate a 220px panel. */
+.topnav__menu {
+  max-height: min(78vh, 620px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.topnav__menu::-webkit-scrollbar { width: 8px; }
+.topnav__menu::-webkit-scrollbar-thumb { border-width: 2px; }
 
 /* Eyebrow: red dot + uppercase wide-tracked label */
 .eyebrow {
@@ -499,6 +567,80 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .notice strong { color: var(--color-foreground); }
 .notice p { margin: 8px 0 0; color: #e0a9ab; font-size: 14px; }
+
+/* Ticket lookup (/lookup) — internal support view, one card per matching Tito ticket.
+   Not a card grid: every row is read, not scanned, so it is a single column of detail. */
+.lk-hint { margin: 12px 0 0; color: var(--color-muted); font-size: 13px; line-height: 1.5; }
+.lk-muted { color: var(--color-muted); }
+
+.lk-list { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+
+.lk-card {
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+.lk-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.lk-card__name {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+.lk-card__meta { margin: 4px 0 0; color: var(--color-muted); font-size: 14px; }
+.lk-card__help { margin: 12px 0 0; color: var(--color-muted); font-size: 13px; }
+
+.lk-badge {
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.lk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin: 16px 0 0;
+}
+.lk-grid dt {
+  color: var(--color-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lk-grid dd { margin: 4px 0 0; font-size: 14px; line-height: 1.45; word-break: break-word; }
+.lk-grid code { font-size: 13px; background: var(--color-card-2); padding: 2px 6px; border-radius: 5px; }
+
+.lk-link {
+  display: inline-block;
+  margin-top: 14px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.18s;
+}
+.lk-link:hover { background: #fff; }
+.lk-link:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+
+@media (max-width: 900px) { .lk-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .lk-grid { grid-template-columns: 1fr; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }

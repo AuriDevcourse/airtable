@@ -15,10 +15,11 @@ type Session = {
   room: string;
 };
 
-// One tab per event program. techbbq reads the purpose-built Program 2026 table;
-// niss/fintech read the program views the teams fill inside their own tables.
-// heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "techbbq" | "niss" | "fintech";
+// One tab per event program. brella reads the live TechBBQ 2026 schedule out of the Brella
+// attendee app (30 sessions, the real one); techbbq reads the purpose-built Program 2026
+// Airtable table; niss/fintech read the program views the teams fill inside their own
+// tables. heading/note bake a fixed date line + ticket notice into that event's embed.
+type EventKey = "brella" | "techbbq" | "niss" | "fintech";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -28,7 +29,8 @@ const EVENTS: {
   icons?: boolean;
   bigOpening?: boolean;
 }[] = [
-  { key: "techbbq", label: "TechBBQ 2026" },
+  { key: "brella", label: "TechBBQ 2026 (Brella)", heading: "August 26th & 27th" },
+  { key: "techbbq", label: "TechBBQ 2026 (Airtable)" },
   {
     key: "niss",
     label: "NISS 2026",
@@ -76,7 +78,8 @@ function CopyAgendaEmbed({
 }
 
 export default function ProgramPage() {
-  const [event, setEvent] = useState<EventKey>("techbbq");
+  // Brella first: it's the schedule that's actually filled in.
+  const [event, setEvent] = useState<EventKey>("brella");
   const path = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
 
   const { data, loading, revalidating, error } = useCachedList<Session>(
@@ -100,13 +103,15 @@ export default function ProgramPage() {
       <section className="hero">
         <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Programs · one Airtable source per event</p>
+          <p className="eyebrow">Programs · one source per event</p>
           <h1>
             Program <span className="text-tbbq-gradient">2026</span>
           </h1>
           <p className="lede">
-            The public agendas, straight from Airtable. One row per session: time slot,
-            type, name, description. Served as JSON at <code>/api/program</code>.
+            The public agendas. TechBBQ 2026 comes live from Brella, the attendee app, with
+            times converted to Copenhagen; the other events come from their Airtable views.
+            One entry per session: time slot, topic, name, description, stage. Served as
+            JSON at <code>/api/program</code>.
           </p>
 
           <div className="seg" role="tablist" aria-label="Program" style={{ marginTop: 28 }}>

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/checkin.mjs --hook",
+            "timeout": 25,
+            "statusMessage": "Checking Airtable for rows waiting on you"
+          }
+        ]
+      }
+    ]
+  }
+}

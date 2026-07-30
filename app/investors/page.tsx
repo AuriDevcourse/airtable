@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
@@ -48,8 +49,34 @@ const LABELS: Record<string, string> = {
 };
 const eventLabel = (e: string) => LABELS[e] ?? e;
 
+// useSearchParams needs a Suspense boundary on a prerendered page, so the view lives in its
+// own component below and this wrapper provides it.
 export default function InvestorsPage() {
-  const [event, setEvent] = useState<EventKey>("all");
+  return (
+    <Suspense fallback={null}>
+      <InvestorsView />
+    </Suspense>
+  );
+}
+
+function InvestorsView() {
+  // The URL is the single source of truth for the active tab, NOT local state. The TopNav
+  // links straight to one event (/investors?event=lp-forum), and Next does not remount this
+  // component on a query-only navigation — with useState the URL changed while the tab
+  // stayed put. Reading the param on every render fixes that, and makes the back button work.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const param = searchParams.get("event");
+  // Validated against the known list: an unknown value falls back to "all" rather than
+  // querying a nonexistent event.
+  const event: EventKey =
+    param && (EVENTS as readonly string[]).includes(param) ? (param as EventKey) : "all";
+
+  // Clicking a tab rewrites the URL, which re-renders this with the new param. replace, not
+  // push: flipping tabs should not fill the back button.
+  const selectEvent = (next: EventKey) => {
+    router.replace(next === "all" ? "/investors" : `/investors?event=${next}`, { scroll: false });
+  };
 
   const url = event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
   const { data, loading, revalidating, error, updated } = useCachedList<InvestorSpeaker>(
@@ -97,7 +124,7 @@ export default function InvestorsPage() {
 
           <div className="seg" role="tablist" aria-label="Filter by event" style={{ marginTop: 28 }}>
             {EVENTS.map((e) => (
-              <button key={e} role="tab" aria-selected={event === e} onClick={() => setEvent(e)}>
+              <button key={e} role="tab" aria-selected={event === e} onClick={() => selectEvent(e)}>
                 {eventLabel(e)}
               </button>
             ))}

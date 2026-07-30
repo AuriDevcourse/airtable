@@ -1,6 +1,9 @@
 // Server-only access to the event programs/agendas. Multi-source: each event keeps
 // its program in its own table, mapped here onto one ProgramSession shape.
 //
+//   brella  — the TechBBQ 2026 schedule as maintained in BRELLA (the attendee app), read
+//             from its timeslots API. Not Airtable. This is the source that is actually
+//             filled in, so it is the default. See lib/brellaprogram.ts.
 //   techbbq — the purpose-built "Program 2026" table (created 2026-07-29): one row
 //             per session, Day/Time Slot/Session Type/Description/Event Room.
 //   niss    — the NISS 2026 table's program view (viwMqDT1GMW7AwOtQ): the NISS team
@@ -29,7 +32,10 @@ export type ProgramSession = {
   room: string;
 };
 
-type SourceConfig = {
+// Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one
+// needs no config here because its org/event ids are pinned in lib/brellaprogram.ts.
+type AirtableSource = {
+  kind: "airtable";
   table: string;
   view?: string;
   fields: {
@@ -43,9 +49,16 @@ type SourceConfig = {
   };
 };
 
+type BrellaSource = { kind: "brella" };
+
+type SourceConfig = AirtableSource | BrellaSource;
+
 // Pinned Airtable ids (stable, not secrets — see lib/niss.ts for why not env vars).
 export const PROGRAM_SOURCES = {
+  // The live TechBBQ 2026 schedule. Brella, not Airtable — see lib/brellaprogram.ts.
+  brella: { kind: "brella" },
   techbbq: {
+    kind: "airtable",
     table: "tblI4IW0b3sLxNWgz", // Program 2026
     fields: {
       name: "Session Name",
@@ -57,6 +70,7 @@ export const PROGRAM_SOURCES = {
     },
   },
   niss: {
+    kind: "airtable",
     table: "tblfIPjV4t1c1628h", // NISS 2026
     view: "viwMqDT1GMW7AwOtQ", // program rows
     fields: {
@@ -67,6 +81,7 @@ export const PROGRAM_SOURCES = {
     },
   },
   fintech: {
+    kind: "airtable",
     table: "tbleh7Lqv1zMQaUKx", // Future of Fintech
     view: "viw0mk6kOUKxNqgzU", // program rows (no website gate on this one)
     fields: {
@@ -101,11 +116,24 @@ export class ProgramError extends Error {
 }
 
 export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promise<ProgramSession[]> {
+  const cfg: SourceConfig = PROGRAM_SOURCES[source];
+
+  // Brella keeps its own client, ids and error type; it also returns sessions already in
+  // chronological order, so it skips the Airtable path and its label-parsing sort entirely.
+  if (cfg.kind === "brella") {
+    const { fetchBrellaProgram, BrellaError } = await import("@/lib/brellaprogram");
+    try {
+      return await fetchBrellaProgram();
+    } catch (err) {
+      if (err instanceof BrellaError) throw new ProgramError(err.message, err.status);
+      throw err;
+    }
+  }
+
   if (!TOKEN || !BASE_ID) {
     throw new ProgramError("Airtable env vars are not set on the server.", 503);
   }
 
-  const cfg: SourceConfig = PROGRAM_SOURCES[source];
   const f = cfg.fields;
   const wanted = [f.name, f.day, f.timeSlot, f.type, f.description, f.room, f.gate].filter(
     (x): x is string => Boolean(x)
