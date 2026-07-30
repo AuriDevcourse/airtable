@@ -4,6 +4,39 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-30g (Team embed: forced styles + department pills)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, verified by EXECUTING the copied snippet
+and reading computed styles. Committed + pushed 2026-07-30.
+
+**1. Email styling forced.** On techbbq.dk the theme was overriding the mailto: WordPress
+themes style every `<a>` globally. `.tbbq-card__mail a` rules are now `!important` AND scoped
+through the embed's own `#uid`, covering `:link/:visited/:hover/:focus`, and resetting `background`,
+`padding`, `border`, `box-shadow`, `text-transform`, `font-*` — not just colour and underline.
+Verified computed: `underline`, `rgba(255,255,255,0.72)`.
+
+**2. Centered department pills in the EMBED** (they only existed on the dashboard page).
+New `deptTabs?: string[]` option in `lib/embedSnippet.ts` — different from `tabs`, which needs a
+multi-group endpoint; this filters ONE flat list client-side on `s.department`.
+- Pills are built from the DATA: a department with nobody in it gets no pill, unexpected
+  Airtable values are appended rather than dropped, and the row is skipped entirely if only
+  one department is present.
+- Filtering preserves the computed order, so the leadership block stays on top inside a tab.
+- Passed only on the All copy (`deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}`):
+  a single-department embed has nothing to filter.
+- Verified in the executed snippet: 10 pills centered, All 27 → Management 6 → Finance 1 → All 27.
+
+**Gotcha worth remembering:** the pill styles are shared with tab mode and are now `#id`-scoped
++ `!important` on every property a theme touches (background, border, radius, width,
+letter-spacing, text-transform, box-shadow). Themes restyle `<button>` harder than `<a>` — the
+pills were rendering as theme buttons.
+
+### Next steps
+1. **Re-copy the team embed** from the deployed dashboard — nothing here reaches techbbq.dk
+   until then.
+2. Still open: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; Director/Lead titles as heads of
+   department?; `/api/team` has no retry.
+
 ## Session 2026-07-30f (Team embed: emails, no Load more, per-person photo crop)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean, verified by EXECUTING the copied snippet

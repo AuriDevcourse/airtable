@@ -43,6 +43,11 @@ export type EmbedOptions = {
   // wrapper, so the cards sit directly on the host page's own background. Used by the
   // Fintech speakers embed (their page brings its own backdrop).
   transparent?: boolean;
+  // Centered pill tabs that filter ONE list by its `department` field — the team embed. Pass
+  // the departments in the order they should appear; an "All" pill is added first and any
+  // department with nobody in it is dropped. Different from `tabs` below: that mode needs a
+  // multi-group endpoint, this filters a single flat list client-side after the fetch.
+  deptTabs?: string[];
   // Render each person's email as a mailto link under the title. Only useful on a feed that
   // returns `email` — today that is /api/team, where staff contact addresses are public by
   // product decision. Default false so no other feed can start printing addresses by accident.
@@ -78,6 +83,7 @@ export function buildEmbedSnippet({
   columns,
   transparent = false,
   email = false,
+  deptTabs,
   tabs,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
@@ -167,15 +173,20 @@ export function buildEmbedSnippet({
         )
         .join("")}</div></div>`
     : "";
-  const tabsStyles = tabs?.length
+  // The department filter renders the same centered pills, so both modes share the styles.
+  const wantsPills = Boolean(tabs?.length) || Boolean(deptTabs?.length);
+  const tabsStyles = wantsPills
     ? `
-  .tbbq-tabs{display:flex;justify-content:center;margin:0 0 24px}
-  .tbbq-tabs__pills{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;border-radius:9999px;background:#131313;padding:4px}
-  .tbbq-tabs button{height:36px;padding:0 16px;border:0;border-radius:9999px;background:transparent;color:#9a9a9c;font-family:var(--head)!important;font-size:14px;font-weight:500;cursor:pointer;transition:color .15s,background .15s}
-  .tbbq-tabs button:hover{color:#f2f2f2}
-  .tbbq-tabs button[aria-selected="true"]{background:#f2f2f2;color:#0d0d0d}
-  .tbbq-tabs button:focus-visible{outline:2px solid #ce0f2e;outline-offset:2px}
-  @media(max-width:600px){.tbbq-tabs{margin:0 0 16px}}`
+  /* Forced + #id-scoped: WordPress themes restyle every <button> globally (their own
+     background, border, radius, uppercase, full width), which flattened these pills into
+     theme buttons on techbbq.dk. Every property a theme touches is nailed down here. */
+  #${id} .tbbq-tabs{display:flex!important;justify-content:center!important;margin:0 0 24px!important;padding:0!important;width:100%!important}
+  #${id} .tbbq-tabs__pills{display:inline-flex!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;justify-content:center!important;border-radius:9999px!important;background:#131313!important;padding:4px!important;margin:0 auto!important;max-width:100%!important;box-shadow:none!important}
+  #${id} .tbbq-tabs button{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;height:36px!important;line-height:1!important;padding:0 16px!important;margin:0!important;border:0!important;border-radius:9999px!important;background:transparent!important;color:#9a9a9c!important;font-family:var(--head)!important;font-size:14px!important;font-weight:500!important;letter-spacing:normal!important;text-transform:none!important;text-decoration:none!important;box-shadow:none!important;cursor:pointer!important;transition:color .15s,background .15s}
+  #${id} .tbbq-tabs button:hover{color:#f2f2f2!important;background:transparent!important}
+  #${id} .tbbq-tabs button[aria-selected="true"]{background:#f2f2f2!important;color:#0d0d0d!important}
+  #${id} .tbbq-tabs button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px}
+  @media(max-width:600px){#${id} .tbbq-tabs{margin:0 0 16px!important}}`
     : "";
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -211,10 +222,13 @@ export function buildEmbedSnippet({
   .tbbq-card__media.shimmer::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:tbbq-shimmer 1.4s ease-in-out infinite}
   @keyframes tbbq-shimmer{100%{transform:translateX(100%)}}
   .tbbq-card__tag{position:relative;z-index:1;font-family:var(--sans)!important;margin:0 0 4px;color:#fa7000;font-size:12px;font-weight:600;letter-spacing:.02em}
-  /* Sits outside the card's link wrapper, so it carries the body's own horizontal padding. */
-  .tbbq-card__mail{position:relative;z-index:1;font-family:var(--sans)!important;margin:6px 0 0;padding:0 8px 4px;font-size:13px;line-height:1.4;overflow-wrap:anywhere;text-shadow:0 1px 6px rgba(0,0,0,.5)}
-  .tbbq-card__mail a{color:rgba(255,255,255,.72);text-decoration:underline}
-  .tbbq-card__mail a:hover{color:#fff}${tabsStyles}${modalStyles}${columnsCss}
+  /* Sits outside the card's link wrapper, so it carries the body's own horizontal padding.
+     Every property is !important and the anchor rules are scoped through #id: WordPress
+     themes style ALL links globally (their own colour, underline, hover, sometimes a
+     background or padding), and an unforced mailto lost that fight on techbbq.dk. */
+  .tbbq-card__mail{position:relative;z-index:1;font-family:var(--sans)!important;margin:6px 0 0!important;padding:0 8px 4px!important;font-size:13px!important;line-height:1.4!important;overflow-wrap:anywhere;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+  #${id} .tbbq-card__mail a,#${id} .tbbq-card__mail a:link,#${id} .tbbq-card__mail a:visited{display:inline!important;color:rgba(255,255,255,.72)!important;background:none!important;padding:0!important;border:0!important;font-family:var(--sans)!important;font-size:13px!important;font-weight:400!important;text-transform:none!important;text-decoration:underline!important;box-shadow:none!important}
+  #${id} .tbbq-card__mail a:hover,#${id} .tbbq-card__mail a:focus{color:#fff!important;text-decoration:underline!important;background:none!important}${tabsStyles}${modalStyles}${columnsCss}
 </style>
 
 <script>
@@ -335,7 +349,46 @@ export function buildEmbedSnippet({
       if(shown>=list.length)more.style.display="none";
     }
     more.onclick=fill;
-    if(LOADMORE)root.appendChild(more);
+    if(LOADMORE)root.appendChild(more);${
+      deptTabs?.length
+        ? `
+    // Department filter pills. Built from the data so a department with nobody in it never
+    // gets a pill, and ordered by DEPTS (anything unexpected is appended). Filtering keeps
+    // the already-computed order, so the leadership block stays on top inside each tab.
+    var ALLPEOPLE=list.slice();
+    var DEPTS=${JSON.stringify(deptTabs)};
+    var present=[];
+    for(var di=0;di<DEPTS.length;di++){
+      for(var pj=0;pj<ALLPEOPLE.length;pj++){
+        if(ALLPEOPLE[pj].department===DEPTS[di]){present.push(DEPTS[di]);break;}
+      }
+    }
+    for(var pk=0;pk<ALLPEOPLE.length;pk++){
+      var dd=ALLPEOPLE[pk].department;
+      if(dd&&DEPTS.indexOf(dd)===-1&&present.indexOf(dd)===-1)present.push(dd);
+    }
+    if(present.length>1){
+      var tabsWrap=document.createElement("div");
+      tabsWrap.className="tbbq-tabs";tabsWrap.setAttribute("role","tablist");
+      tabsWrap.setAttribute("aria-label","Filter by department");
+      var pills='<div class="tbbq-tabs__pills"><button type="button" role="tab" data-d="" aria-selected="true">All</button>';
+      for(var pi=0;pi<present.length;pi++){
+        pills+='<button type="button" role="tab" data-d="'+esc(present[pi])+'" aria-selected="false">'+esc(present[pi])+'</button>';
+      }
+      tabsWrap.innerHTML=pills+'</div>';
+      root.insertBefore(tabsWrap,grid);
+      var dBtns=tabsWrap.querySelectorAll("button");
+      for(var db=0;db<dBtns.length;db++){
+        dBtns[db].addEventListener("click",function(){
+          for(var u=0;u<dBtns.length;u++)dBtns[u].setAttribute("aria-selected",dBtns[u]===this?"true":"false");
+          var want=this.getAttribute("data-d");
+          list=want?ALLPEOPLE.filter(function(p){return p.department===want;}):ALLPEOPLE.slice();
+          shown=0;grid.innerHTML="";more.style.display="";fill();
+        });
+      }
+    }`
+        : ""
+    }
     fill();`
   }
   }).catch(function(){grid.innerHTML='<p class="tbbq-speakers__loading">Could not load right now.</p>';});

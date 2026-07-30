@@ -185,14 +185,16 @@ export default function TeamPage() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Team-specific: the whole team shows at once (no Load more — it is 27 people,
-                not 179 speakers), every card carries its email, and photos honour the
-                per-person crop from the feed. */}
+                not 179 speakers), every card carries its email, photos honour the per-person
+                crop from the feed, and the embed gets its own centered department filter.
+                deptTabs only on the All copy: a single-department embed has nothing to filter. */}
             <CopyEmbed
               path={embedUrl}
               listKey="team"
               shuffle={active === TABS_ALL}
               loadMore={false}
               email
+              deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
             />
           </div>
         </div>
