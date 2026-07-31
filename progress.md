@@ -4,6 +4,39 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31e (All-pill white-on-white fix + missing-data panel)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` clean.
+
+**1. The "All events" pill was white text on a white background** (Auri spotted it). The rule
+`.ev-tabs button[aria-pressed="true"]{background:var(--tab-color,var(--color-foreground));
+color:#fff}` gives each selected pill its KIND colour — but the All pill has **no
+`--tab-color`**, so the fallback resolved to the light `--color-foreground` (#f2f2f2) while
+the text stayed #fff. Fixed with a `[data-k="all"]` carve-out that uses `--color-ink`
+instead, plus `data-k` on the button. **The embed snippet already had exactly this
+carve-out** — only the React page was missing it, which is the argument for keeping the two
+pill styles in step whenever either changes.
+Verified over **CDP** (not a screenshot): selected All = `rgb(13,13,13)` on `rgb(242,242,242)`,
+Side Events = white on `rgb(206,15,46)`, Event Rooms = white on `rgb(27,108,168)`, cards
+6/9/15.
+
+**2. `.ev-gaps` panel at the top of the page** listing what the source still lacks — times,
+address (no column at all), category labels, the fused private/invite option, description +
+register on Side Events only, and the 1 dateless / 1 logoless row. Each line names the exact
+Airtable field so it is actionable, and the footer says which gaps self-heal once filled
+versus which need a schema change.
+**Deliberately NOT in the embed snippet:** it is an internal note about Airtable, and
+techbbq.dk visitors must never see it.
+
+### Verification note worth keeping
+Reading computed styles from a page in an **iframe fails cross-origin** — the rig was served
+on :8898 while the page was on :3000, so `contentDocument` was blocked and the probe returned
+nothing. `--dump-dom` also only dumps the TOP document, so iframe content never appears.
+Two ways out, both used here: serve the rig from the app's own origin, or (better, and what
+finally worked) drive the real page over **Chrome DevTools Protocol** — Node 25 has a built-in
+`WebSocket`, so `--remote-debugging-port=9222` + `Runtime.evaluate` needs no dependencies and
+can click and read computed styles on the actual page.
+
 ## Session 2026-07-31d (Side Events & Event Rooms: WordPress embed + 3 fixes)
 
 State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. The

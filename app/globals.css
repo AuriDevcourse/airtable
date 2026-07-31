@@ -967,9 +967,58 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   transition: background 0.18s, color 0.18s, border-color 0.18s;
 }
 .ev-tabs button:hover { background: var(--color-card-2); color: var(--color-foreground); }
+/* Selected pill takes that KIND's colour, with white text. */
 .ev-tabs button[aria-pressed="true"] {
   background: var(--tab-color, var(--color-foreground));
   border-color: var(--tab-color, var(--color-foreground));
   color: #fff;
 }
+/* The "All" pill has NO --tab-color, so its background falls back to the light
+   --color-foreground — which made white-on-white, unreadable. It needs dark ink instead.
+   Must come after the rule above. The embed's snippet has the same [data-k="all"] carve-out. */
+.ev-tabs button[aria-pressed="true"][data-k="all"] {
+  background: var(--color-foreground);
+  border-color: var(--color-foreground);
+  color: var(--color-ink);
+}
 .ev-tabs button:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+
+/* ---- "Still missing from Airtable" panel on /partner-events ---- */
+/* Dashboard-only, deliberately NOT in the embed snippet: it is a note to the TechBBQ team
+   about source-data gaps, not something techbbq.dk visitors should read. */
+.ev-gaps {
+  margin-top: 28px;
+  border: 1px solid rgba(253, 157, 4, 0.3);
+  border-left: 3px solid var(--color-amber);
+  border-radius: var(--radius-lg);
+  background: rgba(253, 157, 4, 0.06);
+  padding: 16px 18px;
+}
+.ev-gaps h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-amber);
+}
+.ev-gaps ul { margin: 10px 0 0; padding: 0 0 0 18px; }
+.ev-gaps li {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+.ev-gaps li strong { color: #fff; font-weight: 600; }
+.ev-gaps li code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ev-gaps__foot {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

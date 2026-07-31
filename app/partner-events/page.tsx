@@ -185,6 +185,48 @@ export default function PartnerEventsPage() {
       </section>
 
       <div className="wrap" style={{ paddingBottom: 80 }}>
+        {/* Source-data gaps, for the TechBBQ team. Deliberately NOT in the embed snippet —
+            this is an internal note about Airtable, not something a techbbq.dk visitor
+            should read. Each line names the exact field so it is actionable. */}
+        <section className="ev-gaps" aria-label="Missing source data">
+          <h2>Still missing in Airtable</h2>
+          <ul>
+            <li>
+              <strong>Start / end times</strong> — no data. <code>Time slot</code> is filled on
+              11 rows elsewhere in the table (all Grill sessions) but on none of these events,
+              and <code>Start date</code> is empty table-wide.
+            </li>
+            <li>
+              <strong>Venue address</strong> — <em>no such column exists</em> in the table&rsquo;s
+              128 fields. One has to be created before addresses can show.
+            </li>
+            <li>
+              <strong>Category labels</strong> — <code>Key Topics/Industries</code> already has
+              the right options and 57 rows filled elsewhere, but zero on these events.
+            </li>
+            <li>
+              <strong>Private vs invitation-only</strong> — cannot be separated.{" "}
+              <code>Event type</code> offers only <em>Public Event</em> and{" "}
+              <em>Private Event (invite only)</em>, so those two states are fused into one. A
+              third option would split them.
+            </li>
+            <li>
+              <strong>Description + Register link</strong> — present on the 6 Side Events only,
+              never on the 13 Event Rooms, so those cards show no blurb and no button.
+            </li>
+            <li>
+              <strong>1 event has no date</strong> (shown as <em>Date TBC</em>), and{" "}
+              <strong>1 has no logo</strong> (falls back to a company initial).
+            </li>
+          </ul>
+          <p className="ev-gaps__foot">
+            Everything above appears automatically once the source is filled in — except the
+            address, which needs a new column, and the three-way access split, which needs a
+            third select option. Also: 3 untitled rows and 1 duplicate submission are filtered
+            out, so 19 rows in the view become 15 events.
+          </p>
+        </section>
+
         {error && !data ? (
           <div className="notice">
             <strong>Could not load.</strong>
@@ -199,6 +241,9 @@ export default function PartnerEventsPage() {
                 <button
                   key={f.key}
                   type="button"
+                  // data-k drives the "All" pill's dark-ink carve-out in globals.css: it has
+                  // no --tab-color, so it would otherwise render white text on white.
+                  data-k={f.key}
                   aria-pressed={filter === f.key}
                   onClick={() => setFilter(f.key)}
                   style={f.color ? ({ "--tab-color": f.color } as React.CSSProperties) : undefined}
