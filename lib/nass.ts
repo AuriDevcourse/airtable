@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -39,18 +40,7 @@ export type NassPerson = {
   role: string;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 function mapRecord(rec: AirtableRecord): NassPerson {
   const f = rec.fields;

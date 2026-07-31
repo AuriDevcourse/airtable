@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -44,7 +45,12 @@ export type TeamMember = {
   photo: string | null;
   linkedin: string | null;
   department: string;
-  email?: string | null; // ONLY populated for the internal, auth-gated feed. Never public.
+  // PUBLIC. /api/team is in middleware's PUBLIC_PATHS and the team embed renders these as
+  // mailto links on techbbq.dk — staff contact addresses are public info by product
+  // decision (see the SAFE_FIELDS note above). This field is NOT a private/internal one;
+  // an earlier comment here claimed the opposite and was simply wrong. Phone, Responsibilities
+  // and the rest of the table are what stay server-side.
+  email?: string | null;
   // Leadership order: 1 = CEO, 2 = other chiefs, 3 = heads of department. null = everyone
   // else, who get shuffled.
   //
@@ -130,18 +136,7 @@ function leadershipRank(name: string, title: string): number | null {
   return null;
 }
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 function firstDept(v: unknown): string {
   return Array.isArray(v) && v.length ? String(v[0]) : "";

@@ -16,6 +16,7 @@
 // half-filled drafts stay invisible.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -95,10 +96,6 @@ export const PROGRAM_SOURCES = {
 export type ProgramSourceKey = keyof typeof PROGRAM_SOURCES;
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
 
 // "09:30 - 11:00" / "09:00–09:30" → minutes since midnight; unparseable → end of day.
 function startMinutes(slot: string): number {

@@ -17,6 +17,7 @@
 // company, which is exactly the set a support email gives us.
 
 import { fetchWithTimeout } from "@/lib/http";
+import { str } from "@/lib/fields";
 
 const API = "https://api.tito.io/v3";
 const ACCOUNT = "techbbq";
@@ -118,10 +119,6 @@ type RawTicket = {
   created_at?: unknown;
   updated_at?: unknown;
 };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
 
 function mapTicket(t: RawTicket, event: { slug: string; label: string }): TitoMatch {
   // `name` is empty on unassigned tickets, where first/last are also blank — those still

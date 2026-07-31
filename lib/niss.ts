@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, num, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -45,23 +46,9 @@ export type NissPerson = {
   hierarchy: number;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
 // Empty/non-numeric hierarchy → Infinity so those rows fall to the end.
-function num(v: unknown): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : Infinity;
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 function mapRecord(rec: AirtableRecord): NissPerson {
   const f = rec.fields;

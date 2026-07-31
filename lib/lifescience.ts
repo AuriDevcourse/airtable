@@ -7,6 +7,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, firstTag, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -56,24 +57,9 @@ export type LsPerson = {
   tagColor: string | null;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
-
 // LS Type is a multi-select, so it arrives as an array. Show the first tag as the badge.
-function firstTag(v: unknown): string {
-  if (Array.isArray(v)) return str(v[0]);
-  return str(v);
-}
 
 function mapRecord(rec: AirtableRecord): LsPerson {
   const f = rec.fields;

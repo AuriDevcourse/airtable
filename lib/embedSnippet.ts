@@ -304,7 +304,14 @@ export function buildEmbedSnippet({
     return '<article class="tbbq-card">'+body+mail+'</article>';`
     }
   }
-  fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){${
+  // r.ok matters: a 429 (rate limit) or 502 (Airtable down) still returns valid JSON, just
+  // {error:...} with no list in it. Without this check that fell through to the empty-list
+  // branch and the live page announced "Nobody to show yet." during an outage — which reads
+  // as "TechBBQ has no speakers" rather than "try again in a minute".
+  fetch(ENDPOINT).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){${
     tabs?.length
       ? `
     var groups=(data&&data.groups)||{};
@@ -377,7 +384,10 @@ export function buildEmbedSnippet({
       var html="";for(var i=shown;i<next;i++){html+=card(list[i],i);}
       grid.insertAdjacentHTML("beforeend",html);
       shown=next;
-      if(shown>=list.length)more.style.display="none";
+      // Authoritative both ways, like the tab-mode fill(). It used to only ever HIDE, so
+      // re-showing the button after a department filter relied on the click handler
+      // remembering to un-hide it first.
+      more.style.display=shown>=list.length?"none":"";
     }
     more.onclick=fill;
     if(LOADMORE)root.appendChild(more);${

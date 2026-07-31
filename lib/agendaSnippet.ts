@@ -117,7 +117,12 @@ export function buildAgendaSnippet({
     var p=ICONS[String(type||"").toLowerCase()];
     return p?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tbbq-agenda__ic">'+p+'</svg>':'';
   }
-  fetch(ENDPOINT).then(function(r){return r.json();}).then(function(data){
+  // A 429/502 still returns JSON ({error:...}), so without an r.ok check the page said
+  // "Program coming soon." during an outage instead of admitting it could not load.
+  fetch(ENDPOINT).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){
     var list=(data&&data.sessions)||[];
     if(!list.length){root.innerHTML='<p class="tbbq-agenda__loading">Program coming soon.</p>';return;}
     var html="";

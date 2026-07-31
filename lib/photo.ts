@@ -130,6 +130,11 @@ function cacheKey(feed: string, recordId: string, fieldIndex?: number): string {
   return `photo:${feed}:${recordId}:${fieldIndex ?? "*"}`;
 }
 
+// Airtable record ids: "rec" + 14 alphanumerics. The route checks this too, but the
+// value is interpolated into a filterByFormula string below, so it is re-checked at the
+// point of use — this function is exported and must not depend on its caller's diligence.
+const REC_ID = /^rec[A-Za-z0-9]{14}$/;
+
 export async function resolveSignedUrl(
   feed: string,
   recordId: string,
@@ -137,6 +142,7 @@ export async function resolveSignedUrl(
 ): Promise<string | null> {
   const source = PHOTO_SOURCES[feed];
   if (!source) return null;
+  if (!REC_ID.test(recordId)) return null;
   if (fieldIndex !== undefined && !source.fields[fieldIndex]) return null;
   return cached(
     cacheKey(feed, recordId, fieldIndex),

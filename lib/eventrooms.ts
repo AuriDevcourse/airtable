@@ -13,6 +13,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -78,18 +79,7 @@ export type EventRoomPresenter = {
   room: string | null;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; createdTime: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 // Parse one "Name: X\nPosition: Y\nCompany: Z" blob. The submissions are messy
 // ("Name:, Adrian", "Name::Anna", "Name:Safa Serif ", missing spaces), so match the
@@ -172,11 +162,17 @@ const HOST_ROOMS: [string, number][] = [
   ["creative business network", 5],
 ];
 
+// The reverse test (key.includes(h)) exists for hosts written shorter than the key
+// ("Creative Business" vs "creative business network"), but it needs a floor: a
+// one-or-two-character host would otherwise match half the table ("fbv".includes("f")).
+const MIN_REVERSE_MATCH = 4;
+
 function roomFromHost(host: string): string | null {
   const h = host.toLowerCase().trim();
   if (!h) return null;
   for (const [key, n] of HOST_ROOMS) {
-    if (h.includes(key) || key.includes(h)) return `Event Room ${n}`;
+    if (h.includes(key)) return `Event Room ${n}`;
+    if (h.length >= MIN_REVERSE_MATCH && key.includes(h)) return `Event Room ${n}`;
   }
   return null;
 }
@@ -185,28 +181,39 @@ function roomFromHost(host: string): string | null {
 // only loses the room labels (cards fall back to the host name), never the people.
 async function fetchRoomAssignments(): Promise<Map<string, string>> {
   const rooms = new Map<string, string>();
-  const params = new URLSearchParams();
-  params.set("filterByFormula", `FIND('Event Room ',{Project Name})=1`);
-  params.set("pageSize", "100");
-  params.append("fields[]", "Full Name");
-  params.append("fields[]", "Project Name");
+  // Paginated like every other fetch in this repo. It used to read only the first page:
+  // Airtable caps a response at pageSize (100) and returns an `offset` for the rest, so
+  // the moment marketing assigned a 101st person to a room, that person silently lost
+  // their room label and fell back to the hosting partner's name.
+  let offset: string | undefined;
 
-  const res = await fetchWithTimeout(
-    `${API}/${BASE_ID}/${MARKETING_TABLE}?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" },
-    MARKETING_TIMEOUT_MS
-  );
-  if (!res.ok) {
-    console.error("[eventrooms] room-assignment fetch failed", res.status, await res.text());
-    return rooms;
-  }
+  do {
+    const params = new URLSearchParams();
+    params.set("filterByFormula", `FIND('Event Room ',{Project Name})=1`);
+    params.set("pageSize", "100");
+    params.append("fields[]", "Full Name");
+    params.append("fields[]", "Project Name");
+    if (offset) params.set("offset", offset);
 
-  const data = (await res.json()) as { records: AirtableRecord[] };
-  for (const rec of data.records) {
-    const name = str(rec.fields["Full Name"]).toLowerCase().replace(/\s+/g, " ");
-    const project = str(rec.fields["Project Name"]);
-    if (name && /^Event Room [1-6]$/.test(project)) rooms.set(name, project);
-  }
+    const res = await fetchWithTimeout(
+      `${API}/${BASE_ID}/${MARKETING_TABLE}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" },
+      MARKETING_TIMEOUT_MS
+    );
+    if (!res.ok) {
+      console.error("[eventrooms] room-assignment fetch failed", res.status, await res.text());
+      return rooms; // partial map is fine — cards fall back to the host name
+    }
+
+    const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
+    for (const rec of data.records) {
+      const name = str(rec.fields["Full Name"]).toLowerCase().replace(/\s+/g, " ");
+      const project = str(rec.fields["Project Name"]);
+      if (name && /^Event Room [1-6]$/.test(project)) rooms.set(name, project);
+    }
+    offset = data.offset;
+  } while (offset);
+
   return rooms;
 }
 
