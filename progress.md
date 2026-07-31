@@ -6,9 +6,21 @@ reaching the browser.
 
 ## Session 2026-07-31b (Codebase audit: bug fixes + de-duplication)
 
-State: DONE, uncommitted. `tsc --noEmit` clean, `npm run build` clean, all 17 feed responses
-verified **byte-identical** to pre-change output (A/B'd against the original code fetched at
-the same moment — see "How this was verified" below).
+State: DONE, merged to `main` and pushed (`e158882`), production deploy verified.
+`tsc --noEmit` clean, `npm run build` clean, all 17 feed responses verified
+**byte-identical** to pre-change output (A/B'd against the original code fetched at the same
+moment — see "How this was verified" below).
+
+Landed as two commits, each of which builds on its own so the history stays bisectable:
+`df7ccce` de-duplication (the two new modules + every file that only changed mechanically),
+then `6addf4e` the ten bug fixes (the files carrying both kinds of change).
+
+**Deploy fingerprint worth reusing:** a green build is not proof the new code is *serving*.
+Bug 3 gives a free one-request check — `GET /api/photo/team/<recId>?f=` (bare, no digits)
+answers **404 on the new code and 200 on the old**, so it distinguishes "deployed" from
+"Vercel still building / CDN still serving the previous edge response" without a redeploy.
+Post-merge production check: all 6 spot-checked feeds 200 with sane counts (team 27,
+life-science 38, event-room-presenters 38, all-speakers 304, speakers 312).
 
 ### Bugs fixed
 
