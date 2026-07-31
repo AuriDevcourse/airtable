@@ -21,6 +21,7 @@ const PUBLIC_PATHS = new Set([
   "/api/niss-2025",
   "/api/nass-speakers",
   "/api/event-room-presenters",
+  "/api/partner-events",
   "/api/investor-speakers",
   "/api/fintech-speakers",
   "/api/program",

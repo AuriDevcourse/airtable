@@ -52,6 +52,7 @@ const MENU: MenuGroup[] = [
     heading: "Program & internal",
     items: [
       { href: "/program", label: "Program 2026" },
+      { href: "/partner-events", label: "Side Events & Event Rooms" },
       { href: "/team", label: "Team" },
       { href: "/lookup", label: "Ticket lookup" },
     ],

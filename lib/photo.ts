@@ -34,6 +34,10 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
   niss: { table: "tblfIPjV4t1c1628h", fields: ["Self Portrait"] },
   "niss-2025": { table: "tblyWVASxceyLRCaL", fields: ["Photo"] },
   team: { table: "tbldWne3PnvebIwif", fields: ["Picture"] },
+  // Partnership Success again, but the session-level logo rather than a presenter photo
+  // (lib/partnerevents.ts). Separate key because the field list differs; "Company Logo"
+  // is NOT one of the duplicated names in that table, so it is safe to request by name.
+  "partner-events": { table: "tbllvkwLhB4Omdphd", fields: ["Company Logo"] },
   // Partnership Success: five per-slot photo fields plus the overflow form's field.
   // Callers pin the slot with photoUrl(..., fieldIndex) — see ?f= in the route.
   "event-rooms": {

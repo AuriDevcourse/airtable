@@ -4,6 +4,103 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31c (NEW: Side Events & Event Rooms page + feed)
+
+State: DONE locally, committed, NOT pushed. `tsc --noEmit` + `npm run build` clean, all 15
+cards verified in a real rendered browser DOM (headless Chrome `--dump-dom`, not string
+matching). Auri's scope call: **build with only what has data** — no time, label or address
+support in the code at all until the source has them.
+
+**New files:** `lib/partnerevents.ts`, `app/api/partner-events/route.ts`,
+`app/partner-events/page.tsx`. Plus a `partner-events` entry in `PHOTO_SOURCES`
+(`Company Logo`), `/api/partner-events` in middleware's `PUBLIC_PATHS`, a TopNav entry
+under Program & internal, and an `.ev-*` block at the end of `globals.css`.
+
+One entry per EVENT, red for Side Events (`#CE0F2E`), blue for Event Rooms (`#2BB4E1`).
+Same table AND view as `lib/eventrooms.ts` but a different grain — that lib returns one
+entry per PRESENTER. Kept separate on purpose; merging would make one shape carry the
+other's nulls.
+
+### The trap that dictated this lib's design: THREE fields named `Date of Event `
+
+Partnership Success has three columns literally named `Date of Event ` (identical, trailing
+space included) plus a fourth `Date of Event` without the space. Consequences:
+
+- **`fields[]=Date of Event ` fails the WHOLE request** with Airtable's
+  `AMBIGUOUS_FIELD_NAMES`. This repo's allow-list pattern is therefore *impossible* by
+  name here — it is a hard API error, not a style preference.
+- So this lib is the first to address fields **by ID** with `returnFieldsByFieldId=true`.
+  Field IDs also survive the trailing-space renames that bite this base constantly
+  (`Hierarchy `, `Role `, `Which LS DT stage? `). IDs are in the `FIELDS` map.
+- **The date is genuinely SPLIT across two of the three twins**: 13 rows in
+  `fld5S7DvQz7C09BNm`, 3 in `fldDUuXRNZ8nIjTo3`, 1 row has both (they agree). Reading
+  either alone loses rows, so both are requested and coalesced primary-first.
+- A by-NAME read happens to return the right value today only because Airtable omits blank
+  fields, so the single populated twin lands under the shared key. Do not rely on it: two
+  differing values in two same-named columns would silently pick one.
+
+### 19 rows in the view → 15 events
+
+- 3 rows have no `Session Title` (empty form starts) — dropped.
+- 1 true duplicate: Nordic IPO has two rows for 2026-08-26 (partner resubmitted; the newer
+  row also carries the fuller company name). Dedupe key is **title + date**, and the date
+  belongs in the key: Creative Business Cup runs on BOTH 08-26 and 08-27 and those are two
+  real events. Winner = richest row (description/register/logo/access), tie → newest.
+- Result: 9 Event Rooms + 6 Side Events. Sorted by date, undated last, then title.
+
+### What the source cannot give (asked for, deliberately absent)
+
+1. **Times.** `Time slot` is populated on 11 rows table-wide but ZERO of these 19 (those are
+   Grill sessions). `Start date` (dateTime) is empty on every row in the table.
+2. **Address.** No such column exists — all 128 field names checked for
+   addr/location/venue/street/city.
+3. **Category labels.** `Key Topics/Industries` is a multi-select with the right options and
+   57 rows filled table-wide, but zero on these 19.
+4. **Private vs invitation-only cannot be separated.** `Event type` offers exactly two
+   options: `Public Event` and `Private Event (invite only)` — those two states are fused in
+   the source. A third select option is the only fix; only the `ACCESS` map would change.
+5. Description + register link exist **only on the 6 Side Events**, never on the 13 Event
+   Rooms. A clean split, not random gaps.
+6. `Type of Event` has a third option, **`Bridge Event`** (0 rows here). Filtered out rather
+   than guessed a colour for — add to `KINDS` if it should show.
+
+### Logo panel: the polarity problem (settled empirically, in that order)
+
+Partners upload BOTH dark-on-transparent and white-on-transparent logos, and nothing in the
+data says which. Verified by rendering, not reasoning:
+1. Dark tinted panel (first attempt) → Rockstart, advores, OMR Reviews were invisible.
+2. **Light** tint of the kind colour (`lightTint(hex, 0.1)`) → those read, but Creative
+   Business Network and the Closing Loops/EU row (white logos) washed out.
+3. Kept the light panel (it suits the clear majority) + a `drop-shadow(0 0 1px rgba(0,0,0,.45))`
+   hairline that traces glyph edges, so a white logo is still discernible and a dark one just
+   gains depth. A **mitigation, not a fix** — a white logo still wants an Airtable swap.
+Logos are `object-fit: contain` on purpose: they are wordmarks with their own padding, and
+`cover` slices them mid-word. `--kind-soft` (dark tint) still backs the pills; only the logo
+panel is light.
+
+### Gotchas
+- Verified in **headless Chrome** (`--dump-dom` / `--screenshot`), because the page is a
+  client component: `useCachedList` fetches in an effect, so the SSR HTML is only the hero +
+  "Loading…". A curl of the page can never show a card. The browser extension was not
+  connected this session; `"/Applications/Google Chrome.app/.../Google Chrome" --headless
+  --virtual-time-budget=15000 --dump-dom <url>` needs no dependencies and worked.
+- `source .env.local` breaks under zsh (line 7's unquoted `Website?` glob-expands). Read
+  single vars with `grep '^KEY=' .env.local | cut -d= -f2-` instead.
+- To view a gated page in a browser without triggering a Basic-auth modal (which wedges the
+  Chrome extension), start dev with `DASHBOARD_PASSWORD= ` — middleware falls through when
+  no password is set AND `NODE_ENV=development`.
+- 2 descriptions run past 400 chars, so the card clamps to 3 lines in CSS rather than
+  truncating in the feed — the full text stays available to other JSON consumers.
+
+### Next steps
+1. **No WordPress embed yet.** `lib/embedSnippet.ts` builds speaker-shaped cards only; an
+   event card (date, access badge, register button) needs its own builder. The page and feed
+   are done and `/api/partner-events` is public, so the embed is the remaining piece.
+2. Not pushed — decide whether this goes live before/after the missing Airtable fields.
+3. Ask partnerships to fill `Time slot` + `Key Topics/Industries` on these rows, add an
+   address column, and split `Event type` into three options if private ≠ invite-only.
+   Every one of those appears with a small, isolated change here.
+
 ## Session 2026-07-31b (Codebase audit: bug fixes + de-duplication)
 
 State: DONE, merged to `main` and pushed (`e158882`), production deploy verified.
