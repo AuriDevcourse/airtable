@@ -4,6 +4,82 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31d (Side Events & Event Rooms: WordPress embed + 3 fixes)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. The
+snippet was verified by **EXECUTING** it inside a deliberately hostile fake-WordPress page
+and reading computed styles — never by string-matching (session 30f's lesson).
+
+**1. `lib/eventEmbedSnippet.ts` + `components/CopyEventEmbed.tsx` — the embed Auri asked
+about.** A SEPARATE builder from `lib/embedSnippet.ts` on purpose: that one renders a
+*person* (square photo, name, title · company, LinkedIn) and every option on it is about
+people — modal bios, LinkedIn, department pills, per-image focus. An event is a different
+object (contained logo on a coloured panel, type badge, access badge, date, clamped blurb,
+Register button). Bending one builder to do both means a second set of mutually exclusive
+branches through code that already carries tab mode. Conventions are kept identical:
+`__ORIGIN__` swap at copy time, `#id`-scoped + `!important` on every property a theme
+touches, and the `r.ok` check so a 429/502 says "Could not load right now." instead of
+announcing an empty roster.
+Three buttons on the page: all-with-tabs, Side Events only, Event Rooms only (the
+single-kind ones pass `kindTabs={false}` — nothing to filter).
+
+**2. Arrow removed** from the Register button, page and embed.
+
+**3. Darker blue: `#2BB4E1` → `#1B6CA8`.** Chosen by measuring, not by eye — it MATCHES the
+red on both contrast axes: **5.59:1 on white** (red is 5.63) so the button's white label is
+legible, and **3.32:1 on the #131313 card** (red is 3.30) so the badge reads the same as the
+red one. The old `#2BB4E1` was only **2.41:1 against white** — white button text on it failed
+outright. One shade serves both roles, so no companion tint was needed.
+**Do not "unify" this with `lib/lifescience.ts`, which still uses `#2BB4E1`** — that is the
+Deep Tech Event Day stage colour and is unrelated.
+
+**4. Tabs centered on the page too** (`.ev-tabs`), matching the embed, with the count line
+centered under them. Mobile gets the same one-swipeable-line treatment as the team embed:
+`flex-wrap:nowrap`, `overflow-x:auto`, scroll-snap, hidden scrollbar, and
+`justify-content:flex-start` — a CENTERED overflowing strip clips its first pills with no
+way to scroll back to them.
+
+### Bug caught by executing the snippet (would have shipped silently)
+
+`safeUrl()` originally required `^https?://`, which is right for blocking a `javascript:` URL
+in an Airtable cell — but **`photoUrl()` emits a ROOT-RELATIVE url when `PUBLIC_BASE_URL` and
+the Vercel env vars are absent (local dev)**, so every logo failed the test and silently fell
+back to the company initial: 0 logos, 15 initials. Now accepts `^https?://` *or* `^/[^/]`
+(still blocks `javascript:`, `data:` and protocol-relative `//evil`). Note a relative URL is
+genuinely broken for a cross-origin embed, which is why the local rig sets
+`PUBLIC_BASE_URL=http://localhost:3000` to reproduce production.
+
+### How the embed was verified (reuse this rig)
+
+- A fake host page with **hostile theme CSS** — global `button{background:#ff00ff;width:100%;
+  text-transform:uppercase;border:4px dashed}`, `a{color:#0f0;text-decoration:underline wavy}`,
+  `img{border-radius:50%;width:100%}`, `h3{text-transform:uppercase;letter-spacing:6px}` —
+  because that is the class of rule that flattened the team pills (30g) and overrode the
+  mailto colour (30f). Served from **:8899 while the feed is on :3000**, so CORS is exercised
+  too. Computed styles after execution: button `rgb(206,15,46)` / white / `none` /
+  `9999px` / auto width, pill white-on-dark with `borderStyle:none` and 36px height, logo
+  `border-radius:0` + `object-fit:contain`, title `text-transform:none`. Every theme rule lost.
+- Tabs were **clicked**, not just rendered: Side Events → 6 cards (one kind), Event Rooms → 9,
+  All → 15 (both). Counts come from the data so they cannot drift from the grid.
+- All 6 option variants transpiled standalone and `new vm.Script()`-parsed.
+
+### The mobile-viewport trap (cost a wrong conclusion mid-session)
+
+`--window-size=420` does **NOT** give a 420px viewport on macOS — Chrome enforces a ~500px
+minimum window width, so `innerWidth` reported **500** while the screenshot captured only the
+left 420px. That looks exactly like horizontal overflow and I briefly called it a bug; it was
+not (`overflowing:[]`, `docScroll == innerWidth`). Same family as 30h's `resize_window`
+failure. **Fix: render inside a `<iframe width="390">`** — an iframe gets its own real
+viewport. Confirmed there: `innerWidth` 390, `docScroll` 390 (no page scroll), one 310px
+column, pills strip actually scrollable, logo panel 21/9, date on its own line.
+
+### Next steps
+1. **Re-copy the embed from the DEPLOYED dashboard** — from localhost it bakes in
+   `http://localhost:3000` and fetches nothing on techbbq.dk.
+2. Still local-only otherwise: branch `partner-events` is pushed but not merged to `main`, and
+   the preview URL is behind Vercel SSO so it cannot serve the embed. **Production is what
+   makes the feed publicly fetchable.**
+
 ## Session 2026-07-31c (NEW: Side Events & Event Rooms page + feed)
 
 State: DONE locally, committed, NOT pushed. `tsc --noEmit` + `npm run build` clean, all 15

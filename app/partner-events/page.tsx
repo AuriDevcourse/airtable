@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { useCachedList } from "@/lib/useCachedList";
+import { CopyEventEmbed } from "@/components/CopyEventEmbed";
 
 // One card per partner-hosted event: Side Events in red, Event Rooms in blue.
 // Fed by /api/partner-events — see lib/partnerevents.ts for why that lib addresses
@@ -46,7 +47,7 @@ function lightTint(hex: string, amount: number): string {
 const FILTERS = [
   { key: "all", label: "All events", color: null },
   { key: "side-event", label: "Side Events", color: "#CE0F2E" },
-  { key: "event-room", label: "Event Rooms", color: "#2BB4E1" },
+  { key: "event-room", label: "Event Rooms", color: "#1B6CA8" },
 ] as const;
 
 function EventCard({ ev }: { ev: PartnerEvent }) {
@@ -110,19 +111,6 @@ function EventCard({ ev }: { ev: PartnerEvent }) {
           <div className="ev-card__cta">
             <a href={ev.registerUrl} target="_blank" rel="noopener noreferrer">
               Register
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M7 17 17 7M10 7h7v7" />
-              </svg>
             </a>
           </div>
         )}
@@ -169,10 +157,30 @@ export default function PartnerEventsPage() {
           </h1>
           <p className="lede">
             Live from Airtable · <span style={{ color: "#CE0F2E" }}>red = Side Event</span>,{" "}
-            <span style={{ color: "#2BB4E1" }}>blue = Event Room</span> · served as JSON at{" "}
+            <span style={{ color: "#1B6CA8" }}>blue = Event Room</span> · served as JSON at{" "}
             <code>/api/partner-events</code> (add <code>?kind=side-event</code> or{" "}
             <code>?kind=event-room</code>).
           </p>
+
+          {/* Three snippets: the combined grid with its own centered tabs, plus one per
+              kind for pages that only want Side Events or only Event Rooms (those pass
+              kindTabs={false} — a single-kind list has nothing to filter). */}
+          <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <CopyEventEmbed path="/api/partner-events" label="Copy embed (all + tabs)" />
+            <CopyEventEmbed
+              path="/api/partner-events?kind=side-event"
+              kindTabs={false}
+              label="Copy embed (Side Events)"
+            />
+            <CopyEventEmbed
+              path="/api/partner-events?kind=event-room"
+              kindTabs={false}
+              label="Copy embed (Event Rooms)"
+            />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Copy from the deployed dashboard, not localhost.
+            </span>
+          </div>
         </div>
       </section>
 
@@ -200,7 +208,8 @@ export default function PartnerEventsPage() {
               ))}
             </div>
 
-            <p className="count-line" style={{ marginTop: 16 }}>
+            {/* Centered to sit under the centered tabs. */}
+            <p className="count-line" style={{ marginTop: 16, textAlign: "center" }}>
               {events.length} event(s).
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}

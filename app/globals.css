@@ -932,8 +932,30 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .ev-card__cta a:hover { filter: brightness(1.12); }
 .ev-card__cta a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-/* Kind filter above the grid. Mirrors the department pills on /team. */
-.ev-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+/* Kind filter above the grid, CENTERED. Mirrors the department pills on /team. */
+.ev-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+/* Mobile: one swipeable line rather than a wrapped block, and justify-content MUST go back
+   to flex-start — a centered overflowing strip clips its first pills with no way to scroll
+   back to them (learned on the team embed, session 30h). */
+@media (max-width: 600px) {
+  .ev-tabs {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ev-tabs::-webkit-scrollbar { display: none; }
+  .ev-tabs button { flex: 0 0 auto; scroll-snap-align: start; }
+}
 .ev-tabs button {
   padding: 8px 16px;
   border-radius: 9999px;

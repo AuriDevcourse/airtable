@@ -59,9 +59,14 @@ const SAFE_FIELD_IDS = Object.values(FIELDS);
 // (Auri's rule). "Bridge Event" is a real third option in the select with zero rows in
 // this view today; it is neither of the two this page is about, so it is filtered out
 // rather than guessed a colour for. Add it here if it should start showing.
+// Blue is #1B6CA8, chosen to MATCH the red on both contrast axes rather than by eye:
+// 5.59:1 against white (red is 5.63) so the Register button's white label is legible, and
+// 3.32:1 against the #131313 card (red is 3.30) so the badge reads the same as the red one.
+// The earlier #2BB4E1 was only 2.41:1 on white — white button text on it failed outright.
+// Do NOT reuse lib/lifescience.ts's #2BB4E1; that is the Deep Tech stage colour.
 const KINDS = {
   "Side Event": { kind: "side-event", label: "Side Event", color: "#CE0F2E" },
-  "Event Room at TechBBQ": { kind: "event-room", label: "Event Room", color: "#2BB4E1" },
+  "Event Room at TechBBQ": { kind: "event-room", label: "Event Room", color: "#1B6CA8" },
 } as const;
 
 // Event type → the access badge. Airtable offers exactly two options, so "private" and
