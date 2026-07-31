@@ -38,8 +38,16 @@ function unauthorized(): NextResponse {
   });
 }
 
+// The photo proxy is the one prefix exception: /api/photo/<feed>/<recordId> is a
+// dynamic route, so it can't be listed exactly. The trailing slash keeps it from
+// shadowing any future sibling ("/api/photos"), and the route itself rejects
+// anything that isn't a registered feed + well-formed record id.
+const PUBLIC_PREFIXES = ["/api/photo/"];
+
 export function middleware(req: NextRequest) {
-  if (PUBLIC_PATHS.has(req.nextUrl.pathname)) return NextResponse.next();
+  const { pathname } = req.nextUrl;
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
   const expected = process.env.DASHBOARD_PASSWORD;
 

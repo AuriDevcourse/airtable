@@ -10,6 +10,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
+import { photoUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
 
@@ -94,7 +95,8 @@ export async function fetchFintechSpeakers(): Promise<FintechSpeaker[]> {
         name,
         title: str(f["Job title"]),
         company: str(f["Company Name"]),
-        photo,
+        // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
+        photo: photoUrl("fintech", rec.id),
         linkedin: normalizeLinkedInUrl(f["LinkedIn"]),
         hierarchy: Number.isFinite(rankNum) ? rankNum : null,
       });

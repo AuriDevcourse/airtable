@@ -7,6 +7,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
+import { photoUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
 
@@ -92,7 +93,8 @@ function mapRecord(rec: AirtableRecord): InvestorSpeaker {
     name: str(f["Full Name"]),
     title: str(f["Job Title"]),
     company: str(f["Company"]),
-    photo: firstPhoto(f["Profile Picture"]),
+    // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
+    photo: firstPhoto(f["Profile Picture"]) ? photoUrl("marketing", rec.id) : null,
     linkedin: linkedinUrl(f["Link to LinkedIn"], f["LinkedIn Handle"]),
     event: eventKey(str(f["Project Name"])),
     hierarchy: num(f["Hierarchy"]),

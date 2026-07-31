@@ -6,6 +6,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
+import { photoUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
 
@@ -63,7 +64,8 @@ function mapRecord(rec: AirtableRecord): NassPerson {
     // Free-text field — normalized (www./scheme-less/mobile variants) or dropped.
     linkedin: normalizeLinkedInUrl(f["LinkedIn profile"]),
     role: str(f["Speaker or Moderator"]),
-    photo: firstPhoto(f["Headshots"]),
+    // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
+    photo: firstPhoto(f["Headshots"]) ? photoUrl("nass", rec.id) : null,
   };
 }
 

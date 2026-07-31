@@ -12,6 +12,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
+import { photoUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
 
@@ -271,7 +272,9 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
         name,
         title,
         company,
-        photo,
+        // Stable proxy URL pinned to this slot's photo field via the index (?f=i) —
+        // raw signed attachment URLs expire in ~2h (lib/photo.ts).
+        photo: photoUrl("event-rooms", rec.id, i),
         linkedin: null,
         host,
         room: roomFor(name, host),
@@ -293,7 +296,8 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       name,
       title: str(f["Presenters Position in the Company"]),
       company: str(f["Presenters Company"]),
-      photo,
+      // Overflow rows keep their photo in the 6th registered field (index 5).
+      photo: photoUrl("event-rooms", rec.id, 5),
       linkedin: normalizeLinkedInUrl(f["LinkedIn Handle"]),
       host,
       room: roomFor(name, host),
