@@ -5,6 +5,7 @@ import { fetchNass, NassPerson } from "@/lib/nass";
 import { fetchEventRoomPresenters, EventRoomPresenter } from "@/lib/eventrooms";
 import { fetchInvestors, InvestorSpeaker } from "@/lib/investors";
 import { rateLimit, cached } from "@/lib/rate-limit";
+import { FEED_CACHE_CONTROL, clientIp, corsPreflight, tooManyRequests, withCors } from "@/lib/apiRoute";
 
 // Combined feed for the tabbed "All Speakers 2026" embed: one fetch returns all three
 // groups so the embed's tab switcher works without extra round-trips.
@@ -18,20 +19,7 @@ export const dynamic = "force-dynamic";
 // The hub + wide Marketing-table scans each carry their own timeout + retry.
 export const maxDuration = 30;
 
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
-
-function withCors(res: NextResponse): NextResponse {
-  res.headers.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-  res.headers.set("Vary", "Origin");
-  return res;
-}
-
-export function OPTIONS() {
-  const res = new NextResponse(null, { status: 204 });
-  res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-  res.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  return withCors(res);
-}
+export const OPTIONS = corsPreflight;
 
 type Tagged<T> = T & { tag?: string };
 
@@ -44,17 +32,10 @@ const INVESTOR_TAGS: Record<string, string> = {
 };
 
 export async function GET(req: NextRequest) {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = clientIp(req);
 
   const limit = rateLimit(ip);
-  if (!limit.ok) {
-    const res = NextResponse.json({ error: "Too many requests. Try again shortly." }, { status: 429 });
-    res.headers.set("Retry-After", String(limit.retryAfter));
-    return withCors(res);
-  }
+  if (!limit.ok) return tooManyRequests(limit.retryAfter);
 
   // One failed source shouldn't blank the whole embed: each group degrades to [] on its
   // own (cached() already serves last-good first), and only all-dead is an error.
@@ -113,6 +94,6 @@ export async function GET(req: NextRequest) {
     },
     { status: 200 }
   );
-  res.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+  res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
   return withCors(res);
 }

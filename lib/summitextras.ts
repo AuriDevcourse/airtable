@@ -10,8 +10,8 @@
 // Publish rule matches the rest of the connector: no name or no photo, no card.
 
 import { fetchWithTimeout } from "@/lib/http";
-import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, linkedinUrl, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -45,26 +45,7 @@ export type SummitExtra = {
   role: string;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
-
-function linkedinUrl(...vals: unknown[]): string | null {
-  for (const v of vals) {
-    const s = normalizeLinkedInUrl(v);
-    if (s) return s;
-  }
-  return null;
-}
 
 async function fetchOnce(token: string, base: string): Promise<SummitExtra[]> {
   const out: SummitExtra[] = [];

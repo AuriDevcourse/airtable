@@ -11,6 +11,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession } from "@/lib/program";
+import { str } from "@/lib/fields";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -54,10 +55,6 @@ type Resource = {
   attributes: Record<string, unknown>;
   relationships?: Record<string, Rel>;
 };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
 
 // Brella's own admin decorates track and tag names with emoji ("⭐ Founders Stage"). Those
 // are labels on techbbq.dk once published, and emoji are not UI elements here, so they are

@@ -10,8 +10,8 @@
 // and holds unrelated internal project data; none of it is read here.
 
 import { fetchWithTimeout } from "@/lib/http";
-import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, linkedinUrl, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -48,28 +48,10 @@ export type MainSpeaker = {
   hierarchy: number | null;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 // First value that normalizes to a working LinkedIn URL wins (handles www./scheme-less/
 // mobile variants; a bare non-URL handle still never renders as a broken href).
-function linkedinUrl(...vals: unknown[]): string | null {
-  for (const v of vals) {
-    const s = normalizeLinkedInUrl(v);
-    if (s) return s;
-  }
-  return null;
-}
 
 function mapRecord(rec: AirtableRecord): MainSpeaker {
   const f = rec.fields;

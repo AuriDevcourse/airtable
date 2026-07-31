@@ -15,6 +15,7 @@ import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { fetchHierarchyMap, isPlaceholderBio, normName } from "@/lib/hierarchy";
 import { fetchSummitExtras } from "@/lib/summitextras";
 import { cached } from "@/lib/rate-limit";
+import { str } from "@/lib/fields";
 
 const URL_BASE = process.env.SPEAKERHUB_SUPABASE_URL;
 const ANON_KEY = process.env.SPEAKERHUB_SUPABASE_ANON_KEY;
@@ -59,10 +60,6 @@ type Row = {
   location: string | null;
   ecosystem_role: string | null;
 };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
 
 function mapRow(r: Row): HubSpeaker {
   return {
