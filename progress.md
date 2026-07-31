@@ -4,6 +4,44 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31 (Photo proxy: fix every embed's 410ing images)
+
+State: DONE. Commit `95a213c` pushed, deployed, and verified in production (one photo per
+feed streams 200 + real bytes from airtable-woad.vercel.app).
+
+**Why every photo on techbbq.dk broke:** Airtable attachment URLs (airtableusercontent.com)
+are SIGNED and die with **410 Gone ~2h after issue**. The feeds' JSON is cached (1h memory +
+`s-maxage=3600` + `stale-while-revalidate=86400`), so the raw URLs routinely outlived their
+signature — worst case the CDN served day-old JSON pointing at long-dead images.
+
+**Fix:** feeds now emit a stable proxy URL instead of the raw attachment URL:
+
+- `lib/photo.ts` — `PHOTO_SOURCES` registry (feed key → table + attachment fields, priority
+  order) + `photoUrl(feed, recId, fieldIndex?)`. Resolves fresh signed URLs on demand via the
+  LIST endpoint + `RECORD_ID()` filter so the `fields[]` allow-list applies (single-record GET
+  can't restrict fields — would pull PII onto the server). Signed-URL lookups cached 45 min
+  (well inside the 2h window).
+- `app/api/photo/[feed]/[id]/route.ts` — streams the bytes. On upstream 410/403 it
+  invalidates + re-resolves once. `Cache-Control: max-age=86400, s-maxage=604800, swr=30d`.
+  Rejects unknown feeds, malformed record ids (`^rec[A-Za-z0-9]{14}$`), bad `?f=` → 404.
+- All 11 Airtable-backed libs emit `photoUrl(...)` (presence still checked via `firstPhoto`).
+  Event-room slot photos pin their exact field with `?f=<index>` (slots 0–4, overflow = 5).
+- `middleware.ts` — `/api/photo/` added as the one PUBLIC **prefix** (dynamic route can't be
+  an exact path; trailing slash keeps it from shadowing future siblings).
+
+### Gotchas
+- **Base URL**: `photoUrl` builds absolute URLs from `PUBLIC_BASE_URL` →
+  `VERCEL_PROJECT_PRODUCTION_URL`/`VERCEL_URL` → relative (local dev). WordPress consumes the
+  JSON cross-origin, so absolute matters; on a future custom domain set `PUBLIC_BASE_URL`.
+- **Supabase photos were never the problem**: speakers-2026/all-speakers hub photos are
+  `/storage/v1/object/public/` — permanent, left untouched. Only 2 of 181 rows there (the
+  summit-extras people) go through the proxy.
+- **Photo swaps take up to a day** to show (browser 1d, CDN 7d with background refresh).
+  A redeploy clears the CDN instantly if it matters for a launch.
+- `lib/sync.ts` is unaffected: it only uploads Supabase-hosted (http) photo URLs, and
+  summit-extras people already exist in the marketing table so they're never re-uploaded.
+- WordPress needed NO changes — embeds render whatever `photo` URL the JSON carries.
+
 ## Session 2026-07-30i (Life Science: stage labels + always-random order)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean, verified on the page AND in the executed
