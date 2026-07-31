@@ -797,3 +797,267 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 @media (prefers-reduced-motion: reduce) {
   .modal, .modal__panel { animation: none; }
 }
+
+/* ---- Partner events: Side Events (red) + Event Rooms (blue) ---- */
+/* Each card sets --kind (the type's colour) and --kind-soft (a tint of it) inline, so
+   one set of rules covers both kinds — see app/partner-events/page.tsx. */
+.ev-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+@media (max-width: 1100px) { .ev-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .ev-grid { grid-template-columns: 1fr; } }
+
+/* Matches .s-card (the speaker cards on every other page): flat dark frame, 8px padding,
+   and a diagonal glow that fades in on hover behind the text band. Differences from the
+   earlier version of this card, for house consistency: a uniform 1px border instead of a
+   3px coloured left spine, and no translateY lift — .s-card only fades its glow. */
+.ev-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 8px;
+  overflow: hidden;
+  transition: border-color 0.25s ease;
+}
+/* Hover glow, same construction as .s-card::after: anchored to the whole card and pushed
+   past the 8px padding (inset:-8px) so it reaches the real bottom edge. The two colour
+   stops come from --glow-a / --glow-b, set per card so a Side Event glows red->orange (the
+   site's fire gradient) and an Event Room blue->cyan. */
+.ev-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  background: linear-gradient(
+    115deg,
+    rgba(0,0,0,0.95) 0%,
+    var(--glow-a) 26%,
+    var(--glow-b) 48%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.ev-card:hover::after { opacity: 1; }
+.ev-card:hover { border-color: var(--kind); }
+
+/* Logo sits CONTAINED on a LIGHT tint of the kind colour, never cropped: these are
+   wordmarks with their own transparent padding, so object-fit:cover would slice them
+   mid-word, and a DARK panel hid every dark-on-transparent logo (most of them). */
+.ev-card__media {
+  position: relative;
+  z-index: 1; /* keep the logo above the hover glow, so the glow stays in the bottom band */
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--kind-panel);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.ev-card__logo {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto; height: auto;
+  object-fit: contain;
+  display: block;
+  /* Logo polarity is not knowable from the data — partners upload both dark-on-transparent
+     (most of them) and white-on-transparent (Creative Business Network, Closing Loops).
+     A light panel suits the majority; this hairline shadow traces the glyph edges so a
+     WHITE logo is still discernible on it, while on a dark logo it just reads as depth.
+     It is a mitigation, not a fix: a white logo still wants a swap in Airtable. */
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.45));
+}
+/* No logo on the row (1 of 15 today): the tinted panel carries the company initial
+   rather than leaving an empty rectangle. */
+.ev-card__logo--empty {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--kind);
+  letter-spacing: -0.02em;
+}
+
+/* position+z-index so the text paints ABOVE the hover glow while the glow still shows
+   through the transparent gaps around it — the same trick .s-card__name/__meta use. */
+.ev-card__body {
+  position: relative;
+  z-index: 1;
+  padding: 14px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* Kind + access + date on one wrapping meta row above the title. */
+.ev-card__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ev-card__kind {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: var(--kind-soft);
+  color: var(--kind);
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ev-card__kind::before {
+  content: ""; width: 5px; height: 5px; border-radius: 9999px; background: currentColor;
+}
+/* Access is intentionally NOT in the kind colour — it is a different axis (who may
+   attend), and colouring it red/blue too would read as another type badge. */
+.ev-card__access {
+  padding: 3px 9px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card-2);
+  color: var(--color-muted);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.ev-card__access--private { color: var(--color-amber); border-color: rgba(253,157,4,0.35); }
+
+.ev-card__date {
+  margin-left: auto;
+  color: var(--color-foreground);
+  font-size: 12px; font-weight: 600;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+.ev-card__date--none { color: var(--color-muted); font-weight: 500; font-style: italic; }
+
+/* text-shadow for the same reason .s-card__name/__meta carry one: on hover this text sits
+   over the bright part of the glow, and the shadow keeps it legible. */
+.ev-card__title {
+  margin: 10px 0 0;
+  font-size: 16px; line-height: 1.25; color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+.ev-card__company {
+  margin: 5px 0 0; color: var(--color-muted); font-size: 13px;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
+
+/* Clamped to 3 lines rather than truncated in the feed: two descriptions run past 400
+   chars, and the full text stays available to any other consumer of the JSON. */
+.ev-card__desc {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,0.78);
+  font-size: 13px; line-height: 1.5;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Pushed to the bottom so cards with and without a description line their buttons up. */
+.ev-card__cta {
+  margin-top: auto; padding-top: 14px;
+}
+.ev-card__cta a {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  background: var(--kind);
+  color: #fff;
+  font-size: 13px; font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.18s;
+}
+.ev-card__cta a:hover { filter: brightness(1.12); }
+.ev-card__cta a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Kind filter above the grid, CENTERED. Mirrors the department pills on /team. */
+.ev-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+/* Mobile: one swipeable line rather than a wrapped block, and justify-content MUST go back
+   to flex-start — a centered overflowing strip clips its first pills with no way to scroll
+   back to them (learned on the team embed, session 30h). */
+@media (max-width: 600px) {
+  .ev-tabs {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ev-tabs::-webkit-scrollbar { display: none; }
+  .ev-tabs button { flex: 0 0 auto; scroll-snap-align: start; }
+}
+.ev-tabs button {
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-muted);
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.ev-tabs button:hover { background: var(--color-card-2); color: var(--color-foreground); }
+/* Selected pill takes that KIND's colour, with white text. */
+.ev-tabs button[aria-pressed="true"] {
+  background: var(--tab-color, var(--color-foreground));
+  border-color: var(--tab-color, var(--color-foreground));
+  color: #fff;
+}
+/* The "All" pill has NO --tab-color, so its background falls back to the light
+   --color-foreground — which made white-on-white, unreadable. It needs dark ink instead.
+   Must come after the rule above. The embed's snippet has the same [data-k="all"] carve-out. */
+.ev-tabs button[aria-pressed="true"][data-k="all"] {
+  background: var(--color-foreground);
+  border-color: var(--color-foreground);
+  color: var(--color-ink);
+}
+.ev-tabs button:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+
+/* ---- "Still missing from Airtable" panel on /partner-events ---- */
+/* Dashboard-only, deliberately NOT in the embed snippet: it is a note to the TechBBQ team
+   about source-data gaps, not something techbbq.dk visitors should read. */
+.ev-gaps {
+  margin-top: 28px;
+  border: 1px solid rgba(253, 157, 4, 0.3);
+  border-left: 3px solid var(--color-amber);
+  border-radius: var(--radius-lg);
+  background: rgba(253, 157, 4, 0.06);
+  padding: 16px 18px;
+}
+.ev-gaps h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-amber);
+}
+.ev-gaps ul { margin: 10px 0 0; padding: 0 0 0 18px; }
+.ev-gaps li {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+.ev-gaps li strong { color: #fff; font-weight: 600; }
+.ev-gaps li code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ev-gaps__foot {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

@@ -4,6 +4,266 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31f (Event cards restyled to match the house .s-card look)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. Verified
+over CDP with **real mouse events** on both the page and the executed embed.
+
+Auri's ask: make the event cards look like the other TechBBQ pages — **1px border**, and on
+hover the kind's colour as a **glow in the bottom of the card background**.
+
+**What changed, mirroring `.s-card`:**
+- Uniform **1px** border (`--color-border`), replacing the 3px coloured left spine. Border
+  turns the kind colour on hover.
+- **No `translateY` lift** — `.s-card` only fades its glow in, so the lift is gone.
+- `.ev-card::after` glow, same construction as `.s-card::after`: `inset:-8px` (pushes past
+  the card's own 8px padding so it reaches the real bottom edge), `opacity 0 -> 1` on hover,
+  `linear-gradient(115deg, black .95, --glow-a .92, --glow-b .6, transparent 72%)`.
+- Glow stops per kind: a Side Event reuses the site's **exact fire pairing**
+  `#CE0F2E -> #FA7000`; an Event Room mirrors it in blue `#1B6CA8 -> #2BB4E1`, the way the
+  Life Science cards use cyan -> teal. Note `#2BB4E1` (the rejected old blue) earns its keep
+  here as the lighter second stop.
+- `z-index:1` on `.ev-card__media` and `.ev-card__body`, so the logo and text paint ABOVE the
+  glow and the glow stays in the bottom band — the same layering `.s-card__media` /
+  `.s-card__name` use.
+- `text-shadow: 0 1px 6px rgba(0,0,0,.5)` on title/company/desc/date, copied from
+  `.s-card__name`/`__meta`, because that text now sits over the bright part of the glow.
+All of it applied to **both** the React page and `lib/eventEmbedSnippet.ts`.
+
+### Two bugs the glow exposed, both caught by rendering + reading computed styles
+
+1. **The kind badge disappeared on hover.** Its background was `rgba(kind, .14)` — a
+   TRANSLUCENT tint — so once the red glow lit up behind it, red text on see-through red
+   became invisible. The neighbouring "PUBLIC" badge survived only because its background is
+   solid. Fix: a `mix()` helper that blends the kind colour into a solid `#131313` and returns
+   an **opaque** `rgb()`. Rule of thumb: anything stacked above the glow needs an opaque
+   background. (`lightTint` now delegates to the same helper with a white base.)
+2. **The embed's company + description rendered in the host theme's Georgia serif.** Those are
+   `<p>` elements and never set `font-family`; a theme rule targeting bare `p` **beats the
+   section's inherited font**, so `font-family:var(--sans)!important` on `.tbbq-events` did
+   nothing for them. Every other element already set a font explicitly, which is why only
+   those two were wrong. Fixed on `__company`, `__desc`, `__loading`, `__empty`.
+   Confirmed: those now compute to Inter while the host page's own `h1` stays Georgia.
+
+### Gotcha: no backticks in the snippet's CSS comments
+A comment reading ``bare `p` element`` inside the builder's **template literal** terminated the
+string and broke the build (TS1005 at the next line). The whole CSS/JS block is one template
+literal — comments in it must avoid backticks and `${`.
+
+### CDP hover-testing notes (both cost a wrong reading first)
+- `Runtime.evaluate` with `awaitPromise` still raced the React render; poll from **Node**
+  (`for(...){ if(await ev('document.querySelectorAll(...).length')) break; }`) instead of
+  awaiting an in-page wait loop.
+- **`scrollIntoView` before dispatching the mouse move.** A card below the fold yields
+  coordinates outside the viewport, so `:hover` never fires and the glow reads as broken —
+  which it did, showing `opacity:0` on a correctly-built gradient.
+
+## Session 2026-07-31e (All-pill white-on-white fix + missing-data panel)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` clean.
+
+**1. The "All events" pill was white text on a white background** (Auri spotted it). The rule
+`.ev-tabs button[aria-pressed="true"]{background:var(--tab-color,var(--color-foreground));
+color:#fff}` gives each selected pill its KIND colour — but the All pill has **no
+`--tab-color`**, so the fallback resolved to the light `--color-foreground` (#f2f2f2) while
+the text stayed #fff. Fixed with a `[data-k="all"]` carve-out that uses `--color-ink`
+instead, plus `data-k` on the button. **The embed snippet already had exactly this
+carve-out** — only the React page was missing it, which is the argument for keeping the two
+pill styles in step whenever either changes.
+Verified over **CDP** (not a screenshot): selected All = `rgb(13,13,13)` on `rgb(242,242,242)`,
+Side Events = white on `rgb(206,15,46)`, Event Rooms = white on `rgb(27,108,168)`, cards
+6/9/15.
+
+**2. `.ev-gaps` panel at the top of the page** listing what the source still lacks — times,
+address (no column at all), category labels, the fused private/invite option, description +
+register on Side Events only, and the 1 dateless / 1 logoless row. Each line names the exact
+Airtable field so it is actionable, and the footer says which gaps self-heal once filled
+versus which need a schema change.
+**Deliberately NOT in the embed snippet:** it is an internal note about Airtable, and
+techbbq.dk visitors must never see it.
+
+### Verification note worth keeping
+Reading computed styles from a page in an **iframe fails cross-origin** — the rig was served
+on :8898 while the page was on :3000, so `contentDocument` was blocked and the probe returned
+nothing. `--dump-dom` also only dumps the TOP document, so iframe content never appears.
+Two ways out, both used here: serve the rig from the app's own origin, or (better, and what
+finally worked) drive the real page over **Chrome DevTools Protocol** — Node 25 has a built-in
+`WebSocket`, so `--remote-debugging-port=9222` + `Runtime.evaluate` needs no dependencies and
+can click and read computed styles on the actual page.
+
+## Session 2026-07-31d (Side Events & Event Rooms: WordPress embed + 3 fixes)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. The
+snippet was verified by **EXECUTING** it inside a deliberately hostile fake-WordPress page
+and reading computed styles — never by string-matching (session 30f's lesson).
+
+**1. `lib/eventEmbedSnippet.ts` + `components/CopyEventEmbed.tsx` — the embed Auri asked
+about.** A SEPARATE builder from `lib/embedSnippet.ts` on purpose: that one renders a
+*person* (square photo, name, title · company, LinkedIn) and every option on it is about
+people — modal bios, LinkedIn, department pills, per-image focus. An event is a different
+object (contained logo on a coloured panel, type badge, access badge, date, clamped blurb,
+Register button). Bending one builder to do both means a second set of mutually exclusive
+branches through code that already carries tab mode. Conventions are kept identical:
+`__ORIGIN__` swap at copy time, `#id`-scoped + `!important` on every property a theme
+touches, and the `r.ok` check so a 429/502 says "Could not load right now." instead of
+announcing an empty roster.
+Three buttons on the page: all-with-tabs, Side Events only, Event Rooms only (the
+single-kind ones pass `kindTabs={false}` — nothing to filter).
+
+**2. Arrow removed** from the Register button, page and embed.
+
+**3. Darker blue: `#2BB4E1` → `#1B6CA8`.** Chosen by measuring, not by eye — it MATCHES the
+red on both contrast axes: **5.59:1 on white** (red is 5.63) so the button's white label is
+legible, and **3.32:1 on the #131313 card** (red is 3.30) so the badge reads the same as the
+red one. The old `#2BB4E1` was only **2.41:1 against white** — white button text on it failed
+outright. One shade serves both roles, so no companion tint was needed.
+**Do not "unify" this with `lib/lifescience.ts`, which still uses `#2BB4E1`** — that is the
+Deep Tech Event Day stage colour and is unrelated.
+
+**4. Tabs centered on the page too** (`.ev-tabs`), matching the embed, with the count line
+centered under them. Mobile gets the same one-swipeable-line treatment as the team embed:
+`flex-wrap:nowrap`, `overflow-x:auto`, scroll-snap, hidden scrollbar, and
+`justify-content:flex-start` — a CENTERED overflowing strip clips its first pills with no
+way to scroll back to them.
+
+### Bug caught by executing the snippet (would have shipped silently)
+
+`safeUrl()` originally required `^https?://`, which is right for blocking a `javascript:` URL
+in an Airtable cell — but **`photoUrl()` emits a ROOT-RELATIVE url when `PUBLIC_BASE_URL` and
+the Vercel env vars are absent (local dev)**, so every logo failed the test and silently fell
+back to the company initial: 0 logos, 15 initials. Now accepts `^https?://` *or* `^/[^/]`
+(still blocks `javascript:`, `data:` and protocol-relative `//evil`). Note a relative URL is
+genuinely broken for a cross-origin embed, which is why the local rig sets
+`PUBLIC_BASE_URL=http://localhost:3000` to reproduce production.
+
+### How the embed was verified (reuse this rig)
+
+- A fake host page with **hostile theme CSS** — global `button{background:#ff00ff;width:100%;
+  text-transform:uppercase;border:4px dashed}`, `a{color:#0f0;text-decoration:underline wavy}`,
+  `img{border-radius:50%;width:100%}`, `h3{text-transform:uppercase;letter-spacing:6px}` —
+  because that is the class of rule that flattened the team pills (30g) and overrode the
+  mailto colour (30f). Served from **:8899 while the feed is on :3000**, so CORS is exercised
+  too. Computed styles after execution: button `rgb(206,15,46)` / white / `none` /
+  `9999px` / auto width, pill white-on-dark with `borderStyle:none` and 36px height, logo
+  `border-radius:0` + `object-fit:contain`, title `text-transform:none`. Every theme rule lost.
+- Tabs were **clicked**, not just rendered: Side Events → 6 cards (one kind), Event Rooms → 9,
+  All → 15 (both). Counts come from the data so they cannot drift from the grid.
+- All 6 option variants transpiled standalone and `new vm.Script()`-parsed.
+
+### The mobile-viewport trap (cost a wrong conclusion mid-session)
+
+`--window-size=420` does **NOT** give a 420px viewport on macOS — Chrome enforces a ~500px
+minimum window width, so `innerWidth` reported **500** while the screenshot captured only the
+left 420px. That looks exactly like horizontal overflow and I briefly called it a bug; it was
+not (`overflowing:[]`, `docScroll == innerWidth`). Same family as 30h's `resize_window`
+failure. **Fix: render inside a `<iframe width="390">`** — an iframe gets its own real
+viewport. Confirmed there: `innerWidth` 390, `docScroll` 390 (no page scroll), one 310px
+column, pills strip actually scrollable, logo panel 21/9, date on its own line.
+
+### Next steps
+1. **Re-copy the embed from the DEPLOYED dashboard** — from localhost it bakes in
+   `http://localhost:3000` and fetches nothing on techbbq.dk.
+2. Still local-only otherwise: branch `partner-events` is pushed but not merged to `main`, and
+   the preview URL is behind Vercel SSO so it cannot serve the embed. **Production is what
+   makes the feed publicly fetchable.**
+
+## Session 2026-07-31c (NEW: Side Events & Event Rooms page + feed)
+
+State: DONE locally, committed, NOT pushed. `tsc --noEmit` + `npm run build` clean, all 15
+cards verified in a real rendered browser DOM (headless Chrome `--dump-dom`, not string
+matching). Auri's scope call: **build with only what has data** — no time, label or address
+support in the code at all until the source has them.
+
+**New files:** `lib/partnerevents.ts`, `app/api/partner-events/route.ts`,
+`app/partner-events/page.tsx`. Plus a `partner-events` entry in `PHOTO_SOURCES`
+(`Company Logo`), `/api/partner-events` in middleware's `PUBLIC_PATHS`, a TopNav entry
+under Program & internal, and an `.ev-*` block at the end of `globals.css`.
+
+One entry per EVENT, red for Side Events (`#CE0F2E`), blue for Event Rooms (`#2BB4E1`).
+Same table AND view as `lib/eventrooms.ts` but a different grain — that lib returns one
+entry per PRESENTER. Kept separate on purpose; merging would make one shape carry the
+other's nulls.
+
+### The trap that dictated this lib's design: THREE fields named `Date of Event `
+
+Partnership Success has three columns literally named `Date of Event ` (identical, trailing
+space included) plus a fourth `Date of Event` without the space. Consequences:
+
+- **`fields[]=Date of Event ` fails the WHOLE request** with Airtable's
+  `AMBIGUOUS_FIELD_NAMES`. This repo's allow-list pattern is therefore *impossible* by
+  name here — it is a hard API error, not a style preference.
+- So this lib is the first to address fields **by ID** with `returnFieldsByFieldId=true`.
+  Field IDs also survive the trailing-space renames that bite this base constantly
+  (`Hierarchy `, `Role `, `Which LS DT stage? `). IDs are in the `FIELDS` map.
+- **The date is genuinely SPLIT across two of the three twins**: 13 rows in
+  `fld5S7DvQz7C09BNm`, 3 in `fldDUuXRNZ8nIjTo3`, 1 row has both (they agree). Reading
+  either alone loses rows, so both are requested and coalesced primary-first.
+- A by-NAME read happens to return the right value today only because Airtable omits blank
+  fields, so the single populated twin lands under the shared key. Do not rely on it: two
+  differing values in two same-named columns would silently pick one.
+
+### 19 rows in the view → 15 events
+
+- 3 rows have no `Session Title` (empty form starts) — dropped.
+- 1 true duplicate: Nordic IPO has two rows for 2026-08-26 (partner resubmitted; the newer
+  row also carries the fuller company name). Dedupe key is **title + date**, and the date
+  belongs in the key: Creative Business Cup runs on BOTH 08-26 and 08-27 and those are two
+  real events. Winner = richest row (description/register/logo/access), tie → newest.
+- Result: 9 Event Rooms + 6 Side Events. Sorted by date, undated last, then title.
+
+### What the source cannot give (asked for, deliberately absent)
+
+1. **Times.** `Time slot` is populated on 11 rows table-wide but ZERO of these 19 (those are
+   Grill sessions). `Start date` (dateTime) is empty on every row in the table.
+2. **Address.** No such column exists — all 128 field names checked for
+   addr/location/venue/street/city.
+3. **Category labels.** `Key Topics/Industries` is a multi-select with the right options and
+   57 rows filled table-wide, but zero on these 19.
+4. **Private vs invitation-only cannot be separated.** `Event type` offers exactly two
+   options: `Public Event` and `Private Event (invite only)` — those two states are fused in
+   the source. A third select option is the only fix; only the `ACCESS` map would change.
+5. Description + register link exist **only on the 6 Side Events**, never on the 13 Event
+   Rooms. A clean split, not random gaps.
+6. `Type of Event` has a third option, **`Bridge Event`** (0 rows here). Filtered out rather
+   than guessed a colour for — add to `KINDS` if it should show.
+
+### Logo panel: the polarity problem (settled empirically, in that order)
+
+Partners upload BOTH dark-on-transparent and white-on-transparent logos, and nothing in the
+data says which. Verified by rendering, not reasoning:
+1. Dark tinted panel (first attempt) → Rockstart, advores, OMR Reviews were invisible.
+2. **Light** tint of the kind colour (`lightTint(hex, 0.1)`) → those read, but Creative
+   Business Network and the Closing Loops/EU row (white logos) washed out.
+3. Kept the light panel (it suits the clear majority) + a `drop-shadow(0 0 1px rgba(0,0,0,.45))`
+   hairline that traces glyph edges, so a white logo is still discernible and a dark one just
+   gains depth. A **mitigation, not a fix** — a white logo still wants an Airtable swap.
+Logos are `object-fit: contain` on purpose: they are wordmarks with their own padding, and
+`cover` slices them mid-word. `--kind-soft` (dark tint) still backs the pills; only the logo
+panel is light.
+
+### Gotchas
+- Verified in **headless Chrome** (`--dump-dom` / `--screenshot`), because the page is a
+  client component: `useCachedList` fetches in an effect, so the SSR HTML is only the hero +
+  "Loading…". A curl of the page can never show a card. The browser extension was not
+  connected this session; `"/Applications/Google Chrome.app/.../Google Chrome" --headless
+  --virtual-time-budget=15000 --dump-dom <url>` needs no dependencies and worked.
+- `source .env.local` breaks under zsh (line 7's unquoted `Website?` glob-expands). Read
+  single vars with `grep '^KEY=' .env.local | cut -d= -f2-` instead.
+- To view a gated page in a browser without triggering a Basic-auth modal (which wedges the
+  Chrome extension), start dev with `DASHBOARD_PASSWORD= ` — middleware falls through when
+  no password is set AND `NODE_ENV=development`.
+- 2 descriptions run past 400 chars, so the card clamps to 3 lines in CSS rather than
+  truncating in the feed — the full text stays available to other JSON consumers.
+
+### Next steps
+1. **No WordPress embed yet.** `lib/embedSnippet.ts` builds speaker-shaped cards only; an
+   event card (date, access badge, register button) needs its own builder. The page and feed
+   are done and `/api/partner-events` is public, so the embed is the remaining piece.
+2. Not pushed — decide whether this goes live before/after the missing Airtable fields.
+3. Ask partnerships to fill `Time slot` + `Key Topics/Industries` on these rows, add an
+   address column, and split `Event type` into three options if private ≠ invite-only.
+   Every one of those appears with a small, isolated change here.
+
 ## Session 2026-07-31b (Codebase audit: bug fixes + de-duplication)
 
 State: DONE, merged to `main` and pushed (`e158882`), production deploy verified.
