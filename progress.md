@@ -4,6 +4,84 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31b (Codebase audit: bug fixes + de-duplication)
+
+State: DONE, uncommitted. `tsc --noEmit` clean, `npm run build` clean, all 17 feed responses
+verified **byte-identical** to pre-change output (A/B'd against the original code fetched at
+the same moment — see "How this was verified" below).
+
+### Bugs fixed
+
+1. **`lib/eventrooms.ts` — `fetchRoomAssignments()` read only the first page.** It set
+   `pageSize=100` and ignored Airtable's `offset`, unlike every other fetch in the repo. The
+   moment marketing assigns a 101st person to an event room, that person silently loses their
+   room label and falls back to the hosting partner's name. Now paginated.
+2. **Embed snippets reported an outage as an empty roster.** `fetch(...).then(r=>r.json())`
+   with no `r.ok` check: a 429 (rate limit) or 502 (Airtable down) still returns valid JSON,
+   just `{error:...}` with no list — which fell through to the empty-list branch, so
+   techbbq.dk announced **"Nobody to show yet."** / **"Program coming soon."** during an
+   outage. Both `lib/embedSnippet.ts` and `lib/agendaSnippet.ts` now throw on `!r.ok` and hit
+   the existing "Could not load right now." path.
+3. **`/api/photo` accepted a bare `?f=`.** `Number("")` is `0`, so `?f=` (and `?f=%20`) passed
+   the `Number.isInteger` check and pinned attachment **field 0** — on `/speakers` that means
+   "Picture" only, silently skipping the "Headshots For marketing?" fallback. Now digits-only.
+4. **`lib/rate-limit.ts` — the per-IP bucket map never evicted.** Unbounded growth keyed by
+   client IP on a long-lived instance. Sweeps expired buckets once a minute, on write.
+5. **`cached()` had no in-flight de-duplication.** N concurrent misses on a cold key each ran
+   the loader; `/api/all-speakers` fans out to five sources at once, which is the easiest way
+   to trip Airtable's 5 req/s limit. Now single-flight, plus a 10s negative cache so an
+   upstream outage isn't hammered by every request.
+6. **`lib/airtable.ts` — dead ternary:** `res.status === 401 || res.status === 403 ? 502 : 502`.
+   Both branches identical. Replaced with a plain 502 + a comment on why the real status is
+   deliberately not echoed.
+7. **`lib/eventrooms.ts` — `roomFromHost()` reverse substring match had no floor.**
+   `key.includes(h)` meant a 1–2 char host would match ("fbv".includes("f")). Floor of 4.
+8. **`lib/photo.ts` — `resolveSignedUrl()` now re-validates the record id** against
+   `^rec[A-Za-z0-9]{14}$` itself. The route already checks it, but the value is interpolated
+   into a `filterByFormula` string and the function is exported — it must not rely on its
+   caller's diligence.
+9. **`lib/team.ts` — a comment on `email` claimed "ONLY populated for the internal, auth-gated
+   feed. Never public."** That is simply wrong and contradicted the file's own SAFE_FIELDS
+   note: `/api/team` IS in middleware's `PUBLIC_PATHS` and the team embed renders these as
+   mailto links on techbbq.dk (deliberate product decision). Corrected, because a future
+   reader trusting it could make a bad security call in either direction.
+10. **`lib/embedSnippet.ts` — the non-tab `fill()` only ever HID the Load-more button**, never
+    re-showed it; re-showing after a department filter relied on the click handler remembering
+    to un-hide it first. Now authoritative both ways, matching tab-mode's `fill()`.
+
+### De-duplication (the "bad code" pass)
+
+Two new modules, no behaviour change:
+
+- **`lib/fields.ts`** — `str` / `num` / `numOrNull` / `firstPhoto` / `firstTag` /
+  `linkedinUrl` / `escFormula`. These were genuinely identical private copies in each feed
+  lib: **15 copies of `str()`, 11 of `firstPhoto()`**. A fix to one (the mobile-LinkedIn
+  normalization was the last) had to be remembered 15 times. Per-feed `mapRecord()` functions
+  stay put — those really do differ per table.
+- **`lib/apiRoute.ts`** — `withCors` / `corsPreflight` / `clientIp` / `tooManyRequests` /
+  `errorResponse` / `FEED_CACHE_CONTROL` / `DAILY_CACHE_CONTROL`. **13 route files** repeated
+  the same CORS block, OPTIONS handler, `x-forwarded-for` dance and 429 body verbatim.
+  Deliberate absentee: **`/api/tito-lookup` uses none of it** — it returns attendee PII, is
+  password-gated and must never grow CORS headers.
+
+### How this was verified (repeat this before trusting a refactor here)
+
+Snapshot all 17 responses (13 feeds + `?role=`, `?department=`, `?event=` variants), make the
+changes, re-fetch, diff. Four feeds differed — so the changes were `git stash`ed, the server
+restarted on the ORIGINAL code, and those four re-fetched: **identical to the new output**.
+The deltas were live Airtable edits during the session (a new investor, a new Life Science
+speaker, a junk event-room row deleted), not regressions. Both snippet builders were also
+transpiled standalone and all 7 option variants `new vm.Script()`-parsed.
+
+### Not changed (deliberate)
+
+- `hierarchy: number` typed as `number` while holding `Infinity` in niss/investors. It's a
+  type lie, but `JSON.stringify(Infinity)` is `null` and every client tests
+  `typeof x.hierarchy === "number"` — so the behaviour is correct and changing it risks the
+  ordering. `numOrNull()` exists in `lib/fields.ts` if this is ever cleaned up.
+- `TITO_API_TOKEN` is absent from `.env.local`, so `/lookup` answers 503 locally. Add the
+  token to test attendee lookup.
+
 ## Session 2026-07-31 (Photo proxy: fix every embed's 410ing images)
 
 State: DONE. Commit `95a213c` pushed, deployed, and verified in production (one photo per

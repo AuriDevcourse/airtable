@@ -29,13 +29,16 @@ export async function GET(
   const { feed, id } = await params;
   if (!PHOTO_SOURCES[feed] || !REC_ID.test(id)) return notFound();
 
+  // Digits only. Number("") and Number(" ") are both 0, so a bare "?f=" used to be
+  // accepted as index 0 — which silently pinned the FIRST attachment field and skipped
+  // the priority-order fallback (on /speakers that means no "Headshots For marketing?"
+  // when "Picture" is empty). An explicit ?f= must name a real slot or 404.
   const rawF = req.nextUrl.searchParams.get("f");
   let fieldIndex: number | undefined;
   if (rawF !== null) {
+    if (!/^\d+$/.test(rawF)) return notFound();
     fieldIndex = Number(rawF);
-    if (!Number.isInteger(fieldIndex) || !PHOTO_SOURCES[feed].fields[fieldIndex]) {
-      return notFound();
-    }
+    if (!PHOTO_SOURCES[feed].fields[fieldIndex]) return notFound();
   }
 
   try {

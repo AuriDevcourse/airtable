@@ -6,6 +6,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -44,18 +45,7 @@ export type Speaker = {
   website: string | null;
 };
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
-
-function str(v: unknown): string {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function firstPhoto(v: unknown): string | null {
-  if (!Array.isArray(v) || v.length === 0) return null;
-  const att = v[0] as AirtableAttachment;
-  return att?.thumbnails?.large?.url || att?.url || null;
-}
 
 function mapRecord(rec: AirtableRecord): Speaker {
   const f = rec.fields;
@@ -106,11 +96,13 @@ export async function fetchSpeakers(): Promise<Speaker[]> {
     );
 
     if (!res.ok) {
-      // Surface a safe status to the caller; full detail stays in server logs.
+      // Surface a safe status to the caller; full detail stays in server logs. Always 502:
+      // whatever Airtable's reason (401 = bad token, 404 = renamed table, 5xx = their
+      // outage), from the browser's point of view this server could not reach its upstream,
+      // and echoing the real status would leak how the backend is configured.
       const detail = await res.text();
       console.error("[airtable] fetch failed", res.status, detail);
-      const status = res.status === 401 || res.status === 403 ? 502 : 502;
-      throw new AirtableError("Could not reach the speaker source.", status);
+      throw new AirtableError("Could not reach the speaker source.", 502);
     }
 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
