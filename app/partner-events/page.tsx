@@ -32,16 +32,25 @@ function tint(hex: string, alpha: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
+// Blend `amount` of the kind colour into a solid base, returning an OPAQUE rgb().
+// Opacity matters: a translucent tint sits over whatever is behind it, and the hover glow
+// is behind these — a red-on-translucent-red badge disappeared entirely once the red glow
+// lit up underneath it. Solid colours are immune.
+function mix(hex: string, amount: number, base: string): string {
+  const c = parseInt(hex.replace("#", ""), 16);
+  const b = parseInt(base.replace("#", ""), 16);
+  const ch = (shift: number) =>
+    Math.round((((b >> shift) & 255) * (1 - amount)) + (((c >> shift) & 255) * amount));
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+
 // The logo panel is a LIGHT tint of the kind colour, not a dark one. Partner logos are
 // almost all dark-on-transparent PNGs (Rockstart, advores, OMR Reviews were invisible on
 // a dark red panel), so the block is mixed toward white instead — still legibly red or
 // blue, but the logos actually read. Caveat: a partner who uploads a WHITE logo will
 // vanish on it; that is a swap in Airtable, not a code fix.
 function lightTint(hex: string, amount: number): string {
-  const h = hex.replace("#", "");
-  const n = parseInt(h, 16);
-  const mix = (c: number) => Math.round(255 * (1 - amount) + c * amount);
-  return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
+  return mix(hex, amount, "#ffffff");
 }
 
 const FILTERS = [
@@ -49,6 +58,16 @@ const FILTERS = [
   { key: "side-event", label: "Side Events", color: "#CE0F2E" },
   { key: "event-room", label: "Event Rooms", color: "#1B6CA8" },
 ] as const;
+
+// Second stop of the hover glow, per kind. The speaker cards fade a diagonal
+// black -> colour -> lighter-colour -> transparent gradient in (.s-card::after), so these
+// keep that shape: a Side Event reuses the site's exact fire pairing (#CE0F2E -> #FA7000),
+// and an Event Room mirrors it in blue (#1B6CA8 -> #2BB4E1) the way the Life Science cards
+// use cyan -> teal.
+const GLOW_SECOND: Record<string, string> = {
+  "side-event": "#FA7000",
+  "event-room": "#2BB4E1",
+};
 
 function EventCard({ ev }: { ev: PartnerEvent }) {
   const [loaded, setLoaded] = useState(false);
@@ -58,10 +77,13 @@ function EventCard({ ev }: { ev: PartnerEvent }) {
       style={
         {
           "--kind": ev.color,
-          // Badge/pill background stays a dark tint (it sits on the card, not behind a
-          // logo); only the logo panel goes light.
-          "--kind-soft": tint(ev.color, 0.14),
+          // Solid, NOT rgba: this backs the kind badge, which sits above the hover glow.
+          // As a translucent tint the badge's red text vanished into the red glow.
+          "--kind-soft": mix(ev.color, 0.18, "#131313"),
           "--kind-panel": lightTint(ev.color, 0.1),
+          // Same alphas as .s-card::after: .92 on the first stop, .6 on the second.
+          "--glow-a": tint(ev.color, 0.92),
+          "--glow-b": tint(GLOW_SECOND[ev.kind] ?? ev.color, 0.6),
         } as React.CSSProperties
       }
     >

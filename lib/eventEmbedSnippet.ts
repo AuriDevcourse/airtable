@@ -89,21 +89,33 @@ export function buildEventEmbedSnippet({
   /* auto-fill with a 300px floor: event cards carry a date row, a title, a blurb and a
      button, so they need more width than a speaker card's 230px. */
   #${id} .tbbq-ev-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))!important;gap:20px!important;margin:0!important;padding:0!important;list-style:none!important}
-  #${id} .tbbq-ev__loading{grid-column:1/-1;color:var(--muted);margin:0}
-  #${id} .tbbq-ev__empty{grid-column:1/-1;color:var(--muted);margin:0}
+  /* Explicit font-family on every p element: a theme rule targeting bare p beats the
+     section's inherited font, which is how the company + description text ended up
+     rendering in the host theme's Georgia serif. (No backticks in these comments — this
+     whole block is inside a JS template literal, so one would terminate the string.) */
+  #${id} .tbbq-ev__loading{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
+  #${id} .tbbq-ev__empty{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
 
-  #${id} .tbbq-ev-card{position:relative!important;display:flex!important;flex-direction:column!important;background:var(--card)!important;border:1px solid var(--border)!important;border-left:3px solid var(--kind)!important;border-radius:16px!important;padding:8px!important;margin:0!important;overflow:hidden!important;transition:border-color .18s,transform .18s}
-  #${id} .tbbq-ev-card:hover{transform:translateY(-2px);border-color:var(--kind)!important}
+  /* Matches .s-card on the dashboard and every other TechBBQ embed: flat dark frame, a
+     uniform 1px border (no coloured spine), and a diagonal glow that fades in on hover
+     behind the text band rather than a lift. */
+  #${id} .tbbq-ev-card{position:relative!important;display:flex!important;flex-direction:column!important;background:var(--card)!important;border:1px solid var(--border)!important;border-radius:16px!important;padding:8px!important;margin:0!important;overflow:hidden!important;transition:border-color .25s ease}
+  /* inset:-8px pushes the glow past the card's own padding so it reaches the real bottom
+     edge, exactly as .s-card::after does. */
+  #${id} .tbbq-ev-card::after{content:"";position:absolute;inset:-8px;background:linear-gradient(115deg,rgba(0,0,0,.95) 0%,var(--glow-a) 26%,var(--glow-b) 48%,transparent 72%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+  #${id} .tbbq-ev-card:hover::after{opacity:1}
+  #${id} .tbbq-ev-card:hover{border-color:var(--kind)!important}
 
   /* Logo CONTAINED on a LIGHT tint of the kind colour. Contained because these are
      wordmarks with their own padding and cover would slice them mid-word; light because
      most partner logos are dark-on-transparent and vanished on a dark panel. The hairline
      drop-shadow traces glyph edges so the minority of WHITE logos stay discernible. */
-  #${id} .tbbq-ev-card__media{position:relative!important;aspect-ratio:16/9;border-radius:12px!important;overflow:hidden!important;background:var(--panel)!important;display:grid!important;place-items:center!important;padding:20px!important}
+  /* z-index keeps the logo above the hover glow, so the glow stays in the bottom band. */
+  #${id} .tbbq-ev-card__media{position:relative!important;z-index:1!important;aspect-ratio:16/9;border-radius:12px!important;overflow:hidden!important;background:var(--panel)!important;display:grid!important;place-items:center!important;padding:20px!important}
   #${id} .tbbq-ev-card__media img{max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important;display:block!important;margin:0!important;border-radius:0!important;box-shadow:none!important;filter:drop-shadow(0 0 1px rgba(0,0,0,.45))}
   #${id} .tbbq-ev-card__initial{font-family:var(--head)!important;font-size:34px!important;font-weight:700!important;color:var(--kind)!important;letter-spacing:-.02em}
 
-  #${id} .tbbq-ev-card__body{padding:14px 8px 8px!important;display:flex!important;flex-direction:column!important;flex:1!important}
+  #${id} .tbbq-ev-card__body{position:relative!important;z-index:1!important;padding:14px 8px 8px!important;display:flex!important;flex-direction:column!important;flex:1!important}
   #${id} .tbbq-ev-card__tags{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:6px!important}
   #${id} .tbbq-ev-card__kind{display:inline-flex!important;align-items:center!important;gap:5px!important;padding:3px 9px!important;border-radius:9999px!important;background:var(--soft)!important;color:var(--kind)!important;font-family:var(--head)!important;font-size:10px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.06em!important}
   #${id} .tbbq-ev-card__kind::before{content:"";width:5px;height:5px;border-radius:9999px;background:currentColor}
@@ -111,14 +123,14 @@ export function buildEventEmbedSnippet({
      attend); colouring it red/blue too would read as a second type badge. */
   #${id} .tbbq-ev-card__access{padding:3px 9px!important;border-radius:9999px!important;border:1px solid var(--border)!important;background:#191919!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:.05em!important}
   #${id} .tbbq-ev-card__access--private{color:#fd9d04!important;border-color:rgba(253,157,4,.35)!important}
-  #${id} .tbbq-ev-card__date{margin-left:auto!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;white-space:nowrap}
+  #${id} .tbbq-ev-card__date{margin-left:auto!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;white-space:nowrap}
   #${id} .tbbq-ev-card__date--tbc{color:var(--muted)!important;font-weight:500!important;font-style:italic!important}
 
-  #${id} .tbbq-ev-card__title{font-family:var(--head)!important;margin:10px 0 0!important;padding:0!important;font-size:16px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important;letter-spacing:normal!important}
-  #${id} .tbbq-ev-card__company{margin:5px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:13px!important;line-height:1.4!important}
+  #${id} .tbbq-ev-card__title{font-family:var(--head)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;margin:10px 0 0!important;padding:0!important;font-size:16px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important;letter-spacing:normal!important}
+  #${id} .tbbq-ev-card__company{margin:5px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:var(--muted)!important;font-size:13px!important;line-height:1.4!important}
   /* Clamped to 3 lines rather than truncated in the feed, so the full text stays available
      to other consumers of the JSON. */
-  #${id} .tbbq-ev-card__desc{margin:10px 0 0!important;padding:0!important;color:rgba(255,255,255,.78)!important;font-size:13px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #${id} .tbbq-ev-card__desc{margin:10px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:rgba(255,255,255,.78)!important;font-size:13px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
   /* margin-top:auto so cards with and without a blurb line their buttons up. */
   #${id} .tbbq-ev-card__cta{margin-top:auto!important;padding-top:14px!important}
@@ -159,6 +171,15 @@ export function buildEventEmbedSnippet({
      feed emits absolute URLs, which is what a cross-origin embed needs. */
   function safeUrl(u){var s=String(u==null?"":u).trim();return (/^https?:\\/\\//i.test(s)||/^\\/[^\\/]/.test(s))?s:"";}
   function tint(hex,a){var n=parseInt(String(hex).replace("#",""),16);return "rgba("+((n>>16)&255)+","+((n>>8)&255)+","+(n&255)+","+a+")";}
+  /* Blend into a solid base and return an OPAQUE rgb(). The kind badge sits ABOVE the hover
+     glow, and as a translucent tint its red text vanished into the red glow underneath. */
+  function mixOn(hex,amt,base){var c=parseInt(String(hex).replace("#",""),16),b=parseInt(base.replace("#",""),16);
+    function ch(sh){return Math.round((((b>>sh)&255)*(1-amt))+(((c>>sh)&255)*amt));}
+    return "rgb("+ch(16)+","+ch(8)+","+ch(0)+")";}
+  /* Second stop of the hover glow, per kind — a Side Event reuses the site's exact fire
+     pairing (#CE0F2E -> #FA7000), an Event Room mirrors it in blue the way the Life
+     Science cards use cyan -> teal. Same alphas as .s-card::after: .92 then .6. */
+  var GLOW2={"side-event":"#FA7000","event-room":"#2BB4E1"};
   function light(hex,amt){var n=parseInt(String(hex).replace("#",""),16);function m(c){return Math.round(255*(1-amt)+c*amt);}return "rgb("+m((n>>16)&255)+","+m((n>>8)&255)+","+m(n&255)+")";}
 
   function card(e){
@@ -176,7 +197,8 @@ export function buildEventEmbedSnippet({
       ? '<span class="tbbq-ev-card__date">'+esc(e.dateLabel)+'</span>'
       : '<span class="tbbq-ev-card__date tbbq-ev-card__date--tbc">Date TBC</span>';
     var reg=safeUrl(e.registerUrl);
-    return '<article class="tbbq-ev-card" style="--kind:'+esc(color)+';--soft:'+tint(color,.14)+';--panel:'+light(color,.1)+'">'
+    return '<article class="tbbq-ev-card" style="--kind:'+esc(color)+';--soft:'+mixOn(color,.18,"#131313")+';--panel:'+light(color,.1)
+      +';--glow-a:'+tint(color,.92)+';--glow-b:'+tint(GLOW2[e.kind]||color,.6)+'">'
       +'<div class="tbbq-ev-card__media">'+media+'</div>'
       +'<div class="tbbq-ev-card__body">'
       +'<div class="tbbq-ev-card__tags"><span class="tbbq-ev-card__kind">'+esc(e.kindLabel||"")+'</span>'+access+date+'</div>'

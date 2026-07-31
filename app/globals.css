@@ -810,27 +810,49 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 @media (max-width: 1100px) { .ev-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px)  { .ev-grid { grid-template-columns: 1fr; } }
 
+/* Matches .s-card (the speaker cards on every other page): flat dark frame, 8px padding,
+   and a diagonal glow that fades in on hover behind the text band. Differences from the
+   earlier version of this card, for house consistency: a uniform 1px border instead of a
+   3px coloured left spine, and no translateY lift — .s-card only fades its glow. */
 .ev-card {
   position: relative;
   display: flex;
   flex-direction: column;
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  /* The kind's colour reads as a left spine so red/blue is legible even before the
-     badge is read, and at a glance down a mixed list. */
-  border-left: 3px solid var(--kind);
   border-radius: var(--radius-xl);
   padding: 8px;
   overflow: hidden;
-  transition: border-color 0.18s, transform 0.18s;
+  transition: border-color 0.25s ease;
 }
-.ev-card:hover { transform: translateY(-2px); border-color: var(--kind); }
+/* Hover glow, same construction as .s-card::after: anchored to the whole card and pushed
+   past the 8px padding (inset:-8px) so it reaches the real bottom edge. The two colour
+   stops come from --glow-a / --glow-b, set per card so a Side Event glows red->orange (the
+   site's fire gradient) and an Event Room blue->cyan. */
+.ev-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  background: linear-gradient(
+    115deg,
+    rgba(0,0,0,0.95) 0%,
+    var(--glow-a) 26%,
+    var(--glow-b) 48%,
+    transparent 72%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.ev-card:hover::after { opacity: 1; }
+.ev-card:hover { border-color: var(--kind); }
 
 /* Logo sits CONTAINED on a LIGHT tint of the kind colour, never cropped: these are
    wordmarks with their own transparent padding, so object-fit:cover would slice them
    mid-word, and a DARK panel hid every dark-on-transparent logo (most of them). */
 .ev-card__media {
   position: relative;
+  z-index: 1; /* keep the logo above the hover glow, so the glow stays in the bottom band */
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
@@ -861,7 +883,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   letter-spacing: -0.02em;
 }
 
-.ev-card__body { padding: 14px 8px 8px; display: flex; flex-direction: column; flex: 1; }
+/* position+z-index so the text paints ABOVE the hover glow while the glow still shows
+   through the transparent gaps around it — the same trick .s-card__name/__meta use. */
+.ev-card__body {
+  position: relative;
+  z-index: 1;
+  padding: 14px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
 
 /* Kind + access + date on one wrapping meta row above the title. */
 .ev-card__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -894,14 +925,21 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   margin-left: auto;
   color: var(--color-foreground);
   font-size: 12px; font-weight: 600;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 .ev-card__date--none { color: var(--color-muted); font-weight: 500; font-style: italic; }
 
+/* text-shadow for the same reason .s-card__name/__meta carry one: on hover this text sits
+   over the bright part of the glow, and the shadow keeps it legible. */
 .ev-card__title {
   margin: 10px 0 0;
   font-size: 16px; line-height: 1.25; color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
-.ev-card__company { margin: 5px 0 0; color: var(--color-muted); font-size: 13px; }
+.ev-card__company {
+  margin: 5px 0 0; color: var(--color-muted); font-size: 13px;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
 
 /* Clamped to 3 lines rather than truncated in the feed: two descriptions run past 400
    chars, and the full text stays available to any other consumer of the JSON. */
@@ -909,6 +947,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   margin: 10px 0 0;
   color: rgba(255,255,255,0.78);
   font-size: 13px; line-height: 1.5;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;

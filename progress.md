@@ -4,6 +4,60 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-07-31f (Event cards restyled to match the house .s-card look)
+
+State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. Verified
+over CDP with **real mouse events** on both the page and the executed embed.
+
+Auri's ask: make the event cards look like the other TechBBQ pages — **1px border**, and on
+hover the kind's colour as a **glow in the bottom of the card background**.
+
+**What changed, mirroring `.s-card`:**
+- Uniform **1px** border (`--color-border`), replacing the 3px coloured left spine. Border
+  turns the kind colour on hover.
+- **No `translateY` lift** — `.s-card` only fades its glow in, so the lift is gone.
+- `.ev-card::after` glow, same construction as `.s-card::after`: `inset:-8px` (pushes past
+  the card's own 8px padding so it reaches the real bottom edge), `opacity 0 -> 1` on hover,
+  `linear-gradient(115deg, black .95, --glow-a .92, --glow-b .6, transparent 72%)`.
+- Glow stops per kind: a Side Event reuses the site's **exact fire pairing**
+  `#CE0F2E -> #FA7000`; an Event Room mirrors it in blue `#1B6CA8 -> #2BB4E1`, the way the
+  Life Science cards use cyan -> teal. Note `#2BB4E1` (the rejected old blue) earns its keep
+  here as the lighter second stop.
+- `z-index:1` on `.ev-card__media` and `.ev-card__body`, so the logo and text paint ABOVE the
+  glow and the glow stays in the bottom band — the same layering `.s-card__media` /
+  `.s-card__name` use.
+- `text-shadow: 0 1px 6px rgba(0,0,0,.5)` on title/company/desc/date, copied from
+  `.s-card__name`/`__meta`, because that text now sits over the bright part of the glow.
+All of it applied to **both** the React page and `lib/eventEmbedSnippet.ts`.
+
+### Two bugs the glow exposed, both caught by rendering + reading computed styles
+
+1. **The kind badge disappeared on hover.** Its background was `rgba(kind, .14)` — a
+   TRANSLUCENT tint — so once the red glow lit up behind it, red text on see-through red
+   became invisible. The neighbouring "PUBLIC" badge survived only because its background is
+   solid. Fix: a `mix()` helper that blends the kind colour into a solid `#131313` and returns
+   an **opaque** `rgb()`. Rule of thumb: anything stacked above the glow needs an opaque
+   background. (`lightTint` now delegates to the same helper with a white base.)
+2. **The embed's company + description rendered in the host theme's Georgia serif.** Those are
+   `<p>` elements and never set `font-family`; a theme rule targeting bare `p` **beats the
+   section's inherited font**, so `font-family:var(--sans)!important` on `.tbbq-events` did
+   nothing for them. Every other element already set a font explicitly, which is why only
+   those two were wrong. Fixed on `__company`, `__desc`, `__loading`, `__empty`.
+   Confirmed: those now compute to Inter while the host page's own `h1` stays Georgia.
+
+### Gotcha: no backticks in the snippet's CSS comments
+A comment reading ``bare `p` element`` inside the builder's **template literal** terminated the
+string and broke the build (TS1005 at the next line). The whole CSS/JS block is one template
+literal — comments in it must avoid backticks and `${`.
+
+### CDP hover-testing notes (both cost a wrong reading first)
+- `Runtime.evaluate` with `awaitPromise` still raced the React render; poll from **Node**
+  (`for(...){ if(await ev('document.querySelectorAll(...).length')) break; }`) instead of
+  awaiting an in-page wait loop.
+- **`scrollIntoView` before dispatching the mouse move.** A card below the fold yields
+  coordinates outside the viewport, so `:hover` never fires and the glow reads as broken —
+  which it did, showing `opacity:0` on a correctly-built gradient.
+
 ## Session 2026-07-31e (All-pill white-on-white fix + missing-data panel)
 
 State: DONE, committed on `partner-events`. `tsc --noEmit` clean.
