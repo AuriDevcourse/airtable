@@ -4,6 +4,58 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-01 (Team embed "Could not load right now." — diagnosed + hardened)
+
+State: DONE, committed, NOT pushed. `tsc --noEmit` + `npm run build` clean. **The symptom
+self-resolved before a fix shipped**, so the diagnosis below is inference from evidence, not
+a reproduction of the live failure — treat the retry as prevention, not a proven cure.
+
+### What was ruled OUT (with evidence, not assumption)
+- **The API.** `/api/team` answered **12/12 200s at ~0.2s**, valid JSON, 27 people, correct
+  `access-control-allow-origin: https://techbbq.dk`, and a clean 204 OPTIONS preflight. Every
+  other feed was 200 at the same moment.
+- **The snippet builder.** The team snippet was generated exactly as the dashboard's Copy
+  button emits it, pointed at the PRODUCTION feed and EXECUTED: 27 cards, 27 mailto links,
+  10 department pills. It bakes the right endpoint.
+- **Rate limiting** (Auri's guess, and a reasonable one). **75 rapid requests from one IP
+  produced zero 429s.** Reason worth remembering: `/api/team` carries `s-maxage=86400`, so
+  Vercel's CDN answers almost everything and `rateLimit()` never runs. The per-IP limiter is
+  effectively unreachable for a cached GET.
+- **Origin mismatch.** The console dump showed `https://techbbq.dk/wp-json/...`, i.e. the
+  apex domain, which matches `ALLOWED_ORIGIN` exactly.
+
+### The likely cause: cold-cache timeout on the one feed with no retry
+`lib/team.ts` used the **default 8s** `fetchWithTimeout` and, alone among the slow feeds
+(`hierarchy`, `summitextras`, `investors`, `mainpage`), had **no retry**. Session 30e had
+already written the prediction: *"if the team page fails intermittently in prod, give it the
+same 10s + one retry treatment."*
+
+`#TechBBCuties` is a wide table — normally ~1s, but it spikes past 8s on a cold Airtable.
+This bites `/api/team` harder than anywhere else because it is cached for a **full day**
+(`DAY_MS` + `s-maxage=86400`): cold misses are rare, but each one is a deploy or a 24h
+rollover, and there is **no stale value to fall back on**, so one blip surfaces on techbbq.dk.
+The timing fits — the message appeared shortly after the `4ffb1d2` merge deploy, which resets
+the in-memory cache, and it recovered on its own once a request succeeded and re-cached.
+
+**Fix:** `TEAM_TIMEOUT_MS = 10_000`, `TEAM_ATTEMPTS = 2`, matching `lib/hierarchy.ts`. A
+`TeamError` (503 missing env / 502 Airtable rejection) is deliberately **not** retried — only
+a timeout or network abort is. Verified: a bogus token yields 502 with **0 retry attempts**.
+
+### Separate real bug found while diagnosing: the embeds swallowed their errors
+Both `lib/embedSnippet.ts` and `lib/agendaSnippet.ts` ended with
+`.catch(function(){ ..."Could not load right now."... })` — **discarding the error**. That is
+why Auri's console showed nothing from the embed: a CORS rejection, a 429, a 502 and a
+snippet still pointing at localhost were all indistinguishable. Both now
+`console.error("[tbbq-embed] failed to load", ENDPOINT, err)` — the endpoint included,
+because a stale paste looks exactly like a server fault without it.
+**Reaches techbbq.dk only on a re-copy.**
+
+### Reusable finding
+Reproducing the exact symptom is easy: serve the generated snippet from any origin that is not
+`https://techbbq.dk` and CORS alone yields **0 cards + "Could not load right now."** With
+`--disable-web-security` the same page renders all 27. That is a fast way to tell a CORS
+problem from a data problem without touching the live site.
+
 ## Session 2026-07-31f (Event cards restyled to match the house .s-card look)
 
 State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. Verified

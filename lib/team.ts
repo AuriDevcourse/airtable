@@ -173,11 +173,40 @@ function esc(v: string): string {
   return v.replace(/'/g, "\\'");
 }
 
+// #TechBBCuties is a wide table, so this scan is normally ~1s but spikes past the default
+// 8s fetch timeout on a cold Airtable. That matters MORE here than anywhere else because
+// /api/team is cached for a full day (DAY_MS + s-maxage=86400): a cold miss is rare, but
+// every cold miss is a deploy or a 24h rollover, and there is no stale value to fall back
+// on, so a single blip surfaces to techbbq.dk as "Could not load right now." on the live
+// team embed. Same 10s + retry-once treatment as lib/hierarchy.ts.
+//
+// Observed 2026-08-01: the team embed showed that message shortly after a deploy (which
+// resets the in-memory cache), then recovered on its own — the signature of exactly this.
+const TEAM_TIMEOUT_MS = 10_000;
+const TEAM_ATTEMPTS = 2;
+
 export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]> {
   if (!TOKEN || !BASE_ID) {
     throw new TeamError("Airtable env vars are not set on the server.", 503);
   }
 
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= TEAM_ATTEMPTS; attempt++) {
+    try {
+      return await fetchTeamOnce(departmentFilter);
+    } catch (err) {
+      lastErr = err;
+      // A 503 is a config fault (missing env) and a 502 is Airtable rejecting us — neither
+      // improves on a retry. Only a timeout/network abort is worth trying again.
+      const worthRetrying = !(err instanceof TeamError);
+      if (!worthRetrying || attempt === TEAM_ATTEMPTS) break;
+      console.error(`[team] attempt ${attempt} failed, retrying`, err);
+    }
+  }
+  throw lastErr;
+}
+
+async function fetchTeamOnce(departmentFilter?: string): Promise<TeamMember[]> {
   const members: TeamMember[] = [];
   let offset: string | undefined;
 
@@ -208,10 +237,11 @@ export async function fetchTeam(departmentFilter?: string): Promise<TeamMember[]
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
 
-    const res = await fetchWithTimeout(`${API}/${BASE_ID}/${TABLE}?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${TOKEN}` },
-      cache: "no-store",
-    });
+    const res = await fetchWithTimeout(
+      `${API}/${BASE_ID}/${TABLE}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" },
+      TEAM_TIMEOUT_MS
+    );
 
     if (!res.ok) {
       const detail = await res.text();
