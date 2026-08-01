@@ -432,7 +432,15 @@ export function buildEmbedSnippet({
     }
     fill();`
   }
-  }).catch(function(){grid.innerHTML='<p class="tbbq-speakers__loading">Could not load right now.</p>';});
+  }).catch(function(err){
+    grid.innerHTML='<p class="tbbq-speakers__loading">Could not load right now.</p>';
+    /* Log the REASON. This catch used to swallow it, so "Could not load right now." on
+       techbbq.dk was undebuggable from the browser console — there was no way to tell a
+       CORS rejection from a 429, a 502, or a snippet still pointing at localhost. The
+       endpoint is logged too, because a stale paste with the wrong ENDPOINT looks
+       identical to a server problem. */
+    if(window.console&&console.error)console.error("[tbbq-embed] failed to load",ENDPOINT,err);
+  });
 })();
 </script>`;
 }

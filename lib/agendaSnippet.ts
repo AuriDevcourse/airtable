@@ -143,7 +143,13 @@ export function buildAgendaSnippet({
         +'</div></div>';
     }
     root.innerHTML=html;
-  }).catch(function(){root.innerHTML='<p class="tbbq-agenda__loading">Could not load right now.</p>';});
+  }).catch(function(err){
+    root.innerHTML='<p class="tbbq-agenda__loading">Could not load right now.</p>';
+    /* Same reason as lib/embedSnippet.ts: swallowing the error made this message
+       undebuggable from the browser console. Log the endpoint too — a stale paste is
+       indistinguishable from a server fault without it. */
+    if(window.console&&console.error)console.error("[tbbq-agenda] failed to load",ENDPOINT,err);
+  });
 })();
 </script>`;
 }
