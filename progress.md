@@ -4,7 +4,68 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-08-02 (NISS program corrected in Airtable + local-only refresh button)
+## Session 2026-08-02b (Refresh button works in PRODUCTION, via an authenticated bypass)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean. Auth gate verified with curl on a real
+production server. Committed + pushed to `main`.
+
+**Reverses the dev-only decision from 2026-08-02a.** Auri screenshotted the deployed dashboard
+asking "is there no sync button?" — and no, by design, which was the wrong design. He uses the
+deployed dashboard, not localhost, so the button was missing exactly where it is needed.
+
+**The old mechanism could not work in production and has been deleted.** `/api/admin/refresh`
+cleared a serverless instance's in-memory `Map`; up there the CDN answers the visitor, so that
+press would have changed nothing while looking successful. Gone, along with `invalidateAll()`.
+
+**New mechanism: `?fresh=<n>` on `/api/program`.** One path that works identically in dev and
+prod. A URL the CDN has never seen is the ONLY kind that reaches the function at all, which is
+why the button increments `n` on every press rather than sending a constant.
+- The route `invalidate()`s its key then `cached()`s, so the live read also repopulates that
+  instance for ordinary readers.
+- Responds `Cache-Control: no-store` and **no CORS headers** — authenticated, same-origin,
+  not a feed. The CDN must never store it or answer the next press from it.
+- **Gated by the dashboard password**, because `/api/program` itself has to stay public for the
+  Elementor embeds and an open bypass is an unauthenticated route hitting a third-party API on
+  every call (SECURITY r5, Auri's most common vulnerability). The browser already attaches
+  Basic auth to same-origin fetches, so no secret goes into the page bundle.
+- Own rate-limit bucket, **10/min** against 60 for cached reads. `rateLimit()` grew an optional
+  `{bucket, max}` so the expensive path cannot eat the cheap path's allowance.
+- Returns **401 rather than silently serving the cached copy**: a bypass that quietly does
+  nothing is worse than one that says no.
+
+**`lib/dashboardAuth.ts` (new)** holds the password check that middleware and the route now
+share. Two copies of an auth check drift, and a drifting auth check fails open. Constant-time
+compare, runtime-agnostic (Edge for middleware, Node for the route, so `atob` not `Buffer`),
+and **fails closed in production when `DASHBOARD_PASSWORD` is unset** while still allowing
+`npm run dev` with no secrets.
+
+**`useCachedList` gained `revalidateError`.** A background refetch that fails while cached data
+is on screen used to be swallowed — correct for the list (stale beats blank) but it left the
+button waiting on a change report that would never arrive. The 401 case made that reachable.
+
+### Gotchas
+- **`CopyAgendaEmbed` must be passed `base`, never `path`.** `path` can carry `?fresh=`, which
+  is an authenticated URL — baking it into an Elementor snippet would 401 every public visitor.
+  Caught before committing; worth re-checking if that page is refactored.
+- The button does NOT purge the public CDN copy, and the report says so in as many words.
+  techbbq.dk still picks a change up within the hour. Don't let the UI overstate it.
+- Verified gate (curl, real prod server): public feed 200 unauthenticated · bypass 401 with no
+  password · 401 with the wrong password · 200 with the right one · pages still 401 · and with
+  `DASHBOARD_PASSWORD` unset on a production build the bypass 401s while the public feed
+  stays 200.
+- `npx tsc --noEmit | tail` reports "clean" even when it isn't, because `tail` succeeds. Test
+  for empty output instead. Also `rm -rf .next` first, or deleted routes leave stale generated
+  types behind and tsc fails on phantom files.
+- The orphaned-dev-server trap bit twice more: `TaskStop` leaves the node child on port 3000,
+  the replacement silently takes 3001, and every curl then measures the wrong server (a run of
+  incoherent 404/500/200s is the tell). Kill by port first, every time.
+
+### Next steps
+1. Add the `Time Slot` format check so a malformed time is flagged instead of published.
+2. Put `RefreshButton` on the other feed pages. Each needs its own `?fresh=` handling in its
+   route, so it is not purely a component drop.
+
+## Session 2026-08-02a (NISS program corrected in Airtable + local-only refresh button)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean, verified in the browser on `/program`.
 Committed + pushed to `main` 2026-08-02 at Auri's explicit instruction.
@@ -84,10 +145,12 @@ localStorage before fetching and would flash the stale list.
 
 ### Next steps
 1. Add the `Time Slot` format check so a malformed time is flagged instead of published.
-2. Drop `DevRefreshButton` onto the other feed pages — one import, a `nonce`, and pass
-   `changes`, same as `/program`.
+2. ~~Drop `DevRefreshButton` onto the other feed pages.~~ **Superseded by 2026-08-02b**:
+   `DevRefreshButton` and `/api/admin/refresh` no longer exist. Read that session first —
+   everything above about the dev-only gate and the `nonce` is history, not current design.
 3. Carried over: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; Life Science and team embed
    re-copies; `/api/team` has no retry.
+
 ## Session 2026-07-31f (Event cards restyled to match the house .s-card look)
 
 State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. Verified

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { DevRefreshButton } from "@/components/DevRefreshButton";
+import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildAgendaSnippet } from "@/lib/agendaSnippet";
 
@@ -81,15 +81,21 @@ function CopyAgendaEmbed({
 export default function ProgramPage() {
   // Brella first: it's the schedule that's actually filled in.
   const [event, setEvent] = useState<EventKey>("brella");
-  // Bumped by the local refresh button to refetch the open tab in place.
-  const [nonce, setNonce] = useState(0);
-  const path = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
+  // Bumped by the refresh button. It goes into the URL rather than being a bare re-render
+  // trigger, because the value has to reach the network: `?fresh=<n>` is what makes the
+  // request miss the CDN and skip the server's hour-long cache. Zero means "normal cached
+  // read", which is what an ordinary visit does.
+  const [fresh, setFresh] = useState(0);
 
-  const { data, loading, revalidating, error, changes } = useCachedList<Session>(
+  const base = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
+  const path = fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
+
+  // The cache key stays free of `fresh`, so the localStorage baseline survives a refresh and
+  // the change report has something to diff against.
+  const { data, loading, revalidating, error, revalidateError, changes } = useCachedList<Session>(
     `program:${event}`,
     path,
-    "sessions",
-    nonce
+    "sessions"
   );
   const sessions = data ?? [];
 
@@ -133,7 +139,9 @@ export default function ProgramPage() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyAgendaEmbed
-              path={path}
+              // `base`, never `path`: path can carry ?fresh=, and that URL is authenticated.
+              // Baking it into an Elementor snippet would 401 for every public visitor.
+              path={base}
               heading={EVENTS.find((e) => e.key === event)?.heading}
               note={EVENTS.find((e) => e.key === event)?.note}
               theme={EVENTS.find((e) => e.key === event)?.theme}
@@ -145,13 +153,15 @@ export default function ProgramPage() {
             </span>
           </div>
 
-          {/* Local dev only — invisible in the deployed dashboard. Clears the 1h cache for
-              the tab currently open so an Airtable edit shows up straight away. */}
+          {/* Forces a live Airtable read for the open tab, bypassing the 1h cache, and
+              reports what changed. Works on the deployed dashboard too — the bypass is
+              gated by the dashboard password. */}
           <div style={{ marginTop: 14 }}>
-            <DevRefreshButton
-              cacheKey={`program:${event}`}
-              onCleared={() => setNonce((n) => n + 1)}
+            <RefreshButton
+              onRefresh={() => setFresh((n) => n + 1)}
               changes={changes}
+              error={revalidateError}
+              resetKey={event}
             />
           </div>
         </div>

@@ -24,15 +24,24 @@ function sweep(now: number): void {
   }
 }
 
-export function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
+// opts lets a route meter an expensive path separately from ordinary reads. `bucket`
+// namespaces the counter so the two limits don't consume each other, and `max` sets a
+// different ceiling. Used by /api/program's ?fresh= bypass, which skips the cache and hits
+// Airtable on EVERY call, so it gets a much smaller allowance than a cached read.
+export function rateLimit(
+  ip: string,
+  opts?: { bucket?: string; max?: number }
+): { ok: boolean; retryAfter: number } {
   const now = Date.now();
   sweep(now);
-  const b = buckets.get(ip);
+  const key = opts?.bucket ? `${opts.bucket}${ip}` : ip;
+  const max = opts?.max ?? MAX_PER_WINDOW;
+  const b = buckets.get(key);
   if (!b || now > b.resetAt) {
-    buckets.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return { ok: true, retryAfter: 0 };
   }
-  if (b.count >= MAX_PER_WINDOW) {
+  if (b.count >= max) {
     return { ok: false, retryAfter: Math.ceil((b.resetAt - now) / 1000) };
   }
   b.count += 1;
@@ -69,20 +78,6 @@ const FAILURE_TTL_MS = 10_000;
 export function invalidate(key: string): void {
   cache.delete(key);
   failures.delete(key);
-}
-
-// Drop every cached feed. Only used by the local-only refresh button (/api/admin/refresh)
-// when no specific key is given — an editor who just touched three tables in Airtable
-// wants all of them fresh, not one. Returns how many entries were dropped so the button
-// can say something truthful.
-export function invalidateAll(): number {
-  const n = cache.size;
-  cache.clear();
-  // Same reason invalidate() drops it: a key that failed in the last FAILURE_TTL_MS would
-  // otherwise replay its stored error instead of actually retrying, so "clear everything"
-  // would leave exactly the feed you were trying to fix still broken.
-  failures.clear();
-  return n;
 }
 
 // ttlMs is per call, so one feed can refresh on a different schedule from the rest without

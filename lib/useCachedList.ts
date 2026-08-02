@@ -8,6 +8,10 @@ export type CachedState<T> = {
   loading: boolean; // no data AND first fetch in flight → show skeletons
   revalidating: boolean; // showing cached data while a background fetch runs
   error: string | null; // only set when there's nothing cached to fall back to
+  // A background refetch failed while cached data was still on screen. The list keeps
+  // rendering (stale beats blank), but the refresh button needs this — otherwise a rejected
+  // fetch leaves it waiting for a change report that will never arrive.
+  revalidateError: string | null;
   updated: boolean; // last revalidation actually changed the data
   // What the last completed revalidation changed, for the local refresh button to print.
   // null = no comparison was possible (cold load: everything is "new", which is noise, so
@@ -33,6 +37,7 @@ export function useCachedList<T>(
   const [loading, setLoading] = useState(true);
   const [revalidating, setRevalidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [revalidateError, setRevalidateError] = useState<string | null>(null);
   const [updated, setUpdated] = useState(false);
   const [changes, setChanges] = useState<ChangeSummary | null>(null);
 
@@ -41,6 +46,7 @@ export function useCachedList<T>(
     const storeKey = `tbbq-cache:${cacheKey}`;
     setUpdated(false);
     setError(null);
+    setRevalidateError(null);
     // Clear first: a diff from the previous feed must not linger after a tab switch.
     setChanges(null);
 
@@ -97,7 +103,9 @@ export function useCachedList<T>(
       .catch((e: unknown) => {
         if (!active) return;
         // Keep showing cached data on error; only surface error if nothing cached.
-        if (!cached) setError(e instanceof Error ? e.message : "Failed to load");
+        const msg = e instanceof Error ? e.message : "Failed to load";
+        if (cached) setRevalidateError(msg);
+        else setError(msg);
       })
       .finally(() => {
         if (!active) return;
@@ -110,5 +118,5 @@ export function useCachedList<T>(
     };
   }, [cacheKey, url, listKey, nonce]);
 
-  return { data, loading, revalidating, error, updated, changes };
+  return { data, loading, revalidating, error, revalidateError, updated, changes };
 }

@@ -9,6 +9,7 @@
 // for the scheduler. The browser-facing sync lives at /api/admin/sync, which IS gated.
 
 import { NextRequest, NextResponse } from "next/server";
+import { isDashboardRequest } from "@/lib/dashboardAuth";
 
 // Exact pathnames, not prefixes — "/api/speakers" is a prefix of "/api/speakers-2026",
 // so a startsWith() check here would be a footgun the moment someone adds a route.
@@ -50,27 +51,9 @@ export function middleware(req: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
-  const expected = process.env.DASHBOARD_PASSWORD;
-
-  // No password configured: fine locally, but never let a misconfigured deploy quietly
-  // publish the dashboard. Fails closed in production, the same way /api/sync-speakers does.
-  if (!expected) {
-    if (process.env.NODE_ENV === "development") return NextResponse.next();
-    return unauthorized();
-  }
-
-  const header = req.headers.get("authorization") || "";
-  if (header.startsWith("Basic ")) {
-    let decoded = "";
-    try {
-      decoded = atob(header.slice(6)); // Edge runtime has atob, not Buffer
-    } catch {
-      return unauthorized();
-    }
-    // Username is cosmetic — any name works, the password is the secret.
-    const password = decoded.slice(decoded.indexOf(":") + 1);
-    if (password && password === expected) return NextResponse.next();
-  }
+  // Shared with the feed routes' ?fresh= bypass — see lib/dashboardAuth.ts. It allows local
+  // dev with no password set and fails closed in production when the env var is missing.
+  if (isDashboardRequest(req.headers.get("authorization"))) return NextResponse.next();
 
   return unauthorized();
 }
