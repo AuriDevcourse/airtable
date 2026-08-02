@@ -71,6 +71,20 @@ export function invalidate(key: string): void {
   failures.delete(key);
 }
 
+// Drop every cached feed. Only used by the local-only refresh button (/api/admin/refresh)
+// when no specific key is given — an editor who just touched three tables in Airtable
+// wants all of them fresh, not one. Returns how many entries were dropped so the button
+// can say something truthful.
+export function invalidateAll(): number {
+  const n = cache.size;
+  cache.clear();
+  // Same reason invalidate() drops it: a key that failed in the last FAILURE_TTL_MS would
+  // otherwise replay its stored error instead of actually retrying, so "clear everything"
+  // would leave exactly the feed you were trying to fix still broken.
+  failures.clear();
+  return n;
+}
+
 // ttlMs is per call, so one feed can refresh on a different schedule from the rest without
 // changing the default for everything.
 export async function cached<T>(key: string, loader: () => Promise<T>, ttlMs = TTL_MS): Promise<T> {

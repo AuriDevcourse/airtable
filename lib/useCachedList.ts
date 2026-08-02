@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ChangeSummary, diffList, NO_CHANGES } from "@/lib/diffList";
 
 export type CachedState<T> = {
   data: T[] | null; // null = nothing to show yet (cold load)
@@ -8,24 +9,40 @@ export type CachedState<T> = {
   revalidating: boolean; // showing cached data while a background fetch runs
   error: string | null; // only set when there's nothing cached to fall back to
   updated: boolean; // last revalidation actually changed the data
+  // What the last completed revalidation changed, for the local refresh button to print.
+  // null = no comparison was possible (cold load: everything is "new", which is noise, so
+  // nothing is reported). total === 0 = compared and genuinely identical.
+  changes: ChangeSummary | null;
 };
 
 // Stale-while-revalidate over localStorage:
 // 1. Paint cached data instantly (no skeleton) if we have it.
 // 2. Always fetch in the background.
 // 3. Only re-render + rewrite cache if the fresh data differs from what's shown.
-export function useCachedList<T>(cacheKey: string, url: string, listKey: string): CachedState<T> {
+//
+// nonce forces a refetch without changing cacheKey. Bumping it is how the local refresh
+// button re-reads a feed in place: folding a counter into cacheKey instead would write a
+// new localStorage entry on every press and leave the old ones behind forever.
+export function useCachedList<T>(
+  cacheKey: string,
+  url: string,
+  listKey: string,
+  nonce = 0
+): CachedState<T> {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [revalidating, setRevalidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updated, setUpdated] = useState(false);
+  const [changes, setChanges] = useState<ChangeSummary | null>(null);
 
   useEffect(() => {
     let active = true;
     const storeKey = `tbbq-cache:${cacheKey}`;
     setUpdated(false);
     setError(null);
+    // Clear first: a diff from the previous feed must not linger after a tab switch.
+    setChanges(null);
 
     // 1. Hydrate from cache.
     let cached: T[] | null = null;
@@ -63,11 +80,18 @@ export function useCachedList<T>(cacheKey: string, url: string, listKey: string)
         if (freshStr !== cachedStr) {
           setData(fresh);
           setUpdated(cachedStr !== null); // only flag as "updated" if we replaced real cache
+          // Only diffable against a real baseline. On a cold load `cached` is null and every
+          // row would read as "added", which says nothing.
+          if (cached) setChanges(diffList(cached, fresh));
           try {
             localStorage.setItem(storeKey, freshStr);
           } catch {
             /* storage full / disabled — ignore, in-memory still works */
           }
+        } else if (cached) {
+          // Byte-identical to what's on screen. Say so explicitly — silence would read as
+          // "the refresh didn't run".
+          setChanges(NO_CHANGES);
         }
       })
       .catch((e: unknown) => {
@@ -84,7 +108,7 @@ export function useCachedList<T>(cacheKey: string, url: string, listKey: string)
     return () => {
       active = false;
     };
-  }, [cacheKey, url, listKey]);
+  }, [cacheKey, url, listKey, nonce]);
 
-  return { data, loading, revalidating, error, updated };
+  return { data, loading, revalidating, error, updated, changes };
 }

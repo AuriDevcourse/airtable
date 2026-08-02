@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { DevRefreshButton } from "@/components/DevRefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildAgendaSnippet } from "@/lib/agendaSnippet";
 
@@ -80,12 +81,15 @@ function CopyAgendaEmbed({
 export default function ProgramPage() {
   // Brella first: it's the schedule that's actually filled in.
   const [event, setEvent] = useState<EventKey>("brella");
+  // Bumped by the local refresh button to refetch the open tab in place.
+  const [nonce, setNonce] = useState(0);
   const path = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
 
-  const { data, loading, revalidating, error } = useCachedList<Session>(
+  const { data, loading, revalidating, error, changes } = useCachedList<Session>(
     `program:${event}`,
     path,
-    "sessions"
+    "sessions",
+    nonce
   );
   const sessions = data ?? [];
 
@@ -139,6 +143,16 @@ export default function ProgramPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
             </span>
+          </div>
+
+          {/* Local dev only — invisible in the deployed dashboard. Clears the 1h cache for
+              the tab currently open so an Airtable edit shows up straight away. */}
+          <div style={{ marginTop: 14 }}>
+            <DevRefreshButton
+              cacheKey={`program:${event}`}
+              onCleared={() => setNonce((n) => n + 1)}
+              changes={changes}
+            />
           </div>
         </div>
       </section>

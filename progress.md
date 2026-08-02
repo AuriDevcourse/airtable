@@ -4,6 +4,90 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-02 (NISS program corrected in Airtable + local-only refresh button)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, verified in the browser on `/program`.
+Committed + pushed to `main` 2026-08-02 at Auri's explicit instruction.
+
+**1. Patched the NISS 2026 program to match Auri's canonical schedule.** 13 of 15 rows, 14
+cells, written straight to Airtable (`tblfIPjV4t1c1628h`, view `viwMqDT1GMW7AwOtQ`) with a
+throwaway script; re-read all 15 records afterwards to confirm zero remaining diffs.
+- `Nordic Founder Panel: What Would Make India Relevant?` → `Building Toward India`
+- `13:30-14-30` → `13:30–14:30` and `16:30-16-50` → `16:30–16:50` (hyphen typed where a
+  colon belonged, in the minutes)
+- `15:30-16:00` → `15:40–16:00` (the 15:30 start overlapped the 14:35–15:35 pitch)
+- 11 further rows normalised hyphen → en dash, so all 15 time slots read consistently
+- Deliberately did NOT copy the `17:20-1740` from Auri's paste; Airtable's `17:20–17:40` was
+  already right.
+
+**Both malformed times had shipped to techbbq.dk.** The publish rule only requires that a
+Time Slot be non-empty, never that it parses, so `14-30` rendered verbatim. Still open — a
+format check on `Time Slot` is the obvious follow-up and Auri has been offered it twice.
+
+**2. Local-only "Refresh from Airtable" button** (`/program`). Feeds stay at the 1h
+`TTL_MS` — Auri explicitly wants that for the live site — and this is the escape hatch for
+editing sessions.
+- `app/api/admin/refresh/route.ts` — POST, drops server cache entries. `{key}` clears one
+  feed, no body clears all. **404s when `NODE_ENV === "production"`**, and is outside
+  middleware's `PUBLIC_PATHS` so it also sits behind the dashboard password. Reason it
+  refuses in prod: there the CDN's `s-maxage` is what serves visitors and clearing one
+  instance's Map does nothing, so the press would lie.
+- `lib/rate-limit.ts` — added `invalidateAll()` alongside the existing `invalidate()`.
+- `components/DevRefreshButton.tsx` — returns null unless dev. Verified the label and the
+  route path are both **absent from `.next/static`** in a production build (0 matches), so
+  it is stripped, not merely hidden.
+- `lib/useCachedList.ts` — new optional 4th arg `nonce`, folded into the effect deps. This
+  is what lets the button refetch IN PLACE. First attempt used `window.location.reload()`
+  and it threw you back to the Brella tab every press. Do not fold a counter into
+  `cacheKey` instead — that writes a new localStorage entry per press and orphans the old.
+
+**3. The refresh reports WHAT changed**, or says nothing did.
+- `lib/diffList.ts` (new) — matches rows by `id` (so a reordered row is not a delete plus an
+  add), classifies added/removed/changed, and for changed rows lists each field as
+  `Time Slot: 12:30–13:30 (was 12:00-13:00)`. Caps at 15 rows and 70 chars per value, and
+  reports the remainder as "and N more not listed" rather than truncating silently.
+  `FIELD_LABELS` maps camelCase JSON keys to Airtable-ish column names; unmapped keys get
+  de-camelCased automatically, so a new feed field still reads sensibly.
+- `useCachedList` returns `changes: ChangeSummary | null`. **null vs total===0 is load-bearing**:
+  null means no comparison was possible (cold load, where every row would read as "added" —
+  noise), total===0 means it compared and they were genuinely identical. That second case is
+  the "No changes. This page already matched Airtable." line, and it matters: silence would
+  read as "the button didn't work".
+- The report only renders after a press (`pressed` state). `changes` also fills on ordinary
+  background revalidation, and printing a diff nobody asked for on page load is noise.
+
+**The button no longer clears localStorage on the `onCleared` path**, and this is deliberate:
+that copy IS the baseline the diff compares against. Clearing it made every refresh report
+"nothing changed". The reload fallback still clears it, since a reload repaints from
+localStorage before fetching and would flash the stale list.
+
+### Gotchas
+- **`TaskStop` on `npm run dev` leaves the child node process holding port 3000.** The next
+  `next dev` silently moves to 3001 while the orphan serves 500s from the `.next` you just
+  deleted. Kill by port (`Get-NetTCPConnection -LocalPort 3000`) before restarting.
+- The `.next` corruption rule still bites: stop dev, `rm -rf .next`, build, `rm -rf .next`,
+  restart dev. Don't interleave.
+- `/api/program` takes **`?event=`, not `?source=`** despite the lib calling them sources.
+  `?source=niss` silently falls back to the `techbbq` table and returns its 3 sample rows.
+- Airtable's `Time Slot` and `Session Name` are both `singleLineText`, so writes are safe.
+  The token has `data.records:write` plus schema read.
+- Browser automation: this page's tab buttons ignore clicks until React hydrates, and
+  pixel coords are off because the viewport (1923px) is scaled to the screenshot (1322px).
+  `ref` clicks are still flaky here; driving it with `javascript_tool` (`el.click()`) is
+  reliable.
+- **Testing the change report by tampering with localStorage needs no reload.** Reloading
+  (or switching tabs) triggers a background revalidation that immediately rewrites the
+  baseline to the real data, so the subsequent press correctly reports nothing. Tamper and
+  press in the same tick.
+- The report compares against what THIS BROWSER last stored, not against a server-side
+  history. A second press right after the first always says "no changes", which is correct.
+
+### Next steps
+1. Add the `Time Slot` format check so a malformed time is flagged instead of published.
+2. Drop `DevRefreshButton` onto the other feed pages — one import, a `nonce`, and pass
+   `changes`, same as `/program`.
+3. Carried over: `TITO_API_TOKEN` + `BRELLA_API_KEY` in Vercel; Life Science and team embed
+   re-copies; `/api/team` has no retry.
 ## Session 2026-07-31f (Event cards restyled to match the house .s-card look)
 
 State: DONE, committed on `partner-events`. `tsc --noEmit` + `npm run build` clean. Verified
