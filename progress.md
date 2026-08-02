@@ -4,6 +4,48 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-02c (Future of Fintech program audited against Auri's Google Sheet)
+
+State: **FINDINGS ONLY, NOTHING FIXED.** Auri asked whether the Airtable program matches the
+sheet. It nearly does. Four discrepancies, all still open, all waiting on his call.
+
+Source: `Future Of Fintech` (`tbleh7Lqv1zMQaUKx`), program view `viw0mk6kOUKxNqgzU`, 8 rows.
+**All 8 sessions and all 8 time ranges match the sheet exactly, in the same order.**
+
+**1. Every `Session Description` is EMPTY in Airtable** (verified field-by-field against the
+view). The 8 description paragraphs in the sheet exist nowhere in the base.
+
+**And filling them in would not be enough**, which is the part worth remembering: the `fintech`
+entry in `PROGRAM_SOURCES` maps only `name` / `timeSlot` / `type`. There is no `description`
+key, so `lib/program.ts` never requests the field and the feed could not expose it even once
+the cells are populated. **`niss` has the same gap.** Only the `techbbq` source maps
+`description`. The agenda embed already renders descriptions, so nothing downstream needs
+changing — this is two lines of config plus the data.
+
+**2. Session 2 lost the company name.** Sheet: "Opening Session with **Flatpay** · Unicorn to
+Decacorn - Building for the Scale Leap". Airtable: "Unicorn to Decacorn: Building for the Scale
+Leap". Dropping "Opening Session" is right, `Type of Session` already says `Opening`, but
+Flatpay is gone. Auri has not yet said which wording he wants.
+
+**3. Session 2's `Time Slot` holds a trailing newline** — the raw value is `'10:00–10:10\n'`,
+which renders as a line break inside the time column. Same class of invisible data defect as
+the NISS `13:30-14-30`, and it ships for the same reason: the publish rule only checks that a
+Time Slot is non-empty, never that it is well-formed. **Third instance now. Write the format
+check.**
+
+**4. Dash inconsistency**, same as NISS was: rows 1-4 en dash, rows 5-8 hyphen.
+
+Nothing to exclude at the end — the "Final Networking and panel" row Auri flagged is not in the
+program view, so it never reaches the feed.
+
+### Next steps
+1. Data fixes, cleared for nothing yet: strip the trailing newline, normalise the four hyphens.
+2. Confirm the Flatpay wording, then write it.
+3. Add `description: "Session Description"` to the `fintech` source (and the equivalent to
+   `niss`), then load the 8 texts from the sheet into Airtable.
+4. **The `Time Slot` format check, now overdue.** Three malformed values have reached
+   techbbq.dk across two tables.
+
 ## Session 2026-08-02b (Refresh button works in PRODUCTION, via an authenticated bypass)
 
 State: DONE. `tsc --noEmit` + `npm run build` clean. Auth gate verified with curl on a real
