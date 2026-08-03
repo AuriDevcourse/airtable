@@ -93,6 +93,31 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03s (timeline cards: 5-word title, time range, two speaker names)
+
+State: done, pushed. `tsc --noEmit` clean. Dashboard only.
+
+Timeline cards now carry three lines: the headline cut to its first five words with an ellipsis,
+the start-to-end time, and up to two speaker names with "+N" for the rest.
+
+`shortNames()` puts SPEAKERS BEFORE MODERATORS before slicing. A card with room for two names
+should spend them on who is talking rather than who is chairing; the full list with roles is in
+the dialog, which is one click away.
+
+The full headline is on the element's `title` attribute, so hovering still gives it.
+
+Title clamp drops 3 lines -> 2. With the text cut to five words, the third line only ever
+produced dead space above the time. The name line is `nowrap` + `text-overflow: ellipsis`, so a
+long pair of names truncates instead of wrapping and shoving the layout around.
+
+Cards under 46px keep `data-compact` and show the title alone; there is no room for three lines
+in a ten-minute slot.
+
+Only the TIMELINE cards changed. The card lists under Event Rooms, Grill Sessions and Side
+Events still show the full title and description, since they are not height-constrained.
+
+Files: `app/brella-program/page.tsx`, `app/globals.css`.
+
 ## Session 2026-08-03r (stage icons, bigger column headings, roomier day pills)
 
 State: done, pushed. `tsc --noEmit` clean. Dashboard only.

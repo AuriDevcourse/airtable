@@ -196,6 +196,26 @@ function StageIcon({ stage }: { stage: string }) {
   );
 }
 
+/** "A High-Agency Europe: Founders building tomorrow" -> "A High-Agency Europe: Founders building…" */
+function firstWords(text: string, n = 5): string {
+  const w = text.trim().split(/\s+/);
+  return w.length <= n ? text.trim() : w.slice(0, n).join(" ") + "…";
+}
+
+/**
+ * Up to two names for the card, speakers before moderators, with "+N" for the rest.
+ *
+ * Speakers first because a card with room for two names should spend them on who is talking,
+ * not on who is chairing. The full list with roles is in the dialog.
+ */
+function shortNames(speakers: Speaker[] | undefined, n = 2): string {
+  if (!speakers?.length) return "";
+  const ordered = [...speakers].sort((a, b) => Number(isModerator(a)) - Number(isModerator(b)));
+  const shown = ordered.slice(0, n).map((p) => p.name);
+  const rest = ordered.length - shown.length;
+  return shown.join(", ") + (rest > 0 ? ` +${rest}` : "");
+}
+
 function hhmm(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -359,13 +379,14 @@ function StageTimeline({
                   left: `${(s.lane * 100) / s.lanes}%`,
                   width: `${100 / s.lanes}%`,
                 } as React.CSSProperties;
+                const names = shortNames(s.speakers);
                 const inner = (
                   <>
-                    <span className="bp-tl__cardTitle">{s.name}</span>
+                    {/* Five words then an ellipsis. The full title is the element's title
+                        attribute and the whole session is one click away. */}
+                    <span className="bp-tl__cardTitle">{firstWords(s.name)}</span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
-                    {peopleSummary(s.speakers) && (
-                      <span className="bp-tl__cardMeta">{peopleSummary(s.speakers)}</span>
-                    )}
+                    {names && <span className="bp-tl__cardMeta">{names}</span>}
                   </>
                 );
                 return detail ? (
@@ -375,6 +396,7 @@ function StageTimeline({
                     className="bp-tl__card bp-tl__card--open"
                     style={style}
                     data-compact={compact ? "1" : undefined}
+                    title={s.name}
                     onClick={() => onOpen(s)}
                     aria-label={`${s.name} — show details`}
                   >
@@ -386,6 +408,7 @@ function StageTimeline({
                     className="bp-tl__card"
                     style={style}
                     data-compact={compact ? "1" : undefined}
+                    title={s.name}
                   >
                     {inner}
                   </article>

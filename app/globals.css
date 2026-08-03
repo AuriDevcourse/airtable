@@ -1243,10 +1243,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-size: 12.5px; font-weight: 600; line-height: 1.25;
   /* Clamped because the card's height is dictated by the session's LENGTH: a 10-minute slot
      is 24px tall and cannot show a full title however much it would like to. */
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  /* 2 lines, not 3: the title is cut to five words now, so three lines only ever meant
+     dead space above the time. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
-.bp-tl__cardMeta { flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted); }
+.bp-tl__cardMeta {
+  flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted);
+  /* Two names plus a "+N" on one line; the dialog has the full list. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* A slot too short to hold more than one line: show the title alone. The time is in the
    dialog, and half a clipped title plus half a clipped timestamp reads as broken. */
