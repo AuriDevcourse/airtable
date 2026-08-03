@@ -93,6 +93,32 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04f (the phone picker now follows the section)
+
+State: done, live and verified at 375px.
+
+The phone picker was filled only for the TIMELINE sections. Switching to Event Rooms therefore
+left an empty box still labelled "Stage" — and because the pill row is hidden below 760px, there
+was then no way to filter rooms on a phone at all. A real gap, not just a wrong label.
+
+`fillPicker(label, allLabel, items)` now builds it from whatever the current section's pill row
+holds, and each section declares its own wording:
+
+| Section | Label | Options |
+|---|---|---|
+| Stages | Stage | All stages + the five |
+| Event Rooms | Room | All rooms + Event Room 1-4, Rooms 5,6,7 |
+| Grill Sessions | Grill | All grills + Green/Blue/Orange |
+| Side Events | — | hidden; filtered by DAY chips instead |
+
+Hiding it needed `#id .tbbq-bp__pickWrap.tbbq-bp__pickWrap--off` — two classes, so it outranks
+the media-query rule that shows the picker on a phone regardless of source order.
+
+Verified live: labels correct per section, the room picker actually filters (24 cards -> 9 for
+Event Room 1), Side Events shows TUE/WED/THU day chips and no picker.
+
+Files: `lib/brellaEmbedSnippet.ts`.
+
 ## Session 2026-08-04e (the dialog was COLUMN-FRAGMENTED; how to find that again)
 
 State: done, live and verified at 375px.
