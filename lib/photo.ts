@@ -13,10 +13,19 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { cached, invalidate } from "@/lib/rate-limit";
+import { logoUrl, pickLogo } from "@/lib/logoPick";
 
 const API = "https://api.airtable.com/v0";
 
-export type PhotoSource = { table: string; fields: string[] };
+export type PhotoSource = {
+  table: string;
+  fields: string[];
+  // Opt in to lib/logoPick.ts instead of "take the first attachment". Only the startup logo
+  // wall needs it, because those cells hold several variants of the same mark (an original
+  // plus a white SVG added later) and the first one is the wrong one. Every other feed has a
+  // single headshot per cell, where first-wins is correct and cheaper.
+  pickLogo?: true;
+};
 
 // feed key → source table + attachment fields, in priority order (first field with an
 // attachment wins, mirroring each feed's original firstPhoto(...) || firstPhoto(...)).
@@ -30,6 +39,13 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
   marketing: { table: "tblTecOBecLQCNIeD", fields: ["Profile Picture"] },
   fintech: { table: "tbleh7Lqv1zMQaUKx", fields: ["Attachments"] },
   lifescience: { table: "tblvukXfmR7KTFymG", fields: ["Headshot"] },
+  // Life Science Project again, but the exhibiting startup's company logo rather than a
+  // speaker headshot (lib/lsstartups.ts). Separate key because the field differs.
+  "ls-startups": {
+    table: "tblvukXfmR7KTFymG",
+    fields: ["High quality company logo"],
+    pickLogo: true,
+  },
   nass: { table: "tbl3dTaHrIFrHF6Mo", fields: ["Headshots"] },
   niss: { table: "tblfIPjV4t1c1628h", fields: ["Self Portrait"] },
   "niss-2025": { table: "tblyWVASxceyLRCaL", fields: ["Photo"] },
@@ -67,19 +83,37 @@ function baseUrl(): string {
 
 // The stable URL a feed puts in its JSON. fieldIndex pins one field from the source's
 // list (event-room slots); omit it to scan the fields in priority order.
+//
+// `version` is a cache-buster, and it exists because "stable URL" and "24h max-age" fight
+// each other the moment the underlying attachment is REPLACED. The bytes behind
+// /api/photo/<feed>/<rec> change, the URL does not, and every browser and CDN keeps serving
+// yesterday's logo for up to a day. Passing Airtable's per-attachment id makes the URL change
+// whenever the file does, so a swapped logo appears immediately and an unchanged one still
+// caches hard. The route ignores this param; only the cache key cares.
 export function photoUrl(
   feed: keyof typeof PHOTO_SOURCES,
   recordId: string,
-  fieldIndex?: number
+  fieldIndex?: number,
+  version?: string
 ): string {
-  const suffix = fieldIndex !== undefined ? `?f=${fieldIndex}` : "";
-  return `${baseUrl()}/api/photo/${feed}/${recordId}${suffix}`;
+  const params = new URLSearchParams();
+  if (fieldIndex !== undefined) params.set("f", String(fieldIndex));
+  if (version) params.set("v", version);
+  const qs = params.toString();
+  return `${baseUrl()}/api/photo/${feed}/${recordId}${qs ? `?${qs}` : ""}`;
 }
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 
-function attachmentUrl(v: unknown): string | null {
+function attachmentUrl(v: unknown, usePicker?: boolean): string | null {
   if (!Array.isArray(v) || v.length === 0) return null;
+  // Cells holding several variants of one logo choose by what the file IS, not by position.
+  // Must stay in step with lib/lsstartups.ts, which uses the same picker to decide whether to
+  // publish a logo URL at all — see lib/logoPick.ts.
+  if (usePicker) {
+    const best = pickLogo(v);
+    return best ? logoUrl(best) : null;
+  }
   const att = v[0] as AirtableAttachment;
   return att?.thumbnails?.large?.url || att?.url || null;
 }
@@ -120,7 +154,7 @@ async function fetchSignedUrl(
   if (!rec) return null;
 
   for (const f of fields) {
-    const url = attachmentUrl(rec.fields[f]);
+    const url = attachmentUrl(rec.fields[f], source.pickLogo);
     if (url) return url;
   }
   return null;
