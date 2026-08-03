@@ -1167,7 +1167,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-tl__colHead {
   border-left: 1px solid var(--color-border);
   padding: 8px 6px;
-  display: flex; align-items: flex-start; gap: 6px;
+  /* Centred on both axes: the headings sit in a fixed-height row and left/top alignment left
+     the one-line names floating at the top of a two-line box. */
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 46px; text-align: center;
   font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.25;
   color: var(--color-foreground);
   /* Five stage names, one of which is "Life Science x Deep Tech Stage". Wrapping beats
@@ -1176,7 +1179,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .bp-tl__gutterHead { }
 /* The icon takes the stage's own accent, so the header colour-codes the column too. */
-.bp-tl__icon { flex: none; margin-top: 1px; color: var(--track, currentColor); }
+.bp-tl__icon { flex: none; color: var(--track, currentColor); }
 .bp-tl__head > .bp-tl__colHead:last-child { border-right: 1px solid var(--color-border); }
 
 .bp-tl__body { position: relative; margin-top: 10px; }
@@ -1250,8 +1253,19 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
 .bp-tl__cardMeta {
   flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted);
-  /* Two names plus a "+N" on one line; the dialog has the full list. */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+}
+/* Two names plus a "+N" on one line; the dialog has the full list. */
+.bp-tl__cardNames { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-tl__faces { flex: none; display: inline-flex; }
+/* Overlapped, with a ring in the card's own colour so they read as a stack rather than a blur. */
+.bp-tl__face + .bp-tl__face { margin-left: -6px; }
+.bp-tl__face {
+  width: 16px; height: 16px; border-radius: 9999px; object-fit: cover;
+  box-shadow: 0 0 0 1.5px var(--color-card);
+  background: var(--color-card-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: var(--color-muted); line-height: 1;
 }
 
 /* A slot too short to hold more than one line: show the title alone. The time is in the
@@ -1451,6 +1465,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   color: var(--track, var(--color-orange));
 }
 .bp-person__toggle:hover .bp-person__more { text-decoration: underline; }
+.bp-person__more { display: inline-flex; align-items: center; gap: 3px; }
+.bp-person__chev { transition: transform .18s ease; }
+.bp-person__chev[data-open] { transform: rotate(180deg); }
 /* Role beside the name: "Moderator" must not read as just another speaker. */
 .bp-person__tag {
   display: inline-block; margin-left: 8px; padding: 1px 7px;

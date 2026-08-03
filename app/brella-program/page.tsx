@@ -8,6 +8,9 @@ import {
   BRELLA_SECTIONS as SECTIONS,
   BRELLA_STAGES,
   DAY_START_MIN,
+  TIMELINE_COLUMNS,
+  columnOf,
+  weekdayLabel,
   EVENT_DAYS,
   brellaDayLabel as dayLabel,
   defaultEventDay,
@@ -208,12 +211,37 @@ function firstWords(text: string, n = 5): string {
  * Speakers first because a card with room for two names should spend them on who is talking,
  * not on who is chairing. The full list with roles is in the dialog.
  */
+function orderedSpeakers(speakers: Speaker[] | undefined): Speaker[] {
+  if (!speakers?.length) return [];
+  return [...speakers].sort((a, b) => Number(isModerator(a)) - Number(isModerator(b)));
+}
+
 function shortNames(speakers: Speaker[] | undefined, n = 2): string {
-  if (!speakers?.length) return "";
-  const ordered = [...speakers].sort((a, b) => Number(isModerator(a)) - Number(isModerator(b)));
+  const ordered = orderedSpeakers(speakers);
+  if (!ordered.length) return "";
   const shown = ordered.slice(0, n).map((p) => p.name);
   const rest = ordered.length - shown.length;
   return shown.join(", ") + (rest > 0 ? ` +${rest}` : "");
+}
+
+/** The little stack of faces on a card. Initials when Brella has no photo. */
+function Avatars({ speakers, n = 2 }: { speakers: Speaker[] | undefined; n?: number }) {
+  const people = orderedSpeakers(speakers).slice(0, n);
+  if (!people.length) return null;
+  return (
+    <span className="bp-tl__faces" aria-hidden="true">
+      {people.map((p) =>
+        p.photo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img key={p.id} className="bp-tl__face" src={p.photo} alt="" loading="lazy" />
+        ) : (
+          <span key={p.id} className="bp-tl__face bp-tl__face--empty">
+            {p.name.trim().charAt(0).toUpperCase()}
+          </span>
+        )
+      )}
+    </span>
+  );
 }
 
 function hhmm(min: number): string {
@@ -386,7 +414,12 @@ function StageTimeline({
                         attribute and the whole session is one click away. */}
                     <span className="bp-tl__cardTitle">{firstWords(s.name)}</span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
-                    {names && <span className="bp-tl__cardMeta">{names}</span>}
+                    {names && (
+                      <span className="bp-tl__cardMeta">
+                        <Avatars speakers={s.speakers} />
+                        <span className="bp-tl__cardNames">{names}</span>
+                      </span>
+                    )}
                   </>
                 );
                 return detail ? (
@@ -541,7 +574,24 @@ function PersonRow({ p }: { p: Speaker }) {
             {p.role && <span className="bp-person__tag">{p.role}</span>}
           </span>
           {meta && <span className="bp-person__role">{meta}</span>}
-          <span className="bp-person__more">{show ? "Hide bio" : "Read bio"}</span>
+          <span className="bp-person__more">
+            {show ? "Hide bio" : "Read bio"}
+            <svg
+              className="bp-person__chev"
+              data-open={show ? "1" : undefined}
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
         </button>
         {show && <p className="bp-person__bio">{p.bio}</p>}
       </div>
@@ -589,7 +639,13 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
           {s.name}
         </h2>
         <p className="bp-modal__meta">
-          <PinIcon />
+          {/* The stage's own icon when the room is one of the five, so the dialog matches the
+              column you clicked from; the generic pin for event rooms and side events. */}
+          {STAGE_ICON_PATHS[stageOf(s.room) ?? ""] ? (
+            <StageIcon stage={stageOf(s.room) as string} />
+          ) : (
+            <PinIcon />
+          )}
           {/* Brella's `location` often repeats the track name verbatim ("Founders Stage ·
               Founders Stage"), so it is only appended when it says something new. */}
           {[s.room, s.location !== s.room ? s.location : ""].filter(Boolean).join(" · ")}
@@ -638,6 +694,9 @@ export default function BrellaProgramPage() {
   const [track, setTrack] = useState("");
   // Which stage column set to show. "" = all five.
   const [stage, setStage] = useState("");
+  // Side Events is filtered by day rather than by track. Declared up here with the other
+  // state because the `days` memo below reads it.
+  const [sideDay, setSideDay] = useState("");
 
   // Switching section changes how tall the page is. Scrolled down, a shorter section makes the
   // browser clamp scrollTop and the whole view lurches. This pins the masthead: its distance
@@ -649,6 +708,7 @@ export default function BrellaProgramPage() {
     anchor.current = barRef.current?.getBoundingClientRect().top ?? null;
     setSection(k);
     setTrack("");
+    setStage("");
   }, []);
   // useLayoutEffect, not useEffect: this has to run before the browser paints, or the jump is
   // visible for a frame and then corrected, which looks worse than not correcting it.
@@ -708,7 +768,9 @@ export default function BrellaProgramPage() {
 
   // Day → sessions, in day order, each day sorted by start time.
   const days = useMemo(() => {
-    const visible = track ? inSection.filter((s) => s.room === track) : inSection;
+    let visible = track ? inSection.filter((s) => s.room === track) : inSection;
+    // Side Events is filtered by DAY, not by track: it has one track and three dates.
+    if (section === "side" && sideDay) visible = visible.filter((s) => s.day === sideDay);
     const byDay = new Map<string, Session[]>();
     for (const s of visible) {
       const list = byDay.get(s.day);
@@ -723,27 +785,45 @@ export default function BrellaProgramPage() {
           (a, b) => startMinutes(a.timeSlot) - startMinutes(b.timeSlot) || a.name.localeCompare(b.name)
         ),
       }));
-  }, [inSection, track]);
+  }, [inSection, track, section, sideDay]);
 
   const shown = days.reduce((n, d) => n + d.sessions.length, 0);
 
-  // ── Stages view ──
+  // ── Timeline sections (Stages, Grill Sessions) ──
   // Columns come from the CANONICAL list, not from the data, so Campfire Stage keeps its
-  // column while it is still empty. Selecting one stage narrows to a single column.
-  const stageColumns = useMemo(
-    () => (stage ? [stage] : BRELLA_STAGES.map((s) => s.label)),
-    [stage]
+  // column while it is still empty. Selecting one narrows to a single column.
+  const columnSet = TIMELINE_COLUMNS[section];
+  const isTimeline = Boolean(columnSet);
+  const timelineColumns = useMemo(
+    () => (!columnSet ? [] : stage ? [stage] : columnSet.map((c) => c.label)),
+    [columnSet, stage]
   );
 
-  const stageSessions = useMemo(() => {
+  const timelineSessions = useMemo(() => {
+    if (!columnSet) return [];
     const date = EVENT_DAYS[dayIdx].date;
     return all.filter(
       (s) =>
-        inBrellaSection(s, "stages") &&
+        inBrellaSection(s, section) &&
         s.day.includes(date) &&
-        stageColumns.includes(stageOf(s.room) ?? s.room)
+        timelineColumns.includes(columnOf(s.room, columnSet) ?? s.room)
     );
-  }, [all, dayIdx, stageColumns]);
+  }, [all, dayIdx, section, columnSet, timelineColumns]);
+
+  // ── Side Events ──
+  // Day chips instead of a track filter: there is only one track ("Side Event Promotion"), so
+  // filtering by it was meaningless, while the events genuinely span 25-27 August.
+  const sideDays = useMemo(() => {
+    if (section !== "side") return [];
+    const seen = [...new Set(inSection.map((s) => s.day))];
+    return seen.sort((a, b) => dayNumber(a) - dayNumber(b));
+  }, [inSection, section]);
+  // Whenever the set of days changes (first load), settle on one rather than showing none.
+  useEffect(() => {
+    if (section === "side" && sideDays.length && !sideDays.includes(sideDay)) {
+      setSideDay(sideDays[0]);
+    }
+  }, [section, sideDays, sideDay]);
 
   return (
     <main>
@@ -806,21 +886,21 @@ export default function BrellaProgramPage() {
             {/* Stages is a timeline; every other section stays a card list, because only the
                 stages run in parallel against a clock. */}
             <div ref={resultsRef} style={floor ? { minHeight: floor } : undefined}>
-            {section === "stages" ? (
+            {isTimeline ? (
               <>
                 <div className="bp-controls">
-                <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by stage">
+                <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by column">
                   <button role="tab" aria-selected={stage === ""} onClick={() => setStage("")}>
-                    All stages
+                    {section === "grills" ? "All grills" : "All stages"}
                   </button>
-                  {BRELLA_STAGES.map((s) => (
+                  {(columnSet ?? []).map((c) => (
                     <button
-                      key={s.label}
+                      key={c.label}
                       role="tab"
-                      aria-selected={stage === s.label}
-                      onClick={() => setStage(s.label)}
+                      aria-selected={stage === c.label}
+                      onClick={() => setStage(c.label)}
                     >
-                      {s.label}
+                      {c.label}
                     </button>
                   ))}
                 </div>
@@ -841,14 +921,14 @@ export default function BrellaProgramPage() {
                 </div>
 
                 <p className="count-line">
-                  {stageSessions.length} session(s).
+                  {timelineSessions.length} session(s).
                   {revalidating && <span className="reval"> · checking for updates…</span>}
                   {updated && <span className="reval"> · updated</span>}
                 </p>
 
                 <StageTimeline
-                  columns={stageColumns}
-                  sessions={stageSessions}
+                  columns={timelineColumns}
+                  sessions={timelineSessions}
                   onOpen={setOpen}
                 />
               </>
@@ -858,21 +938,41 @@ export default function BrellaProgramPage() {
                     from the page, so switching to Side Events shunted everything below it
                     upwards — the jumping Auri reported. */}
                 <div className="bp-controls">
-                  <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by track">
-                    <button role="tab" aria-selected={track === ""} onClick={() => setTrack("")}>
-                      All
-                    </button>
-                    {tracks.map((t) => (
-                      <button
-                        key={t}
-                        role="tab"
-                        aria-selected={track === t}
-                        onClick={() => setTrack(t)}
-                      >
-                        {t}
+                  {section === "side" ? (
+                    /* One track and three dates, so "All / Side Event Promotion" filtered
+                       nothing. Days are the useful axis here. */
+                    <div className="seg bp-days" role="tablist" aria-label="Event day">
+                      {sideDays.map((d) => (
+                        <button
+                          key={d}
+                          role="tab"
+                          aria-selected={sideDay === d}
+                          onClick={() => setSideDay(d)}
+                        >
+                          <span className="bp-days__n">{weekdayLabel(d).split(" ")[0]}</span>
+                          <span className="bp-days__date">
+                            {weekdayLabel(d).split(" ").slice(1).join(" ")}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by track">
+                      <button role="tab" aria-selected={track === ""} onClick={() => setTrack("")}>
+                        All
                       </button>
-                    ))}
-                  </div>
+                      {tracks.map((t) => (
+                        <button
+                          key={t}
+                          role="tab"
+                          aria-selected={track === t}
+                          onClick={() => setTrack(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <p className="count-line">

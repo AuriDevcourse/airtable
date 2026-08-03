@@ -30,7 +30,9 @@ export function isBrellaSection(v: string | null): v is BrellaSection {
  * `match` exists because Brella's track name and the public stage name are not always the same
  * ("Founders Stage" on the signage is "Founder Stage" in Auri's list).
  */
-export const BRELLA_STAGES: { label: string; match: RegExp }[] = [
+export type ColumnDef = { label: string; match: RegExp };
+
+export const BRELLA_STAGES: ColumnDef[] = [
   { label: "BBQ Stage", match: /^bbq stage/i },
   { label: "Tech Stage", match: /^tech stage/i },
   { label: "Campfire Stage", match: /campfire/i },
@@ -38,10 +40,44 @@ export const BRELLA_STAGES: { label: string; match: RegExp }[] = [
   { label: "Life Science x Deep Tech Stage", match: /life science/i },
 ];
 
+// The Grill Sessions, in signage order rather than alphabetical. They run on a clock in
+// parallel exactly like the stages, so they get the same timeline treatment.
+export const BRELLA_GRILLS: ColumnDef[] = [
+  { label: "Green Grill Session", match: /green grill/i },
+  { label: "Blue Grill Session", match: /blue grill/i },
+  { label: "Orange Grill Session", match: /orange grill/i },
+];
+
+/** Which column of `set` a track belongs to, or null when it is in none of them. */
+export function columnOf(room: string, set: ColumnDef[]): string | null {
+  const hit = set.find((s) => s.match.test(room));
+  return hit ? hit.label : null;
+}
+
 /** The stage a track belongs to, or null when it is not one of the five. */
 export function stageOf(room: string): string | null {
-  const hit = BRELLA_STAGES.find((s) => s.match.test(room));
-  return hit ? hit.label : null;
+  return columnOf(room, BRELLA_STAGES);
+}
+
+/** The sections drawn as a timeline, and the columns each one uses. */
+export const TIMELINE_COLUMNS: Partial<Record<BrellaSection, ColumnDef[]>> = {
+  stages: BRELLA_STAGES,
+  grills: BRELLA_GRILLS,
+};
+
+// Brella's day strings carry no year ("25 August"), and a weekday cannot be derived without
+// one. The event year is a fixed fact about this deployment, unlike "today", which must never
+// be a constant.
+export const EVENT_YEAR = 2026;
+
+/** "Day 1 · 25 August" → "TUE 25 AUG", for the Side Events day picker. */
+export function weekdayLabel(day: string): string {
+  const m = /(\d{1,2})\s+([A-Za-z]+)/.exec(day);
+  if (!m) return day.toUpperCase();
+  const month = new Date(`${m[2]} 1, ${EVENT_YEAR}`).getMonth();
+  const d = new Date(EVENT_YEAR, month, Number(m[1]));
+  const wd = d.toLocaleDateString("en-GB", { weekday: "short" });
+  return `${wd.toUpperCase()} ${m[1]} ${m[2].slice(0, 3).toUpperCase()}`;
 }
 
 /**

@@ -93,6 +93,41 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03t (Grills get the timeline, Side Events get days, card avatars)
+
+State: done, pushed. `tsc --noEmit` clean. Dashboard only.
+
+**The timeline is no longer stages-only.** `TIMELINE_COLUMNS` in `lib/brellaSections.ts` maps a
+section to its column set, `stages` -> `BRELLA_STAGES` and `grills` -> `BRELLA_GRILLS`, and
+`stageOf()` is now a thin wrapper over a generic `columnOf(room, set)`. Grill Sessions renders
+the same three-part control (column picker, day picker, timeline) with Green/Blue/Orange as its
+columns. Adding another timeline section is one entry in that map.
+
+**Side Events is filtered by DAY, not by track.** It has exactly one track, so "All / Side Event
+Promotion" filtered nothing, while the events genuinely span 25-27 August. Chips are now
+TUE 25 AUG / WED 26 AUG / THU 27 AUG via `weekdayLabel()`.
+
+That needs a year, which Brella's day string ("25 August") does not carry, so `EVENT_YEAR` is a
+constant in `lib/brellaSections.ts`. That is a fixed fact about this deployment and is fine as a
+constant, unlike "today", which must always be computed.
+
+**Card avatars.** Up to two faces before the names, overlapped with a ring in the card colour,
+falling back to an initial when Brella has no photo. `orderedSpeakers()` is shared with
+`shortNames()` so the faces and the names are always the same two people in the same order.
+
+**Two smaller things:** the dialog's room line now shows the STAGE's icon when the room is one of
+the five and the generic pin otherwise, so it matches the column you clicked from; and "Read bio"
+has a chevron that rotates on open.
+
+**Column headings centre on both axes** (`min-height: 46px`), since a one-line stage name was
+floating at the top of a box sized for the two-line Life Science heading.
+
+Files: `lib/brellaSections.ts`, `app/brella-program/page.tsx`, `app/globals.css`.
+
+### Next steps
+
+1. The embed is now four sections behind. Porting it is a real piece of work.
+
 ## Session 2026-08-03s (timeline cards: 5-word title, time range, two speaker names)
 
 State: done, pushed. `tsc --noEmit` clean. Dashboard only.
