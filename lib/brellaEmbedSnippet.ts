@@ -90,6 +90,10 @@ export function buildBrellaEmbedSnippet({
     display:block!important;${transparent ? "" : "background:var(--bg)!important;padding:32px 24px!important;border-radius:20px!important;"}
     font-family:var(--sans)!important;color:var(--fg)!important;box-sizing:border-box}
   #${id} *{box-sizing:border-box}
+  /* The theme uppercases headings, strong and card text. Everything in here is content, not
+     chrome, so it is forced back to normal; the few places that SHOULD be uppercase (day
+     labels, role tags, the all-day label) re-declare it themselves below. */
+  #${id},#${id} *{text-transform:none!important;font-variant:normal!important;letter-spacing:normal!important;text-align:left}
 
   /* The section masthead. Big type, centred, the primary control on the page. */
   #${id} .tbbq-bp__sections{display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;justify-content:center!important;gap:8px 28px!important;margin:0 0 20px!important;padding:0!important}
@@ -134,21 +138,24 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__alldayList{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
   #${id} .tbbq-bp__chip{appearance:none!important;border:0!important;border-left:3px solid var(--track)!important;background:var(--card)!important;color:var(--fg)!important;padding:5px 9px!important;border-radius:4px!important;font-size:12px!important;cursor:pointer!important;text-align:left!important}
 
-  #${id} .tbbq-bp__head,#${id} .tbbq-bp__body{display:grid!important;grid-template-columns:var(--gutter) repeat(var(--cols,5),minmax(0,1fr))!important;gap:0 8px!important}
+  /* NO CSS GRID HERE. On techbbq.dk the theme blockified the grid container — the timeline
+     collapsed, the gutter ran the full width and every card drew on top of the next. The
+     columns are ABSOLUTELY POSITIONED instead, with their geometry written inline by the
+     script: an absolutely positioned box ignores the parent's display entirely, so there is
+     nothing left for a theme to override. */
+  #${id} .tbbq-bp__head,#${id} .tbbq-bp__body{display:block!important;position:relative!important;margin:0!important;padding:0!important}
   #${id} .tbbq-bp__colhead{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:15px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
-  #${id} .tbbq-bp__head>.tbbq-bp__colhead:last-child{border-right:1px solid var(--border)!important}
   #${id} .tbbq-bp__gutterhead{border:0!important}
   #${id} .tbbq-bp__icon{flex:none!important;color:var(--track,currentColor)!important}
 
-  #${id} .tbbq-bp__body{position:relative!important;margin-top:10px!important}
-  #${id} .tbbq-bp__gutter{position:relative!important}
+  #${id} .tbbq-bp__body{margin-top:10px!important}
   #${id} .tbbq-bp__tick{position:absolute!important;right:8px!important;transform:translateY(-50%)!important;font-size:11px!important;color:var(--muted)!important;white-space:nowrap!important}
   #${id} .tbbq-bp__tick[data-hour]{color:var(--fg)!important}
   #${id} .tbbq-bp__line{position:absolute!important;left:var(--gutter)!important;right:0!important;height:1px!important;background:var(--border)!important;opacity:.45!important;pointer-events:none!important}
   #${id} .tbbq-bp__line[data-hour]{opacity:.9!important}
-  #${id} .tbbq-bp__col{position:relative!important;min-width:0!important;border-left:1px solid var(--border)!important}
+  #${id} .tbbq-bp__col{box-sizing:border-box!important;border-left:1px solid var(--border)!important}
   #${id} .tbbq-bp__col:last-child{border-right:1px solid var(--border)!important}
-  #${id} .tbbq-bp__none{position:absolute!important;inset:0!important;display:grid!important;place-items:center!important;margin:0!important;padding:8px!important;text-align:center!important;font-size:12px!important;color:var(--muted)!important;opacity:.6!important}
+  #${id} .tbbq-bp__none{padding:8px!important;text-align:center!important;font-size:12px!important;color:var(--muted)!important;opacity:.6!important}
 
   #${id} .tbbq-bp__ev{position:absolute!important;display:flex!important;flex-direction:column!important;gap:2px!important;overflow:hidden!important;padding:6px 8px!important;margin:0!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:5px!important;text-align:left!important;font:inherit!important;color:var(--fg)!important;appearance:none!important;box-shadow:none!important;
     background:linear-gradient(135deg,color-mix(in srgb,var(--track) 14%,var(--card)),color-mix(in srgb,var(--track2,var(--track)) 14%,var(--card)))!important}
@@ -379,21 +386,36 @@ export function buildBrellaEmbedSnippet({
         +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+trackVars(s.room)+'">'+esc(s.name)+'</button>';}).join("")
         +'</div></div>';
     }
-    html+='<div class="tbbq-bp__tl" style="--cols:'+cols.length+'">'
-      +'<div class="tbbq-bp__head" style="--cols:'+cols.length+'"><span class="tbbq-bp__gutterhead"></span>'
-      +cols.map(function(c){return '<span class="tbbq-bp__colhead" style="'+trackVars(c)+'">'+iconFor(c)+'<span>'+esc(c)+'</span></span>';}).join("")
+    /* Written inline, not left to the stylesheet. On techbbq.dk the timeline collapsed to
+       block flow — the gutter ran the full width with its times pinned right, and every card
+       positioned against the BODY instead of its column, so they all drew full width on top of
+       each other. Inline styles cannot be lost the way a stylesheet rule can, and they also
+       avoid depending on the --cols custom property surviving the paste. */
+    var GUT=narrow?60:74;
+    var N=cols.length;
+    /* One column's width, and the left edge of column i, as calc() so they still track a
+       fluid container. 4px of side padding inside each column stands in for the grid gap. */
+    var CW='calc((100% - '+GUT+'px) / '+N+')';
+    function CL(i){return 'calc('+GUT+'px + '+i+' * ((100% - '+GUT+'px) / '+N+'))';}
+    var HEADH=narrow?46:58;
+    html+='<div class="tbbq-bp__tl" style="--cols:'+N+'">'
+      +'<div class="tbbq-bp__head" style="position:relative;display:block;height:'+HEADH+'px">'
+      +cols.map(function(c,i){return '<span class="tbbq-bp__colhead" style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+trackVars(c)+'">'+iconFor(c)+'<span>'+esc(c)+'</span></span>';}).join("")
       +'</div>'
-      +'<div class="tbbq-bp__body" style="--cols:'+cols.length+';height:'+height+'px">'
-      +'<div class="tbbq-bp__gutter">'
-      +ticks.map(function(x){return '<span class="tbbq-bp__tick"'+((x%60===0)?' data-hour="1"':'')+' style="top:'+((x-from)*PX)+'px">'+((x%60===0)?hhmm(x):"")+'</span>';}).join("")
+      +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
+      +'<div class="tbbq-bp__gutter" style="position:absolute;left:0;top:0;width:'+GUT+'px;height:100%">'
+      +ticks.map(function(x){return '<span class="tbbq-bp__tick"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;right:8px;top:'+((x-from)*PX)+'px">'+((x%60===0)?hhmm(x):"")+'</span>';}).join("")
       +'</div>'
-      +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="top:'+((x-from)*PX)+'px"></span>';}).join("");
+      +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PX)+'px"></span>';}).join("");
 
-    cols.forEach(function(c){
+    cols.forEach(function(c,ci){
       var items=timed.filter(function(x){return (columnOf(x.s.room)||x.s.room)===c;})
         .sort(function(a,b){return a.start-b.start||String(a.s.name).localeCompare(String(b.s.name));});
-      html+='<div class="tbbq-bp__col">';
-      if(!items.length)html+='<p class="tbbq-bp__none">Nothing scheduled</p>';
+      html+='<div class="tbbq-bp__col" style="position:absolute;top:0;height:100%;left:'+CL(ci)+';width:'+CW+';box-sizing:border-box;padding:0 4px">';
+      /* Near the top rather than vertically centred: the column is as tall as the whole day,
+         so a centred label sits below the fold on a stage with nothing on it. Placed inline
+         because place-items does nothing once a theme blockifies the grid. */
+      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">Nothing scheduled</p>';
       /* Lanes per CLUSTER of overlapping sessions, compared on the DRAWN extent: a 5-minute
          slot is floored to a minimum height and so covers the next card even though the clock
          says it has finished. Counting per column would halve every card on the stage. */
@@ -413,7 +435,7 @@ export function buildBrellaEmbedSnippet({
         var s=p.x.s;
         var h=Math.max(MINCARD,(p.x.end-p.x.start)*PX-4);
         var compact=h<46;
-        var st="top:"+((p.x.start-from)*PX)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
+        var st="position:absolute;top:"+((p.x.start-from)*PX)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'

@@ -93,6 +93,54 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03x (embed collapsed on techbbq.dk: CSS Grid removed, casing forced)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+Auri's screenshot of the live embed: every card full width and stacked on top of the next, the
+time gutter running the whole width with its times pinned right, and every session title and
+speaker name in CAPS.
+
+**Cause 1: the theme blockified the grid.** `.tbbq-bp__body` was `display:grid` and the columns
+were grid items; the schedule only works because each column is a positioning context for its
+absolutely positioned cards. Once the container is `display:block` the columns stack, the cards
+resolve their `left`/`width` percentages against the BODY, and everything draws full width on
+top of everything else.
+
+`!important` did NOT save it, and neither did an inline `display:grid` — reproduced in a harness
+applying `.sec div,.sec span{display:block}`, where the body still computed to `block` with both
+in place. Rather than keep escalating a specificity fight that was already lost twice:
+
+**THE TIMELINE NO LONGER USES CSS GRID.** Columns and the gutter are ABSOLUTELY POSITIONED, with
+their geometry written inline by the script:
+```
+width: calc((100% - GUTTERpx) / N)
+left:  calc(GUTTERpx + i * ((100% - GUTTERpx) / N))
+```
+An absolutely positioned box ignores its parent's `display` entirely, so there is nothing left
+for a theme to override. It stays fluid because the widths are `calc()` percentages, and the 4px
+side padding on each column replaces the old grid gap. The same treatment went to the header
+(so it still lines up with the columns), the gridlines and the "Nothing scheduled" label.
+
+**Cause 2: the theme uppercases content.** The 03w reset covered the DIALOG only; the schedule
+itself was untouched. `#id, #id *` now force `text-transform:none`, `font-variant:normal` and
+`letter-spacing:normal`, and the handful of places that SHOULD be uppercase (day labels, role
+tags, topic chips, the all-day label) re-declare it at class specificity, which beats the
+universal selector.
+
+**Verified in a harness carrying all four theme habits at once** — `*{text-transform:uppercase}`,
+`p{columns:2 8em}`, `div,span{display:block}`, `div{position:static}`:
+- desktop 1717px: 5 columns at 329px each, headers aligned to their columns to the pixel,
+  gutter 74px, 0 of 39 cards full width (29 before);
+- phone 390px: one column, select shown, pills hidden, no horizontal overflow;
+- dialog: 640px wide, description 582px at `column-count:1`, names and titles in normal case.
+
+Files: `lib/brellaEmbedSnippet.ts`.
+
+### Next steps
+
+1. Re-copy the embed. The pasted one has the broken grid layout baked in.
+
 ## Session 2026-08-03w (ONE embed for the whole program, stable controls, hardened dialog)
 
 State: done, pushed. `tsc --noEmit` clean.
