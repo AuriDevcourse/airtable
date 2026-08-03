@@ -93,6 +93,36 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04d (dialog scrolled sideways on a phone; roomier phone timeline)
+
+State: done, live and verified at 360px and 1600px.
+
+**The dialog scrolled HORIZONTALLY on a phone.** Measured rather than guessed: the modal's
+`scrollWidth` was 622 against a `clientWidth` of 323, and walking its descendants found the
+culprit immediately — `ul.tbbq-bp__people` rendering 582px wide inside a 283px content box,
+overflowing by 278.
+
+It was a CSS grid. This theme has now been caught mishandling grid containers twice (the
+timeline in 03x, this list here), so the speaker list is plain BLOCK flow with margins, which
+cannot outgrow its parent. `overflow-x:hidden` on the modal is the backstop. Live after:
+`scrollWidth === clientWidth`, list 283px, no sideways scroll on either the modal or the overlay.
+
+Note the overlay scrolls horizontally by DEFAULT once it scrolls vertically: setting
+`overflow-y:auto` while `overflow-x` is `visible` computes overflow-x to `auto` per spec. So an
+overflowing child anywhere in the dialog becomes a horizontal scrollbar unless something stops
+it.
+
+**Phone timeline: 3.4 -> 4.2px per minute**, and with rows that tall there is room to label every
+HALF hour instead of every hour. Half-hour labels are 10px and dimmed against the hours' 11px
+semibold, so the gutter still reads as hours with marks between them. Desktop is unchanged at
+hourly labels.
+
+Verified live at 360px: 17 labels including :30s, 16 cards, 0 clipping, dialog fits and does not
+scroll sideways. At 1600px: 5 columns in the right order, hourly labels only, 43 cards, 1
+clipping by 16px, no full-width cards, dialog fine.
+
+Files: `lib/brellaEmbedSnippet.ts`.
+
 ## Session 2026-08-04c (phone select was squashed; and a guard that let a stale save through)
 
 State: done, live and verified.
