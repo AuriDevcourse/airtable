@@ -335,7 +335,8 @@ function StageTimeline({
                 // and the speaker count rather than showing three clipped half-lines.
                 const compact = h < 46;
                 // Between the two: room for the title and time, not for a row of faces.
-                const tight = !compact && h < 66;
+                // 78px measured: 2 lines of title (32) + time (14) + faces (16) + padding (12).
+                const tight = !compact && h < 78;
                 const style = {
                   ...trackVars(s.room),
                   top: (s.start - from) * PX_PER_MIN,

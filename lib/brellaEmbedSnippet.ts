@@ -472,8 +472,10 @@ export function buildBrellaEmbedSnippet({
         var s=p.x.s;
         var h=Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4);
         var compact=h<46;
-        /* Between the two: enough room for the title and the time, not for a row of faces. */
-        var tight=!compact&&h<66;
+        /* Between the two: enough room for the title and the time, not for a row of faces.
+           78px is measured, not guessed: two lines of title (32) + the time (14) + the faces
+           (16) + padding (12) is what a full card needs. */
+        var tight=!compact&&h<78;
         var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
