@@ -59,13 +59,13 @@ export function buildPartnersEmbedSnippet({
   #${id} .tbbq-pw__row:last-child{margin-bottom:0!important}
   /* Coloured dot + coloured label, not a filled band: the logos below are white and a solid
      colour bar would compete with them. */
-  #${id} .tbbq-pw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid var(--row-line,rgba(255,255,255,.08))!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
+  #${id} .tbbq-pw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid var(--row-line,rgba(255,255,255,.08))!important;font-family:var(--head)!important;font-size:16px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
   #${id} .tbbq-pw__label::before{content:"";width:7px;height:7px;border-radius:9999px;background:var(--row)}
 
   /* Column count per tier comes from --cols on the row: four for Prime through Conqueror,
      five in the middle, six for Community. Fewer columns means a bigger logo, which is how
      the ranking reads without anyone having to check the labels. */
-  #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
+  #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:16px!important;margin:0!important;padding:0!important;list-style:none!important}
 
   /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
@@ -83,6 +83,11 @@ export function buildPartnersEmbedSnippet({
      Without this the link is keyboard-reachable but invisible when focused, which a wall of
      logos with no text cannot afford. */
   #${id} .tbbq-pw__link:focus-visible .tbbq-pw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--row-hover,var(--card))!important}
+  /* A frieze of several marks in one file (EU co-funding strip, 13:1): it takes the whole row
+     and sits at the top of its tier. The span goes on the GRID ITEM, which is the anchor when
+     the partner has a website and the tile itself when it does not, so both carry the class.
+     Height is left to sizeTiles(), which gives this one a much flatter box. */
+  #${id} .tbbq-pw__link--wide,#${id} .tbbq-pw__tile--wide{grid-column:1 / -1!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
   #${id} .tbbq-pw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
 
@@ -96,7 +101,7 @@ export function buildPartnersEmbedSnippet({
     /* 12px to match .lw-logo's phone padding on the dashboard. Height still comes from
        sizeTiles(), so the 5:3 box holds on a phone too. */
     #${id} .tbbq-pw__tile{padding:12px!important}
-    #${id} .tbbq-pw__label{font-size:11px!important}
+    #${id} .tbbq-pw__label{font-size:13px!important}
   }
 </style>
 
@@ -139,12 +144,18 @@ export function buildPartnersEmbedSnippet({
   function tile(s){
     var logo=safeUrl(s.logo);
     if(!logo)return "";
-    var inner='<span class="tbbq-pw__tile"><img src="'+esc(logo)+'" alt="'+esc(s.company)+'" loading="lazy"></span>';
+    /* data-scale is the per-logo nudge from the feed and data-nofit opts a frieze out of the
+       equal-area rule. Both are read by fitOne(), and both are plain attributes so the
+       dashboard component and this string builder can carry them identically. */
+    var attrs='';
+    if(s.scale>0)attrs+=' data-scale="'+Number(s.scale)+'"';
+    if(s.wide)attrs+=' data-nofit="1"';
+    var inner='<span class="tbbq-pw__tile'+(s.wide?' tbbq-pw__tile--wide':'')+'"><img src="'+esc(logo)+'" alt="'+esc(s.company)+'" loading="lazy"'+attrs+'></span>';
     var site=safeUrl(s.website);
     /* No link when the partner never filled in a website: still shown, just not pointed
        somewhere invented. */
     return site
-      ? '<a class="tbbq-pw__link" href="'+esc(site)+'" target="_blank" rel="noopener noreferrer" aria-label="'+esc(s.company)+' website">'+inner+'</a>'
+      ? '<a class="tbbq-pw__link'+(s.wide?' tbbq-pw__link--wide':'')+'" href="'+esc(site)+'" target="_blank" rel="noopener noreferrer" aria-label="'+esc(s.company)+' website">'+inner+'</a>'
       : inner;
   }
 
@@ -155,6 +166,9 @@ export function buildPartnersEmbedSnippet({
      "same size". Applied as a transform so no layout box moves and the grid never reflows.
      Capped at 1, because going past contain would crop the logo. */
   function fitOne(img){
+    /* A multi-mark strip owns its whole row on purpose; normalising it to the same area as a
+       single logo would undo that. */
+    if(img.getAttribute("data-nofit"))return;
     var w=img.naturalWidth,h=img.naturalHeight;
     if(!w||!h)return;
     /* The IMG fills the tile's content box and object-fit:contain does the letterboxing, the
@@ -165,7 +179,13 @@ export function buildPartnersEmbedSnippet({
     var f=Math.min(boxW/w,boxH/h), area=(w*f)*(h*f);
     if(!area)return;
     var k=Math.max(.35,Math.min(1,Math.sqrt(boxW*boxH*.55/area)));
-    img.style.transform = k<.999 ? "scale("+k.toFixed(3)+")" : "";
+    /* Deliberate per-logo nudge from the feed, for the handful the area rule cannot judge:
+       it measures the bounding box and cannot see that a file is mostly internal padding.
+       Allowed above 1, unlike the automatic factor, but capped at 1.6 because overflow is
+       hidden and an over-large scale would crop the mark. */
+    var n=parseFloat(img.getAttribute("data-scale"));
+    if(n>0)k=Math.min(1.6,k*n);
+    img.style.transform = Math.abs(k-1)>.001 ? "scale("+k.toFixed(3)+")" : "";
   }
   /* Give every tile the dashboard's 5:3 box: height = width x 0.6, measured not guessed.
      Set as an inline style with PRIORITY, because the stylesheet above declares the fallback
@@ -176,7 +196,12 @@ export function buildPartnersEmbedSnippet({
     for(var i=0;i<tiles.length;i++){
       var w=tiles[i].clientWidth;
       if(!w)continue;
-      tiles[i].style.setProperty("height",Math.round(w*0.6)+"px","important");
+      /* A frieze spans the row, so the 5:3 box would be a third of the page tall. 9:1 on
+         desktop, 7:1 once the grid drops to three columns and the strip has less width. */
+      var r=tiles[i].className.indexOf("tbbq-pw__tile--wide")>=0
+        ? (window.innerWidth<=820?1/7:1/9)
+        : 0.6;
+      tiles[i].style.setProperty("height",Math.round(w*r)+"px","important");
     }
   }
   function fitLogos(){
@@ -205,6 +230,9 @@ export function buildPartnersEmbedSnippet({
     rowsEl.innerHTML=ROWS.map(function(row){
       /* One tier per partner, unlike the Life Science wall where LS Type is a multi-select. */
       var items=all.filter(function(s){return s.tier===row.name&&safeUrl(s.logo);});
+      /* A row-spanning frieze goes FIRST, matching the dashboard and techbbq.dk. Anywhere
+         else it would cut the grid in half and strand the tiles after it. */
+      items.sort(function(a,b){return (b.wide?1:0)-(a.wide?1:0);});
       /* SKIP an empty tier. The dashboard drops rows with no partners, and without this the
          embed printed a bare "INTERNATIONAL" heading with nothing under it: there are
          currently zero International partners. Rows must be filtered here, not in the feed,

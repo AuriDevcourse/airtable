@@ -17,6 +17,8 @@ type Partner = {
   tier: string;
   logo: string | null;
   website: string | null;
+  wide?: boolean;
+  scale?: number;
 };
 
 // Tier order and colour come from the feed (lib/partners.ts owns them), so the page cannot
@@ -26,7 +28,19 @@ type Tier = { name: string; color: string; cols: number };
 function Mark({ p }: { p: Partner }) {
   return p.logo ? (
     /* eslint-disable-next-line @next/next/no-img-element */
-    <img className="lw-logo" src={p.logo} alt={p.company} loading="lazy" />
+    <img
+      className={p.wide ? "lw-logo lw-logo--wide" : "lw-logo"}
+      src={p.logo}
+      alt={p.company}
+      loading="lazy"
+      // Read by fitLogo(); plain attributes rather than props so the embed, which builds raw
+      // HTML strings, can carry the same values in the same places.
+      data-scale={p.scale ?? undefined}
+      // A frieze is not one mark, so the equal-area rule does not apply to it: it should run
+      // the full width of its row, and letting the fitter shrink it to a "fair" area would
+      // defeat the point of giving it the row.
+      data-nofit={p.wide ? "1" : undefined}
+    />
   ) : (
     // No logo matched by the sync script. The partner still belongs on the DASHBOARD wall so
     // the gap is visible, and it looks unfinished on purpose. These name tiles are
@@ -36,13 +50,17 @@ function Mark({ p }: { p: Partner }) {
 }
 
 function LogoWall({ items }: { items: Partner[] }) {
+  // A wide logo is a STRIP of several marks (the EU co-funding frieze is 13:1). It spans the
+  // whole row and goes first, which is both how techbbq.dk shows it and the only way it stays
+  // legible: dropped into a normal 5:3 cell it would render at a fraction of the height.
+  const ordered = [...items].sort((a, b) => Number(!!b.wide) - Number(!!a.wide));
   return (
     <div className="lw-grid lw-grid--fixed">
-      {items.map((p) =>
+      {ordered.map((p) =>
         p.website ? (
           <a
             key={p.id}
-            className="lw-link"
+            className={p.wide ? "lw-link lw-link--wide" : "lw-link"}
             href={p.website}
             target="_blank"
             rel="noopener noreferrer"

@@ -97,8 +97,35 @@ export type Partner = {
   id: string;
   company: string;
   tier: string;
-  logo: string | null; // /partner-logos/<file>, or null when the sync has not matched one
+  logo: string | null; // absolute URL, or null when the sync has not matched one
   website: string | null; // the partner's own site, or null when they never filled it in
+  // A logo that is a STRIP of several marks rather than one. It spans the whole row and sits
+  // at the top of its tier, because at 13:1 it would be unreadable in a normal 5:3 tile.
+  wide?: boolean;
+  // Optical size nudge, 1 = leave alone. See LOGO_SCALE.
+  scale?: number;
+};
+
+// ─── PER-LOGO ADJUSTMENTS ───────────────────────────────────────────────────────────────
+// The area-based fitter in logoFit.ts gets a wall of mixed artwork most of the way there, but
+// it can only measure the BOUNDING BOX. It cannot see that a mark is mostly padding inside its
+// own file, or that a wordmark is visually heavy for its area. These are the leftovers, judged
+// by eye on the real wall by Auri. Keep the list short: if it grows past a handful, the artwork
+// is the problem, not the fitter.
+// NOTE these are LINEAR scales, so the visible area changes with the SQUARE: 0.85 removes ~28%
+// of the area, 1.3 adds ~69%. A value that looks like a small tweak is not one.
+const LOGO_SCALE: Record<string, number> = {
+  Repodo: 0.85, // measures average but reads huge: a dense, very high-ink wordmark
+  Flatpay: 1.3,
+  "Skytek Nordics ApS": 1.3,
+  Nordea: 1.3, // "Nordea Startup & Growth" — lots of internal whitespace in the file
+};
+
+// Swap in a different file than the sync script matched. Erhvervshus Sjælland's tile carries
+// the EU co-funding frieze (Closing Loops + Co-funded by the European Union + Danish Board of
+// Business Development) exactly as techbbq.dk shows it: one image, three marks, full width.
+const LOGO_FILE_OVERRIDES: Record<string, { file: string; wide?: boolean }> = {
+  "Erhvervshus Sjælland": { file: "Erhvervshus-frieze.png", wide: true },
 };
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
@@ -216,9 +243,14 @@ export async function fetchPartners(): Promise<Partner[]> {
         continue;
       }
       seen.add(logoKey);
-    } else {
+    } else if (!LOGO_FILE_OVERRIDES[company]) {
+      // An override supplies a file the sync script never matched, so it is not a gap.
       noLogo.push(company);
     }
+
+    // A hand-picked file wins over whatever the sync script matched.
+    const override = LOGO_FILE_OVERRIDES[company];
+    const file = override ? override.file : hit ? hit.file : null;
 
     partners.push({
       id: rec.id,
@@ -228,11 +260,13 @@ export async function fetchPartners(): Promise<Partner[]> {
       // "/partner-logos/..." works on the dashboard and silently breaks in the embed, where
       // the browser resolves it against techbbq.dk and gets a 404 for all 104 logos. That
       // shipped once and produced a wall of empty tiles on the live partners page.
-      logo: hit ? `${baseUrl()}/partner-logos/${encodeURIComponent(hit.file)}` : null,
+      logo: file ? `${baseUrl()}/partner-logos/${encodeURIComponent(file)}` : null,
       website:
         company in WEBSITE_OVERRIDES
           ? WEBSITE_OVERRIDES[company]
           : safeUrl(f["Link to your website"]),
+      ...(override?.wide ? { wide: true } : {}),
+      ...(LOGO_SCALE[company] ? { scale: LOGO_SCALE[company] } : {}),
     });
   }
 

@@ -26,6 +26,9 @@
 const TARGET_FILL = 0.55;
 
 export function fitLogo(img: HTMLImageElement): void {
+  // A multi-mark strip (the EU co-funding frieze) opts out: it owns its whole row on purpose,
+  // and normalising it to the same area as a single logo would undo that.
+  if (img.dataset.nofit) return;
   const w = img.naturalWidth;
   const h = img.naturalHeight;
   if (!w || !h) return; // not decoded yet
@@ -47,9 +50,17 @@ export function fitLogo(img: HTMLImageElement): void {
   const targetArea = boxW * boxH * TARGET_FILL;
   // Never above 1 — see the note about cropping. Never below 0.35 either, so a pathological
   // aspect ratio cannot shrink a logo into nothing.
-  const k = Math.max(0.35, Math.min(1, Math.sqrt(targetArea / fitArea)));
+  let k = Math.max(0.35, Math.min(1, Math.sqrt(targetArea / fitArea)));
 
-  img.style.transform = k < 0.999 ? `scale(${k.toFixed(3)})` : "";
+  // Per-logo nudge from the feed (LOGO_SCALE in lib/partners.ts), for the handful the area
+  // rule cannot judge: it measures the bounding box and cannot see that a file is mostly
+  // internal padding, or that a mark is visually heavy for the area it covers. Allowed ABOVE
+  // 1 here, unlike the automatic factor, because it is a deliberate human decision. Capped at
+  // 1.6 so a typo cannot blow a logo out of its tile; overflow is hidden, so it would crop.
+  const nudge = Number(img.dataset.scale);
+  if (nudge > 0) k = Math.min(1.6, k * nudge);
+
+  img.style.transform = Math.abs(k - 1) > 0.001 ? `scale(${k.toFixed(3)})` : "";
 }
 
 /** Fit every logo under `root`, now and whenever the viewport changes width. Returns a

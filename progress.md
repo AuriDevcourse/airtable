@@ -51,6 +51,11 @@ Airtable and the live site disagree and the live site won. There is no auto-sync
 answers a plain request with a 455, so it can only be read through a real browser. Re-check that
 map if the live page is ever re-tiered.
 
+**3b. Tuning a logo's size is a FEED edit, not a CSS one.** `LOGO_SCALE` in `lib/partners.ts`
+holds the per-logo nudges and `LOGO_FILE_OVERRIDES` swaps in a different file (or a row-spanning
+frieze). Both flow to the dashboard and the embed together. The values are LINEAR, so the
+visible area changes with the square: 0.85 is a 28% area cut, not a 15% one.
+
 **4. Every URL a feed emits must be ABSOLUTE.** Always build it with `baseUrl()` from
 `lib/photo.ts`. A relative path works on the dashboard and silently 404s in the embed, because
 the browser resolves it against techbbq.dk. This is invisible in local preview: same origin, so
@@ -87,6 +92,57 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 
 ---
+
+## Session 2026-08-03m (per-logo size nudges, the EU frieze, bigger tier labels, more air)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+**Per-logo overrides now exist**, in `lib/partners.ts`. The area fitter measures a BOUNDING BOX
+and cannot see that a file is mostly internal padding, or that a mark is dense and reads heavy
+for its area. Two new feed fields carry the human judgement instead:
+
+- `scale` — linear multiplier, emitted as `data-scale`, read by `fitLogo()` and the embed's
+  `fitOne()`. Allowed above 1 (the automatic factor never is), capped at 1.6 because overflow is
+  hidden and more would crop. Current list: Flatpay, Skytek Nordics, Nordea at 1.3; Repodo 0.85.
+- `wide` — a frieze of several marks in one file. Spans the row, sorted to the top of its tier,
+  and opts OUT of the area rule via `data-nofit`.
+
+**Scale is LINEAR, area is the square.** Repodo was first set to 0.78, which sounds gentle and
+removes 39% of the visible area; Auri asked for "slightly". 0.85 (-28%) is the shipped value.
+Anyone tuning this should reason in area, not in the number they type.
+
+**Erhvervshus Sjælland's tile now carries the EU co-funding frieze** (Closing Loops + Co-funded
+by the European Union + Danish Board of Business Development), exactly as techbbq.dk shows it.
+At 2560x192 it is 13.3:1, so a normal 5:3 cell would render it at a fraction of the height:
+`sizeTiles()` gives it 9:1 on desktop and 7:1 below 820px, and it takes the full row width.
+Downloaded to `public/partner-logos/Erhvervshus-frieze.png` rather than hotlinked, so it follows
+the same convention as every other logo. NOTE `techbbq.dk` answers plain curl with a 454; it
+needs a full browser header set (UA + Accept + Referer + Sec-Fetch-*) to fetch.
+
+**Tier labels 13px -> 16px** on both surfaces, and the embed grid gap 12px -> 16px. The gap
+differs from the dashboard ON PURPOSE: 12px against the dashboard's 245px tile is ~4.9%, and
+techbbq.dk's tiles are 310-390px wide, so the same 12px reads tighter. 16px restores the ratio.
+
+**Two measurement traps hit again, both already in the handoff, both cost time anyway:**
+- The embed's `fetch` was served a CACHED `/api/partners` body (`s-maxage=3600`), so `wide` and
+  `scale` were missing from the data while being present in the code. Reloading the HTML does
+  not refresh it; the API response needs its own cache bypass.
+- `getComputedStyle(img).transform` intermittently returned `none` while `img.style.transform`
+  was `scale(1.3)`. The inline style is the reliable read. Two separate "the nudge is broken"
+  diagnoses came from believing the computed value.
+Also: a double-`requestAnimationFrame` await inside the page froze the renderer and needed a
+reload. Prefer `setTimeout` when probing a heavy page.
+
+Files: `lib/partners.ts`, `lib/logoFit.ts`, `app/partners/page.tsx`, `app/globals.css`,
+`lib/partnersEmbedSnippet.ts`, `public/partner-logos/Erhvervshus-frieze.png`.
+
+### Next steps
+
+1. Re-copy the partners embed from the deployed dashboard. Again: nothing reaches techbbq.dk
+   until this is done.
+2. Tune any logo by editing `LOGO_SCALE` in `lib/partners.ts`. No CSS involved, and it applies
+   to the dashboard and the embed at once.
+3. If another multi-mark strip turns up, add it to `LOGO_FILE_OVERRIDES` with `wide: true`.
 
 ## Session 2026-08-03l (embed made to match the dashboard: no black box, 5:3 tiles, no empty tier)
 
