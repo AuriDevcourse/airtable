@@ -50,7 +50,7 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__row:last-child{margin-bottom:0!important}
   /* Coloured dot + coloured label, not a filled band: the logos below are white and a solid
      colour bar would compete with them. */
-  #${id} .tbbq-lsw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid rgba(255,255,255,.08)!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
+  #${id} .tbbq-lsw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid var(--row-line,rgba(255,255,255,.08))!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
   #${id} .tbbq-lsw__label::before{content:"";width:7px;height:7px;border-radius:9999px;background:var(--row)}
 
   /* Five across, fixed. auto-fill was packing seven into a wide container, which reads as a
@@ -64,9 +64,9 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
   #${id} .tbbq-lsw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
   #${id} .tbbq-lsw__tile img{display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
-  #${id} .tbbq-lsw__link:hover .tbbq-lsw__tile{background:var(--card)!important;transform:translateY(-2px)!important}
+  #${id} .tbbq-lsw__link:hover .tbbq-lsw__tile{background:var(--row-hover,var(--card))!important;transform:translateY(-2px)!important}
   /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box. */
-  #${id} .tbbq-lsw__link:focus-visible .tbbq-lsw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--card)!important}
+  #${id} .tbbq-lsw__link:focus-visible .tbbq-lsw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--row-hover,var(--card))!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
   #${id} .tbbq-lsw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
   /* The last tile of every row: a slot waiting to be filled, not a company. */
@@ -93,6 +93,13 @@ export function buildLsStartupsEmbedSnippet({
   var rowsEl=root.querySelector(".tbbq-lsw__rows");
   var statusEl=root.querySelector(".tbbq-lsw__status");
 
+  /* Two derived shades per row: a visible divider and a hover wash that reads as the row
+     colour without drowning the white logo on top of it. */
+  function rowVars(hex){
+    var n=parseInt(String(hex).replace("#",""),16);
+    var r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    return "--row:"+hex+";--row-line:rgba("+r+","+g+","+b+",.38);--row-hover:rgba("+r+","+g+","+b+",.14)";
+  }
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
   /* Only an absolute http(s) URL becomes a live href or src — never a javascript: or data:
      URL out of an Airtable free-text cell. The feed already filters, this is defence in
@@ -125,7 +132,7 @@ export function buildLsStartupsEmbedSnippet({
       /* LS Type is a multi-select, so a startup in two categories appears in BOTH rows.
          That is intentional (confirmed with Auri): it is exhibiting under both. */
       var items=all.filter(function(s){return (s.categories||[]).indexOf(row.name)>=0;});
-      return '<section class="tbbq-lsw__row" style="--row:'+row.color+'">'
+      return '<section class="tbbq-lsw__row" style="'+rowVars(row.color)+'">'
         +'<h3 class="tbbq-lsw__label">'+esc(row.name)+'</h3>'
         +'<div class="tbbq-lsw__grid">'
         +items.map(tile).join("")

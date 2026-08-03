@@ -5,10 +5,10 @@
 // themes restyle every generic tag. __ORIGIN__ is swapped for the live origin by the copy
 // button, so copying from localhost bakes in localhost.
 //
-// Mirrors app/ls-startups/page.tsx: three coloured rows, logos only (no names, no pitch, no
-// country), each logo linking to the startup's website, and a "More soon" tile ending every
-// row. The confirmed-only gate is NOT here and never should be — it lives server-side in
-// lib/lsstartups.ts, so an unconfirmed applicant cannot reach a pasted snippet at all.
+// Mirrors app/partners/page.tsx: one coloured row per tier, logos only, each linking to the
+// partner's site. Fewer columns in the higher tiers, so a Prime logo renders larger than a
+// Community one. Partners with no logo are dropped entirely — the dashboard keeps them as name
+// tiles so the gap stays visible, but on techbbq.dk they would just look like a mistake.
 
 export type PartnersEmbedOptions = {
   uid?: string;
@@ -37,7 +37,7 @@ export function buildPartnersEmbedSnippet({
   const id = uid || "tbbq-partners";
   const path = "/api/partners";
 
-  return `<!-- TechBBQ Life Science startups exhibiting — paste into an Elementor HTML widget -->
+  return `<!-- TechBBQ partners — paste into an Elementor HTML widget -->
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <div id="${id}" class="tbbq-pw">
   <p class="tbbq-pw__status">Loading…</p>
@@ -56,7 +56,7 @@ export function buildPartnersEmbedSnippet({
   #${id} .tbbq-pw__row:last-child{margin-bottom:0!important}
   /* Coloured dot + coloured label, not a filled band: the logos below are white and a solid
      colour bar would compete with them. */
-  #${id} .tbbq-pw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid rgba(255,255,255,.08)!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
+  #${id} .tbbq-pw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid var(--row-line,rgba(255,255,255,.08))!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
   #${id} .tbbq-pw__label::before{content:"";width:7px;height:7px;border-radius:9999px;background:var(--row)}
 
   /* auto-fill, not a fixed column count: rows hold anywhere from 3 to 8 logos and a fixed
@@ -70,11 +70,11 @@ export function buildPartnersEmbedSnippet({
   #${id} .tbbq-pw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
   #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
   #${id} .tbbq-pw__tile img{display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
-  #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--card)!important;transform:translateY(-2px)!important}
+  #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--row-hover,var(--card))!important;transform:translateY(-2px)!important}
   /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box.
      Without this the link is keyboard-reachable but invisible when focused, which a wall of
      logos with no text cannot afford. */
-  #${id} .tbbq-pw__link:focus-visible .tbbq-pw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--card)!important}
+  #${id} .tbbq-pw__link:focus-visible .tbbq-pw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--row-hover,var(--card))!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
   #${id} .tbbq-pw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
 
@@ -84,7 +84,7 @@ export function buildPartnersEmbedSnippet({
   @media(max-width:820px){#${id} .tbbq-pw__grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
-    #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
+    #${id} .tbbq-pw__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
     #${id} .tbbq-pw__tile{height:92px!important;min-height:92px!important;max-height:92px!important;padding:10px!important}
     #${id} .tbbq-pw__label{font-size:11px!important}
   }
@@ -99,6 +99,13 @@ export function buildPartnersEmbedSnippet({
   var rowsEl=root.querySelector(".tbbq-pw__rows");
   var statusEl=root.querySelector(".tbbq-pw__status");
 
+  /* Two derived shades per row: a visible divider and a hover wash that reads as the row
+     colour without drowning the white logo on top of it. */
+  function rowVars(hex){
+    var n=parseInt(String(hex).replace("#",""),16);
+    var r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+    return "--row:"+hex+";--row-line:rgba("+r+","+g+","+b+",.38);--row-hover:rgba("+r+","+g+","+b+",.14)";
+  }
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
   /* Only an absolute http(s) URL becomes a live href or src — never a javascript: or data:
      URL out of an Airtable free-text cell. The feed already filters, this is defence in
@@ -132,7 +139,7 @@ export function buildPartnersEmbedSnippet({
     rowsEl.innerHTML=ROWS.map(function(row){
       /* One tier per partner, unlike the Life Science wall where LS Type is a multi-select. */
       var items=all.filter(function(s){return s.tier===row.name&&safeUrl(s.logo);});
-      return '<section class="tbbq-pw__row" style="--row:'+row.color+';--cols:'+row.cols+'">'
+      return '<section class="tbbq-pw__row" style="'+rowVars(row.color)+';--cols:'+row.cols+'">'
         +'<h3 class="tbbq-pw__label">'+esc(row.name)+'</h3>'
         +'<div class="tbbq-pw__grid">'
         +items.map(tile).join("")
