@@ -4,10 +4,180 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-03e (Brella page: 26-27 only, session dialog with speakers, embed snippets)
+
+State: **DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit` clean;
+`npm run build` still not run. Stacks on 03c + 03d, all uncommitted.
+
+Three things Auri asked for on `/brella-program`.
+
+**1. Stages is 26-27 August only, and the day numbering is TechBBQ's, not Brella's.**
+26 Aug = **Day 1**, 27 Aug = **Day 2** (`EVENT_DAYS` in `lib/brellaSections.ts`), which is what
+the signage says.
+
+**Brella's own "Day N" is never displayed.** It numbers whichever dates exist in the feed, so it
+is not stable: someone deleted the 24 August test row while this was being built and every
+remaining day shifted by one (26 Aug went from "Day 3" to "Day 2"). Both the section filter and
+the label match on the DATE for that reason. Brella's number survives in one place only, as the
+sort key for ordering the day groups, where it is chronological by construction.
+
+A date that is not an event day (the 25th, which carries Day 0 side events) renders as plain
+"25 AUG" with no day number: inventing a "Day 0" puts a label on screen that nobody uses, and
+reusing Brella's number would contradict the two real days right below it. Only Stages gets the
+date restriction — Side Events genuinely run on the 25th.
+
+**Nordic India Startup Summit is an Event Room, not a Stage** (Auri's call). Brella gives these
+named summits their own track instead of filing them under "Event Room N", so on the name alone
+they defaulted to Stages. `ROOM_SUMMITS` catches them. **Nordic Africa has no Brella track yet**
+and is matched pre-emptively, so it lands in the right section the day it appears rather than
+quietly showing up under Stages.
+
+**2. Click a session for the speakers.** `lib/brellaprogram.ts` now follows
+timeslot → speaker-assignment → speaker in the `included` payload and maps name, job title,
+company, photo and bio onto a new optional `speakers[]` on `ProgramSession`, plus `location`.
+Both are OPTIONAL because the three Airtable program sources have no speaker link and the older
+agenda embed ignores them. 5 of 46 sessions have speakers today.
+- Brella `photo-url` is a plain public brella-assets URL, **not signed like Airtable's**, so it
+  is passed straight through rather than proxied via `/api/photo`. If Brella starts signing
+  them, they need the same treatment.
+- A card is only clickable when the dialog would show something the card does not (speakers, or
+  a description past the 3-line clamp). It becomes a real `<button>` in that case and stays an
+  `<article>` otherwise, so nothing advertises detail it does not have.
+- Dialog closes on Escape and on backdrop click, locks body scroll, restores focus.
+- Brella's `location` frequently repeats the track name ("Founders Stage · Founders Stage"), so
+  it is only appended when it differs.
+
+**3. Copy embed code**, one button per section. New `lib/brellaEmbedSnippet.ts` +
+`components/CopyBrellaEmbed.tsx`, same contract as the other snippet builders (id-scoped,
+`!important` everywhere, `__ORIGIN__` swapped at copy time, fresh uid per copy). The snippet
+carries the day groups, track pills, cards and the full speaker dialog.
+
+**The section rules now live in ONE place: `lib/brellaSections.ts`.** The page filters
+client-side (it needs per-section counts for the headings), the route filters server-side via
+the new `?section=stages|rooms|side` so the snippet can request one section, and the snippet
+itself carries NO section logic — it just fetches a URL. That was the point: a rule baked into a
+pasted snippet can never be corrected once it is live on techbbq.dk. `?section=` is Brella-only
+and an unknown value serves everything, matching `?kind=` and `?stage=`.
+
+Verified after both corrections: **stages 23** (DAY 1 26 AUG + DAY 2 27 AUG, 5 track pills),
+**rooms 17** (6 pills, Nordic India among them), **side 6** (25 AUG + both event days, no pill
+row since it is one track). The copied snippet was injected into a live page and re-executed
+end to end: same cards, same day headings, dialog opens with 3 speakers and 3 photos, Escape
+closes it.
+
+### Next steps
+1. `npm run build`, then commit + push 03c, 03d and 03e (main auto-deploys).
+2. Still not built: the timeline view from mock 1.
+3. Speaker coverage is thin (5 of 46). Worth asking Brella admins to fill the rest.
+4. Test the copied snippet in a real Elementor widget on techbbq.dk, cross-origin, once deployed.
+
+## Session 2026-08-03d (new /brella-program page, the live Brella schedule in house styling)
+
+State: **DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit` clean;
+`npm run build` NOT run yet. Stacks on top of the uncommitted 03c work.
+
+New page `app/brella-program/page.tsx` + a `.bp-*` block at the end of `app/globals.css` +
+one line in `components/TopNav.tsx` ("Program 2026 (Brella)" under Program & internal). Built
+from Auri's three mock screenshots: oversized section headings, a pill per track, day-grouped
+cards with a coloured spine, time / title / location-with-pin.
+
+Read-only over the existing `/api/program?event=brella`. **No new API, no new Airtable field, no
+writes** — `lib/brellaprogram.ts` stays GET-only because that key can delete sessions in the live
+attendee app.
+
+- **The three sections are derived, not given.** Brella's `room` is one flat list of track names
+  with no grouping of its own, so `sectionOf()` reads them: `/^side event/` → Side Events,
+  `/^(event room|rooms?\b)/` → Event Rooms, **everything else → Stages**. That default is
+  deliberate: a track added in Brella tomorrow appears under Stages instead of vanishing.
+- Track colours are matched by NAME, not assigned from a rotation, because the Grill tracks are
+  literally named after their colour and an "Orange Grill Session" card with a green spine would
+  contradict the venue signage.
+- `startMinutes()` sorts "All day" and anything unparseable LAST within its day rather than to
+  00:00, where it would otherwise lead the list.
+- A section with zero sessions renders disabled rather than hidden, so the set of three headings
+  does not reshuffle as the schedule fills.
+- The track pill row is suppressed when a section has only one track (Side Events today).
+
+Verified by driving the page: Stages 28 sessions / 5 tracks, Event Rooms 10 / 5, Side Events 6 /
+1 track. Chose the day-grouped card grid from mocks 2 and 3; **the timeline view in mock 1 (time
+gutter, day columns, blocks positioned by time) is NOT built.**
+
+### Brella independently confirms the Event Room times written in 03b
+Every value written into Airtable that day matches Brella exactly: Nordic IPO 12:30-17:30,
+Beyond Unicorns 13:30-17:30, Creative Business Cup 15:00-17:30 (26th) and 09:30-13:00 (27th),
+Future of Fintech 09:30-13:00, AI That Sells 14:30-16:30. Board Summit is "All day" in Brella
+against the 09:30-17:30 Auri chose, which is the same call. Two independent sources agreeing is
+the strongest evidence those cells are right.
+
+**Brella has test rows in it.** Founders Stage carries "Test Session", "Meeting with Auri"
+(00:00-01:00), "Why did the chicken cross the road." and "Crazy story about Titanic". They are
+live in the attendee app and this page shows them. Deleting them is a Brella admin job, not a
+code change — this repo must not write there.
+
+### Next steps
+1. `npm run build`, then commit + push 03c and 03d together (main auto-deploys).
+2. Ask whether the timeline view from mock 1 is wanted for Stages.
+3. No Elementor embed snippet for this page yet — every other page has one, so decide whether
+   techbbq.dk needs the Brella program embedded too.
+4. Get the four test rows removed in Brella.
+
+## Session 2026-08-03c (per-stage Life Science embed + a Brella source for Side Event times)
+
+State: **code DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit`
+clean; `npm run build` NOT re-run since the route change, so run it before pushing.
+
+Auri: "if I'm specifically taking a deep tech event, I want to copy the embed for those
+particular people." So the copy button on `/life-science` now follows the stage pill.
+
+- **`/api/life-science?stage=<exact Airtable option>`** narrows the feed to one stage, the same
+  shape as `/api/partner-events?kind=`. Filtered AFTER `cached()`, so every variant shares one
+  Airtable fetch instead of each warming its own entry. `PUBLISHED_STAGES` is now exported from
+  `lib/lifescience.ts` and the route validates against it, so there is no second copy to drift.
+- An unknown `?stage=` is **ignored and serves everyone**, matching `?kind=`. Returning an empty
+  list would turn one typo in a WordPress snippet into a grid that silently shows nobody, and a
+  page that quietly went blank is worse than one showing more than intended.
+- `app/life-science/page.tsx` passes the stage into `CopyEmbed` and drops `tagTabs` for a single
+  stage — a lone pill above a list that is already one stage reads as broken. `key={stage}`
+  remounts the button so its "Copied" state cannot carry over and claim the previous snippet.
+
+Verified by driving the real page: All → `/api/life-science`, 37 people, pills present. Deep Tech
+Event Day → `?stage=Deep%20Tech%20Event%20Day`, 5 people, no pills. Feed counts check out
+(37 / 5 / 32, unknown value → 37).
+
+### Brella already has the Side Event times this repo was missing
+
+Answering "do we have a Brella connection here": yes, live and read-only. `lib/brellaprogram.ts`,
+org 109 / event 10356, `BRELLA_API_KEY`, surfacing as the Brella tab on `/program`, 44 sessions
+today. GET only on purpose — the same key can create and delete sessions in the live attendee app.
+
+Its **"Side Event Promotion" track carries times for 5 of the 6 Side Events** that 2026-08-03b had
+to leave blank (the planning sheet only said "Day 0 Evening"):
+Amplify Europe Jam Session 09:00-11:00 (25th) · Gateway to DACH 18:00-20:30 (25th) · GTM Secret
+Dinner 18:30-23:59 (26th) · CFO Round Table Dinner 19:30-22:30 (26th) · Nordic Industrial AI
+Hackathon 19:00-23:30 (27th) · Bridge to Germany = "All day".
+
+**Nothing written anywhere.** Two problems first: **GTM Secret Dinner is 25 Aug in Airtable and
+26 Aug in Brella**, so one is wrong; and several end times look like placeholders (`23:59`).
+
+### Next steps
+1. `npm run build`, then commit + push the `?stage=` work (main auto-deploys).
+2. Resolve the GTM Secret Dinner date, then decide whether Brella's times get copied into the
+   Airtable `Time slot` cells for the Side Events.
+3. Still open from 03b: the same `parseTimeSlot` for `lib/program.ts`.
+4. Still open from 03b: get a stage set for the 8 hidden Life Science people.
+
+**Gotcha that cost real time this session:** two `next dev` servers ran against the same `.next`
+and clobbered each other's output — `/partner-events` 404'd with a missing `page.js` while its
+sibling manifest existed. Something outside the session keeps starting a second one (it also
+edited `app/life-science/page.tsx` mid-edit). If a route 404s or 500s with ENOENT on `page.js`,
+count the `next dev` processes BEFORE debugging the code: `Get-CimInstance Win32_Process -Filter
+"Name='node.exe'" | Where-Object { $_.CommandLine -like "*airtable*" }`. Kill all, `rm -rf .next`,
+start one.
+
 ## Session 2026-08-03b (Event Room times shipped + the Time slot format check, finally)
 
-State: DONE. `tsc --noEmit` + `npm run build` clean, feed verified, page screenshotted.
-NOT committed yet, NOT deployed.
+State: DONE and **pushed to `main`** as `5006251` (with the Life Science stage gate as `4347231`).
+`tsc --noEmit` + `npm run build` clean, feed verified, page screenshotted.
 
 Auri sent a planning sheet
 (`1eNpGsMegPNeGR1r0hYR-N6057qHgPfD95WA69ucX7dc`) and asked to put times on the
@@ -62,8 +232,51 @@ badges. Ported into `lib/eventEmbedSnippet.ts` too, so the Elementor embed match
 
 ## Session 2026-08-03a (Life Science x Deep Tech page update request scoped)
 
-State: **ITEM 1 (speakers stage filter) BUILT AND VERIFIED. Items 2-4 scoped, see below.**
-Uncommitted, on `main` alongside the earlier partner-events work-in-progress. Not deployed.
+State: **ITEMS 1 + 2 ARE LIVE ON techbbq.dk. Items 3-4 blocked, see below.**
+
+### LIVE on https://techbbq.dk/life-science/ (WordPress page id 39356)
+
+Published 2026-08-03 via Elementor. Two changes, verified on the public page after publishing:
+1. **Speakers 2026** HTML widget `c50239a` now carries the stage-filter snippet (embed id
+   `tbbq-co7rmd`, replacing `tbbq-9eidxb`). Live pill counts: All 37 · Life Science x Deep Tech
+   Stage 32 · Deep Tech Event Day 5.
+2. **New Nebius Grill Session block** — top-level container `b0652e5` ("Nebius Grill Session")
+   at index 1, directly after the hero, holding HTML widget `ff06e0e`. Static block: title,
+   subtitle, 26 Aug 2026 · 11:50–12:30 · Grill Session Green · Hall E, the three description
+   paragraphs, and both presenters (Dr. Ilya Burkov / Nebius, Pia Hardy / NVIDIA).
+   **Headshots landed later the same day** and replaced the initials avatars:
+   `/wp-content/uploads/2026/08/ilya.jpg` and `/wp-content/uploads/2026/08/Pia-Hardy.png`, both
+   768x760, rendered as 52px circles with `object-fit:cover`.
+   **Layout revised on Auri's request:** the card is now a two-column grid (`.tbbq-ns__cols`,
+   `minmax(0,1.55fr) minmax(0,1fr)`) with the description on the left and the presenters in the
+   right column, which was previously empty space. `align-items:start` lines the "Presenters"
+   label up with the first paragraph, and the two presenter cards stack one per row because the
+   side column is too narrow for a pair. Stacks to one column under 900px.
+   Verified live: 799px + 515px columns, presenters to the right of the text, both photos loading.
+   The `@media(max-width:900px)` stack rule is confirmed present and parsed in the live
+   stylesheet via CSSOM, but NOT visually confirmed at a narrow viewport — `resize_window`
+   reported an inconsistent `innerWidth` (3181 regardless of window size) on this display.
+   **Pre-existing, not ours:** a `video.elementor-video` widget on this page overflows the
+   viewport horizontally at ~1000px wide. Worth fixing separately.
+   Reference copy of the markup at
+   `scratchpad/nebius-grill-session.html` (the published version drops a few CSS comments).
+   Static on purpose: it is ONE session with fixed copy, and `/api/partner-events` covers only
+   Side Event / Event Room / Bridge Event, not Grill Sessions.
+   Checked at 360px: no horizontal overflow, presenters collapse to one column.
+
+**HOW TO EDIT EITHER AGAIN:** the Elementor widgets were created/updated through Elementor's own
+command API from the browser console (`$e.run('document/elements/create')` and
+`document/elements/settings`), because dragging widgets and Ctrl+V into the ACE code editor both
+failed — the OS clipboard is unreachable from the page (`readText` throws "Document is not
+focused") and a synthetic Ctrl+V never reached ACE. Save with `$e.run('document/save/default')`.
+
+### Repo state
+
+Uncommitted on `main`: `lib/lifescience.ts` (exports `PUBLISHED_STAGES`),
+`app/api/life-science/route.ts` (`?stage=` support), `app/life-science/page.tsx` (per-stage copy
+button). Typecheck clean. **`?stage=` is NOT deployed** — prod ignores it and returns all 37 for
+any value, so a single-stage embed pasted today would silently show everyone. Deploy before using
+it on the Deep Tech Event Day page.
 
 ### What was just done (item 1)
 

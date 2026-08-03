@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchProgram, PROGRAM_SOURCES, ProgramSourceKey } from "@/lib/program";
 import { rateLimit, cached, invalidate } from "@/lib/rate-limit";
 import { isDashboardRequest } from "@/lib/dashboardAuth";
+import { inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
 import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,20 @@ export async function GET(req: NextRequest) {
     // refreshed value is what ordinary cached reads on this instance serve next.
     if (fresh) invalidate(`program:${source}`);
 
-    const sessions = await cached(`program:${source}`, () => fetchProgram(source));
+    const all = await cached(`program:${source}`, () => fetchProgram(source));
+
+    // ?section=stages|rooms|side narrows the BRELLA feed to one of the three groups the
+    // /brella-program page shows, so a WordPress page can embed just the Side Events.
+    // Filtered after the cache, like the other feeds' filters, so all four variants share
+    // one Brella call. Ignored for the Airtable sources: their tracks are not Brella track
+    // names, so sectionOf() would be answering a question their data cannot be asked.
+    // An unknown value serves everything, matching ?kind= and ?stage= elsewhere.
+    const sectionParam = req.nextUrl.searchParams.get("section");
+    const sessions =
+      source === "brella" && isBrellaSection(sectionParam)
+        ? all.filter((s) => inBrellaSection(s, sectionParam))
+        : all;
+
     const res = NextResponse.json(
       { count: sessions.length, event: source, sessions },
       { status: 200 }
