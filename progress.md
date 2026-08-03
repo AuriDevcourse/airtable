@@ -119,9 +119,15 @@ Downloaded to `public/partner-logos/Erhvervshus-frieze.png` rather than hotlinke
 the same convention as every other logo. NOTE `techbbq.dk` answers plain curl with a 454; it
 needs a full browser header set (UA + Accept + Referer + Sec-Fetch-*) to fetch.
 
-**Tier labels 13px -> 16px** on both surfaces, and the embed grid gap 12px -> 16px. The gap
-differs from the dashboard ON PURPOSE: 12px against the dashboard's 245px tile is ~4.9%, and
-techbbq.dk's tiles are 310-390px wide, so the same 12px reads tighter. 16px restores the ratio.
+**Tier labels 13px -> 16px** on both surfaces. The embed grid gap is now ASYMMETRIC:
+`row-gap:12px; column-gap:16px`. The first attempt used the single-value shorthand, which widened
+the lines as well; the extra air is only wanted between logos sitting side by side. The column
+value differs from the dashboard's 12px on purpose (12px is ~4.9% of a 245px dashboard tile, and
+techbbq.dk's tiles are 310-390px wide, so the same value reads tighter), while the row value
+stays at 12px to match.
+
+Watch out when editing that file: the whole snippet is a JS TEMPLATE LITERAL, so a backtick in a
+CSS comment ends the string. One in the word `gap` broke the build for a moment.
 
 **Two measurement traps hit again, both already in the handoff, both cost time anyway:**
 - The embed's `fetch` was served a CACHED `/api/partners` body (`s-maxage=3600`), so `wide` and

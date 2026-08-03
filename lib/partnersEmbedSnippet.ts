@@ -65,7 +65,10 @@ export function buildPartnersEmbedSnippet({
   /* Column count per tier comes from --cols on the row: four for Prime through Conqueror,
      five in the middle, six for Community. Fewer columns means a bigger logo, which is how
      the ranking reads without anyone having to check the labels. */
-  #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:16px!important;margin:0!important;padding:0!important;list-style:none!important}
+  /* row-gap 12, column-gap 16. The extra air is wanted BETWEEN LOGOS, not between the lines:
+     one shorthand value pushed the rows apart too and the tier looked loosely stacked.
+     (No backticks in this file: the whole snippet is a JS template literal.) */
+  #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px 16px!important;margin:0!important;padding:0!important;list-style:none!important}
 
   /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
