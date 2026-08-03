@@ -134,6 +134,68 @@ function peopleSummary(speakers: Speaker[] | undefined): string {
   return bits.join(" · ");
 }
 
+// ─── STAGE ICONS ────────────────────────────────────────────────────────────────────────
+// Inlined rather than pulled from lucide-react, for the same reason PinIcon is: the embed
+// builders emit raw HTML strings and cannot render a React component, so these have to exist
+// as plain SVG anyway. A package would cover the dashboard and leave the embed writing its
+// own copies, which is exactly how two sets of icons drift apart.
+//
+// Lucide's drawing conventions throughout: 24x24 box, currentColor stroke, 2px, round caps
+// and joins, no fills.
+const STAGE_ICON_PATHS: Record<string, string[]> = {
+  // flame
+  "BBQ Stage": [
+    "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
+  ],
+  // zap
+  "Tech Stage": [
+    "M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",
+  ],
+  // Two crossed logs. Lucide has no firewood glyph, so this is drawn to its weight and
+  // geometry. A small flame sat above them at first and, at 15px, rendered as a stray dot
+  // over an X — at this size the logs have to carry the whole idea, so they span the box.
+  "Campfire Stage": ["m4 18 16-9", "m4 9 16 9"],
+  // rocket
+  "Founder Stage": [
+    "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91 0z",
+    "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z",
+    "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0",
+    "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5",
+  ],
+  // Double helix: two mirrored strands with three rungs. Drawn across almost the full 24
+  // units — at the original 8-to-16 span it collapsed into an illegible vertical squiggle.
+  "Life Science x Deep Tech Stage": [
+    "M6 2c0 5 12 5 12 10s-12 5-12 10",
+    "M18 2c0 5-12 5-12 10s12 5 12 10",
+    "M8 6.5h8",
+    "M6 12h12",
+    "M8 17.5h8",
+  ],
+};
+
+function StageIcon({ stage }: { stage: string }) {
+  const paths = STAGE_ICON_PATHS[stage];
+  if (!paths) return null;
+  return (
+    <svg
+      className="bp-tl__icon"
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {paths.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 function hhmm(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -245,8 +307,9 @@ function StageTimeline({
       <div className="bp-tl__head">
         <span className="bp-tl__gutterHead" />
         {columns.map((c) => (
-          <span key={c} className="bp-tl__colHead" title={c}>
-            {c}
+          <span key={c} className="bp-tl__colHead" title={c} style={trackVars(c)}>
+            <StageIcon stage={c} />
+            <span>{c}</span>
           </span>
         ))}
       </div>

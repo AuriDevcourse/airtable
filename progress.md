@@ -93,6 +93,36 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03r (stage icons, bigger column headings, roomier day pills)
+
+State: done, pushed. `tsc --noEmit` clean. Dashboard only.
+
+**Icons are inlined SVG, not a package.** Auri asked whether to pull in a Next.js icon library or
+Radix. The answer is no, and the reason is structural rather than about bundle size: the embed
+builders emit raw HTML STRINGS and cannot render a React component, so the same glyphs would
+have to exist as hand-written SVG in the snippet anyway. A package would cover the dashboard and
+leave the embed maintaining a second copy, which is how two sets of icons drift apart. `PinIcon`
+already worked this way. Everything follows Lucide's conventions: 24x24, currentColor stroke,
+2px, round caps and joins, no fill.
+
+Mapping: BBQ flame, Tech zap, Founder rocket (all three are Lucide's own paths), Campfire two
+crossed logs, Life Science a double helix. The last two are drawn here because Lucide has no
+firewood or helix glyph that fits.
+
+**Both hand-drawn icons needed a second pass after looking at them at real size.** The campfire
+started as crossed logs UNDER a small flame and rendered as a stray dot above an X; the flame is
+gone and the logs now span the box. The helix was drawn across the middle third of the viewBox
+and collapsed into an illegible vertical squiggle; it now spans 6-to-18. Both are legible at
+16px, though the helix is the weakest of the five and is the one to revisit if any is replaced.
+
+The icon takes the stage's own accent colour, so the heading colour-codes the column too.
+
+**Column headings 13px -> 15px** and laid out as flex so the icon sits beside a wrapping title.
+**Day pills** get `height:auto` and 9px/22px padding: `.seg`'s flat 36px row was sized for one
+line of text and was squeezing the date against the day number.
+
+Files: `app/brella-program/page.tsx`, `app/globals.css`.
+
 ## Session 2026-08-03q (Brella: no scroll jump, pill bars hug content, LS gradient)
 
 State: done, pushed. `tsc --noEmit` clean. Dashboard only.

@@ -1124,7 +1124,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-tracks--center, .bp-days { justify-content: center; }
 .bp-days { flex-wrap: wrap; margin: 10px 0 4px; }
 /* Two lines: DAY 1 with the date under it, rather than "DAY 1 · 26 Aug" strung out sideways. */
-.bp-days button { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.15; }
+.bp-days button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  /* auto height + real vertical padding: .seg's flat 36px row was sized for one line and
+     squeezed the date against the day number. */
+  height: auto; padding: 9px 22px; line-height: 1.2;
+}
 .bp-days__n { font-weight: 700; letter-spacing: .06em; }
 .bp-days__date { font-size: 11px; opacity: .72; font-weight: 500; }
 
@@ -1162,13 +1167,16 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-tl__colHead {
   border-left: 1px solid var(--color-border);
   padding: 8px 6px;
-  font-family: var(--font-heading); font-size: 13px; font-weight: 600; line-height: 1.25;
+  display: flex; align-items: flex-start; gap: 6px;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.25;
   color: var(--color-foreground);
   /* Five stage names, one of which is "Life Science x Deep Tech Stage". Wrapping beats
      truncating: the column heading is the only thing identifying the column. */
   overflow-wrap: anywhere;
 }
 .bp-tl__gutterHead { }
+/* The icon takes the stage's own accent, so the header colour-codes the column too. */
+.bp-tl__icon { flex: none; margin-top: 1px; color: var(--track, currentColor); }
 .bp-tl__head > .bp-tl__colHead:last-child { border-right: 1px solid var(--color-border); }
 
 .bp-tl__body { position: relative; margin-top: 10px; }
