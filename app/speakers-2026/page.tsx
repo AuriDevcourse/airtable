@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 import { SyncButton } from "@/components/SyncButton";
 import { useCachedList } from "@/lib/useCachedList";
 
@@ -224,6 +225,7 @@ export default function Speakers2026() {
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal shuffle pageSize={PAGE_SIZE} />
+            <CopyApiSnippet feed="speakers-2026" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
             </span>

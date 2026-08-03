@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 import { useCachedList } from "@/lib/useCachedList";
 
 // The 12 speakers marketing tick as "Main Page = YES" in Airtable, in curated order.
@@ -71,6 +72,7 @@ export default function MainSpeakers() {
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Fixed set of 12: no load-more, no detail pop-up (no bio), keep curated order. */}
             <CopyEmbed path="/api/main-speakers" listKey="speakers" loadMore={false} columns={4} />
+            <CopyApiSnippet feed="main-speakers" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this 12-speaker grid.
             </span>

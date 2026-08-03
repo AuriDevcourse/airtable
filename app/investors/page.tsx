@@ -6,6 +6,7 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
 // Same per-image shimmer loader as the NISS/NASS pages: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
@@ -133,6 +134,7 @@ function InvestorsView() {
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Mobile defaults to the list-rows layout for every filter. */}
             <CopyEmbed path={url} listKey="people" shuffle />
+            <CopyApiSnippet feed="investor-speakers" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{eventLabel(event)}</code>).
             </span>

@@ -5,6 +5,7 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
 // Speakers + Event Room shuffle per page load (fair exposure). The snippet's shuffle
@@ -300,6 +301,12 @@ export default function AllSpeakers2026Page() {
                 renders its own centered tab switcher, so the WordPress visitor can flip
                 between Speakers / Event Room / Investors inside the embed. */}
             <CopyEmbed path="/api/all-speakers" listKey="people" tabs={EMBED_TABS} />
+            {/* For a developer building the page themselves rather than pasting a widget:
+                a few lines of fetch that spell out this feed's shape. The array key is not
+                the same on every speaker feed, so each snippet states its own. */}
+            <CopyApiSnippet feed="all-speakers" label="Copy API code (all 3 groups)" />
+            <CopyApiSnippet feed="event-room-presenters" label="Copy API code (event room)" />
+            <CopyApiSnippet feed="investor-speakers" label="Copy API code (investors)" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies one Elementor snippet with the tab switcher built in.
             </span>

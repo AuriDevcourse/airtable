@@ -93,6 +93,54 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03v ("Copy API code" for the external designer)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+Auri handed an external designer a fetch snippet for `/api/main-speakers` and wanted the same
+for the other speaker feeds. `lib/apiSnippet.ts` + `components/CopyApiSnippet.tsx` generate it.
+This is NOT an embed: the embed builders ship finished markup for an Elementor widget, this
+ships a few lines of JavaScript for someone working in their own framework.
+
+**Why it is generated rather than typed into a message: the array key is not the same on every
+feed.** `/api/main-speakers` and `/api/speakers-2026` answer `{speakers:[...]}`, the event-room
+and investor feeds answer `{people:[...]}`, and `/api/all-speakers` answers
+`{counts, groups:{speakers, eventRoom, investors}}`. Copying one snippet and changing the URL
+gives `undefined.map is not a function`, which is a poor thing to hand a contractor. Each
+snippet spells out its own shape.
+
+Buttons: `/all-speakers-2026` (combined + event room + investors), `/speakers-2026`,
+`/investors`, `/main-speakers`. Styled as a secondary button so they do not compete with the
+gradient "Copy embed code" beside them.
+
+`/api/all-speakers` is the one to hand over for a single speakers page: one request, all three
+groups, and the lists stay consistent because they are read in one server pass.
+
+**Every snippet was EXECUTED, not just eyeballed**: 189 speakers / 91 event room / 38 investors
+from the combined feed, and 12 / 189 / 43 / 38 from the four single feeds, every record with a
+name.
+
+### CORS IS THE THING THAT WILL BITE
+
+`ALLOWED_ORIGIN` is a SINGLE origin (`lib/apiRoute.ts`), set to `https://techbbq.dk` in
+production. Verified: the deployment returns that same value whatever Origin is sent, so a
+browser on ANY other domain — the new site's staging URL, the designer's localhost — is blocked
+from reading these feeds. Photos are unaffected (an `<img>` needs no CORS) and are absolute in
+production; only the JSON is gated.
+
+Two ways out, and the second needs code:
+1. Point `ALLOWED_ORIGIN` at the new site instead. One env var, but techbbq.dk then loses access.
+2. Make it a comma-separated allowlist and echo whichever origin matches. That means threading
+   the request into `withCors()`, which has 37 call sites. NOT done: widening CORS is a security
+   change and is Auri's call, not a side effect of a snippet task.
+
+The snippets say this in a comment, so the designer knows what they are looking at when the
+browser blocks them rather than guessing at the connector being down.
+
+Files: `lib/apiSnippet.ts` (new), `components/CopyApiSnippet.tsx` (new),
+`app/all-speakers-2026/page.tsx`, `app/investors/page.tsx`, `app/speakers-2026/page.tsx`,
+`app/main-speakers/page.tsx`, `app/globals.css`.
+
 ## Session 2026-08-03u (THE EMBED IS PORTED: timeline, mobile dropdown, shared theme)
 
 State: done, pushed. `tsc --noEmit` clean. The embed is finally level with the dashboard.
