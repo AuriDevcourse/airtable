@@ -6,30 +6,85 @@ reaching the browser.
 
 ---
 
-# HANDOFF · read this first (2026-08-03)
+# HANDOFF · read this first (2026-08-04)
 
-**State: pushed and deployed.** Clean tree, `tsc --noEmit` clean. (No commit hash recorded here
-on purpose: this line ships inside the commit it would describe, so any hash written into it is
-stale the moment it is written.) main auto-deploys, so what is on GitHub is what is on the site.
-
-**The one thing left is manual and nothing works without it: re-copy BOTH embeds** from the
-deployed dashboard into their Elementor HTML widgets. Sessions 03k and 03l fixed the partner
-logo 404s, the black panel, the tile geometry and the empty International row, and a pasted
-snippet NEVER self-updates. Paste into an HTML widget, not a Text Editor widget: the latter runs
-wpautop, which injects `<p>` and `<br>` into the script and breaks it outright.
+**State: everything is pushed and deployed, and the Brella program is LIVE on techbbq.dk.**
+Clean tree, `tsc --noEmit` clean. main auto-deploys, so what is on GitHub is what is on the
+connector. (No commit hash here on purpose: this line ships inside the commit it would name.)
 
 ## What exists now
 
 | Page | Feed | Source of truth |
 |---|---|---|
-| `/ls-startups` | `/api/ls-startups` | Airtable, live. Logos included. |
+| `/brella-program` | `/api/program?event=brella` | Brella, read-only. **The big one.** |
 | `/partners` | `/api/partners` | Airtable for WHO + tier. **Logos are local files.** |
-| `/brella-program` | `/api/program?event=brella` | Brella, read-only |
+| `/ls-startups` | `/api/ls-startups` | Airtable, live. Logos included. |
 | `/partner-events` | `/api/partner-events` | Airtable |
+| speaker pages | `/api/all-speakers` + friends | Airtable |
+
+**Live on techbbq.dk:** the whole program at `https://techbbq.dk/program2026/`, page id 58341,
+in a single Elementor HTML widget (`af642bb`). One snippet carries all four sections — Stages,
+Event Rooms, Grill Sessions, Side Events — with its own switcher.
+
+## Installing an embed: FETCH IT, do not paste it
+
+`/api/embed?kind=brella&section=all` (also `kind=partners`, `kind=ls-startups`) returns the
+snippet as text with `__ORIGIN__` already resolved. The copy buttons build the same string in
+the browser, which is fine for a human and useless for automation — these are 55KB.
+
+To update the live page from the browser, via the Chrome extension in Auri's own session:
+
+1. Open `https://techbbq.dk/wp-admin/post.php?post=58341&action=elementor`
+2. **Wait** for `elementor.documents.getCurrent().container.children.length > 0`. The editor
+   boots long before its element tree exists; read too early and you find ONE container and no
+   widgets.
+3. Walk the container tree for the widget whose `settings.get("html")` matches `/tbbq-bp/`.
+4. `$e.run("document/elements/settings", {container, settings:{html:NEW}, options:{external:true}})`
+5. `$e.run("document/save/default")`
+
+**Guard the fetch with a marker string that did NOT exist in the previous version**, and check
+the stored length actually changed. A shared marker once let a stale fetch through and the old
+snippet was silently re-saved while reporting success; the byte-identical length was the only
+tell.
+
+**The front end is CACHED.** After saving, the plain URL still serves the old snippet for a
+while. Always verify with `?cb=<something>` or you are measuring the previous version.
 
 ## The things most likely to trip up the next person
 
-**1. Partner logos are a COPY, not live.** Adding a partner in Airtable puts them on the page
+**1. techbbq.dk's theme breaks layout primitives, and `!important` does not always save you.**
+Three separate times now:
+- It BLOCKIFIES CSS grid. The timeline collapsed and every card drew full width; neither
+  `!important` nor an inline `display:grid` survived. The timeline no longer uses grid at all —
+  columns are absolutely positioned with `calc()` geometry written inline, which ignores the
+  parent's display entirely.
+- It puts the dialog in a MULTI-COLUMN context. The speaker list rendered as two fragments
+  612px apart. `column-span:all` on the modal's children is the fix.
+- It sets a fixed height on `<select>` and uppercases content. Both are overridden explicitly.
+
+**2. Do not trust `getComputedStyle` on that page. Trust geometry.** It has reported
+`transform: none` while the inline style said `scale(1.3)`, `column-count: 1` on every ancestor
+of a visibly fragmented element, and `display: block` on a grid that was rendering as a grid.
+`getBoundingClientRect()` and **`getClientRects().length`** tell the truth. More than one client
+rect on a block element means it is being fragmented — that single check found the column bug
+after computed styles had led nowhere.
+
+**3. Never trust an image measurement.** `loading="lazy"` means an off-screen image is never
+requested, so `naturalWidth === 0` reads as "broken". The photo proxy answers `max-age=86400` on
+a stable URL, so a replaced logo serves yesterday's file for a day. And a measurement taken
+during a dev-server rebuild reports failures that do not exist. Force `eager`, await `onload`,
+add a cache-buster, and never diagnose from the first measurement after touching a file.
+
+**4. Every URL a feed emits must be ABSOLUTE.** Build it with `baseUrl()` from `lib/photo.ts`.
+A relative path works on the dashboard and silently 404s in the embed, because the browser
+resolves it against techbbq.dk. Invisible in local preview, since it is the same origin. It
+emptied the entire partner wall once.
+
+**5. NO BACKTICKS in `lib/*EmbedSnippet.ts`.** The whole snippet is one template literal, so a
+backtick in a CSS comment ends the string. It broke the build three times in one session. The
+tell is `TS1005: ';' expected`.
+
+**6. Partner logos are a COPY, not live.** Adding a partner in Airtable puts them on the page
 immediately but with NO logo. Someone must run:
 ```
 node scripts/sync-partner-logos.mjs --write      # match + copy into public/partner-logos
@@ -37,59 +92,64 @@ node scripts/upload-white-logos.mjs --write      # optional: push the white set 
 ```
 `/ls-startups` does NOT have this problem — it reads logos straight from Airtable.
 
-**2. Never trust an image measurement.** Three separate hours went to this. An image can look
-broken when it is fine, or fine when it is broken:
-- `loading="lazy"` means an off-screen image is never requested, so `naturalWidth === 0` and
-  every logo reads as "broken". Force `loading="eager"` and await onload first.
-- The photo proxy answers `max-age=86400` on a STABLE url, so after replacing a logo the
-  browser serves yesterday's file for a day. Add a cache-buster before measuring. (The feed now
-  appends `?v=<attachmentId>` so real visitors are fine; this is about measuring.)
-- A measurement taken during a dev-server rebuild reports failures that do not exist.
+**7. Nine partner tiers are hard-coded** in `TIER_OVERRIDES` (`lib/partners.ts`), because
+Airtable and the live site disagree and the live site won. No auto-sync is possible: techbbq.dk
+answers a plain request with a 455 and can only be read through a real browser.
 
-**3. Nine partner tiers are hard-coded**, in `TIER_OVERRIDES` in `lib/partners.ts`, because
-Airtable and the live site disagree and the live site won. There is no auto-sync: techbbq.dk
-answers a plain request with a 455, so it can only be read through a real browser. Re-check that
-map if the live page is ever re-tiered.
+**8. Tuning a logo's size is a FEED edit, not a CSS one.** `LOGO_SCALE` in `lib/partners.ts`
+holds the per-logo nudges, `LOGO_FILE_OVERRIDES` swaps in a different file or a row-spanning
+frieze. Both reach the dashboard and the embed together. The values are LINEAR while the visible
+area is their SQUARE: 0.85 is a 28% area cut, not 15%.
 
-**3b. Tuning a logo's size is a FEED edit, not a CSS one.** `LOGO_SCALE` in `lib/partners.ts`
-holds the per-logo nudges and `LOGO_FILE_OVERRIDES` swaps in a different file (or a row-spanning
-frieze). Both flow to the dashboard and the embed together. The values are LINEAR, so the
-visible area changes with the square: 0.85 is a 28% area cut, not a 15% one.
+## Where the Brella rules live
 
-**4. Every URL a feed emits must be ABSOLUTE.** Always build it with `baseUrl()` from
-`lib/photo.ts`. A relative path works on the dashboard and silently 404s in the embed, because
-the browser resolves it against techbbq.dk. This is invisible in local preview: same origin, so
-it looks perfect right up until it is pasted. It cost the whole partners wall once (03k).
+One module, `lib/brellaSections.ts`, shared by the page, the API route and the embed builder, so
+they cannot disagree:
+
+- `BRELLA_STAGES` — the five stages IN ORDER (BBQ, Founder, Tech, Campfire, Life Science).
+  Explicit, not derived: Campfire is a real Brella track (id 43281) with nothing on it yet, and
+  derived columns would omit it now and surface it unannounced later.
+- `BRELLA_GRILLS`, `TIMELINE_COLUMNS` — which sections draw as a timeline and with what columns.
+  Adding another timeline section is one entry in that map.
+- `ROOM_ALIASES` — Future of FinTech → Event Room 1, Nordic India → Event Room 4. Applied in
+  `lib/brellaprogram.ts` as the session is built, so every consumer sees the same room name.
+- `EVENT_DAYS` + `defaultEventDay(now)` — 26 Aug is DAY 1, 27 Aug is DAY 2. Brella's own "Day N"
+  counts whichever dates exist in the feed and shifts when one is deleted; never surface it.
+  `now` is injected, and the default day is computed in an effect — never at module scope, which
+  would freeze it at build time.
+
+Colours and stage icons are in `lib/brellaTheme.ts`, also shared. They were duplicated by hand
+once and had already drifted (the embed still had Founders Stage red after the dashboard moved
+it to green).
 
 ## Open items, none blocking
 
-1. **Push 03k, THEN re-copy both embeds** from the DEPLOYED dashboard into WordPress. Order
-   matters: re-copying before the deploy just bakes the broken relative logo URLs back in. The
-   snippets currently pasted there predate the Elementor hardening, the 5-per-row change, the
-   row colours, the logo fit and the absolute-URL fix.
-2. **Widen Life Science to 6 per row** once a category fills up. It is `--cols` on the row in
+1. **One timeline card still clips by ~16px** on desktop: a long title in a short slot. Forcing
+   one line loses more than the 16px hides, so it was left.
+2. **Widen Life Science to 6 per row** once a category fills up: `--cols` in
    `app/ls-startups/page.tsx` and the `repeat(5,…)` in `lib/lsStartupsEmbedSnippet.ts`.
-3. **Two very wide logos still read small**, Immunordic (aspect 5.66) and H+H (4.35). They
-   already touch both side edges; only a tighter SVG export fixes it.
-4. **Yoke Bio has no website** ("no website yet" in Airtable), so its logo is unlinked. 23
-   partners are likewise unlinked.
-5. **Walther Therapeutics is linked to a site its own Airtable note calls under construction.**
-   Auri was told; left linked since the event is weeks out.
-6. **Do NOT use the LS `Linkedin` column as a website fallback** — those are personal profiles,
-   not company pages. A company-LinkedIn column would be the clean fix.
-7. Still open from earlier sessions: `parseTimeSlot` has no equivalent in `lib/program.ts`, and
-   the Brella schedule still contains four test rows on Founders Stage.
+3. **Re-copy the PARTNERS and LS-STARTUPS embeds.** Only the Brella one has been installed from
+   `/api/embed`; those two still carry whatever was pasted earlier.
+4. **CORS is a single origin.** `ALLOWED_ORIGIN` is `https://techbbq.dk`, so the external
+   designer building the new site on any other domain cannot read the feeds. Either repoint it
+   or make it a comma-separated allowlist (37 `withCors()` call sites). Auri's decision, not a
+   side effect of a snippet task.
+5. Two very wide partner logos still read small (Immunordic 5.66, H+H 4.35); only a tighter SVG
+   export fixes it. 23 partners are unlinked for want of a website.
+6. `parseTimeSlot` has no equivalent in `lib/program.ts`.
 
 ## Conventions worth keeping
 
 - Read multi-selects with `tags()`, never `===`. `status` being a multi-select silently sent the
   first version of the LS gate to the wrong field.
 - Publish gates live SERVER-side, never in an embed snippet. A pasted snippet outlives the
-  deploy and cannot be corrected.
+  deploy and cannot be corrected. Same reason `?section=all` groups on the server.
 - Attachment writes use `uploadAttachment` (appends). A PATCH on an attachment field replaces
   the whole array and would erase every existing file.
 - Write JS and Markdown with the editor tools, not shell heredocs. Escaping has silently
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
+- A blanket `#id .modal *` reset ties with every class rule in the same block, so anything it
+  stamps out (`float`, `display`) must be RE-DECLARED after it, not before.
 
 ---
 
