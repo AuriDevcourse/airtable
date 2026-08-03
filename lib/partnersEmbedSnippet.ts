@@ -64,17 +64,19 @@ export function buildPartnersEmbedSnippet({
      block responsive without a single media query for the desktop-to-tablet range. */
   #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
 
-  /* display:contents so the anchor adds no box of its own — the grid keeps sizing the tile. */
-  #${id} .tbbq-pw__link{display:contents!important;text-decoration:none!important}
-  #${id} .tbbq-pw__tile{display:grid!important;place-items:center!important;width:100%!important;aspect-ratio:3/2;padding:18px!important;margin:0!important;border-radius:12px!important;transition:background .2s,transform .2s}
-  #${id} .tbbq-pw__tile img{max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important;display:block!important;margin:0!important;border-radius:0!important;box-shadow:none!important}
-  #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--card)!important;transform:translateY(-2px)}
-  /* display:contents removes the anchor's own focus box, so the ring is drawn on the tile.
+  /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
+     leave the tile with no height, so max-height:100% resolved against nothing and every logo
+     drew at its natural size. The fixed height below is the load-bearing rule. */
+  #${id} .tbbq-pw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
+  #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
+  #${id} .tbbq-pw__tile img{display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
+  #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--card)!important;transform:translateY(-2px)!important}
+  /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box.
      Without this the link is keyboard-reachable but invisible when focused, which a wall of
      logos with no text cannot afford. */
   #${id} .tbbq-pw__link:focus-visible .tbbq-pw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--card)!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
-  #${id} .tbbq-pw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important}
+  #${id} .tbbq-pw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
 
   /* Narrow containers ignore --cols and step down, so an Elementor column never squeezes
      six logos into 300px. */
@@ -83,7 +85,7 @@ export function buildPartnersEmbedSnippet({
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
     #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
-    #${id} .tbbq-pw__tile{padding:12px!important}
+    #${id} .tbbq-pw__tile{height:92px!important;min-height:92px!important;max-height:92px!important;padding:10px!important}
     #${id} .tbbq-pw__label{font-size:11px!important}
   }
 </style>

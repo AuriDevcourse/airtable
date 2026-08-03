@@ -67,7 +67,7 @@ function Mark({ s }: { s: Startup }) {
 
 function LogoWall({ items }: { items: Startup[] }) {
   return (
-    <div className="lw-grid">
+    <div className="lw-grid lw-grid--fixed">
       {items.map((s) =>
         s.website ? (
           <a
@@ -163,7 +163,9 @@ export default function LsStartupsPage() {
               <section
                 key={name}
                 className="lw-row"
-                style={{ "--row": color } as React.CSSProperties}
+                // 5 per row max, Auri: seven across is too many. The categories are heading
+                // for 15/15/16, so the last row will be widened to 6 once they are full.
+                style={{ "--row": color, "--cols": 5 } as React.CSSProperties}
               >
                 <h2 className="lw-row__label">{name}</h2>
                 {items.length ? (
