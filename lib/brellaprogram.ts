@@ -10,7 +10,7 @@
 // /program page and the agenda embed render it with no changes.
 
 import { fetchWithTimeout } from "@/lib/http";
-import type { ProgramSession } from "@/lib/program";
+import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
 
 const API = "https://api.brella.io/api/integration";
@@ -179,6 +179,41 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
   const nameOf = (type: string, id: string | undefined): string =>
     id ? label(byId.get(`${type}:${id}`)?.attributes?.name) : "";
 
+  // Speakers hang off the timeslot INDIRECTLY: timeslot → speaker-assignment → speaker.
+  // The assignment carries the ordering (and a `role` Brella leaves null today), so it is
+  // followed rather than skipped. Only names are required; a speaker with no name is a
+  // half-created record and is dropped rather than rendered as an empty card.
+  //
+  // photo-url points at brella-assets.brella.io and is a plain public URL, NOT a signed one
+  // like Airtable's attachments, so it is passed through instead of proxied through
+  // /api/photo. If Brella ever starts signing these, they will need the same treatment.
+  const speakersFor = (row: RawTimeslot): ProgramSpeaker[] => {
+    const out: ProgramSpeaker[] = [];
+    for (const ref of many(row.relationships?.["speaker-assignments"])) {
+      const assignment = byId.get(`speaker-assignment:${ref.id}`);
+      const speakerId = one(assignment?.relationships?.speaker)?.id;
+      const speaker = speakerId ? byId.get(`speaker:${speakerId}`) : undefined;
+      if (!speaker) continue;
+
+      const a = speaker.attributes;
+      const name = [str(a["first-name"]), str(a["middle-name"]), str(a["last-name"])]
+        .filter(Boolean)
+        .join(" ");
+      if (!name) continue;
+
+      out.push({
+        id: `brella-speaker-${speaker.id}`,
+        name,
+        title: str(a["job-title"]),
+        company: str(a["company-name"]),
+        photo: str(a["photo-url"]) || null,
+        bio: draftToText(a.bio),
+      });
+    }
+    // Brella's own display order, which is what the attendee app shows.
+    return out;
+  };
+
   type Prepared = { session: ProgramSession; dateKey: string; startIso: string };
   const prepared: Prepared[] = [];
 
@@ -226,6 +261,8 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         type: topic,
         description,
         room: track,
+        location: label(a.location),
+        speakers: speakersFor(row),
       },
     });
   }

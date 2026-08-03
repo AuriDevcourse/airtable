@@ -23,6 +23,17 @@ const API = "https://api.airtable.com/v0";
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
 
+// A person billed on a session. Brella is the only source that has these; the Airtable
+// program tables carry no speaker link, so their sessions come back with an empty array.
+export type ProgramSpeaker = {
+  id: string;
+  name: string;
+  title: string; // job title
+  company: string;
+  photo: string | null;
+  bio: string;
+};
+
 export type ProgramSession = {
   id: string;
   name: string;
@@ -31,6 +42,10 @@ export type ProgramSession = {
   type: string;
   description: string;
   room: string;
+  // Optional so the three Airtable sources don't have to invent them. Consumers must treat
+  // both as possibly-absent: the agenda embed predates them and ignores them entirely.
+  location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
+  speakers?: ProgramSpeaker[];
 };
 
 // Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one
