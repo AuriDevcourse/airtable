@@ -93,6 +93,41 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04a (dialog time bar, Campfire wording, mobile density)
+
+State: done, pushed. `tsc --noEmit` clean. Diagnosed against the LIVE page again.
+
+**The close button was on the LEFT, sitting on the time.** Not a theme problem: the harsh dialog
+reset from 03w sets `float:none!important` on everything inside the modal, which killed the close
+button's own `float:right!important`. Equal specificity, and the reset is declared later, so it
+won. Re-declared AFTER the reset. Worth remembering: a blanket `#id .modal *` reset outranks
+nothing and ties with every class rule in the same block, so anything it stamps out has to be
+restored below it, not above.
+
+**The dialog's time now carries the stage colour** as a 3px left bar, with 52px of right padding
+so the sticky close button never reaches the text. Measured gap: 307px, no collision.
+
+**Campfire says "Program coming soon"** instead of "Nothing scheduled", on both surfaces.
+
+**Speaker names 14px -> 13px.**
+
+**The 05:00 PM label read as cut off** because the last gutter label is centred on the final
+gridline and hangs half below the body. 22px of bottom padding on the timeline.
+
+**Mobile, measured on techbbq.dk itself at 390px:** the embed sat flush against both screen
+edges, the STAGE label was clipped off the left, and cards were cutting their own speaker rows.
+The last one is the interesting one: a phone keeps the same type size in a column a third as
+wide, so titles wrap onto more lines while the card's height still comes from its DURATION.
+The minute scale now stretches to 3.4px/min below 760px (2.4 on desktop), which gives that text
+somewhere to go. Result: 0 of 15 cards clipping, against several before. Plus 10px of side
+padding and a smaller section masthead.
+
+Files: `lib/brellaEmbedSnippet.ts`, `app/brella-program/page.tsx`, `app/globals.css`.
+
+### Next steps
+
+1. Re-copy the embed into /program2026/.
+
 ## Session 2026-08-03z (the dialog was taller than the screen; diagnosed on the LIVE page)
 
 State: done, pushed. `tsc --noEmit` clean.

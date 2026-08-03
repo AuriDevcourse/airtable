@@ -320,7 +320,11 @@ function StageTimeline({
           const placed = withLanes(mine);
           return (
             <div key={col} className="bp-tl__col">
-              {placed.length === 0 && <p className="bp-tl__empty">Nothing scheduled</p>}
+              {placed.length === 0 && (
+                <p className="bp-tl__empty">
+                  {/campfire/i.test(col) ? "Program coming soon" : "Nothing scheduled"}
+                </p>
+              )}
               {placed.map((s) => {
                 const detail = hasDetail(s);
                 const h = Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4);

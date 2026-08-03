@@ -132,7 +132,10 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__empty{margin:0!important;color:var(--muted)!important;font-size:14px!important}
 
   /* ── TIMELINE ── */
-  #${id} .tbbq-bp__tl{margin:0!important;padding:0!important}
+  /* padding-bottom: the last time label is centred on the final gridline and so hangs half
+     below the body. Without this the 05:00 PM label sits flush against whatever follows and
+     reads as cut off, which is how it looked in the Elementor editor. */
+  #${id} .tbbq-bp__tl{margin:0!important;padding:0 0 22px!important}
   #${id} .tbbq-bp__allday{display:flex!important;align-items:center!important;gap:12px!important;margin:0 0 12px!important;padding:8px 10px!important;border:1px solid var(--border)!important;border-radius:10px!important}
   #${id} .tbbq-bp__alldayLabel{flex:none!important;font-size:11px!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:var(--muted)!important}
   #${id} .tbbq-bp__alldayList{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
@@ -181,6 +184,9 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--track)}
   #${id} button.tbbq-bp__card:hover{border-color:var(--track)!important;background:var(--card2)!important}
   #${id} .tbbq-bp__time{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:11px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--fg)!important}
+  /* In the dialog the time gets the stage's colour as a bar on its left, and enough room on
+     its right that the close button is not sitting on top of it. */
+  #${id} .tbbq-bp__modal .tbbq-bp__time{border-left:3px solid var(--track)!important;padding:2px 52px 2px 10px!important;font-size:12px!important}
   #${id} .tbbq-bp__title{margin:10px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:15px!important;font-weight:600!important;line-height:1.3!important;color:#fff!important;text-transform:none!important;letter-spacing:normal!important}
   #${id} .tbbq-bp__room{display:flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12px!important;line-height:1.4!important}
   #${id} .tbbq-bp__desc{margin:8px 0 0!important;padding:0!important;color:rgba(255,255,255,.72)!important;font-size:12px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -196,7 +202,7 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__modal{position:relative!important;width:100%!important;max-width:640px!important;max-height:90vh!important;overflow-y:auto!important;overscroll-behavior:contain!important;background:var(--card)!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:16px!important;padding:28px!important}
   /* sticky + float, NOT absolute: the modal is now the scroll container, so an absolutely
      positioned close button scrolls out of reach on a long session. */
-  #${id} .tbbq-bp__close{position:sticky!important;top:0!important;float:right!important;z-index:2!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px!important;height:32px!important;margin:-8px -8px 0 10px!important;padding:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card2)!important;color:var(--muted)!important;cursor:pointer!important}
+  #${id} .tbbq-bp__close{position:sticky!important;top:0!important;float:right!important;z-index:2!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px!important;height:32px!important;margin:-6px -6px 0 14px!important;padding:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card2)!important;color:var(--muted)!important;cursor:pointer!important}
   #${id} .tbbq-bp__close:hover{color:var(--fg)!important}
   #${id} .tbbq-bp__modal h2{margin:8px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:22px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important}
   #${id} .tbbq-bp__meta{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:8px!important;margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:13px!important}
@@ -217,6 +223,10 @@ export function buildBrellaEmbedSnippet({
   /* MUST come after the rule above and be at least as specific. display:block!important beats
      the UA style behind the hidden attribute, which is why every bio opened on load. */
   #${id} .tbbq-bp__modal [hidden],#${id} .tbbq-bp__pbio[hidden]{display:none!important}
+  /* The blanket reset above sets float:none on everything in the dialog, which killed the
+     close button's float:right and parked it on the LEFT, on top of the time. Same specificity,
+     so it has to be re-declared after the reset rather than before it. */
+  #${id} .tbbq-bp__close{float:right!important}
   #${id} .tbbq-bp__pmore{display:inline-flex!important}
   #${id} .tbbq-bp__ptag{text-transform:uppercase!important;display:inline-block!important}
   #${id} .tbbq-bp__modal h3{margin:24px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -224,7 +234,7 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__person{display:flex!important;gap:12px!important;margin:0!important;padding:0!important}
   #${id} .tbbq-bp__photo{flex:0 0 auto!important;width:52px!important;height:52px!important;border-radius:9999px!important;object-fit:cover!important;object-position:50% 30%!important;background:var(--card2)!important;display:grid!important;place-items:center!important;font-family:var(--head)!important;font-weight:700!important;color:var(--track)!important;margin:0!important}
   #${id} .tbbq-bp__ptoggle{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important;width:100%!important;padding:0!important;border:0!important;background:none!important;cursor:pointer!important;font:inherit!important;text-align:left!important;color:inherit!important;appearance:none!important;box-shadow:none!important}
-  #${id} .tbbq-bp__pname{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;color:#fff!important}
+  #${id} .tbbq-bp__pname{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;color:#fff!important}
   #${id} .tbbq-bp__ptag{display:inline-block!important;margin-left:8px!important;padding:1px 7px!important;border:1px solid var(--border)!important;border-radius:9999px!important;font-family:var(--sans)!important;font-size:10px!important;font-weight:600!important;letter-spacing:.06em!important;text-transform:uppercase!important;color:var(--muted)!important;vertical-align:middle!important}
   #${id} .tbbq-bp__prole{margin:3px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12px!important;line-height:1.4!important}
   #${id} .tbbq-bp__pmore{display:inline-flex!important;align-items:center!important;gap:3px!important;margin-top:4px!important;font-size:11px!important;font-weight:600!important;letter-spacing:.04em!important;color:var(--track)!important}
@@ -237,7 +247,11 @@ export function buildBrellaEmbedSnippet({
      hidden because five of them wrap into a block taller than the schedule. The DAY pills stay:
      there are only two and they are the thing people switch most. */
   @media(max-width:760px){
-    #${id}{--gutter:60px}
+    #${id}{--gutter:60px;padding-left:10px!important;padding-right:10px!important}
+    #${id} .tbbq-bp__pickWrap{max-width:100%!important;gap:6px!important}
+    #${id} .tbbq-bp__pickLabel{font-size:10px!important}
+    #${id} .tbbq-bp__sections{gap:4px 16px!important}
+    #${id} .tbbq-bp__sections button{font-size:22px!important}
     #${id} .tbbq-bp__tracks{display:none!important}
     #${id} .tbbq-bp__pickWrap{display:${isTimeline ? "flex" : "none"}!important}
     #${id} .tbbq-bp__colhead{font-size:15px!important;min-height:0!important}
@@ -382,10 +396,14 @@ export function buildBrellaEmbedSnippet({
     var timed=[],allday=[];
     mine.forEach(function(s){var t=slot(s.timeSlot);if(t){timed.push({s:s,start:t.start,end:t.end});}else{allday.push(s);}});
 
+    /* A phone keeps the same type size in a column a third as wide, so titles wrap onto more
+       lines and were being cut off by a card whose height comes from its DURATION. Stretching
+       the minute scale gives that text somewhere to go. */
+    var PXN=narrow?3.4:PX;
     var start=9*60,end=start+60;
     timed.forEach(function(x){if(x.start<start)start=x.start;if(x.end>end)end=x.end;});
     var from=Math.floor(start/SLOT)*SLOT,to=Math.ceil(end/SLOT)*SLOT;
-    var height=(to-from)*PX;
+    var height=(to-from)*PXN;
 
     var ticks=[];for(var t=from;t<=to;t+=SLOT)ticks.push(t);
 
@@ -413,9 +431,9 @@ export function buildBrellaEmbedSnippet({
       +'</div>'
       +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
       +'<div class="tbbq-bp__gutter" style="position:absolute;left:0;top:0;width:'+GUT+'px;height:100%">'
-      +ticks.map(function(x){return '<span class="tbbq-bp__tick"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;right:8px;top:'+((x-from)*PX)+'px">'+((x%60===0)?hhmm(x):"")+'</span>';}).join("")
+      +ticks.map(function(x){return '<span class="tbbq-bp__tick"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;right:8px;top:'+((x-from)*PXN)+'px">'+((x%60===0)?hhmm(x):"")+'</span>';}).join("")
       +'</div>'
-      +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PX)+'px"></span>';}).join("");
+      +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PXN)+'px"></span>';}).join("");
 
     cols.forEach(function(c,ci){
       var items=timed.filter(function(x){return (columnOf(x.s.room)||x.s.room)===c;})
@@ -424,7 +442,7 @@ export function buildBrellaEmbedSnippet({
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
-      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">Nothing scheduled</p>';
+      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled")+'</p>';
       /* Lanes per CLUSTER of overlapping sessions, compared on the DRAWN extent: a 5-minute
          slot is floored to a minimum height and so covers the next card even though the clock
          says it has finished. Counting per column would halve every card on the stage. */
@@ -447,9 +465,9 @@ export function buildBrellaEmbedSnippet({
       flush();
       placed.forEach(function(p){
         var s=p.x.s;
-        var h=Math.max(MINCARD,(p.x.end-p.x.start)*PX-4);
+        var h=Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4);
         var compact=h<46;
-        var st="position:absolute;top:"+((p.x.start-from)*PX)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
+        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
