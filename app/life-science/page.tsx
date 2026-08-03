@@ -103,17 +103,27 @@ export default function LifeSciencePage() {
             <code>Which LS DT stage?</code> · served as JSON at <code>/api/life-science</code>.
           </p>
 
+          {/* The button follows the pill above the grid: pick a stage and you copy an embed
+              for exactly those speakers. `key` forces a fresh <CopyEmbed> per stage so its
+              internal "Copied" state cannot carry over and claim the previous snippet was
+              copied. The single-stage embed drops tagTabs — a one-stage list has nothing to
+              filter, and a lone pill reading "Deep Tech Event Day" above only Deep Tech
+              people looks broken. */}
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyEmbed
-              path="/api/life-science"
+              key={stage || "all"}
+              path={stage ? `/api/life-science?stage=${encodeURIComponent(stage)}` : "/api/life-science"}
               listKey="people"
               loadMore={false}
               gradient="ls"
               shuffle
-              tagTabs={LS_STAGES}
+              tagTabs={stage ? undefined : LS_STAGES}
+              label={stage ? `Copy embed (${stage})` : "Copy embed code"}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copies an Elementor snippet for this speaker grid, with the stage filter built in.
+              {stage
+                ? `Copies an Elementor snippet showing only the ${stage} speakers, with no filter pills.`
+                : "Copies an Elementor snippet for this speaker grid, with the stage filter built in. Pick a stage above to copy just those speakers."}
             </span>
           </div>
         </div>

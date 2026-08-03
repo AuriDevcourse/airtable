@@ -47,7 +47,9 @@ const STAGE_COLORS: Record<string, string> = {
 // gate and not a UI filter: with the stage pills on the page a blank person would otherwise be
 // reachable only under "All", which reads as a bug. 8 of the 45 records were blank when this
 // went in, so expect the published count to be lower than the view's row count.
-const PUBLISHED_STAGES = Object.keys(STAGE_COLORS);
+// Exported so the route can validate `?stage=` against the same list rather than keeping a
+// second copy that drifts. STAGE_COLORS stays the single source of truth for which stages exist.
+export const PUBLISHED_STAGES = Object.keys(STAGE_COLORS);
 
 /**
  * The first RECOGNISED stage on the record, or "" if it has none.
