@@ -93,6 +93,42 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04e (the dialog was COLUMN-FRAGMENTED; how to find that again)
+
+State: done, live and verified at 375px.
+
+**The moderator appeared off to the right and the dialog scrolled sideways.** Both were one
+cause: the speaker list was being FRAGMENTED across CSS columns.
+
+**The evidence, and it is the tell to remember.** The list reported a CSS `width` of 298px while
+`getBoundingClientRect()` said 612, and `ul.getClientRects().length` was **2** — at
+`31,634 298x133` and `345,47 298x242`. A normal block box has exactly one client rect. Two rects
+of equal width, side by side, with the earlier content in the LOWER one, is column fragmentation
+and nothing else. That is why the first speaker sat at the bottom of the left column while the
+rest appeared top-right.
+
+**getComputedStyle could not find the culprit.** Every ancestor from the list up to `main`
+reported `column-count: 1` / `auto`. Whatever applies the columns on techbbq.dk does not surface
+there, and this is the third time on this page that computed styles have lied (see also the
+transform and grid readings in 03m and 03x). Do not trust them here; trust geometry.
+
+**Found by binary search on the live page instead**, applying one candidate property at a time
+and re-counting the fragments: `columns:1` on the modal did nothing, `column-span:all` on the
+modal did nothing, `display:flow-root` on the list did nothing, and `column-span:all` on the LIST
+fixed it instantly — one rect, 283px, no sideways scroll.
+
+So `column-span:all` is now on every direct child of the modal, since any of them can fragment.
+It is ignored outside a multi-column context, so it costs nothing anywhere else.
+
+**Also Auri's ask:** on a phone the dialog is 95% wide, capped at 92vh, and scrolls only
+downwards; the overlay's side padding was removed so the width is actually honoured.
+
+Verified live at 375px: modal 342px (91% of the screen, the rest being its own margins), list ONE
+fragment at 285px, all 4 speakers in a single column stacked downwards, no sideways scroll on the
+modal or the page, vertical scrolling works, dialog fits the viewport.
+
+Files: `lib/brellaEmbedSnippet.ts`.
+
 ## Session 2026-08-04d (dialog scrolled sideways on a phone; roomier phone timeline)
 
 State: done, live and verified at 360px and 1600px.
