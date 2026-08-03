@@ -20,6 +20,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
 import manifest from "@/lib/partnerLogoManifest.json";
+import { baseUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
 
@@ -223,7 +224,11 @@ export async function fetchPartners(): Promise<Partner[]> {
       id: rec.id,
       company,
       tier,
-      logo: hit ? `/partner-logos/${encodeURIComponent(hit.file)}` : null,
+      // ABSOLUTE, via the same baseUrl() every other feed uses for its photo proxy. A bare
+      // "/partner-logos/..." works on the dashboard and silently breaks in the embed, where
+      // the browser resolves it against techbbq.dk and gets a 404 for all 104 logos. That
+      // shipped once and produced a wall of empty tiles on the live partners page.
+      logo: hit ? `${baseUrl()}/partner-logos/${encodeURIComponent(hit.file)}` : null,
       website:
         company in WEBSITE_OVERRIDES
           ? WEBSITE_OVERRIDES[company]

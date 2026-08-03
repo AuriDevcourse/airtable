@@ -72,7 +72,7 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
 // Absolute base for the proxy URLs. WordPress consumes the JSON cross-origin, so
 // relative paths only work on the local preview pages. On Vercel the production
 // domain is injected automatically; PUBLIC_BASE_URL overrides it (custom domain).
-function baseUrl(): string {
+export function baseUrl(): string {
   const explicit = process.env.PUBLIC_BASE_URL;
   if (explicit) return explicit.replace(/\/+$/, "");
   const vercel =

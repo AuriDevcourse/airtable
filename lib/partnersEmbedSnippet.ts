@@ -94,7 +94,8 @@ export function buildPartnersEmbedSnippet({
 (function(){
   var root=document.getElementById("${id}");
   if(!root)return;
-  var ENDPOINT="__ORIGIN__${path}";
+  var ORIGIN="__ORIGIN__";
+  var ENDPOINT=ORIGIN+"${path}";
   var ROWS=${JSON.stringify(ROWS)};
   var rowsEl=root.querySelector(".tbbq-pw__rows");
   var statusEl=root.querySelector(".tbbq-pw__status");
@@ -110,7 +111,17 @@ export function buildPartnersEmbedSnippet({
   /* Only an absolute http(s) URL becomes a live href or src — never a javascript: or data:
      URL out of an Airtable free-text cell. The feed already filters, this is defence in
      depth for a snippet that will outlive this deploy on someone else's page. */
-  function safeUrl(u){var s=String(u==null?"":u).trim();return (/^https?:\\/\\//i.test(s)||/^\\/[^\\/]/.test(s))?s:"";}
+  /* A site-relative path is resolved against the CONNECTOR, not against the page. The feed
+     hands back "/partner-logos/<file>" and "/api/photo/...", which on the dashboard are same
+     origin and just work. Pasted into techbbq.dk they silently resolve to
+     https://techbbq.dk/partner-logos/... and every logo 404s, leaving a wall of empty tiles.
+     That is exactly what happened on the 2026 partners page. */
+  function safeUrl(u){
+    var s=String(u==null?"":u).trim();
+    if(/^https?:\\/\\//i.test(s))return s;
+    if(/^\\/[^\\/]/.test(s))return ORIGIN+s;
+    return "";
+  }
 
   /* A logo-less partner is DROPPED from the embed, not rendered as a name tile. The name
      tiles exist so the dashboard can show which logos are still missing; on techbbq.dk they

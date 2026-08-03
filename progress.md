@@ -8,8 +8,12 @@ reaching the browser.
 
 # HANDOFF · read this first (2026-08-03)
 
-**State: everything is committed and pushed. `main` = `2f1424c`, clean tree, `npm run build`
-green. main auto-deploys, so what is on GitHub is what is on the site.**
+**State: committed, NOT YET PUSHED.** Head of `main` is "Partners: emit absolute logo URLs so
+the embed works off techbbq.dk" (no hash here on purpose: it is this same commit, so any hash
+written into it is stale the moment it is written). Clean tree, `tsc --noEmit` clean. That
+commit is the partner-logo absolute-URL fix (session 03k below) and it is what makes the
+partners wall work on techbbq.dk. Push it, wait for the deploy, then re-copy the partners embed
+in that order. main auto-deploys, so what is on GitHub is what is on the site.
 
 ## What exists now
 
@@ -20,7 +24,7 @@ green. main auto-deploys, so what is on GitHub is what is on the site.**
 | `/brella-program` | `/api/program?event=brella` | Brella, read-only |
 | `/partner-events` | `/api/partner-events` | Airtable |
 
-## The three things most likely to trip up the next person
+## The things most likely to trip up the next person
 
 **1. Partner logos are a COPY, not live.** Adding a partner in Airtable puts them on the page
 immediately but with NO logo. Someone must run:
@@ -44,10 +48,17 @@ Airtable and the live site disagree and the live site won. There is no auto-sync
 answers a plain request with a 455, so it can only be read through a real browser. Re-check that
 map if the live page is ever re-tiered.
 
+**4. Every URL a feed emits must be ABSOLUTE.** Always build it with `baseUrl()` from
+`lib/photo.ts`. A relative path works on the dashboard and silently 404s in the embed, because
+the browser resolves it against techbbq.dk. This is invisible in local preview: same origin, so
+it looks perfect right up until it is pasted. It cost the whole partners wall once (03k).
+
 ## Open items, none blocking
 
-1. **Re-copy both embeds** from the DEPLOYED dashboard into WordPress. The snippets pasted there
-   predate the Elementor hardening, the 5-per-row change, the row colours and the logo fit.
+1. **Push 03k, THEN re-copy both embeds** from the DEPLOYED dashboard into WordPress. Order
+   matters: re-copying before the deploy just bakes the broken relative logo URLs back in. The
+   snippets currently pasted there predate the Elementor hardening, the 5-per-row change, the
+   row colours, the logo fit and the absolute-URL fix.
 2. **Widen Life Science to 6 per row** once a category fills up. It is `--cols` on the row in
    `app/ls-startups/page.tsx` and the `repeat(5,…)` in `lib/lsStartupsEmbedSnippet.ts`.
 3. **Two very wide logos still read small**, Immunordic (aspect 5.66) and H+H (4.35). They
@@ -73,6 +84,73 @@ map if the live page is ever re-tiered.
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 
 ---
+
+## Session 2026-08-03k (partner logos 404'd on techbbq.dk: the feed emitted relative URLs)
+
+State: fixed and verified, **NOT committed**. `tsc --noEmit` clean.
+
+Auri reported the partners wall on techbbq.dk "doesn't load anything" and pasted a wall of
+console output.
+
+**The console output was almost entirely noise, and following it would have wasted the session.**
+The `iframe-app` / OIDC / `angie.umd.cjs` errors are the Elementor editor failing to
+authenticate. The one plausible-looking entry, `Uncaught SyntaxError: Unexpected token '<'` at
+line 3507, belongs to a DIFFERENT plugin: Essential Addons emits
+`<script id="eael-inline-js"><script>`, a nested opening tag. Pre-existing, unrelated, not ours.
+Worth reporting upstream. Lesson: on a WordPress page the console is mostly other people's
+plugins, so locate OUR block by id before reading any of it.
+
+**Finding the real fault took inspecting the live page, not the source.** Loaded the preview URL
+in the user's own Chrome (it needs their session) and queried the DOM. The embed was working:
+8 tier rows, 104 tiles, correct structure, API fetch fine. Every logo was pointed at
+
+```
+https://techbbq.dk/partner-logos/Beyond%20Beta.svg      ← 404
+```
+
+`lib/partners.ts` built `logo` as a hardcoded site-relative literal,
+`` `/partner-logos/${encodeURIComponent(hit.file)}` ``. Same origin on the dashboard, so it works
+there and in every local preview. Resolved against techbbq.dk it is a 404, giving 104 correctly
+built and completely empty tiles: rows, labels and layout all present, no images. That is what
+"doesn't load anything" looked like.
+
+Partners was the ONLY feed doing this. Every other one goes through `photoUrl()`, which already
+absolutises via `baseUrl()`. Partners bypassed the helper because its logos are local files
+rather than an Airtable proxy, and the absolute-URL requirement went with the helper.
+
+**Fix, at the source rather than in the embed.** Exported `baseUrl()` from `lib/photo.ts` and
+used it in `lib/partners.ts`. Verified in all three environments:
+
+| Env | `logo` |
+|---|---|
+| local dev | `/partner-logos/Beyond%20Beta.svg` |
+| Vercel | `https://airtable-woad.vercel.app/partner-logos/Beyond%20Beta.svg` |
+| `PUBLIC_BASE_URL` | `https://connector.techbbq.dk/partner-logos/…` |
+
+Then confirmed from techbbq.dk's own page context that three production URLs decode as real
+images (200×200, 292×150, 1080×1054) — not merely well-formed, actually rendering cross-origin.
+`<img>` needs no CORS, so no header work was required.
+
+**Also hardened both embed snippets** as defence in depth: `safeUrl()` now resolves a leftover
+relative path against `ORIGIN` (the `__ORIGIN__` the copy button substitutes) instead of
+returning it bare. Still rejects `javascript:`, `data:` and protocol-relative `//evil.com`,
+verified by executing the generated function. In production this is a no-op now that the feed is
+correct; it matters for a snippet copied from a local dashboard.
+
+**Second finding: the pasted snippet is stale.** Its tiles measured 253px tall, exactly
+`379 ÷ 1.5`, which is the old `aspect-ratio` rule. The hardened version uses a fixed 150px. So
+that page predates all of session 03j as well.
+
+Files: `lib/partners.ts`, `lib/photo.ts` (export), `lib/partnersEmbedSnippet.ts`,
+`lib/lsStartupsEmbedSnippet.ts`.
+
+### Next steps
+
+1. Commit and push the four files. main auto-deploys.
+2. After the deploy finishes, re-copy the **partners** embed from the deployed dashboard into
+   Elementor. Not before: the copy button bakes in whatever the feed currently returns.
+3. Re-copy the **Life Science** embed too while there, for 03j's fixes.
+4. Re-check the wall on techbbq.dk: logos visible, tiles 150px, hover wash tinted per tier.
 
 ## Session 2026-08-03j (both walls hardened for Elementor, and logos evened out)
 
