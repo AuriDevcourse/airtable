@@ -238,6 +238,15 @@ export function buildBrellaEmbedSnippet({
      close button's float:right and parked it on the LEFT, on top of the time. Same specificity,
      so it has to be re-declared after the reset rather than before it. */
   #${id} .tbbq-bp__close{float:right!important}
+  /* THE DIALOG SITS IN A MULTI-COLUMN CONTEXT. Proven empirically on techbbq.dk: the speaker
+     list reported ONE client rect's worth of CSS width (298px) while actually rendering as TWO
+     fragments 612px apart, which is column fragmentation and nothing else. getComputedStyle
+     insists column-count is 1 on every ancestor, so the container cannot be identified that
+     way; what does work, tested live one property at a time, is column-span on the fragmenting
+     element. Applied to each direct child of the modal, since any of them can fragment.
+     column-span is simply ignored outside a multi-column context, so this costs nothing
+     everywhere else. */
+  #${id} .tbbq-bp__modal>*,#${id} .tbbq-bp__people,#${id} .tbbq-bp__body{column-span:all!important}
   #${id} .tbbq-bp__pmore{display:inline-flex!important}
   #${id} .tbbq-bp__ptag{text-transform:uppercase!important;display:inline-block!important}
   #${id} .tbbq-bp__modal h3{margin:24px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -274,8 +283,9 @@ export function buildBrellaEmbedSnippet({
   }
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
-    #${id} .tbbq-bp__modal{padding:20px!important;max-height:94vh!important}
-    #${id} .tbbq-bp__overlay{padding:3vh 10px!important}
+    /* 95% of the screen, capped in height, scrolling only downwards. */
+    #${id} .tbbq-bp__modal{width:95%!important;max-width:95%!important;padding:20px!important;max-height:92vh!important}
+    #${id} .tbbq-bp__overlay{padding:3vh 0!important}
     #${id} .tbbq-bp__days button{padding:8px 16px!important}
   }
 </style>
