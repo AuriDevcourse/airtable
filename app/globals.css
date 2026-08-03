@@ -1392,6 +1392,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-modal {
   position: relative;
   width: 100%; max-width: 640px;
+  /* Scrolls itself. With no height cap, a session with six long bios ran past the bottom of a
+     laptop screen and the last speaker could not be reached. */
+  max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-top: 3px solid var(--track);
@@ -1399,7 +1402,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   padding: 28px;
 }
 .bp-modal__close {
-  position: absolute; top: 14px; right: 14px;
+  /* sticky + float, not absolute: the modal is the scroll container now, so an absolutely
+     positioned button scrolls out of reach on a long session. */
+  position: sticky; top: 0; float: right;
+  margin: -8px -8px 0 10px;
+  z-index: 2;
   display: grid; place-items: center;
   width: 32px; height: 32px; padding: 0;
   border: 1px solid var(--color-border);

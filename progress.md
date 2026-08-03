@@ -93,6 +93,49 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03z (the dialog was taller than the screen; diagnosed on the LIVE page)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+**The embed is live at https://techbbq.dk/program2026/** (found via the WordPress pages REST
+list). Worth recording: the Chrome extension runs in Auri's own session, so the real page can be
+inspected directly instead of guessing from a screenshot. That is how this one was diagnosed and
+it beat the simulation.
+
+**Measured on the live page, dialog open:**
+```
+modal height    1191px      max-height: none
+modal overflow  visible     body overflow while open: visible
+```
+The modal had NO height cap and could not scroll itself; only the overlay could. On any screen
+shorter than the content the last speaker was simply unreachable, and because the page behind
+was never locked, a scroll gesture moved the article instead of the dialog. That is the cut-off
+Auri saw, and it got worse on a phone purely because the viewport is shorter.
+
+Not an Elementor problem, incidentally: the overlay's `position: fixed` was working correctly
+and no ancestor was clipping it. Checked the whole chain for transform/filter/will-change/contain
+and found none. The bug was ours.
+
+**Fix, on BOTH the embed and the dashboard:**
+- modal `max-height: 90vh` (94vh on a phone) + `overflow-y: auto` + `overscroll-behavior:
+  contain`, so it scrolls itself and never runs past the screen;
+- the close button moves from `position: absolute` to `position: sticky; float: right`, because
+  the modal is now the scroll container and an absolute button scrolls out of reach. sticky +
+  float works in plain block flow, so a theme that blockifies flex or grid cannot strand it;
+- the embed now locks `body` overflow while open and restores it on close. The dashboard already
+  did this.
+
+Verified at 525px and 900px viewports, with every bio expanded, on both surfaces: the modal
+always fits the viewport, the close button stays pinned while scrolling, and the bottom of the
+content is reachable.
+
+Files: `lib/brellaEmbedSnippet.ts`, `app/globals.css`.
+
+### Next steps
+
+1. Re-copy the embed into `/program2026/`. The pasted copy still has the uncapped dialog, the
+   grid layout and the CAPS.
+
 ## Session 2026-08-03y (bios closed, bigger headings, stage order, short sessions inline)
 
 State: done, pushed. `tsc --noEmit` clean.

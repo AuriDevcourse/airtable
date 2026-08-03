@@ -189,8 +189,14 @@ export function buildBrellaEmbedSnippet({
   /* ── DIALOG ── position:fixed so it escapes whatever Elementor column it was pasted into. */
   #${id} .tbbq-bp__overlay{position:fixed!important;inset:0!important;z-index:99999!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;padding:5vh 16px!important;background:rgba(0,0,0,.72)!important;overflow-y:auto!important}
   #${id} .tbbq-bp__overlay[hidden]{display:none!important}
-  #${id} .tbbq-bp__modal{position:relative!important;width:100%!important;max-width:640px!important;background:var(--card)!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:16px!important;padding:28px!important}
-  #${id} .tbbq-bp__close{position:absolute!important;top:14px!important;right:14px!important;display:grid!important;place-items:center!important;width:32px!important;height:32px!important;padding:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card2)!important;color:var(--muted)!important;cursor:pointer!important}
+  /* The modal SCROLLS ITSELF. Before this it had no height limit and only the overlay could
+     scroll, so on any screen shorter than the content the last speaker was simply unreachable —
+     which is what Auri saw cut off. overscroll-behavior stops a scroll that reaches the end
+     from carrying on into the page behind. */
+  #${id} .tbbq-bp__modal{position:relative!important;width:100%!important;max-width:640px!important;max-height:90vh!important;overflow-y:auto!important;overscroll-behavior:contain!important;background:var(--card)!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:16px!important;padding:28px!important}
+  /* sticky + float, NOT absolute: the modal is now the scroll container, so an absolutely
+     positioned close button scrolls out of reach on a long session. */
+  #${id} .tbbq-bp__close{position:sticky!important;top:0!important;float:right!important;z-index:2!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px!important;height:32px!important;margin:-8px -8px 0 10px!important;padding:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card2)!important;color:var(--muted)!important;cursor:pointer!important}
   #${id} .tbbq-bp__close:hover{color:var(--fg)!important}
   #${id} .tbbq-bp__modal h2{margin:8px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:22px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important}
   #${id} .tbbq-bp__meta{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:8px!important;margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:13px!important}
@@ -239,7 +245,8 @@ export function buildBrellaEmbedSnippet({
   }
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
-    #${id} .tbbq-bp__modal{padding:22px!important}
+    #${id} .tbbq-bp__modal{padding:20px!important;max-height:94vh!important}
+    #${id} .tbbq-bp__overlay{padding:3vh 10px!important}
     #${id} .tbbq-bp__days button{padding:8px 16px!important}
   }
 </style>
@@ -276,7 +283,7 @@ export function buildBrellaEmbedSnippet({
   var COLS=compile(COLDEFS);
   var STYLE_RX=STYLES.map(function(t){return {rx:new RegExp(t.re,"i"),color:t.color,color2:t.color2};});
 
-  var ALL=[],col="",dayIdx=0,sideDay="",lastFocus=null,narrow=false;
+  var ALL=[],col="",dayIdx=0,sideDay="",lastFocus=null,narrow=false,prevBodyOverflow="";
 
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
   /* Only an absolute http(s) URL becomes a live src — never a javascript: or data: URL from
@@ -552,10 +559,16 @@ export function buildBrellaEmbedSnippet({
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')
       +(people?'<h3>'+esc(summary(s.speakers)||"Speakers")+'</h3><ul class="tbbq-bp__people">'+people+'</ul>':'');
     overlay.hidden=false;
+    /* Lock the page behind. Without this a scroll gesture over the dialog moves the article
+       underneath instead, which reads as the dialog being cut off at the bottom. */
+    prevBodyOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    modal.scrollTop=0;
     modal.querySelector(".tbbq-bp__close").focus();
   }
   function closeModal(){
     overlay.hidden=true;
+    document.body.style.overflow=prevBodyOverflow;
     /* Send focus back where it came from, or a keyboard user is dumped at the top of the
        document every time they close a session. */
     if(lastFocus&&lastFocus.focus)lastFocus.focus();
