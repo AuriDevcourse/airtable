@@ -59,17 +59,17 @@ export function buildPartnersEmbedSnippet({
   #${id} .tbbq-pw__label{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 20px!important;padding:0 0 12px!important;border-bottom:1px solid var(--row-line,rgba(255,255,255,.08))!important;font-family:var(--head)!important;font-size:13px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--row)!important}
   #${id} .tbbq-pw__label::before{content:"";width:7px;height:7px;border-radius:9999px;background:var(--row)}
 
-  /* auto-fill, not a fixed column count: rows hold anywhere from 3 to 8 logos and a fixed
-     grid would strand a half-empty last line on the short ones. This is also what makes the
-     block responsive without a single media query for the desktop-to-tablet range. */
+  /* Column count per tier comes from --cols on the row: four for Prime through Conqueror,
+     five in the middle, six for Community. Fewer columns means a bigger logo, which is how
+     the ranking reads without anyone having to check the labels. */
   #${id} .tbbq-pw__grid{display:grid!important;grid-template-columns:repeat(var(--cols,6),minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
 
   /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
      drew at its natural size. The fixed height below is the load-bearing rule. */
   #${id} .tbbq-pw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
-  #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
-  #${id} .tbbq-pw__tile img{display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
+  #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:150px!important;max-height:150px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
+  #${id} .tbbq-pw__tile img{transform-origin:center center!important;transition:transform .2s ease!important;display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
   #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--row-hover,var(--card))!important;transform:translateY(-2px)!important}
   /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box.
      Without this the link is keyboard-reachable but invisible when focused, which a wall of
@@ -85,7 +85,7 @@ export function buildPartnersEmbedSnippet({
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
     #${id} .tbbq-pw__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-    #${id} .tbbq-pw__tile{height:92px!important;min-height:92px!important;max-height:92px!important;padding:10px!important}
+    #${id} .tbbq-pw__tile{height:110px!important;min-height:110px!important;max-height:110px!important;padding:10px!important}
     #${id} .tbbq-pw__label{font-size:11px!important}
   }
 </style>
@@ -127,6 +127,37 @@ export function buildPartnersEmbedSnippet({
       : inner;
   }
 
+  /* Even out how BIG each logo looks. object-fit:contain matches BOUNDING BOXES, and these
+     range from square to 5:1, so a square mark ends up height-limited to a fraction of the
+     tile while a wide wordmark fills it edge to edge. Both are correctly contained and they
+     look nothing alike. Scaling to a constant AREA is much closer to how the eye judges
+     "same size". Applied as a transform so no layout box moves and the grid never reflows.
+     Capped at 1, because going past contain would crop the logo. */
+  function fitOne(img){
+    var w=img.naturalWidth,h=img.naturalHeight;
+    if(!w||!h)return;
+    var cs=getComputedStyle(img.parentNode);
+    var boxW=img.parentNode.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    var boxH=img.parentNode.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    if(boxW<=0||boxH<=0)return;
+    var f=Math.min(boxW/w,boxH/h), area=(w*f)*(h*f);
+    if(!area)return;
+    var k=Math.max(.35,Math.min(1,Math.sqrt(boxW*boxH*.55/area)));
+    img.style.transform = k<.999 ? "scale("+k.toFixed(3)+")" : "";
+  }
+  function fitLogos(){
+    var imgs=root.querySelectorAll(".tbbq-pw__tile img");
+    for(var i=0;i<imgs.length;i++){
+      var im=imgs[i];
+      if(im.complete)fitOne(im);
+      else im.addEventListener("load",(function(x){return function(){fitOne(x);};})(im),{once:true});
+    }
+  }
+  /* Column count changes at the breakpoints, so the tile changes shape and every scale has to
+     be recomputed. Debounced: resize fires continuously while dragging. */
+  var fitTimer;
+  window.addEventListener("resize",function(){clearTimeout(fitTimer);fitTimer=setTimeout(fitLogos,120);});
+
   fetch(ENDPOINT).then(function(r){
     /* r.ok matters: a 429 or 502 still returns JSON with no list in it, which without this
        check reads as "no startups" rather than "could not load". */
@@ -145,6 +176,7 @@ export function buildPartnersEmbedSnippet({
         +items.map(tile).join("")
         +'</div></section>';
     }).join("");
+    fitLogos();
   }).catch(function(err){
     statusEl.textContent="Could not load the partners.";
     if(window.console)console.error("[tbbq partners embed]",err);

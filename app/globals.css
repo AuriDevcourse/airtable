@@ -1315,10 +1315,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .lw-logo {
   display: grid; place-items: center;
   width: 100%;
-  aspect-ratio: 3 / 2;
+  /* 5:3, not 3:2. A taller tile is what lets a SQUARE mark reach the same rendered area as a
+     wide wordmark — in a 2:1 tile a square logo is height-limited to the middle third no
+     matter what. lib/logoFit.ts then evens out what is left. */
+  aspect-ratio: 5 / 3;
   padding: 18px;
   object-fit: contain;
   border-radius: var(--radius-lg);
+  /* transform is set per-logo by fitLogo(); keep it in the transition so a resize eases. */
   transition: background .2s ease, transform .2s ease;
 }
 .lw-logo:hover { background: var(--color-card); transform: translateY(-2px); }
@@ -1358,7 +1362,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .lw-soon {
   display: grid; place-items: center;
   width: 100%;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 5 / 3; /* must match .lw-logo or the placeholder sits proud of the row */
   padding: 18px;
   border: 1px dashed color-mix(in srgb, var(--row, #2a2a2a) 45%, transparent);
   border-radius: var(--radius-lg);

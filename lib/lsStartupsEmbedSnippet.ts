@@ -62,15 +62,15 @@ export function buildLsStartupsEmbedSnippet({
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
      drew at its natural size. The fixed height below is the load-bearing rule. */
   #${id} .tbbq-lsw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
-  #${id} .tbbq-lsw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
-  #${id} .tbbq-lsw__tile img{display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
+  #${id} .tbbq-lsw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:150px!important;max-height:150px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
+  #${id} .tbbq-lsw__tile img{transform-origin:center center!important;transition:transform .2s ease!important;display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
   #${id} .tbbq-lsw__link:hover .tbbq-lsw__tile{background:var(--row-hover,var(--card))!important;transform:translateY(-2px)!important}
   /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box. */
   #${id} .tbbq-lsw__link:focus-visible .tbbq-lsw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--row-hover,var(--card))!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
   #${id} .tbbq-lsw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
   /* The last tile of every row: a slot waiting to be filled, not a company. */
-  #${id} .tbbq-lsw__soon{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:118px!important;min-height:118px!important;max-height:118px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:1px dashed var(--row)!important;border-radius:12px!important;opacity:.55!important;color:var(--row)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;line-height:1.2!important;letter-spacing:.08em!important;text-transform:uppercase!important;text-align:center!important}
+  #${id} .tbbq-lsw__soon{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:150px!important;max-height:150px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:1px dashed var(--row)!important;border-radius:12px!important;opacity:.55!important;color:var(--row)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;line-height:1.2!important;letter-spacing:.08em!important;text-transform:uppercase!important;text-align:center!important}
 
   /* Narrow containers step down from five, so an Elementor column never crushes the logos. */
   @media(max-width:1000px){#${id} .tbbq-lsw__grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
@@ -78,7 +78,7 @@ export function buildLsStartupsEmbedSnippet({
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
     #${id} .tbbq-lsw__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-    #${id} .tbbq-lsw__tile,#${id} .tbbq-lsw__soon{height:92px!important;min-height:92px!important;max-height:92px!important;padding:10px!important}
+    #${id} .tbbq-lsw__tile,#${id} .tbbq-lsw__soon{height:110px!important;min-height:110px!important;max-height:110px!important;padding:10px!important}
     #${id} .tbbq-lsw__soon{font-size:10px!important}
     #${id} .tbbq-lsw__label{font-size:11px!important}
   }
@@ -119,6 +119,37 @@ export function buildLsStartupsEmbedSnippet({
       : inner;
   }
 
+  /* Even out how BIG each logo looks. object-fit:contain matches BOUNDING BOXES, and these
+     range from square to 5:1, so a square mark ends up height-limited to a fraction of the
+     tile while a wide wordmark fills it edge to edge. Both are correctly contained and they
+     look nothing alike. Scaling to a constant AREA is much closer to how the eye judges
+     "same size". Applied as a transform so no layout box moves and the grid never reflows.
+     Capped at 1, because going past contain would crop the logo. */
+  function fitOne(img){
+    var w=img.naturalWidth,h=img.naturalHeight;
+    if(!w||!h)return;
+    var cs=getComputedStyle(img.parentNode);
+    var boxW=img.parentNode.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    var boxH=img.parentNode.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    if(boxW<=0||boxH<=0)return;
+    var f=Math.min(boxW/w,boxH/h), area=(w*f)*(h*f);
+    if(!area)return;
+    var k=Math.max(.35,Math.min(1,Math.sqrt(boxW*boxH*.55/area)));
+    img.style.transform = k<.999 ? "scale("+k.toFixed(3)+")" : "";
+  }
+  function fitLogos(){
+    var imgs=root.querySelectorAll(".tbbq-lsw__tile img");
+    for(var i=0;i<imgs.length;i++){
+      var im=imgs[i];
+      if(im.complete)fitOne(im);
+      else im.addEventListener("load",(function(x){return function(){fitOne(x);};})(im),{once:true});
+    }
+  }
+  /* Column count changes at the breakpoints, so the tile changes shape and every scale has to
+     be recomputed. Debounced: resize fires continuously while dragging. */
+  var fitTimer;
+  window.addEventListener("resize",function(){clearTimeout(fitTimer);fitTimer=setTimeout(fitLogos,120);});
+
   fetch(ENDPOINT).then(function(r){
     /* r.ok matters: a 429 or 502 still returns JSON with no list in it, which without this
        check reads as "no startups" rather than "could not load". */
@@ -139,6 +170,7 @@ export function buildLsStartupsEmbedSnippet({
         +'<span class="tbbq-lsw__soon">More soon</span>'
         +'</div></section>';
     }).join("");
+    fitLogos();
   }).catch(function(err){
     statusEl.textContent="Could not load the startups.";
     if(window.console)console.error("[tbbq ls-startups embed]",err);

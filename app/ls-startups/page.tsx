@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { useCachedList } from "@/lib/useCachedList";
+import { fitLogosIn } from "@/lib/logoFit";
 import { CopyLsStartupsEmbed } from "@/components/CopyLsStartupsEmbed";
 
 // A logo wall of the confirmed Life Science & Deep Tech startups exhibiting at TechBBQ 2026,
@@ -105,6 +106,10 @@ export default function LsStartupsPage() {
     "startups"
   );
   const all = useMemo(() => data ?? [], [data]);
+
+  // Even out how BIG each logo looks. object-fit only matches bounding boxes, and these range
+  // from square to 5:1, so without this a square mark reads as half the size of a wordmark.
+  useEffect(() => fitLogosIn(document), [all]);
 
   const rows = useMemo(
     () =>

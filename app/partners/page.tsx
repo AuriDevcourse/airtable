@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { useCachedList } from "@/lib/useCachedList";
+import { fitLogosIn } from "@/lib/logoFit";
 import { CopyPartnersEmbed } from "@/components/CopyPartnersEmbed";
 
 // The TechBBQ 2026 partner logo wall, one row per partnership tier. Same construction as
@@ -67,6 +68,10 @@ export default function PartnersPage() {
     "partners"
   );
   const all = useMemo(() => data ?? [], [data]);
+
+  // Even out how BIG each logo looks. object-fit only matches bounding boxes, and these range
+  // from square to 5:1, so without this a square mark reads as half the size of a wordmark.
+  useEffect(() => fitLogosIn(document), [all]);
 
   // The tier list is served alongside the partners, but useCachedList only surfaces the list
   // itself, so the order is derived from the data in the order the feed emitted it.
