@@ -124,10 +124,12 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__tracks button:focus-visible,#${id} .tbbq-bp__days button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px!important}
 
   /* The phone's column switcher. A native select, because a hand-rolled dropdown inside an
-     unknown theme is a portal/z-index fight that is not worth having. */
+     unknown theme is a portal/z-index fight that is not worth having.
+     NOTE the explicit height: techbbq.dk sets a fixed height on every select, and because this
+     rule declared padding but no height, the theme won and clipped the text inside the box. */
   #${id} .tbbq-bp__pickWrap{display:none!important;align-items:center!important;gap:8px!important;width:100%!important;max-width:420px!important;margin:0!important;padding:0!important}
   #${id} .tbbq-bp__pickLabel{flex:none!important;font-family:var(--head)!important;font-size:11px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
-  #${id} .tbbq-bp__pick{flex:1 1 auto!important;width:100%!important;min-width:0!important;appearance:none!important;-webkit-appearance:none!important;padding:11px 34px 11px 14px!important;border:1px solid var(--border)!important;border-radius:12px!important;background-color:var(--card)!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;box-shadow:none!important;cursor:pointer!important;
+  #${id} .tbbq-bp__pick{flex:1 1 auto!important;width:100%!important;min-width:0!important;height:auto!important;min-height:46px!important;max-height:none!important;line-height:1.25!important;appearance:none!important;-webkit-appearance:none!important;padding:11px 34px 11px 14px!important;border:1px solid var(--border)!important;border-radius:12px!important;background-color:var(--card)!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;box-shadow:none!important;cursor:pointer!important;
     background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a9a9c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")!important;
     background-repeat:no-repeat!important;background-position:right 12px center!important}
   #${id} .tbbq-bp__pick:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px!important}
