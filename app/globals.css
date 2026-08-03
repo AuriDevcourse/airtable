@@ -1107,6 +1107,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 /* Inherits .seg for the pill look; this only lets a long track list wrap instead of
    overflowing, which .seg's single row does not do. */
+/* The pickers live in a block of RESERVED height so switching section cannot move anything
+   below it. Stages has two rows (stage + day) and the others have one; without a floor, the
+   count line and the whole schedule jumped up and down on every tab press. */
+/* flex, so the child margins cannot collapse through the block: with plain block layout the
+   stage row and the track row started 10px apart depending on which section was open. */
+.bp-controls { min-height: 92px; display: flex; flex-direction: column; align-items: stretch; }
+@media (max-width: 720px) { .bp-controls { min-height: 0; } }
+
 .bp-tracks { flex-wrap: wrap; margin-bottom: 8px; }
 /* The stage and day pickers sit under the centred masthead, so they centre too. */
 .bp-tracks--center, .bp-days { justify-content: center; }
@@ -1141,6 +1149,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .bp-tl__head { position: sticky; top: 0; z-index: 3; background: var(--color-background); }
 .bp-tl__colHead {
+  border-left: 1px solid var(--color-border);
   padding: 8px 6px; border-bottom: 1px solid var(--color-border);
   font-family: var(--font-heading); font-size: 13px; font-weight: 600; line-height: 1.25;
   color: var(--color-foreground);
@@ -1149,8 +1158,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   overflow-wrap: anywhere;
 }
 .bp-tl__gutterHead { border-bottom: 1px solid var(--color-border); }
+.bp-tl__head > .bp-tl__colHead:last-child { border-right: 1px solid var(--color-border); }
 
-.bp-tl__body { position: relative; }
+.bp-tl__body { position: relative; margin-top: 10px; }
 .bp-tl__gutter { position: relative; }
 .bp-tl__tick {
   position: absolute; right: 8px; transform: translateY(-50%);
@@ -1166,7 +1176,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .bp-tl__line[data-hour] { opacity: .9; }
 
-.bp-tl__col { position: relative; min-width: 0; }
+.bp-tl__col {
+  position: relative; min-width: 0;
+  /* A separator per stage. On the grid's 8px gap this lands in the channel between columns,
+     so it reads as a divider rather than a border drawn on the cards. */
+  border-left: 1px solid var(--color-border);
+}
+.bp-tl__col:last-child { border-right: 1px solid var(--color-border); }
 .bp-tl__empty {
   position: absolute; inset: 0; display: grid; place-items: center;
   margin: 0; padding: 8px; text-align: center;
@@ -1385,6 +1401,29 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-person__name { margin: 0; font-family: var(--font-heading); font-size: 14px; font-weight: 600; color: #fff; }
 .bp-person__role { margin: 3px 0 0; color: var(--color-muted); font-size: 12px; line-height: 1.4; }
 .bp-person__bio { margin: 6px 0 0; color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.5; }
+
+/* The row is a button when there is a bio to reveal: name, role, title and company are always
+   visible, the bio only on press. Several Brella bios are a full screen each, and six of them
+   stacked buried the session's own description. */
+.bp-person__toggle {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; text-align: left; color: inherit;
+}
+.bp-person__toggle:focus-visible { outline: 2px solid var(--color-red); outline-offset: 3px; border-radius: 6px; }
+.bp-person__more {
+  margin-top: 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  color: var(--track, var(--color-orange));
+}
+.bp-person__toggle:hover .bp-person__more { text-decoration: underline; }
+/* Role beside the name: "Moderator" must not read as just another speaker. */
+.bp-person__tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border: 1px solid var(--color-border); border-radius: 9999px;
+  font-family: var(--font-body); font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--color-muted);
+  vertical-align: middle;
+}
 
 @media (max-width: 560px) { .bp-modal { padding: 22px; } }
 

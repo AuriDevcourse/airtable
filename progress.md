@@ -93,6 +93,53 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03o (Brella: moderator roles, stage colours, no layout jump)
+
+State: done, pushed. `tsc --noEmit` clean. Still DASHBOARD ONLY; the Brella embed is untouched.
+
+**Brella DOES expose speaker roles.** The comment in `lib/brellaprogram.ts` claiming the
+assignment's `role` is always null was out of date. The 2026 event has Panelist 42, Moderator 27,
+Speaker 26, blank 16, Facilitator 4, Keynote speaker 3. `role` now rides on `ProgramSpeaker`,
+verbatim rather than folded into a boolean, and drives:
+- the count line: "2 speakers · 1 moderator", never calling a chair a speaker;
+- a role tag beside each name in the dialog.
+Only "Moderator" counts as not-speaking. Panelist, Facilitator and Keynote speaker are all
+speaking, so they stay in the speaker count.
+
+**Speaker bios are behind a press.** The dialog lists name, role, job title and company; the bio
+opens on click. Several Brella bios run a full screen each and six stacked buried the session's
+own description.
+
+**Stage colours** (Auri): BBQ #FA7000 orange, Tech #2BB4E1 blue, Campfire #F2C744 yellow,
+Founder #37C978 green. Life Science was NOT specified and takes violet #8E7CFF, because the
+other four now own orange/blue/yellow/green and the old default orange collided with BBQ.
+The former founders-stage red rule was deleted rather than left to shadow the new one.
+
+**The layout no longer jumps between sections**, which had two causes and neither was the
+scrollbar (`scrollbar-gutter: stable` was already set):
+1. The track pill row was rendered only when a section had MORE than one track. Side Events has
+   one, so the entire row vanished and everything below shifted up. It now always renders.
+2. Stages has two picker rows (stage + day), the others have one. Both now sit in a
+   `.bp-controls` block with a reserved 92px min-height.
+That block is `display:flex` specifically to stop child margin collapsing, which was leaving a
+10px difference in the pill row's position depending on the open section. Verified by measuring:
+the masthead, the pill row and the count line now sit at identical viewport offsets in all four
+sections.
+
+**Two smaller fixes:** the 09:00 gutter label is centred on the first gridline, so half of it sat
+above the timeline and was clipped — the body now carries a 10px top margin to make room. And
+each stage column has a vertical separator, drawn on the column rather than the cards so it runs
+the full height including the empty Campfire one.
+
+Files: `lib/program.ts`, `lib/brellaprogram.ts`, `app/brella-program/page.tsx`,
+`app/globals.css`.
+
+### Next steps
+
+1. Port all of this plus the timeline to `lib/brellaEmbedSnippet.ts`. Nothing since 03n has
+   reached techbbq.dk.
+2. If Life Science's violet is wrong, it is one line in `TRACK_COLORS`.
+
 ## Session 2026-08-03n (Brella Stages rebuilt as a one-day timeline)
 
 State: done, pushed. `tsc --noEmit` clean. DASHBOARD ONLY — the Brella EMBED still renders the

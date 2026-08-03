@@ -180,8 +180,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     id ? label(byId.get(`${type}:${id}`)?.attributes?.name) : "";
 
   // Speakers hang off the timeslot INDIRECTLY: timeslot → speaker-assignment → speaker.
-  // The assignment carries the ordering (and a `role` Brella leaves null today), so it is
-  // followed rather than skipped. Only names are required; a speaker with no name is a
+  // The assignment carries the ordering AND the role, so it is followed rather than skipped.
+  // (An older comment here said Brella always left `role` null. It does not: the 2026 event
+  // has 27 Moderator, 42 Panelist, 26 Speaker, 4 Facilitator and 3 Keynote speaker rows.) Only names are required; a speaker with no name is a
   // half-created record and is dropped rather than rendered as an empty card.
   //
   // photo-url points at brella-assets.brella.io and is a plain public URL, NOT a signed one
@@ -208,6 +209,7 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         company: str(a["company-name"]),
         photo: str(a["photo-url"]) || null,
         bio: draftToText(a.bio),
+        role: str(assignment?.attributes?.role),
       });
     }
     // Brella's own display order, which is what the attendee app shows.

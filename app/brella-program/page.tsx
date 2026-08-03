@@ -32,6 +32,7 @@ type Speaker = {
   company: string;
   photo: string | null;
   bio: string;
+  role?: string;
 };
 
 type Session = {
@@ -51,10 +52,17 @@ type Session = {
 // "Orange Grill Session" card with a green bar would be actively wrong on site signage.
 // Everything else falls back to the house fire red.
 const TRACK_COLORS: [RegExp, string][] = [
+  // The five stages, coloured to Auri's spec so a column is identifiable without reading its
+  // heading. Life Science was not specified; it takes violet because the other four now own
+  // orange, blue, yellow and green, and leaving it on the default orange clashed with BBQ.
+  [/^bbq stage/i, "#FA7000"],
+  [/^tech stage/i, "#2BB4E1"],
+  [/campfire/i, "#F2C744"],
+  [/^founders? stage/i, "#37C978"],
+  [/life science/i, "#8E7CFF"],
   [/green grill/i, "#5CBC8B"],
   [/blue grill/i, "#1B6CA8"],
   [/orange grill/i, "#FA7000"],
-  [/founders stage/i, "#CE0F2E"],
   [/india/i, "#2BB4E1"],
   [/^event room|^rooms?\b/i, "#1B6CA8"],
   [/^side event/i, "#CE0F2E"],
@@ -90,6 +98,24 @@ const SLOT_MIN = 30; // gridline interval
 // about what is actually drawn rather than what is scheduled.
 const MIN_CARD_PX = 26;
 const MIN_CARD_MIN = Math.ceil((MIN_CARD_PX + 4) / PX_PER_MIN);
+
+// Brella's roles, reduced to the distinction that matters on a card: who is chairing and who
+// is speaking. Panelist, Facilitator and Keynote speaker are all "speaking"; only Moderator
+// is not, and calling a moderator a speaker is the thing Auri asked to stop.
+function isModerator(p: { role?: string }): boolean {
+  return /moderator/i.test(p.role ?? "");
+}
+
+/** "4 speakers · 1 moderator", or "" when there is nobody. */
+function peopleSummary(speakers: Speaker[] | undefined): string {
+  if (!speakers?.length) return "";
+  const mods = speakers.filter(isModerator).length;
+  const talk = speakers.length - mods;
+  const bits: string[] = [];
+  if (talk) bits.push(`${talk} speaker${talk === 1 ? "" : "s"}`);
+  if (mods) bits.push(`${mods} moderator${mods === 1 ? "" : "s"}`);
+  return bits.join(" · ");
+}
 
 function hhmm(min: number): string {
   const h = Math.floor(min / 60);
@@ -257,10 +283,8 @@ function StageTimeline({
                   <>
                     <span className="bp-tl__cardTitle">{s.name}</span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
-                    {(s.speakers?.length ?? 0) > 0 && (
-                      <span className="bp-tl__cardMeta">
-                        {s.speakers!.length} speaker{s.speakers!.length === 1 ? "" : "s"}
-                      </span>
+                    {peopleSummary(s.speakers) && (
+                      <span className="bp-tl__cardMeta">{peopleSummary(s.speakers)}</span>
                     )}
                   </>
                 );
@@ -326,7 +350,6 @@ function hasDetail(s: Session): boolean {
 
 function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }) {
   const detail = hasDetail(s);
-  const speakerCount = s.speakers?.length ?? 0;
   const body = (
     <>
       <p className="bp-card__time">{s.timeSlot || "Time TBC"}</p>
@@ -338,10 +361,8 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
         </p>
       )}
       {s.description && <p className="bp-card__desc">{s.description}</p>}
-      {speakerCount > 0 && (
-        <p className="bp-card__speakers">
-          {speakerCount} speaker{speakerCount === 1 ? "" : "s"}
-        </p>
+      {peopleSummary(s.speakers) && (
+        <p className="bp-card__speakers">{peopleSummary(s.speakers)}</p>
       )}
     </>
   );
@@ -366,6 +387,62 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
     >
       {body}
     </button>
+  );
+}
+
+/**
+ * One person in the dialog: name, job title, company, and their role. The BIO is behind a
+ * press — Auri's call, and the right one: several Brella bios run to a full screen each, and
+ * six of them stacked buried the session's own description under a wall of text.
+ */
+function PersonRow({ p }: { p: Speaker }) {
+  const [show, setShow] = useState(false);
+  const meta = [p.title, p.company].filter(Boolean).join(" · ");
+  const photo = p.photo ? (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img className="bp-person__photo" src={p.photo} alt="" loading="lazy" />
+  ) : (
+    <span className="bp-person__photo bp-person__photo--empty" aria-hidden="true">
+      {p.name.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+
+  // No bio: a plain row rather than a button that opens nothing.
+  if (!p.bio) {
+    return (
+      <li className="bp-person">
+        {photo}
+        <div>
+          <p className="bp-person__name">
+            {p.name}
+            {p.role && <span className="bp-person__tag">{p.role}</span>}
+          </p>
+          {meta && <p className="bp-person__role">{meta}</p>}
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="bp-person">
+      {photo}
+      <div>
+        <button
+          type="button"
+          className="bp-person__toggle"
+          aria-expanded={show}
+          onClick={() => setShow((v) => !v)}
+        >
+          <span className="bp-person__name">
+            {p.name}
+            {p.role && <span className="bp-person__tag">{p.role}</span>}
+          </span>
+          {meta && <span className="bp-person__role">{meta}</span>}
+          <span className="bp-person__more">{show ? "Hide bio" : "Read bio"}</span>
+        </button>
+        {show && <p className="bp-person__bio">{p.bio}</p>}
+      </div>
+    </li>
   );
 }
 
@@ -429,28 +506,10 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
 
         {s.speakers && s.speakers.length > 0 && (
           <>
-            <h3 className="bp-modal__heading">Speakers</h3>
+            <h3 className="bp-modal__heading">{peopleSummary(s.speakers)}</h3>
             <ul className="bp-people">
               {s.speakers.map((p) => (
-                <li key={p.id} className="bp-person">
-                  {p.photo ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img className="bp-person__photo" src={p.photo} alt="" loading="lazy" />
-                  ) : (
-                    <span className="bp-person__photo bp-person__photo--empty" aria-hidden="true">
-                      {p.name.trim().charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                  <div>
-                    <p className="bp-person__name">{p.name}</p>
-                    {(p.title || p.company) && (
-                      <p className="bp-person__role">
-                        {[p.title, p.company].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                    {p.bio && <p className="bp-person__bio">{p.bio}</p>}
-                  </div>
-                </li>
+                <PersonRow key={p.id} p={p} />
               ))}
             </ul>
           </>
@@ -616,6 +675,7 @@ export default function BrellaProgramPage() {
                 stages run in parallel against a clock. */}
             {section === "stages" ? (
               <>
+                <div className="bp-controls">
                 <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by stage">
                   <button role="tab" aria-selected={stage === ""} onClick={() => setStage("")}>
                     All stages
@@ -644,6 +704,7 @@ export default function BrellaProgramPage() {
                     </button>
                   ))}
                 </div>
+                </div>
 
                 <p className="count-line">
                   {stageSessions.length} session(s).
@@ -659,7 +720,10 @@ export default function BrellaProgramPage() {
               </>
             ) : (
               <>
-                {tracks.length > 1 && (
+                {/* Rendered even for a single-track section. Hiding it removed a whole row
+                    from the page, so switching to Side Events shunted everything below it
+                    upwards — the jumping Auri reported. */}
+                <div className="bp-controls">
                   <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by track">
                     <button role="tab" aria-selected={track === ""} onClick={() => setTrack("")}>
                       All
@@ -675,7 +739,7 @@ export default function BrellaProgramPage() {
                       </button>
                     ))}
                   </div>
-                )}
+                </div>
 
                 <p className="count-line">
                   {shown} session(s).

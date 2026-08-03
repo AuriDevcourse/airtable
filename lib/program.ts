@@ -32,6 +32,11 @@ export type ProgramSpeaker = {
   company: string;
   photo: string | null;
   bio: string;
+  // Brella's speaker-assignment role: "Moderator", "Panelist", "Speaker", "Facilitator",
+  // "Keynote speaker", or "" when it was left blank. Kept verbatim rather than folded into a
+  // boolean: a panel lists panelists and a moderator, and calling them all "speakers" is
+  // wrong on the one that is chairing.
+  role?: string;
 };
 
 export type ProgramSession = {
