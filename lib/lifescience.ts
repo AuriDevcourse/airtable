@@ -41,6 +41,30 @@ const STAGE_COLORS: Record<string, string> = {
   "Life Science x Deep Tech Stage": "#5CBC8B",
 };
 
+// SECOND PUBLISH GATE (added 2026-08-03, marketing's call): being in the view is no longer
+// enough — a person also needs a stage. Anyone whose `Which LS DT stage? ` is blank is not
+// assigned to either event and must not appear on the website at all. This is deliberately a
+// gate and not a UI filter: with the stage pills on the page a blank person would otherwise be
+// reachable only under "All", which reads as a bug. 8 of the 45 records were blank when this
+// went in, so expect the published count to be lower than the view's row count.
+const PUBLISHED_STAGES = Object.keys(STAGE_COLORS);
+
+/**
+ * The first RECOGNISED stage on the record, or "" if it has none.
+ *
+ * `Which LS DT stage? ` is a multi-select, so it arrives as an array. Reading `[0]` blindly
+ * would drop a person whose recognised stage sits behind some option added to the select
+ * later, and dropping a real speaker is the expensive direction of this mistake.
+ */
+function publishedStage(v: unknown): string {
+  const values = Array.isArray(v) ? v : [v];
+  for (const raw of values) {
+    const s = str(raw);
+    if (PUBLISHED_STAGES.includes(s)) return s;
+  }
+  return "";
+}
+
 export type LsPerson = {
   id: string;
   name: string;
@@ -63,9 +87,9 @@ type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
 function mapRecord(rec: AirtableRecord): LsPerson {
   const f = rec.fields;
-  // Multi-select, so it arrives as an array; today nobody is on both stages, and if that
-  // changes the first one wins rather than printing a joined string into a small label.
-  const stage = firstTag(f["Which LS DT stage? "]);
+  // Today nobody is on both stages; if that changes the first recognised one wins rather
+  // than printing a joined string into a small label.
+  const stage = publishedStage(f["Which LS DT stage? "]);
   return {
     id: rec.id,
     name: str(f["Stakeholder"]),
@@ -96,6 +120,9 @@ export async function fetchLifeScience(): Promise<LsPerson[]> {
   }
 
   const people: LsPerson[] = [];
+  // Names dropped by the stage gate, logged once per uncached fetch so the gap is visible in
+  // the server logs without the feed having to publish a "these people are missing" list.
+  const noStage: string[] = [];
   let offset: string | undefined;
 
   do {
@@ -119,10 +146,24 @@ export async function fetchLifeScience(): Promise<LsPerson[]> {
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
       const p = mapRecord(rec);
-      if (p.name) people.push(p); // skip blank rows
+      if (!p.name) continue; // skip blank rows
+      // The stage gate. Unrecognised values are treated as unassigned too, so a typo'd or
+      // renamed Airtable option fails CLOSED rather than publishing a person under a
+      // stage the site has no colour or pill for.
+      if (!PUBLISHED_STAGES.includes(p.tag)) {
+        noStage.push(p.name);
+        continue;
+      }
+      people.push(p);
     }
     offset = data.offset;
   } while (offset);
+
+  if (noStage.length) {
+    console.info(
+      `[lifescience] ${noStage.length} record(s) hidden, no stage set in "Which LS DT stage? ": ${noStage.join(", ")}`
+    );
+  }
 
   // Alphabetical only as a stable base. The published order is RANDOM on every page load, and
   // that shuffle deliberately happens client-side: this response sits in a 1h cache, so

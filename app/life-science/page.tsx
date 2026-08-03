@@ -40,6 +40,12 @@ type LsPerson = {
   tagColor: string | null;
 };
 
+// Display order for the stage filter pills. These are the exact Airtable select options from
+// `Which LS DT stage? `. Deliberately duplicated rather than imported from lib/lifescience.ts:
+// that module is server-only (it reads AIRTABLE_TOKEN at module scope), so importing it into a
+// client component would pull the token read into the browser bundle. Keep the two in sync.
+const LS_STAGES = ["Life Science x Deep Tech Stage", "Deep Tech Event Day"];
+
 export default function LifeSciencePage() {
   const { data, loading, revalidating, error, updated } = useCachedList<LsPerson>(
     "lifescience",
@@ -64,6 +70,24 @@ export default function LifeSciencePage() {
     return arr;
   }, [all, seed]);
 
+  // Stage filter, mirroring what the embed snippet does client-side (lib/embedSnippet.ts
+  // `tagTabs`). "" is the All pill.
+  const [stage, setStage] = useState("");
+  // Built from the data, so a stage nobody is on never gets a pill and an unexpected new
+  // Airtable option still shows up (appended after the two known ones).
+  const stages = useMemo(() => {
+    const seen = new Set(all.map((p) => p.tag).filter(Boolean));
+    const ordered = LS_STAGES.filter((s) => seen.has(s));
+    for (const s of seen) if (!ordered.includes(s)) ordered.push(s);
+    return ordered;
+  }, [all]);
+  // Filtering the shuffled array keeps this load's order inside each pill.
+  // Anyone whose stage column is blank in Airtable matches no pill and shows only under All.
+  const visible = useMemo(
+    () => (stage ? people.filter((p) => p.tag === stage) : people),
+    [people, stage]
+  );
+
   return (
     <main>
       <section className="hero">
@@ -75,14 +99,21 @@ export default function LifeSciencePage() {
           </h1>
           <p className="lede">
             Live from Airtable · gated on the curated{" "}
-            <code>Speakers Library 2026</code> view · served as JSON at{" "}
-            <code>/api/life-science</code>.
+            <code>Speakers Library 2026</code> view <em>and</em> on having a stage set in{" "}
+            <code>Which LS DT stage?</code> · served as JSON at <code>/api/life-science</code>.
           </p>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyEmbed path="/api/life-science" listKey="people" loadMore={false} gradient="ls" shuffle />
+            <CopyEmbed
+              path="/api/life-science"
+              listKey="people"
+              loadMore={false}
+              gradient="ls"
+              shuffle
+              tagTabs={LS_STAGES}
+            />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copies an Elementor snippet for this speaker grid.
+              Copies an Elementor snippet for this speaker grid, with the stage filter built in.
             </span>
           </div>
         </div>
@@ -101,13 +132,35 @@ export default function LifeSciencePage() {
           </>
         ) : (
           <>
+            {stages.length > 1 && (
+              <div className="seg" role="tablist" aria-label="Filter by stage" style={{ marginBottom: 24 }}>
+                <button
+                  role="tab"
+                  aria-selected={stage === ""}
+                  onClick={() => setStage("")}
+                >
+                  All
+                </button>
+                {stages.map((s) => (
+                  <button
+                    key={s}
+                    role="tab"
+                    aria-selected={stage === s}
+                    onClick={() => setStage(s)}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <p className="count-line">
-              {people.length} speaker(s).
+              {visible.length} speaker(s){stage ? ` on ${stage}` : ""}.
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}
             </p>
             <div className="grid-cards">
-              {people.map((p) => {
+              {visible.map((p) => {
                 const meta = p.title + (p.company ? ` · ${p.company}` : "");
                 const card = (
                   <>
