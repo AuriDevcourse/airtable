@@ -93,6 +93,49 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04b (published the embed to techbbq.dk from the browser)
+
+State: done. The live page carries the current snippet. `tsc --noEmit` clean, everything pushed.
+
+**The embed is now installed by fetching, not pasting.** New route `/api/embed?kind=…` returns
+the snippet as text/plain with `__ORIGIN__` already resolved to the deployment. The copy buttons
+build their string in the BROWSER, which is fine for a human and useless for automation; a 53KB
+snippet is not something to move by hand. It refuses with 409 when `baseUrl()` is empty rather
+than emitting relative endpoints, which is the bug that emptied the partner wall.
+
+It is on the middleware's PUBLIC_PATHS list. That is deliberate: it returns markup, the same
+bytes are already in the source of any page carrying the snippet, it reads no protected feed and
+calls no paid API, so gating it would protect nothing and make it unfetchable from the WordPress
+editor that needs it.
+
+**How the page was updated** (repeatable, and much faster than copy-paste):
+1. `https://techbbq.dk/wp-admin/post.php?post=58341&action=elementor`
+2. Wait for `elementor.documents.getCurrent().container.children.length > 0` — the editor boots
+   long before its element tree exists, and reading too early finds ONE container and no widgets.
+3. Walk the container tree for the widget whose `settings.get("html")` matches `/tbbq-bp/`.
+   On this page that is widget `af642bb`, and it is the only match.
+4. `$e.run("document/elements/settings", {container, settings:{html:NEW}, options:{external:true}})`
+5. `$e.run("document/save/default")`
+
+**The front end is CACHED.** After saving, `techbbq.dk/program2026/` still served the old snippet;
+`?cachebust=…` showed the new one immediately. Always verify with a cache-buster or the
+measurement is of the previous version.
+
+**What the live page then revealed, which no local harness had:** 18 of 41 cards were clipping
+their own text. A real column there is ~270px, narrower than any preview, so titles wrap to two
+lines far more often while a card's height still comes from its DURATION. Two changes: the minute
+scale 2.4 -> 3px (30 min = 90px), and a middle "tight" tier that keeps title + time but drops the
+faces below 78px — measured as 2 lines of title (32) + time (14) + faces (16) + padding (12).
+
+Verified on the live page, 1600px: 41 cards, **1** clipping by 16px (was 18), no full-width cards,
+correct stage order, dialog fits the viewport with the close on the right, clear of the time,
+which carries the stage colour as a 3px bar, bios closed, names 13px, Campfire "Program coming
+soon". At 390px: one column, select shown, pills hidden, label and select inside the box, 10px
+side padding, **0 of 16** cards clipping, no horizontal overflow.
+
+Files: `app/api/embed/route.ts` (new), `middleware.ts`, `lib/brellaEmbedSnippet.ts`,
+`app/brella-program/page.tsx`, `app/globals.css`.
+
 ## Session 2026-08-04a (dialog time bar, Campfire wording, mobile density)
 
 State: done, pushed. `tsc --noEmit` clean. Diagnosed against the LIVE page again.
