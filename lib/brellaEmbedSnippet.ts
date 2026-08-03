@@ -75,7 +75,7 @@ export function buildBrellaEmbedSnippet({
   <div class="tbbq-bp__controls">
     <div class="tbbq-bp__tracks" role="tablist" aria-label="Filter"></div>
     <label class="tbbq-bp__pickWrap">
-      <span class="tbbq-bp__pickLabel">Stage</span>
+      <span class="tbbq-bp__pickLabel"></span>
       <select class="tbbq-bp__pick" aria-label="Choose a column"></select>
     </label>
     <div class="tbbq-bp__days" role="tablist" aria-label="Day"></div>
@@ -278,6 +278,8 @@ export function buildBrellaEmbedSnippet({
     #${id} .tbbq-bp__sections button{font-size:22px!important}
     #${id} .tbbq-bp__tracks{display:none!important}
     #${id} .tbbq-bp__pickWrap{display:${isTimeline ? "flex" : "none"}!important}
+    /* Two classes so this outranks the rule above it, whatever the source order. */
+    #${id} .tbbq-bp__pickWrap.tbbq-bp__pickWrap--off{display:none!important}
     #${id} .tbbq-bp__colhead{font-size:15px!important;min-height:0!important}
     #${id} .tbbq-bp__grid{grid-template-columns:1fr!important}
   }
@@ -654,21 +656,40 @@ export function buildBrellaEmbedSnippet({
     if(was!==narrow)render();
   }
 
+  /* The phone picker mirrors whatever the pill row holds for the CURRENT section. It used to
+     be filled only for the timeline sections, so switching to Event Rooms left an empty box
+     still labelled "Stage" — and since the pills are hidden on a phone, there was then no way
+     to filter rooms at all. Side Events is filtered by DAY, so it gets no picker. */
+  function fillPicker(label, allLabel, items){
+    var wrap=root.querySelector(".tbbq-bp__pickWrap");
+    var lbl=root.querySelector(".tbbq-bp__pickLabel");
+    if(!pickEl||!wrap)return;
+    if(!items||!items.length){wrap.classList.add("tbbq-bp__pickWrap--off");pickEl.innerHTML="";return;}
+    wrap.classList.remove("tbbq-bp__pickWrap--off");
+    if(lbl)lbl.textContent=label;
+    pickEl.innerHTML='<option value="">'+esc(allLabel)+'</option>'
+      +items.map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join("");
+    pickEl.value=col;
+  }
+
   function buildSectionControls(){
     pillsEl.innerHTML="";daysEl.innerHTML="";if(pickEl)pickEl.innerHTML="";
     if(IS_TL){
       pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
         +(SECTION==="grills"?"All grills":"All stages")+'</button>'
         +COLS.map(function(c){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(c.label)+'">'+esc(c.label)+'</button>';}).join("");
-      pickEl.innerHTML='<option value="">'+(SECTION==="grills"?"All grills":"All stages")+'</option>'
-        +COLS.map(function(c){return '<option value="'+esc(c.label)+'">'+esc(c.label)+'</option>';}).join("");
+      fillPicker(SECTION==="grills"?"Grill":"Stage",
+                 SECTION==="grills"?"All grills":"All stages",
+                 COLS.map(function(c){return c.label;}));
       daysEl.innerHTML=EVENT_DAYS.map(function(d,i){
         return '<button type="button" role="tab" aria-selected="'+(i===dayIdx)+'" data-d="'+i+'">'
           +'<span class="tbbq-bp__dnum">'+esc(d.label)+'</span>'
           +'<span class="tbbq-bp__ddate">'+esc(d.date)+'</span></button>';
       }).join("");
     } else if(SECTION==="side"){
-      /* One track and three dates, so a track filter would filter nothing. */
+      /* One track and three dates, so a track filter would filter nothing; the day chips are
+         the control here and the picker is hidden. */
+      fillPicker("Day","",[]);
       var seen=[];
       ALL.forEach(function(s){if(s.day&&seen.indexOf(s.day)<0)seen.push(s.day);});
       seen.sort(function(a,b){return dayNum(a)-dayNum(b);});
@@ -685,6 +706,7 @@ export function buildBrellaEmbedSnippet({
       rooms.sort(function(a,b){return a.localeCompare(b,undefined,{numeric:true});});
       pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">All</button>'
         +rooms.map(function(t){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(t)+'">'+esc(t)+'</button>';}).join("");
+      fillPicker("Room","All rooms",rooms);
     }
 
     /* Listeners are attached ONCE, outside this function: it re-runs on every section
