@@ -93,6 +93,50 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03w (ONE embed for the whole program, stable controls, hardened dialog)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+**One snippet now carries the entire program.** There were four "Copy embed" buttons, one per
+section; the dashboard is down to a single "Copy embed (whole program)". The snippet draws its
+own Stages / Event Rooms / Grill Sessions / Side Events masthead and switches between them
+client-side.
+
+**The grouping is done SERVER-side**, via a new `?section=all` on `/api/program`, which answers
+`{counts, groups:{stages, rooms, grills, side}}`. This is the whole reason it is not four
+parallel fetches or a client-side filter: the rules for what belongs in which section live in
+`lib/brellaSections.ts`, and shipping those regexes into the snippet would put a second copy on
+techbbq.dk that can never be corrected once pasted. Same reasoning as `/api/all-speakers`.
+
+**Pressing a filter no longer moves the page**, which needed two things, as on the dashboard:
+1. `setSection()` measures the masthead's viewport offset and scrolls by the delta afterwards.
+2. That is not enough on its own — Side Events is a fraction of the timeline's height, so the
+   browser clamped `scrollTop` and the view still jumped ~200px. `applyFloor()` keeps a
+   `min-height` equal to the tallest section seen. It is measured from the CHILDREN, because
+   reading the container after the floor is applied would just return the floor.
+Measured: rooms 143px and side 199px of movement before, **0px on all four** after, in both
+directions.
+
+**The dialog got a much harsher reset.** On techbbq.dk the description rendered ONE WORD PER
+LINE and every name was uppercased. Two theme habits do that: a CSS multi-column rule on a
+content wrapper, which turns a paragraph into a narrow strip, and `text-transform` on headings.
+The modal now forces `columns:auto; column-count:1; column-width:auto`, `text-transform:none`,
+`word-break:normal`, and `min-width:0` on flex children, which a flex item needs before it is
+allowed to be as wide as its text. Verified against a harness that deliberately applies
+`p{columns:2 8em}` and `h2,h3,strong{text-transform:uppercase}`: description 582px wide at
+`column-count:1`, names no longer uppercased.
+
+**Backticks bit again.** A CSS comment mentioning `columns` in backticks terminated the template
+literal. Second time this session. There is now a line in the file saying so.
+
+Files: `app/api/program/route.ts`, `lib/brellaEmbedSnippet.ts`, `components/CopyBrellaEmbed.tsx`,
+`app/brella-program/page.tsx`.
+
+### Next steps
+
+1. Copy the ONE embed from the deployed dashboard into a single Elementor HTML widget and
+   delete the four old per-section widgets.
+
 ## Session 2026-08-03v ("Copy API code" for the external designer)
 
 State: done, pushed. `tsc --noEmit` clean.

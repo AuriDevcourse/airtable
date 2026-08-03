@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchProgram, PROGRAM_SOURCES, ProgramSourceKey } from "@/lib/program";
 import { rateLimit, cached, invalidate } from "@/lib/rate-limit";
 import { isDashboardRequest } from "@/lib/dashboardAuth";
-import { inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
+import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
 import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +59,33 @@ export async function GET(req: NextRequest) {
     // names, so sectionOf() would be answering a question their data cannot be asked.
     // An unknown value serves everything, matching ?kind= and ?stage= elsewhere.
     const sectionParam = req.nextUrl.searchParams.get("section");
+
+    // ?section=all groups every section in ONE response, for the embed that carries the whole
+    // program with its own section switcher. Grouping server-side matters: it keeps the rules
+    // for what belongs where in lib/brellaSections.ts. The alternative — shipping the section
+    // regexes into the snippet — puts a second copy on techbbq.dk that can never be corrected
+    // once pasted.
+    if (source === "brella" && sectionParam === "all") {
+      const groups: Record<string, typeof all> = {};
+      const counts: Record<string, number> = {};
+      for (const { key } of BRELLA_SECTIONS) {
+        groups[key] = all.filter((s) => inBrellaSection(s, key));
+        counts[key] = groups[key].length;
+      }
+      const grouped = NextResponse.json(
+        { count: all.length, event: source, counts, groups },
+        { status: 200 }
+      );
+      // Same cache rules as the ungrouped path below: an authenticated refresh is never
+      // stored and never gets CORS headers, an ordinary read is cacheable.
+      if (fresh) {
+        grouped.headers.set("Cache-Control", "no-store");
+        return grouped;
+      }
+      grouped.headers.set("Cache-Control", FEED_CACHE_CONTROL);
+      return withCors(grouped);
+    }
+
     const sessions =
       source === "brella" && isBrellaSection(sectionParam)
         ? all.filter((s) => inBrellaSection(s, sectionParam))

@@ -20,6 +20,7 @@
 // correctly inside an arbitrary WordPress theme.
 
 import {
+  BRELLA_SECTIONS,
   EVENT_DAYS,
   EVENT_YEAR,
   TIMELINE_COLUMNS,
@@ -32,7 +33,8 @@ import {
 } from "@/lib/brellaTheme";
 
 export type BrellaEmbedOptions = {
-  section: BrellaSection;
+  /** A single section, or "all" for the whole program with its own section switcher. */
+  section: BrellaSection | "all";
   uid?: string;
   // Drop the panel's own background + padding, for a page that already provides them.
   transparent?: boolean;
@@ -50,16 +52,23 @@ export function buildBrellaEmbedSnippet({
 }: BrellaEmbedOptions): string {
   const id = uid || "tbbq-brella";
   const path = `/api/program?event=brella&section=${section}`;
-  const columnDefs = TIMELINE_COLUMNS[section];
-  const isTimeline = Boolean(columnDefs);
-  // RegExp cannot be JSON.stringify'd, so the source travels as a string and the snippet
-  // rebuilds it. Same list the dashboard uses, so the two cannot disagree about which track
-  // belongs in which column.
-  const columns = (columnDefs ?? []).map((c) => ({ label: c.label, re: c.match.source }));
+  const isAll = section === "all";
+  // Every section's columns travel, keyed by section, because in "all" mode the visitor can
+  // switch between them without another request. RegExp cannot be JSON.stringify'd, so the
+  // source travels as a string and the snippet rebuilds it. Same list the dashboard uses, so
+  // the two cannot disagree about which track belongs in which column.
+  const serialiseCols = (defs?: { label: string; match: RegExp }[]) =>
+    (defs ?? []).map((c) => ({ label: c.label, re: c.match.source }));
+  const columnsBySection: Record<string, { label: string; re: string }[]> = {};
+  for (const { key } of BRELLA_SECTIONS) columnsBySection[key] = serialiseCols(TIMELINE_COLUMNS[key]);
+  const columnDefs = isAll ? undefined : TIMELINE_COLUMNS[section as BrellaSection];
+  const isTimeline = isAll || Boolean(columnDefs);
+  const columns = serialiseCols(columnDefs);
 
   return `<!-- TechBBQ program (Brella${isTimeline ? " · timeline" : ""}) — paste into an Elementor HTML widget -->
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <div id="${id}" class="tbbq-bp">
+  <div class="tbbq-bp__sections" role="tablist" aria-label="Program section"></div>
   <div class="tbbq-bp__controls">
     <div class="tbbq-bp__tracks" role="tablist" aria-label="Filter"></div>
     <label class="tbbq-bp__pickWrap">
@@ -82,7 +91,19 @@ export function buildBrellaEmbedSnippet({
     font-family:var(--sans)!important;color:var(--fg)!important;box-sizing:border-box}
   #${id} *{box-sizing:border-box}
 
-  #${id} .tbbq-bp__controls{display:flex!important;flex-direction:column!important;align-items:center!important;gap:10px!important;margin:0 0 18px!important}
+  /* The section masthead. Big type, centred, the primary control on the page. */
+  #${id} .tbbq-bp__sections{display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;justify-content:center!important;gap:8px 28px!important;margin:0 0 20px!important;padding:0!important}
+  #${id} .tbbq-bp__sections:empty{display:none!important}
+  #${id} .tbbq-bp__sections button{appearance:none!important;padding:0!important;margin:0!important;border:0!important;background:none!important;box-shadow:none!important;cursor:pointer!important;font-family:var(--head)!important;font-size:clamp(24px,3.6vw,40px)!important;font-weight:600!important;letter-spacing:-.02em!important;line-height:1.1!important;text-transform:none!important;color:var(--muted)!important;transition:color .18s}
+  #${id} .tbbq-bp__sections button:hover,#${id} .tbbq-bp__sections button[aria-selected="true"]{color:var(--fg)!important}
+  #${id} .tbbq-bp__sections button:disabled{opacity:.35!important;cursor:default!important}
+  #${id} .tbbq-bp__sections button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:4px!important}
+
+  /* RESERVED HEIGHT. Sections have different numbers of control rows (a timeline has columns
+     AND days, Event Rooms has only tracks), and without a floor the schedule jumped up and
+     down every time a filter was pressed. */
+  #${id} .tbbq-bp__controls{display:flex!important;flex-direction:column!important;align-items:center!important;gap:10px!important;margin:0 0 18px!important;min-height:${isAll ? 108 : 0}px!important}
+  @media(max-width:760px){#${id} .tbbq-bp__controls{min-height:0!important}}
 
   /* Pills. Forced + scoped: WordPress themes give every <button> their own look. */
   #${id} .tbbq-bp__tracks,#${id} .tbbq-bp__days{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;padding:5px!important;margin:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card)!important;width:fit-content!important;max-width:100%!important}
@@ -167,7 +188,21 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__modal h2{margin:8px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:22px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important}
   #${id} .tbbq-bp__meta{display:flex!important;align-items:center!important;flex-wrap:wrap!important;gap:8px!important;margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:13px!important}
   #${id} .tbbq-bp__topic{padding:3px 9px!important;border-radius:9999px!important;background:var(--card2)!important;border:1px solid var(--border)!important;font-family:var(--head)!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:.05em!important}
+  /* HARSHER RESET INSIDE THE DIALOG. On techbbq.dk the description came out one word per
+     line and every name was uppercased. Two theme habits cause that: a CSS multi-column rule
+     on a content wrapper, which turns a paragraph into a narrow strip, and text-transform on
+     headings. Both are stamped out here, along with the min-width:0 a flex child needs before
+     it is allowed to be as wide as its text.
+     (No backticks anywhere in this file: the whole snippet is a JS template literal.) */
+  #${id} .tbbq-bp__modal,#${id} .tbbq-bp__modal *{min-width:0!important;max-width:100%!important;float:none!important;columns:auto!important;column-count:1!important;column-width:auto!important;letter-spacing:normal!important;word-break:normal!important;overflow-wrap:break-word!important;hyphens:none!important}
+  #${id} .tbbq-bp__modal{max-width:640px!important;width:100%!important}
+  #${id} .tbbq-bp__body,#${id} .tbbq-bp__body p{display:block!important;width:100%!important;text-align:left!important;text-transform:none!important;white-space:normal!important}
   #${id} .tbbq-bp__body p{margin:12px 0 0!important;padding:0!important;color:rgba(255,255,255,.8)!important;font-size:14px!important;line-height:1.6!important}
+  /* The person row is a flex pair; the text side must be free to grow. */
+  #${id} .tbbq-bp__person>div{flex:1 1 auto!important;width:100%!important;display:block!important}
+  #${id} .tbbq-bp__pname,#${id} .tbbq-bp__prole,#${id} .tbbq-bp__pbio,#${id} .tbbq-bp__pmore{display:block!important;text-transform:none!important;white-space:normal!important}
+  #${id} .tbbq-bp__pmore{display:inline-flex!important}
+  #${id} .tbbq-bp__ptag{text-transform:uppercase!important;display:inline-block!important}
   #${id} .tbbq-bp__modal h3{margin:24px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
   #${id} .tbbq-bp__people{list-style:none!important;margin:12px 0 0!important;padding:0!important;display:grid!important;gap:14px!important}
   #${id} .tbbq-bp__person{display:flex!important;gap:12px!important;margin:0!important;padding:0!important}
@@ -213,9 +248,13 @@ export function buildBrellaEmbedSnippet({
   var overlay=root.querySelector(".tbbq-bp__overlay");
   var modal=root.querySelector(".tbbq-bp__modal");
 
-  var IS_TL=${isTimeline ? "true" : "false"};
-  var SECTION=${JSON.stringify(section)};
-  var COLDEFS=${JSON.stringify(columns)};
+  var IS_ALL=${isAll ? "true" : "false"};
+  var SECTIONS=${JSON.stringify(BRELLA_SECTIONS)};
+  var COLS_BY_SECTION=${JSON.stringify(columnsBySection)};
+  var GROUPS={};              /* section -> sessions, only used in "all" mode */
+  var SECTION=${JSON.stringify(isAll ? "stages" : section)};
+  var IS_TL=${isAll ? "true" : isTimeline ? "true" : "false"};
+  var COLDEFS=${JSON.stringify(isAll ? columnsBySection["stages"] : columns)};
   var STYLES=${JSON.stringify(TRACK_STYLES)};
   var ICONS=${JSON.stringify(STAGE_ICON_PATHS)};
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
@@ -224,7 +263,8 @@ export function buildBrellaEmbedSnippet({
   var MINCARD_MIN=Math.ceil((MINCARD+4)/PX);
 
   /* Rebuilt here because a RegExp cannot survive JSON. */
-  var COLS=COLDEFS.map(function(c){return {label:c.label,rx:new RegExp(c.re,"i")};});
+  function compile(defs){return (defs||[]).map(function(c){return {label:c.label,rx:new RegExp(c.re,"i")};});}
+  var COLS=compile(COLDEFS);
   var STYLE_RX=STYLES.map(function(t){return {rx:new RegExp(t.re,"i"),color:t.color,color2:t.color2};});
 
   var ALL=[],col="",dayIdx=0,sideDay="",lastFocus=null,narrow=false;
@@ -415,7 +455,40 @@ export function buildBrellaEmbedSnippet({
     }).join("");
   }
 
-  function render(){ if(IS_TL)renderTimeline(); else renderList(); }
+  /* Restoring the scroll position only works if the page is still tall enough to hold it.
+     Side Events is a fraction of the height of the timeline, so switching to it from
+     mid-page let the browser clamp scrollTop and the view jumped ~200px despite the anchor.
+     The output keeps a floor equal to the TALLEST section seen; it only grows, so it cannot
+     oscillate. Measured from the children, because reading the container after the floor is
+     applied would just return the floor. */
+  var floor=0;
+  function applyFloor(){
+    var total=0;
+    for(var i=0;i<outEl.children.length;i++)total+=outEl.children[i].getBoundingClientRect().height;
+    if(total>floor)floor=Math.ceil(total);
+    if(floor)outEl.style.minHeight=floor+"px";
+  }
+  function render(){ if(IS_TL)renderTimeline(); else renderList(); applyFloor(); }
+
+  /* Switch section without refetching: "all" mode already holds every group. The masthead is
+     the anchor — its distance from the top of the viewport is measured before the swap and
+     restored after, so pressing a section never moves what you are looking at. */
+  function setSection(key){
+    var bar=root.querySelector(".tbbq-bp__sections");
+    var before=bar?bar.getBoundingClientRect().top:null;
+    SECTION=key;
+    ALL=GROUPS[key]||[];
+    COLS=compile(COLS_BY_SECTION[key]);
+    IS_TL=COLS.length>0;
+    col="";sideDay="";
+    buildSectionControls();
+    syncNarrow();
+    render();
+    if(before!=null&&bar){
+      var delta=bar.getBoundingClientRect().top-before;
+      if(delta)window.scrollBy(0,delta);
+    }
+  }
 
   /* ── DIALOG ── */
   function byId(id){for(var i=0;i<ALL.length;i++){if(String(ALL[i].id)===String(id))return ALL[i];}return null;}
@@ -490,7 +563,8 @@ export function buildBrellaEmbedSnippet({
     if(was!==narrow)render();
   }
 
-  function buildControls(){
+  function buildSectionControls(){
+    pillsEl.innerHTML="";daysEl.innerHTML="";if(pickEl)pickEl.innerHTML="";
     if(IS_TL){
       pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
         +(SECTION==="grills"?"All grills":"All stages")+'</button>'
@@ -522,6 +596,11 @@ export function buildBrellaEmbedSnippet({
         +rooms.map(function(t){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(t)+'">'+esc(t)+'</button>';}).join("");
     }
 
+    /* Listeners are attached ONCE, outside this function: it re-runs on every section
+       switch, and re-adding them each time would fire the handler N times per click. */
+  }
+
+  function wireControls(){
     pillsEl.addEventListener("click",function(e){
       var b=e.target.closest?e.target.closest("button[data-t]"):null;
       if(!b)return;
@@ -543,6 +622,13 @@ export function buildBrellaEmbedSnippet({
       Array.prototype.forEach.call(pillsEl.children,function(x){x.setAttribute("aria-selected",String(x.getAttribute("data-t")===col));});
       render();
     });
+    var secEl=root.querySelector(".tbbq-bp__sections");
+    if(secEl)secEl.addEventListener("click",function(e){
+      var b=e.target.closest?e.target.closest("button[data-s]"):null;
+      if(!b||b.disabled)return;
+      Array.prototype.forEach.call(secEl.children,function(x){x.setAttribute("aria-selected",String(x===b));});
+      setSection(b.getAttribute("data-s"));
+    });
   }
 
   /* r.ok matters: a 429 or 502 still returns JSON with no list in it, which without this check
@@ -551,10 +637,23 @@ export function buildBrellaEmbedSnippet({
     if(!r.ok)throw new Error("HTTP "+r.status);
     return r.json();
   }).then(function(data){
-    ALL=(data&&data.sessions)||[];
-    if(!ALL.length){outEl.innerHTML='<p class="tbbq-bp__empty">No sessions to show yet.</p>';return;}
-    if(IS_TL)dayIdx=defaultDay();
-    buildControls();
+    if(IS_ALL){
+      /* One request, every group. The SECTION RULES stayed on the server: this snippet never
+         decides what belongs where, so a track renamed in Brella cannot strand a pasted copy. */
+      GROUPS=(data&&data.groups)||{};
+      var secEl=root.querySelector(".tbbq-bp__sections");
+      secEl.innerHTML=SECTIONS.map(function(x,i){
+        var n=(GROUPS[x.key]||[]).length;
+        return '<button type="button" role="tab" data-s="'+esc(x.key)+'" aria-selected="'+(i===0)+'"'+(n?'':' disabled')+'>'+esc(x.label)+'</button>';
+      }).join("");
+      ALL=GROUPS[SECTION]||[];
+    } else {
+      ALL=(data&&data.sessions)||[];
+    }
+    if(!ALL.length&&!IS_ALL){outEl.innerHTML='<p class="tbbq-bp__empty">No sessions to show yet.</p>';return;}
+    dayIdx=defaultDay();
+    buildSectionControls();
+    wireControls();
     syncNarrow();
     render();
     var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(syncNarrow,150);});

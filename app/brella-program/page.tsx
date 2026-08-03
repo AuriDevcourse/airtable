@@ -768,18 +768,14 @@ export default function BrellaProgramPage() {
             <strong>read-only</strong> · served as JSON at <code>/api/program?event=brella</code>.
           </p>
 
-          {/* One button per section, because a WordPress page shows one of these at a time.
-              The snippet bakes in the section, so the embed needs no section switcher. */}
+          {/* ONE snippet for the whole program. It fetches ?section=all, draws its own
+              Stages / Event Rooms / Grill Sessions / Side Events masthead and switches
+              between them client-side, so a WordPress page needs a single HTML widget
+              rather than four. */}
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {SECTIONS.map((sec) => (
-              <CopyBrellaEmbed
-                key={sec.key}
-                section={sec.key}
-                label={`Copy embed (${sec.label})`}
-              />
-            ))}
+            <CopyBrellaEmbed section="all" label="Copy embed (whole program)" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copy from the deployed dashboard, not localhost.
+              All four sections in one snippet. Copy from the deployed dashboard, not localhost.
             </span>
           </div>
         </div>

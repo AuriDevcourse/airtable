@@ -14,7 +14,8 @@ export function CopyBrellaEmbed({
   section,
   label,
 }: {
-  section: BrellaSection;
+  /** A single section, or "all" for the whole program with its own section switcher. */
+  section: BrellaSection | "all";
   label?: string;
 }) {
   const [copied, setCopied] = useState(false);
