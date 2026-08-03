@@ -1272,3 +1272,117 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-person__bio { margin: 6px 0 0; color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.5; }
 
 @media (max-width: 560px) { .bp-modal { padding: 22px; } }
+
+/* ── Life Science startups exhibiting (/ls-startups) ──────────────────────────────────
+   A logo wall in three category rows. Logos only: no names, no pitch, no links.
+   The logos are the white-on-transparent versions, so they sit directly on the page's
+   near-black background with no panel behind them. */
+.lw-row { margin-top: 40px; }
+/* Each row carries its own colour (--row, set per section in the page): Planetary green,
+   Human Health teal, Deep Tech blue. A dot plus a coloured label rather than a filled band,
+   so the colour identifies the row without competing with the white logos under it. */
+.lw-row__label {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--row, var(--color-muted));
+}
+.lw-row__label::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 9999px;
+  background: var(--row, var(--color-muted));
+}
+/* The divider picks up a hint of the row colour so the band reads as one unit, kept faint
+   because three full-strength rules would stripe the page. */
+.lw-row__label { border-bottom-color: color-mix(in srgb, var(--row, #2a2a2a) 30%, transparent); }
+
+/* auto-fit rather than a fixed column count: rows hold anywhere from 7 to 15 logos, and a
+   fixed grid would leave a half-empty last line on the short ones. */
+.lw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* Each logo gets the same box so wildly different aspect ratios (a tall stacked mark next
+   to a wide wordmark) still read as one grid. contain, never cover — cover would slice a
+   wordmark mid-word. */
+.lw-logo {
+  display: grid; place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 18px;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  transition: background .2s ease, transform .2s ease;
+}
+.lw-logo:hover { background: var(--color-card); transform: translateY(-2px); }
+
+/* The logo is the link. display:contents so the anchor adds no box of its own — the grid
+   keeps sizing the .lw-logo directly, and the hover/lift stays on the logo rather than
+   splitting across two elements. */
+.lw-link { display: contents; text-decoration: none; }
+/* display:contents removes the anchor as a focus target's box too, so the outline has to be
+   drawn on the child. Without this the link is reachable by keyboard but invisible when it
+   is — the one thing a logo-only wall cannot afford. */
+.lw-link:focus-visible .lw-logo {
+  outline: 2px solid var(--color-red);
+  outline-offset: 2px;
+  background: var(--color-card);
+}
+
+/* Stand-in for a startup whose upload is an .ai/.cdr and cannot be drawn. Set as a plain
+   wordmark so the company still appears on the wall instead of silently vanishing. */
+.lw-logo--text {
+  font-family: var(--font-heading);
+  font-size: 15px; font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--color-muted);
+  border: 1px dashed var(--color-border);
+}
+/* Hover and focus tint with the row colour, so the wall still tells you which section you are
+   in once the labels have scrolled off. */
+.lw-logo:hover { background: color-mix(in srgb, var(--row, #131313) 12%, #131313); }
+.lw-link:focus-visible .lw-logo { outline-color: var(--row, var(--color-red)); }
+
+/* "More soon" placeholder, the last tile of every row. Same box as a logo so it holds the
+   grid rhythm, but hollow and in the row colour: it reads as a slot waiting to be filled
+   rather than as a company. Deliberately quiet at 55% opacity — it should be noticed second,
+   after the real logos. */
+.lw-soon {
+  display: grid; place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--row, #2a2a2a) 45%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--row, var(--color-muted));
+  opacity: 0.55;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: center;
+}
+
+/* Fixed column counts per row, used by the partner wall. Fewer columns means a bigger logo,
+   which is how the tier ranking reads visually: Prime at 4 across, Community at 6.
+   minmax(0,1fr) rather than 1fr so a wide wordmark cannot push the track past its share.
+   The count comes from --cols on the parent row; the media queries below simply override
+   grid-template-columns outright, which they can because --cols lives on the section. */
+.lw-grid--fixed { grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr)); }
+
+@media (max-width: 1100px) { .lw-grid--fixed { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 820px)  { .lw-grid--fixed { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+@media (max-width: 560px) {
+  .lw-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .lw-grid--fixed { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lw-logo, .lw-soon { padding: 12px; }
+  .lw-soon { font-size: 10px; }
+}

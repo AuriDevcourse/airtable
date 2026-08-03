@@ -33,6 +33,7 @@ const MENU: MenuGroup[] = [
     heading: "Projects",
     items: [
       { href: "/life-science", label: "Life Science 2026" },
+      { href: "/ls-startups", label: "Life Science Startups" },
       { href: "/niss", label: "NISS 2026" },
       { href: "/nass", label: "NASS 2026" },
       { href: "/fintech-speakers", label: "Fintech Speakers" },
@@ -54,6 +55,7 @@ const MENU: MenuGroup[] = [
       { href: "/program", label: "Program 2026" },
       { href: "/brella-program", label: "Program 2026 (Brella)" },
       { href: "/partner-events", label: "Side Events & Event Rooms" },
+      { href: "/partners", label: "Partners 2026" },
       { href: "/team", label: "Team" },
       { href: "/lookup", label: "Ticket lookup" },
     ],

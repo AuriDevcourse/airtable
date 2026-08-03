@@ -27,6 +27,8 @@ const PUBLIC_PATHS = new Set([
   "/api/fintech-speakers",
   "/api/program",
   "/api/life-science",
+  "/api/ls-startups",
+  "/api/partners",
   "/api/team",
   "/api/sync-speakers", // guarded by CRON_SECRET instead
 ]);

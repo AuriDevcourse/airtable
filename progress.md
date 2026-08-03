@@ -4,6 +4,472 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-03i (LS startups refreshed: 15 confirmed, an invisible logo fixed)
+
+State: DONE, pushed.
+
+Confirmed set grew 12 → 15 (H+H LABS/Hydratico, Vetbac, Blue2). **No code change was needed for
+the new logos** — that page reads live from Airtable and `?v=<attachmentId>` busts the cache the
+moment a file is replaced. Only the 5-minute server cache had to expire, which briefly made H+H
+look logo-less and sent me looking for a bug that was not there.
+
+**A logo that renders NOTHING is worse than a missing one.** Hydratico's SVG was exported with
+`fill: none` on every path, so the tile was present and completely invisible: the startup
+vanished from the wall with no broken-image icon and no name fallback to signal it. Recoloured
+to white and uploaded as `white-Hydratico Water Doctors.svg` alongside the original.
+`fill:none` is the one case the automatic whitener deliberately skips, because removing it would
+flood-fill a genuinely outlined shape, so an all-none file has to be handled by hand.
+
+**Website parsing rewritten, 11 → 14 linked.** These cells are founder-typed free text and the
+old parser only accepted `http(s)://` or a `www.` prefix, silently dropping three real sites:
+- `immunordic.com` — bare domain, no scheme
+- `linkedin.com/company/smartsensdk/…` — a company LinkedIn page, no scheme
+- `walthertx.com (currently under construction — live in a few weeks)` — domain plus a note
+
+Now: take the first whitespace token, accept anything matching a hostname, upgrade to https.
+Prose still fails closed — "no website yet" has no dot, so Yoke Bio stays correctly unlinked.
+
+**Do NOT use the `Linkedin` column as a website fallback.** All 15 have one, but they are
+PERSONAL profiles (`/in/hanseibe/`, `/in/marie-ihlemann/`), not company pages. Linking a company
+logo to a named individual is the wrong destination and publishes a person on a page about
+companies. A company-LinkedIn column would be the clean fix.
+
+Judgement call flagged to Auri: Walther's own note says the site is under construction, and it
+is linked anyway since the event is three weeks out.
+
+## Session 2026-08-03h (partners: tiers corrected from the live site, links, logos uploaded)
+
+State: DONE, pushed. Follow-on to 03g, same page.
+
+**Tier source settled.** Airtable's `Partnership Type 2026` and the CRM's deal-size formula
+disagree on 16 rows. Auri's call: **the live techbbq.dk/partners page is correct** ("Nordea is
+not a prime partner, it has a 48,000 crown deal"). Only the 9 DIFFERENCES are stored, in
+`TIER_OVERRIDES` in lib/partners.ts, so a normal Airtable change still flows through and the map
+stays auditable. There is no auto-sync: techbbq.dk 455s a plain request, so it can only be read
+through a real browser.
+
+**Finding the live list took a wrong turn worth recording.** `/partners/` looked like a sales
+page with 15 images and no partner wall. It is not: the 241 partner logos are **inline `<svg>`
+elements**, not `<img>`, so an image inventory finds nothing. Walk `<h2>` tier headings and the
+`<a>` elements that follow them instead.
+
+**Community is grey** (`#9a9a9c`) — it is 61 of 104 rows and a saturated colour there pulled the
+eye off the paid tiers. Columns per tier double as the ranking: 4 for Prime/Main/Conqueror,
+5 for Pioneer/Core/Challenger, 6 for Community, so a higher tier renders a bigger logo. No
+"More soon" tile on this wall (that is the Life Science one only). `Tailored` dropped;
+`International` kept but now empty, so the row disappears.
+
+**Logos link to the partner site.** Source is `Link to your website`. Four cells held SEVERAL
+urls in one field — Copenhagen had four joined with `&` and `@` — which produced an href with
+spaces that no browser can navigate, so those logos silently did nothing when clicked. The first
+url now wins. Four sites are hand-corrected in `WEBSITE_OVERRIDES`.
+
+**The embed drops logo-less partners**; the dashboard keeps them as dashed name tiles, which is
+what makes the gap visible to whoever maintains the wall.
+
+**110/110 logos matched**, all white. Auri supplied ~20 by hand for the ones no automatic match
+could reach, plus corrected exports for seven that had resolved to an off-brand version. Five
+dark SVGs are recoloured on the way in.
+
+**The white set was uploaded back into Airtable** by `scripts/upload-white-logos.mjs`: 110 files
+appended to the `Logo` field, each prefixed `white-`, taking it from 203 to 313 attachments with
+the colour originals untouched. It uses the `uploadAttachment` endpoint, which APPENDS — a PATCH
+on an attachment field replaces the whole array and would have wiped all 203. Re-running skips
+cells that already have a `white-` file.
+
+**Duplicate-logo bugs fixed:** my alias mapped "European Commission" to the EIC (different
+bodies, so one mark appeared in two tiers), and the data holds one organisation under two names
+in the same tier, so `fetchPartners` now also dedupes on tier + logo file.
+
+## Session 2026-08-03g (new /partners page: the 2026 partner logo wall, one row per tier)
+
+State: **DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit` clean;
+`npm run build` not re-run. Stacks on the uncommitted 03c-03f work.
+
+Same construction as `/ls-startups` and it reuses the `.lw-*` styles, just nine tier rows.
+New: `lib/partners.ts`, `app/api/partners/route.ts`, `app/partners/page.tsx`,
+`lib/partnersEmbedSnippet.ts`, `components/CopyPartnersEmbed.tsx`,
+`scripts/sync-partner-logos.mjs`, `lib/partnerLogoManifest.json`, `public/partner-logos/`.
+
+**Which "tier"? There are two and they disagree.** `Partners 2026` (the CRM) has a formula
+`Partnership Tier (Based on Deal Size)` giving 6 buckets over 155 confirmed rows, with no
+Community at all. `Marketing Project Overview` view **`Partner Deliverables 2026`** has a
+single-select `Partnership Type 2026` — the one `scripts/community-tier-audit.mjs` already
+maintains. **The marketing one is used**, because it is the list marketing curates for the
+website and it carries Community.
+
+Auri's call: **drop `Investor`, `Academic` and `Tailored`** ("Academic usually is community,
+Investor can be different"; Tailored cut in the follow-up pass, International kept). 122 rows in
+the view, 106 published after the exclusions and after de-duplicating companies that appear
+twice.
+
+**Columns per row are Auri's spec and act as the RANKING**, not as layout convenience — fewer
+columns means a bigger logo, so a Prime partner reads larger than a Community one on the same
+page. There is no "More soon" tile on this wall (that is the Life Science wall only).
+
+| tier | partners | cols |
+|---|---|---|
+| Prime | 3 | 4 |
+| Main | 2 | 4 |
+| Conqueror | 6 | 4 |
+| Pioneer | 4 | 5 |
+| Core | 10 | 5 |
+| Challenger | 14 | 5 |
+| International | 5 | 5 |
+| Community | 62 | 6 |
+
+Narrow screens ignore `--cols` and step down to 4 / 3 / 2, so an Elementor column never squeezes
+six logos into 300px.
+
+Note `Put on web` is read but NOT used as a gate. It tracks what is already live on techbbq.dk,
+not what belongs there, and 8 of the view's rows are unchecked simply because nobody ticked them
+yet. Gating on it would hide real partners.
+
+### Logos do NOT come from Airtable, and that is deliberate
+The attachments on that view are colour originals — 69 PNG, 8 JPEG, 16 SVG, plus a zip, a PDF
+and an .ai — and would render as white boxes on a near-black wall, exactly the problem the Life
+Science wall had before the white SVG exports.
+
+`scripts/sync-partner-logos.mjs` resolves each partner to a white logo file and copies it into
+`public/partner-logos/`. **Airtable stays the source of truth for WHO and WHICH TIER; the image
+comes from the logo libraries.** Two sources, in priority order:
+1. `tbbqvisualgen/public/logos` (~830 files) via its `logoLibrary.json`, which already carries a
+   per-file brightness measurement, so the picker can prefer the light variant.
+2. `C:/Users/User/Desktop/SVG` — Auri's newer white exports, not in that library, read off disk.
+
+Matching is normalise-both-sides (case, accents, punctuation, legal suffixes, the library's own
+"White"/"Colour" variant words) plus a hand-written `ALIASES` map for trading-name, acronym and
+Danish-spelling mismatches. **97 of 110 matched, 92 of them light.**
+
+**The bug worth remembering:** the library contains a file called `Inc.svg`, and `norm()` strips
+"inc" as a legal suffix, so its key normalised to the EMPTY STRING — which prefix-matches every
+name on earth. It silently claimed **15 partners**, all rendering the same "Inc." mark, and it
+looked plausible enough on screen to nearly ship. Empty keys are now skipped and the prefix
+fallback requires ≥6 chars on BOTH sides.
+
+**Unmatched (12), showing their name in a dashed tile:** Beta Health, Copenhagen, Copenhagen
+School of Entrepreneurship, Creative Business Network, EIT Urban Mobility, Ignite Sweden,
+Innovation District Copenhagen, MADE, Mesh, START Paris, Third Law ApS, Young AI Leaders Linz.
+Four of those are ambiguous on purpose rather than guessed: "Copenhagen" matches three different
+brands, "Mesh" matches two, and MADE / EIT Urban Mobility have no file anywhere. Fix the name in
+Airtable or drop the file in the library, then re-run the script with `--write`.
+
+**The cost of this approach, stated plainly:** the logos are a COPY. A partner added in Airtable
+appears on the page immediately but with no logo until someone re-runs the sync. The page names
+the gap in an internal panel rather than hiding it.
+
+### Embed excludes logo-less partners; logos link to the partner site
+Auri: the name tiles are "only for this local view... shouldn't show specifically on our
+website". So the EMBED drops any partner without a logo, while the DASHBOARD keeps them as
+dashed name tiles — that is exactly what makes the gap visible to whoever maintains the wall.
+The filter runs before the row is built, so a tier whose every partner lacks a logo disappears
+rather than leaving an empty heading.
+
+Websites come from `Link to your website` on the marketing view, filled on 93 of 107 rows. That
+column is free text and holds both `https://x.com/` and a bare `www.x.com`, so `safeUrl()`
+upgrades the bare hosts and rejects anything that is not http(s) — a `javascript:` URL sitting
+in an Airtable cell must never become a live link on techbbq.dk. Every link is
+`target="_blank"` with `rel="noopener noreferrer"` and carries an `aria-label`, because the
+anchor's only content is an image and it would otherwise have no accessible name.
+
+Verified: dashboard 105 tiles / 9 name tiles / 82 links. Embed 96 tiles / 0 name tiles /
+75 links, zero bad rel, zero non-http.
+
+### Two duplicate-logo bugs, one mine and one in the data
+**Mine:** the alias map had `"European Commission" -> "EIC"`. The European Commission and the
+European Innovation Council are different bodies, and the EIC is separately a partner in its own
+right, so the SAME mark appeared in both Core and International and read as a duplicate on the
+wall. Alias removed. **Neither logo library has a European Commission logo**, so it now shows
+its name until someone adds one. Beware of aliasing an acronym to a similar-sounding body.
+
+**In the data:** some partners exist twice under different names that resolve to one mark, e.g.
+"AISTART Incubator - Business Helsinki" and "Business Helsinki", both in Community. The same
+image twice in one row is always wrong on a logo wall whatever the CRM says, so `fetchPartners`
+now deduplicates on tier + logo file as well as tier + company, and logs what it dropped.
+
+Deliberately NOT deduplicated across tiers: `advores` (Community + International, the two rows
+differ by a typo, "Rechtanwälte" vs "Rechtsanwälte") and `TÜV SÜD` (Challenger + Community, two
+legal entities). A brand in two tiers is a partnerships-team question, not something to hide.
+Total is now 105.
+
+### FIXED: dark SVGs are recoloured to white on the way in
+Auri: "if we have a logo that is in SVG format, just make it in white". `whitenSvg()` in the
+sync script rewrites every `fill` and `stroke` (presentation attribute AND inside a `<style>`
+block) to `#ffffff`, and adds a white fill on the root for anything relying on the default
+black. `fill="none"`, `url(#gradient)` and embedded images are left alone: removing a `none`
+would flood-fill an outlined shape.
+
+It runs ONLY on files already measured as dark, and that limit is the point: a multi-colour mark
+flattens to a white silhouette, which is right for a two-colour wordmark and wrong for a colour
+wheel. A dark PNG cannot be fixed this way at all and still needs a real export.
+
+All five now render white: AstraZeneca, Danish Life Science Cluster, e-conomic, Impact Fund
+Denmark, Venture Cafe Warsaw. Verified by canvas measurement with a cache-buster: **zero dark
+logos left on the wall.**
+
+**The bug that ate the most time here was INVISIBLE.** This script was edited through a Python
+heredoc, and Python turned the intended `\b` word-boundary escape into a literal **0x08
+BACKSPACE byte** inside three regex literals. Every pattern then matched nothing, while looking
+perfectly correct in an editor, in `sed` output and in the terminal. The same regex typed fresh
+into `node -e` worked, which is what finally gave it away.
+
+Rules learned:
+- If a regex reads correctly but matches nothing, dump the file with `JSON.stringify` and look
+  for control characters.
+- **Write JS and Markdown with the Write/Edit tools, not shell heredocs.** The same class of
+  mangling ate the backticks out of this very section on the first attempt.
+
+### Companies Auri identified by hand
+`CBS CSE.svg` for Copenhagen School of Entrepreneurship, `City.svg` for the row literally named
+"Copenhagen" (the city, not a company), and `IDC_white_transparent.png` on the desktop for
+Innovation District Copenhagen, which exists as PNG only.
+
+**One correction to Auri's list:** he pointed at `Desktop/SVG/DanishLifeScienec Cluster.svg` for
+Creative Business Network, but that file renders as the DANISH LIFE SCIENCE CLUSTER mark and put
+that partner on the wall twice, in Prime and Core. CBN now uses
+`Desktop/CBN-Logo-white_CBN-logo-black-1.png` instead, which is the file from his screenshot.
+
+### Historic: the five logos that were not white
+`AstraZeneca Colour.svg`, `Danish Life Science Cluster.svg`, `E Conomic Primary Pos.svg`,
+`Impact Fund Denmark.svg`, `Venture Cafe Warsaw Horiz.svg`. **Checked both libraries: no white
+variant of any of them exists**, so this is not a picker bug. They need a white export, the same
+way the Life Science startups did.
+
+`https://techbbq.dk/partners/` was checked as a possible source and is a dead end: it is the
+"Become a partner" sales page, 15 images, none of them partner logos. A plain curl also gets a
+455 from the WAF, so it has to be loaded in a real browser to inspect at all.
+
+### Gotcha that cost time twice now
+`loading="lazy"` means an off-screen image is never requested, so `naturalWidth === 0`. A
+"broken images: 61" reading from a canvas/DOM check is measuring *not yet requested*, not
+*failed*. Set `loading = "eager"` and await onload before judging. Combined with the 24h
+`max-age` trap from 03f, the rule is: **never trust an image measurement without first forcing
+the load and busting the cache.**
+
+## Session 2026-08-03f (new /ls-startups page: confirmed Life Science startups exhibiting)
+
+State: **DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit` clean;
+`npm run build` not yet re-run.
+
+New `lib/lsstartups.ts` + `app/api/ls-startups/route.ts` + `app/ls-startups/page.tsx`, a
+`.st-*` block in globals.css, one `PHOTO_SOURCES` key, one middleware public path, one TopNav
+line ("Life Science Startups" under Projects).
+
+Source: the same Life Science Project table as the speaker roster (`tblvukXfmR7KTFymG`) but
+view `viwC65YEXxl8iDPzN`, the 2026 startup applications, 93 rows. **Different grain — this lib
+returns COMPANIES, lib/lifescience.ts returns PEOPLE.** Kept separate on purpose; merging them
+would force one shape to carry the other's nulls.
+
+**The gate is `status` contains "Confirmed startup" → 12 published.**
+
+**This was wrong in the first version and Auri caught it** ("I can see plenty of others that are
+in progress"). Worth understanding, because the bug is invisible and will recur:
+
+`status` is a **multi-select**, so Airtable returns it as an ARRAY (`["Confirmed startup"]`).
+The first check compared that cell to the string `"Confirmed startup"`. An array is never equal
+to a string, so it matched nothing, the column looked empty across the whole view, and the gate
+was pointed at `Confirmation` instead. The verification "proving" the column was empty was
+running the same broken comparison, so it agreed. **Read multi-selects with `tags()`, never
+`str()`, and never trust an emptiness result that came from `===` on a select field.**
+
+The two columns are genuinely different sets, which is why it mattered:
+- `Confirmation = Selected` → 24. Selected for the programme.
+- `status = Confirmed startup` → 12. Has actually confirmed they are coming.
+
+Every Confirmed startup is also Selected, but 8 Selected rows are only "Contacted", 2 are "In
+progress" and 1 has "Declined". Those are pipeline, not exhibitors. Cross-tab from the live view
+2026-08-03:
+
+```
+33  To be rejected || (blank)      12  Selected       || Confirmed startup
+21  Plan B         || (blank)       8  Selected       || Contacted
+ 7  (blank)        || Not contacted  2  Selected       || In progress
+ 6  (blank)        || (blank)        2  To be rejected || Contacted
+                                     1  Selected       || Declined
+```
+
+Gate fails CLOSED: a blank or unrecognised status is excluded, because the cost of showing a
+rejected applicant on techbbq.dk far exceeds the cost of a confirmed one appearing a day late.
+`Confirmation` is no longer requested at all.
+
+Rows after the fix: Planetary Health 3, Human Health 8, Deep Tech 7 (sums past 12 because
+LS Type is multi-select).
+
+**This is the most sensitive table the connector touches** and the allow-list matters more here
+than anywhere else. Not published, deliberately: Email, Phone, internal Comments, Source, the
+lead owner, third-party-sharing answers, the GDPR column, `Stakeholder`/`Title` (the contact
+PERSON — this page lists companies), and **`Confirmation` itself**. That last one is the
+non-obvious trap: emitting it would tell every rejected applicant they were "To be rejected",
+straight out of a public JSON feed. Audited the live response: no "@", no "Confirmation", no
+"Plan B", no "rejected", and a cross-check against the raw view found zero non-Selected
+companies leaked and zero Selected ones missing.
+
+**Logos: presence is not enough.** Two of the 23 uploaded an Illustrator `.ai` and a CorelDRAW
+`.cdr`. Airtable stores both happily and generates **no thumbnail**, so the proxy served a valid
+file no browser can draw — a broken-image icon mid-card. `hasRenderableLogo()` now requires the
+FIRST attachment (the one lib/photo.ts serves) to be png/jpeg/gif/webp/svg; anything else falls
+back to the company initial. Live mix: 12 png, 5 jpeg, 4 svg, 1 ai, 1 cdr.
+
+Also: several logos are WHITE-on-transparent (Blue2, Cytely, Immunordic) and vanished on the
+light panel — the mirror of the dark-logo problem the partner-event cards have. No single panel
+colour suits both, so the panel stays light for the majority and two stacked drop-shadows trace
+the glyph edges for the minority. One 1px shadow (what the partner embed uses) was
+proportionally invisible on wordmarks this large.
+
+Categories are the `LS Type` multi-select, **Human Health / Planetary Health / Deep Tech**.
+**Auri's call, asked and confirmed 2026-08-03:** a startup tagged with two categories appears in
+BOTH rows, because it is exhibiting under both. It looks like a duplicate and is not one — 6 of
+the 12 are double-tagged (Previto, SmartSens, Immunordic, Rilemo, Sorbus, Paindrainer), so 12
+companies fill 18 tiles. Do not "fix" this without asking again.
+
+Row counts are therefore 3 + 8 + 7 against 12 companies. `?category=` narrows the
+feed server-side for a per-category embed; unknown values serve everything, matching `?kind=`,
+`?stage()` and `?section=`.
+
+### Elementor embed + responsive check
+`lib/lsStartupsEmbedSnippet.ts` + `components/CopyLsStartupsEmbed.tsx`. Its own builder rather
+than a prop on `<CopyEmbed>`: a three-row logo wall is not a speaker grid with different
+options — no names, no cards, no load-more, and a coloured heading per row.
+
+**One button, the whole wall.** `?category=` exists on the feed if a single-category embed is
+ever wanted, but the point of this block is the three rows together.
+
+**The confirmed-only gate is NOT in the snippet and must never be.** It stays server-side in
+`lib/lsstartups.ts`, so an unconfirmed applicant cannot reach a pasted snippet even if that
+snippet outlives this deploy on someone else's page.
+
+Verified by copying the snippet and re-executing it in a live page: 3 rows, correct colours
+(green / teal / blue), 3 + 8 + 7 logos, 12 links, a More soon tile per row, zero broken images,
+`__ORIGIN__` resolved.
+
+**Responsive, and tested against the CONTAINER rather than the viewport** — the real constraint
+on techbbq.dk is the Elementor column, which is narrower than the window. `auto-fill` +
+`minmax()` does the work, so there is no media query at all for the desktop-to-tablet range:
+
+```
+container 320px → 2 columns     480px → 3 columns     768px → 5 columns
+```
+no overflow at any of them. The dashboard page itself: at a 450px viewport it drops to 2
+columns with `scrollWidth` 437 against 450, so no sideways scroll on a phone.
+
+### "More soon" placeholder
+Every row ends with a hollow dashed tile reading MORE SOON, in that row's colour at 55%
+opacity. It sits INSIDE the grid as the last tile rather than as a line under the wall,
+because the message is that these rows are still filling up: an empty slot in the run of logos
+says that, a sentence underneath reads as a footnote. Real text, not `aria-hidden` decoration,
+so a screen reader announces it with the row it belongs to.
+
+It shares the dashed-border language with the `.lw-logo--text` fallback (a startup whose upload
+cannot be drawn), but they differ in colour: the placeholder is row-coloured, the fallback is
+grey. No fallback is firing today, so the two are not on screen together.
+
+### Row colours (Auri's spec)
+Planetary Health **fully green** `#00c11a`, Human Health **between green and blue** `#10c8a7`,
+Deep Tech **blue** `#2BB4E1`. One green-to-blue axis, nature through to technology, rather than
+three unrelated hues. All three are existing house tokens (`--color-success`, `--color-teal`,
+and the Deep Tech blue already used on `/life-science`), so nothing new entered the palette.
+
+Rendered as a coloured dot plus a coloured label with a 30%-tinted divider, NOT a filled band:
+the logos below are white, and a strong colour bar would fight them for attention. Measured
+against `#0d0d0d`: 8.0 / 9.1 / 8.1 contrast, all well past the 4.5 AA floor.
+
+The colour rides on a `--row` custom property set per section, so the hover tint and the
+keyboard focus ring pick it up too — which is how the wall still tells you which section you
+are in after the labels scroll off.
+
+### The page is a LOGO WALL, not cards (Auri's revision)
+Second pass, after the first build came back as cards: **logos only, in three rows.** No company
+names, no pitch, no website link, no country, no filter pills. The feed still carries those
+fields for other consumers; the page simply ignores them. Logos sit directly on the near-black
+background with no panel, because the uploads are supposed to be the white-on-transparent
+versions.
+
+A startup whose upload cannot be drawn (the .ai / .cdr pair) would silently VANISH from a wall
+with no names on it, so it falls back to its name set as a plain dashed wordmark. That is
+deliberately ugly: it should read as "fix this upload", not as a design choice.
+
+### Logo variants: pick by WHAT THE FILE IS, never by position (lib/logoPick.ts)
+Auri uploaded white SVG variants alongside the originals, appended LAST in the same
+`High quality company logo` cell. The proxy served attachment `[0]`, so the page kept showing
+the old colour logos and it looked like nothing had changed.
+
+"Take the last one" would also be wrong: **Rilemo holds `logotipo_bianco.svg` AND
+`logotipo_nero.svg`**, and nero (black) sorts last. So `pickLogo()` scores each attachment:
+white/bianco/blanco/weiss/hvid/negative in the filename `+4`, black/nero/noir/dark `-4`, SVG
+`+2`, ties keep upload order. Non-renderable types (.ai, .cdr) are filtered out first.
+
+**One function, two callers**, and that is the point: `lib/lsstartups.ts` uses it to decide
+whether to publish a logo URL at all, and `lib/photo.ts` uses it to choose which bytes to
+serve. If those two disagreed the page would render a file the feed never approved, or show a
+broken image. `PhotoSource` grew an opt-in `pickLogo?: true` so only this feed pays for it;
+every other feed has one headshot per cell where first-wins is correct.
+`logoUrl()` also keeps SVGs on their original URL rather than Airtable's rasterised thumbnail.
+
+Result: all 12 confirmed startups now resolve to a white or vector variant, GreenCow included
+(its .ai is now accompanied by an SVG), so the dashed-wordmark fallback no longer fires at all.
+
+### All 12 logos are white. The measurement that said otherwise was reading a stale cache.
+A canvas measurement after the SVG upload reported 6 logos still wrong (Ownwell, MagCath,
+Sorbus as light boxes; Yoke, SmartSens, Walther as dark ink). **That was a false alarm, and the
+method was at fault.**
+
+`/api/photo/...` is a STABLE URL whose bytes change when the Airtable attachment changes, and it
+answers `Cache-Control: public, max-age=86400`. So the browser kept serving the pre-upload
+files under the same URL, and the canvas dutifully measured them. Clearing localStorage does
+nothing here — that only holds the feed JSON, not the images.
+
+**Measuring an image behind this proxy requires a cache-buster** (`?cb=<random>`), or the result
+describes yesterday's file. With one, all 12 measure white on transparent, which matches the
+files themselves: every SVG Auri exported is `fill:#fff` (`SmartSense.svg` is `#fefdfd`,
+`Walther Therepeutics.svg` `#fcfbfb`).
+
+### FIXED: the proxy URL is now versioned, so a replaced logo appears immediately
+The stale-cache trap was not just a measurement error, it hit Auri too ("I still cannot see any
+updates"). Root cause: `/api/photo/<feed>/<rec>` is a STABLE url whose BYTES change when the
+Airtable attachment is replaced, and it answers `max-age=86400`. Those two facts are in direct
+conflict, and the cache wins for a day.
+
+`photoUrl()` now takes an optional `version`, and `lib/lsstartups.ts` passes **Airtable's
+per-attachment id** (`?v=attR42uRsaqnJOpYL`). Swap a logo and the id changes, so the URL changes,
+so every browser and CDN fetches it at once — while an unchanged logo still caches hard for the
+full day. The route ignores `?v=` entirely; only the cache key reads it.
+
+Other feeds are untouched and still emit unversioned URLs. They can adopt the same argument if a
+headshot ever needs replacing mid-event.
+
+**SVG now outranks a raster named "white"**, which fixed the last real defect: Walther has both
+`Logo in white.png` (450 kB) and a white SVG (11 kB), and the filename hint alone was picking
+the PNG. Scores are now SVG `+5`, white-ish filename `+4`, dark-ish filename `-4`, so Rilemo's
+`logotipo_bianco.svg` still beats `logotipo_nero.svg`. All 12 resolve to an SVG, 2-19 kB each.
+
+### Historic note: the first measurement, before the white SVGs (21 logos)
+Measured, not eyeballed — each logo was drawn to a canvas and its opaque pixels sampled for mean
+luminance and transparency:
+
+- **Solid background, renders as a white box on the dark page (8):** Ownwell, EasyPCR, Epidetect
+  Labs, MagCath, SÉRÉNITÉ-Forceville, Sorbus Biomedical, IROC, and Insellar (a solid DARK navy
+  block, the opposite problem).
+- **Dark ink on transparent, nearly invisible on dark (5):** Vetbac (mean luminance 46), Navari
+  (38), Yoke Bio (81), SmartSens (81), Walther Therapeutics (96).
+- **Genuinely white/light on transparent (8):** Blue2, Cytely, Immunordic, Previto, Rilemo,
+  Magnolia, Paindrainer, Re Fresh.
+
+This is an ASSET problem in Airtable, not a code one, and no CSS fixes it honestly: `invert()`
+would wreck the multi-colour marks, and a light panel behind every logo is the card design that
+was just removed. The 13 need a white version requested from the startup.
+
+Verified: feed 23, rows 7 / 15 / 11, `/api/ls-startups` public (200 with no auth), the two
+non-renderable uploads fall back to a wordmark.
+
+### Next steps
+1. `npm run build`, then commit + push (main auto-deploys).
+2. **No Elementor embed snippet for this page yet** — every other page has one. Ask whether
+   techbbq.dk needs the exhibitor grid embedded.
+3. **Chase white logos from the 13 named above**, plus a png/svg from GreenCow (.ai) and
+   H+H LABS (.cdr). Until then the wall has white boxes and near-invisible marks in it.
+4. Not published but available if wanted: Funding stage, Product development stage, Founded
+   date, Product name, elevator pitch. Left out rather than guessed.
+
 ## Session 2026-08-03e (Brella page: 26-27 only, session dialog with speakers, embed snippets)
 
 State: **DONE and verified in the browser, NOT committed, NOT deployed.** `tsc --noEmit` clean;
@@ -258,6 +724,25 @@ Published 2026-08-03 via Elementor. Two changes, verified on the public page aft
    reported an inconsistent `innerWidth` (3181 regardless of window size) on this display.
    **Pre-existing, not ours:** a `video.elementor-video` widget on this page overflows the
    viewport horizontally at ~1000px wide. Worth fixing separately.
+   **Third revision (partner logos, bigger photos, LinkedIn):**
+   - Headshots 52px → **72px** (64px under 600px).
+   - **Pia Hardy's row is now a link** to `linkedin.com/in/pia-hardy-483254138`, with a LinkedIn
+     glyph on the right and a hover/focus state. That URL came from Airtable, NOT a guess: she is
+     in the Life Science table as "Pia Wilhelmina Hardy" / Nvidia but sits **outside** the
+     published `Speakers Library 2026` view, which is why the earlier in-view search missed her.
+   - **Dr. Ilya Burkov's row is now also a link** to `linkedin.com/in/ilyaburkov/`. Auri supplied
+     that URL directly; it exists nowhere in Airtable (every table with a LinkedIn-ish field was
+     scanned). Both rows are `<a>` now, identical at 100px tall with the LinkedIn glyph. The base
+     `.tbbq-ns__person` rule is kept so a future presenter without a URL can be a plain `<div>`
+     and still look the same.
+   - **Partner logo footer**, hairline-separated: Nebius then NVIDIA, both 24px tall (20px mobile).
+     `NvidiaLog.svg` is white + green (`.cls-1 #fff`, `.cls-2 #77ba44`) so it sits straight on the
+     dark card. `nebius-logo.svg` carries a dark navy `#052B42` wordmark that is invisible on
+     `#131313`, so it gets a **white chip** behind it. Neither logo is recoloured — recolouring a
+     partner mark is their brand call, not ours. If a reversed Nebius or dark-bg NVIDIA variant
+     arrives, drop the chip and give both one treatment.
+   - Gotcha: **`curl` gets HTTP 455 on these SVGs** (bot protection); fetch them from the browser.
+     The PNG/JPG headshots were fine over curl.
    Reference copy of the markup at
    `scratchpad/nebius-grill-session.html` (the published version drops a few CSS comments).
    Static on purpose: it is ONE session with fixed copy, and `/api/partner-events` covers only
@@ -269,6 +754,205 @@ command API from the browser console (`$e.run('document/elements/create')` and
 `document/elements/settings`), because dragging widgets and Ctrl+V into the ACE code editor both
 failed — the OS clipboard is unreachable from the page (`readText` throws "Document is not
 focused") and a synthetic Ctrl+V never reached ACE. Save with `$e.run('document/save/default')`.
+
+### Deep Tech Event Day teaser on the Life Science page (the ONLY route to /deeptechday/)
+
+Auri's decision: the Event Day gets **no entry in Projects and Tracks**. The single way in is a
+teaser section on the Life Science page with a Read more button. So container `e9842d9`
+("Deep Tech Event Day teaser", HTML widget `34be7d7`) at top-level **index 3**, between
+"What to Expect" and "Why Life Science x Deep Tech?" — placed there because the What to Expect
+list already name-drops "Deep Tech Day". **If that block is ever deleted, /deeptechday/ becomes
+unreachable except by direct URL.** There is a comment saying so at the top of the widget.
+
+**REBUILT with native Elementor widgets** after Auri's feedback: no left-only accent line, no pill
+buttons anywhere, and stop hand-coding what Elementor widgets already do. The HTML widget was
+deleted. Current structure, all native:
+- `b7d3581` card container: **1px solid `#2A2A2A` border on all four sides**, radius 20, bg
+  `#131313`, flex row going column on tablet/mobile.
+- `17935e8` copy column: heading widget (eyebrow) + heading widget (H2 title) + text-editor.
+- `9270757` action column: **Elementor button widget**, styles copied off the page's own
+  "Read about the Deep Tech Pitch Competition" button (`29000c8`): 8px radius (not a pill),
+  archivo-expanded 14px/400, `#F2F2F2` text, 20px padding, `sm` size.
+
+Two traps hit here, both worth remembering:
+
+1. **`$e.run` calls that time out may still have executed.** The button-create call timed out at
+   45s, so a guarded retry created a SECOND identical button. Always re-read the model before
+   retrying a create — do not trust the timeout to mean "nothing happened".
+
+2. **Elementor's lazy-background rule blanks gradients on the 4th container onward.** The generated
+   CSS carried the correct `background-image: linear-gradient(...)`, but an inline rule
+   `.e-con.e-parent:nth-of-type(n+4):not(.e-lazyloaded):not(.e-no-lazyload), … *
+   { background-image: none !important }` overrode it, so the button rendered transparent. The
+   `e-lazyloaded` class is only added to containers that themselves have a background, so a
+   background-less wrapper never gets it and the override is permanent. Adding `e-no-lazyload` to
+   the wrapper's `_css_classes` saved into the document but the front end kept serving cached HTML
+   without it. **Fix used: a solid `background_color: #2BB4E1` instead of the gradient**, because
+   the rule only kills `background-image`, never `background-color`. The site's gradient runs
+   `#3CB4CC → #2BB4E1`, two near-identical blues, so it looks the same. `e-no-lazyload` is still on
+   the wrapper; if the cache clears the gradient could be restored, but solid is the safer default.
+
+Verified live: button background `rgb(43,180,225)`, 8px radius, archivo-expanded 14px, `#F2F2F2`
+text, 20px padding, href `/deeptechday/`, four native widgets, zero HTML widgets, border 1px on all
+four sides. **Not visually screenshotted** — this page's scroll-triggered animations move content
+between measuring and capturing, so several attempts framed the wrong section. Worth Auri eyeballing.
+
+**Also spotted on the Life Science page, NOT fixed:** the "Two Pitch Competitions" bullet in
+What to Expect ends with a stray editorial note, `[Icon: Calendar/Stage] Deep Tech Day`, left in
+the published copy. Someone's production instruction that never got removed.
+
+### LIVE on https://techbbq.dk/deeptechday/ (WordPress page id 72609)
+
+The page had been created by **duplicating the LP Universe / Pension Summit page** and was published
+with that event's content still in it: "Our Partners for TechBBQ's LP Universe", 17 pension-fund
+speakers off `/api/investor-speakers?event=pension-summit`, Hotel D'Angleterre as the venue, and
+Rares Bagyo (Investor Relations) as the contact. Auri wanted the LAYOUT kept and the content
+replaced from `Downloads/TechBBQ Deep Tech Event Day _ One-Pager _ Aug 26.pdf`. Done and published:
+
+- **Speakers embed** (widget `492769d`, uid `tbbq-jh2pxa`) repointed to
+  `/api/life-science?stage=Deep%20Tech%20Event%20Day` → the 5 correct speakers. Edited the existing
+  snippet surgically instead of regenerating: endpoint, `LOADMORE`/`STEP` off (5 people need no
+  pagination), fire→ls hover glow, plus one added line blanking `p.tag` so all five cards don't
+  print "DEEP TECH EVENT DAY" on a page that already is that.
+- **Partners** cut from 11 LP logos to 3, in one-pager order, each linked: Novo Nordisk Foundation
+  (`NNFoundation-White.svg` 71236), Microsoft (`microsoft.svg` 31992), Heartcore (`Heartcore.svg`
+  33622). All three verified `#FFFFFF` before use — `NovoNordiskFonden.svg` (19870) is `#222760`
+  navy and `Microsoft_logo_Colour.svg` (71285) has `#737373` text, both unusable on this dark page.
+  Heading → "Our Partners for the Deep Tech Event Day", subtitle → the three programme strands.
+- **Mission** now carries the one-pager's invitation copy. **Location** now says 26 Aug 2026,
+  09:00–17:00, Event Room 6, Bella Center, plus the 10,000+/1,700+/1,000+/60-countries line.
+- **New "What to Expect" section** at top-level index 4, made by duplicating the Mission container
+  so it inherits the styling, with the five programme bullets. Its image column was dropped so the
+  list gets full width.
+- **Contact** → Alixe Averty, Project Manager, alixe@techbbq.org, photo swapped to `Alixe 2026`
+  (71067, the same 2026 series as Rares' headshot). Michael Baczyk (Heartcore) is the one-pager's
+  second contact and is NOT on the page; the layout has one contact card. He does appear as a speaker.
+
+**Second pass (full PDF coverage + spacing).** Auri asked for everything from the one-pager and for
+the sections to sit closer together.
+- **Location section became "At a Glance"** (heading `0a01cf4`, text `6f48361`) carrying the PDF's
+  four bullets verbatim: Date & Venue, Part of, **Audience** (the one fact that was missing entirely,
+  including "universities"), Programme. Converted rather than added, so the venue isn't stated twice.
+- **Michael Baczyk added as a second contact card**, by duplicating `b557543` → `761ec2c`. Investor,
+  Heartcore Capital, michael@heartcore.com. His photo has no WP media entry, so it points at the
+  connector proxy `/api/photo/lifescience/recbl9baiJ5vHRk4d` (verified: serves 512x518). Note that
+  external URL means **no width/height attributes**, so a little layout shift is possible; uploading
+  the headshot to the media library would fix that if it matters.
+- **Spacing: page height 6580px → 4590px in the editor (30% shorter).** Three separate culprits, all
+  inherited from the LP template: (1) `min_height: 40–90vh` on every section below the hero, so short
+  content sat centred in a 900px box — now content-driven; (2) inner card padding `50/20/50/20` →
+  `28/20/28/20`; (3) a `min_height: 300px` on each row, dropped for the text-only What to Expect and
+  reduced to 240px where an image needs a floor. Section padding 36 → 24, margins 40 → 8.
+- **The hero is still `80vh` (1211px)** and untouched, which is now the tallest thing on the page by
+  far. If it still reads as too spread out, that's the next thing to cut.
+
+**Third pass (horizontal contact cards, blue headlines, grouped logos).**
+- Contact cards are now **horizontal**: `flex_direction: row`, photo 132x164 pinned left, details
+  right. 430x192 each, equal, side by side. Pinning the photo needed `_element_width: 'initial'` +
+  `_element_custom_width` + `_flex_size: 'none'` — inside a flex row the image widget's default
+  `flex-shrink: 1` was squashing it to 100px regardless of the width setting.
+- **The three partner logos were spread across the full 1278px row.** Cause: that container is a
+  **grid** container (`display: grid`), so every `flex_*` setting was silently ignored. Fixed by
+  setting `container_type: 'flex'` first, then the flex settings. Now centred with a 56px gap.
+- **Headlines blue — and the trap here is the important part.** Six section headings, ids
+  `a17967f, 17766e0, 138daa4, d636018, 0a01cf4, 5615d33`. Setting `title_color` looked like it
+  worked (`getComputedStyle().color` came back blue) but the first heading still rendered ORANGE,
+  because the **Piotnet addon's gradient-text** feature (`pafe_gradient_text: 'yes'`, colours
+  `#FD7100 → #F40101`, 300deg) paints via `background-clip: text` +
+  `-webkit-text-fill-color: transparent`. `color` is meaningless under that. **Always check
+  `webkitTextFillColor` and `backgroundImage`, not `color`, when verifying text colour on this site.**
+  I then briefly made it worse by enabling `pafe_gradient_text` on the five headings that never had
+  it, which gave them a default `#FFA155` orange. Final state: `pafe_gradient_text: ''` on all six
+  plus `title_color: #2BB4E1`, so all six are flat blue with `backgroundImage: none`.
+
+**Fourth pass (hero rebuilt as a card + logo balance).**
+- Hero content is now exactly Auri's spec: eyebrow `Part of TechBBQ 2026`, H1 `Deep Tech<br>Event Day`
+  in blue at 52px, one "when" line (`26 August 2026 · 09:00 – 17:00 · Event Room 6, Bella Center,
+  Copenhagen`), and the logo. **The PDF tagline was deleted** at his instruction ("and that's it") and
+  now appears nowhere on the site. The ticket note was kept deliberately — practical access info.
+- Hero restyled to match the Life Science teaser card: new inner container `2665226` with
+  `#131313` bg, 1px `#2A2A2A` border, radius 20, flex row, logo left / copy right. Both old inner
+  boxes (`1e6efbe` bordered logo box, `302f132` radius-60 dark panel) were stripped to transparent so
+  there is ONE card rather than three nested ones. Hero height **1211px → 483px**.
+- **How NOT to build a full-width-section card:** styling the section itself (`22c4df3`) made the card
+  run edge-to-edge, because on this page every rounded panel is an INNER container while the section
+  stays full-bleed. Constraining the section instead was a dead end: `width: 1440px` applied but left-
+  aligned, `_flex_align_self: 'center'` did nothing (parent is not a flex row), and Elementor silently
+  dropped `auto` side margins. The fix was structural — create an inner wrapper and
+  `$e.run('document/elements/move', {container, target, options:{at}})` the two children into it.
+  `document/elements/move` works reliably; use it rather than fighting width settings.
+- Partner logos rebalanced: Heartcore (square, fills its box) moved to the middle at 200; Novo and
+  Microsoft to 280, because Novo's mark is 249x48 (~5:1) and filled only a fifth of an equal box.
+  Partners headline reduced to 30px.
+
+**Fifth pass (hero matched to the LS card, bg photo, bigger logos, What-to-Expect boxes).**
+Measured the Life Science teaser card first instead of guessing. Its exact spec, now mirrored on the
+hero card `2665226`: bg `#131313`, 1px `#2A2A2A`, radius 20, `space-between`, `padding 32px 36px`,
+gap 36; eyebrow 11px / line-height 11px / weight 700 / **`#00EAC0` teal** (this was the "missing
+colour" — hero eyebrow had been grey `#9A9A9C`); title 30px / lh 30px / weight 600. Layout mirrored
+to **copy left (62%), deeptech logo right (34%)**.
+- Title colour kept blue `#2BB4E1` (the standing "headlines blue" rule) whereas the LS card's is
+  `#F2F2F2`. Flagged to Auri.
+- **Elementor's sanitiser strips `<br>` from heading titles on save**, so `Deep Tech<br>Event Day`
+  became one line. That happens to match the LS card, so left as is.
+- Hero background photo: `Life-Science-Stage-1-scaled.jpg` (67882, 2560x1440). Sampled its average
+  brightness at **82/255** before committing, then a `#0D0D0D` overlay at **0.72** so the copy still
+  reads. Container overlays are a **`::before` pseudo-element**, not a child div — checking for
+  `.elementor-background-overlay` gives a false negative.
+- Partner logos scaled to 380 / 260 / 380 (Heartcore stays smallest, it fills its box).
+- **What to Expect: the 5 bullets are now 5 individual boxes**, wrapper `f7016d9`, boxes
+  `6557220 b1ca73e 327d4af 7756f85 b9b2f7e`. Each is a container (bg `#191919`, 1px `#2A2A2A`,
+  radius 14, padding 20, width 31.5%) holding a heading + text-editor. The old `<ul>` was stripped
+  from `e3763d4`, leaving only the intro paragraph.
+
+**Sixth pass (contact section mobile fix + responsive overflow audit).** Auri reported the
+"Have any further questions" area not fitting on mobile, and wanted photo-left / text-right on both
+cards. Six separate causes, only the first three of which were mobile-specific:
+1. Alixe's text column `d8b1f15` had **`width_mobile: 500px`** — wider than any phone viewport.
+2. Both text columns had **`flex-shrink: 0`**, because `_flex_size: 'grow'` emits `1 0 auto`. Even
+   with `min-width: 0` and `overflow-wrap: break-word` they could not shrink. Fix is
+   `_flex_size: 'custom'` + `_flex_grow: 1` + `_flex_shrink: 1` → `1 1 auto`.
+3. Alixe's card had a leftover **`padding_mobile` of all zeros** while Michael's was empty, so her
+   photo sat flush to the card edge and the two cards were asymmetric.
+4. **Four section wrappers had a hard `width: 1300px`** (`dd024ed 5f0060d d8cf0fe c7227fb`) with a
+   fixed `738px` tablet value and nothing in between, so ANY window between the tablet breakpoint
+   and 1300px overflowed. Fixed with `width: {size:'min(1300px, 100%)', unit:'custom'}` —
+   **Elementor's `custom` unit accepts arbitrary CSS and is the way to get a responsive cap.**
+5. **The hero deeptech SVG renders ~3.1x its font-size**, so `size: 185px` produced a 575px-wide
+   logo that burst out of its 34% column. Now `clamp(70px, 9vw, 220px)`. First attempt at `22vw`
+   made it worse (691px) — measure the aspect ratio before picking a vw value.
+6. Partner logos at 380 did not fit a narrow desktop. **`flex_wrap: 'wrap'` cannot help here**: the
+   model and `--flex-wrap` both say `wrap` but something forces `flex-wrap: nowrap` in computed
+   style, so the row can never wrap. Sized to 260 / 190 / 260 instead, which fits the narrowest
+   desktop and is close to the 229px speaker photos Auri compared them against.
+
+Verified live: page overflow 0, both cards 430px in a row, photos 132px left of the text on both.
+
+**Two more gotchas from this pass:**
+1. **`border_border` silently reset to `''`** on the hero card at some point, while `border_width`,
+   `border_color` and `border_radius` all survived. The generated CSS then emitted no `--border-*`
+   vars and the card rendered borderless. If a border vanishes, re-check `border_border` specifically.
+2. **The Chrome extension dropped mid-run** and the failed call had partially executed, creating a
+   duplicate text-editor. Same lesson as the timeout case: after any failed structural call, re-read
+   the model before retrying. Waits under ~1.5s between create calls also let the model read stale.
+
+**A bug I introduced and fixed in the same pass, worth remembering:** mapping duplicated widgets by
+text is unsafe. `"alixe@techbbq.org"` matched a `/Alixe/i` name test, so the email heading was
+overwritten with "Michael Baczyk" while the name heading kept "Alixe Averty". Map by explicit
+element id or by position, never by a substring that can appear in more than one field.
+
+**FIXED BY AURI, no longer an issue:** the hero logo no longer says "Pitch Competition".
+
+**Previously known wrong (now resolved above):** the hero logo was
+`Deeptech_Landscape_white_color_pitch-competition.svg` (72619), so the page announces itself as the
+Deep Tech **Pitch Competition**. The one-pager uses a "deeptech Event Day" lockup. No Event Day
+variant exists in the media library (searched deeptech / deep-tech / event-day / eventday), and the
+wording is baked into the SVG so CSS cannot fix it. Upload the Event Day logo and swap widget `0.0.0`.
+
+Section order is inherited from the LP page: Partners, Speakers, Mission, What to Expect, Location,
+Contact. The one-pager's order is Invitation, What to Expect, At a Glance, Partners, Contact — so
+partners currently appear before the page explains the event. Left as-is because Auri asked to keep
+the layout; worth offering a reorder.
 
 ### Repo state
 
