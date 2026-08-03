@@ -31,6 +31,11 @@ const PUBLIC_PATHS = new Set([
   "/api/partners",
   "/api/team",
   "/api/sync-speakers", // guarded by CRON_SECRET instead
+  // Returns embed markup, not data. Every byte of it is already public in the source of any
+  // page that has pasted the snippet, it reads no protected feed and it calls no paid API,
+  // so gating it would protect nothing while making the snippet impossible to fetch from the
+  // WordPress editor that needs it.
+  "/api/embed",
 ]);
 
 const REALM = 'Basic realm="TechBBQ Connector", charset="UTF-8"';
