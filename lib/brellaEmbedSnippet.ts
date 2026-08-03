@@ -159,6 +159,10 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__body{margin-top:10px!important}
   #${id} .tbbq-bp__tick{position:absolute!important;right:8px!important;transform:translateY(-50%)!important;font-size:11px!important;color:var(--muted)!important;white-space:nowrap!important}
   #${id} .tbbq-bp__tick[data-hour]{color:var(--fg)!important}
+  /* Half-hour labels only appear on a phone, and they are dimmer and smaller than the hours so
+     the gutter still reads as hours with marks between them. */
+  @media(max-width:760px){#${id} .tbbq-bp__tick{font-size:10px!important;opacity:.75!important}
+    #${id} .tbbq-bp__tick[data-hour]{font-size:11px!important;opacity:1!important;font-weight:600!important}}
   #${id} .tbbq-bp__line{position:absolute!important;left:var(--gutter)!important;right:0!important;height:1px!important;background:var(--border)!important;opacity:.45!important;pointer-events:none!important}
   #${id} .tbbq-bp__line[data-hour]{opacity:.9!important}
   #${id} .tbbq-bp__col{box-sizing:border-box!important;border-left:1px solid var(--border)!important}
@@ -206,7 +210,7 @@ export function buildBrellaEmbedSnippet({
      scroll, so on any screen shorter than the content the last speaker was simply unreachable —
      which is what Auri saw cut off. overscroll-behavior stops a scroll that reaches the end
      from carrying on into the page behind. */
-  #${id} .tbbq-bp__modal{position:relative!important;width:100%!important;max-width:640px!important;max-height:90vh!important;overflow-y:auto!important;overscroll-behavior:contain!important;background:var(--card)!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:16px!important;padding:28px!important}
+  #${id} .tbbq-bp__modal{position:relative!important;width:100%!important;max-width:640px!important;max-height:90vh!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;background:var(--card)!important;border:1px solid var(--border)!important;border-top:3px solid var(--track)!important;border-radius:16px!important;padding:28px!important}
   /* sticky + float, NOT absolute: the modal is now the scroll container, so an absolutely
      positioned close button scrolls out of reach on a long session. */
   #${id} .tbbq-bp__close{position:sticky!important;top:0!important;float:right!important;z-index:2!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:32px!important;height:32px!important;margin:-6px -6px 0 14px!important;padding:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card2)!important;color:var(--muted)!important;cursor:pointer!important}
@@ -237,8 +241,12 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__pmore{display:inline-flex!important}
   #${id} .tbbq-bp__ptag{text-transform:uppercase!important;display:inline-block!important}
   #${id} .tbbq-bp__modal h3{margin:24px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
-  #${id} .tbbq-bp__people{list-style:none!important;margin:12px 0 0!important;padding:0!important;display:grid!important;gap:14px!important}
-  #${id} .tbbq-bp__person{display:flex!important;gap:12px!important;margin:0!important;padding:0!important}
+  /* BLOCK, not grid. As a grid this list measured 582px inside a 283px modal on a phone and
+     made the whole dialog scroll sideways. Block flow cannot outgrow its parent, and this
+     theme has already been caught mishandling grid containers elsewhere. */
+  #${id} .tbbq-bp__people{list-style:none!important;margin:12px 0 0!important;padding:0!important;display:block!important;width:100%!important}
+  #${id} .tbbq-bp__person{display:flex!important;flex-wrap:nowrap!important;align-items:flex-start!important;gap:12px!important;margin:0 0 14px!important;padding:0!important;width:100%!important;max-width:100%!important}
+  #${id} .tbbq-bp__person:last-child{margin-bottom:0!important}
   #${id} .tbbq-bp__photo{flex:0 0 auto!important;width:52px!important;height:52px!important;border-radius:9999px!important;object-fit:cover!important;object-position:50% 30%!important;background:var(--card2)!important;display:grid!important;place-items:center!important;font-family:var(--head)!important;font-weight:700!important;color:var(--track)!important;margin:0!important}
   #${id} .tbbq-bp__ptoggle{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important;width:100%!important;padding:0!important;border:0!important;background:none!important;cursor:pointer!important;font:inherit!important;text-align:left!important;color:inherit!important;appearance:none!important;box-shadow:none!important}
   #${id} .tbbq-bp__pname{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;color:#fff!important}
@@ -405,8 +413,9 @@ export function buildBrellaEmbedSnippet({
 
     /* A phone keeps the same type size in a column a third as wide, so titles wrap onto more
        lines and were being cut off by a card whose height comes from its DURATION. Stretching
-       the minute scale gives that text somewhere to go. */
-    var PXN=narrow?3.4:PX;
+       the minute scale gives that text somewhere to go, and leaves room to label every half
+       hour instead of every hour, which a phone has space for once the rows are this tall. */
+    var PXN=narrow?4.2:PX;
     var start=9*60,end=start+60;
     timed.forEach(function(x){if(x.start<start)start=x.start;if(x.end>end)end=x.end;});
     var from=Math.floor(start/SLOT)*SLOT,to=Math.ceil(end/SLOT)*SLOT;
@@ -438,7 +447,8 @@ export function buildBrellaEmbedSnippet({
       +'</div>'
       +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
       +'<div class="tbbq-bp__gutter" style="position:absolute;left:0;top:0;width:'+GUT+'px;height:100%">'
-      +ticks.map(function(x){return '<span class="tbbq-bp__tick"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;right:8px;top:'+((x-from)*PXN)+'px">'+((x%60===0)?hhmm(x):"")+'</span>';}).join("")
+      +ticks.map(function(x){var onHour=(x%60===0);
+        return '<span class="tbbq-bp__tick"'+(onHour?' data-hour="1"':'')+' style="position:absolute;right:8px;top:'+((x-from)*PXN)+'px">'+((onHour||narrow)?hhmm(x):"")+'</span>';}).join("")
       +'</div>'
       +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PXN)+'px"></span>';}).join("");
 
