@@ -1285,6 +1285,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-tl__card[data-compact] .bp-tl__cardTitle { -webkit-line-clamp: 1; font-size: 11.5px; }
 .bp-tl__card[data-compact] .bp-tl__cardTime,
 .bp-tl__card[data-compact] .bp-tl__cardMeta { display: none; }
+/* Short but not tiny: keep the title and the time, drop the faces. */
+.bp-tl__card[data-tight] .bp-tl__cardMeta { display: none; }
 
 @media (max-width: 900px) {
   /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the

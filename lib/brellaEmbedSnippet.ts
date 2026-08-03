@@ -40,8 +40,11 @@ export type BrellaEmbedOptions = {
   transparent?: boolean;
 };
 
-// Vertical scale, shared with the dashboard: 30 minutes = 72px.
-const PX_PER_MIN = 2.4;
+// Vertical scale, shared with the dashboard: 30 minutes = 90px. It was 72px until the live
+// page showed 18 of 41 cards clipping their own text — a real column on techbbq.dk is ~270px
+// wide, narrower than any local preview, so titles wrap onto two lines far more often while a
+// card's height still comes from its duration.
+const PX_PER_MIN = 3;
 const SLOT_MIN = 30;
 const MIN_CARD_PX = 26;
 
@@ -175,6 +178,8 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__ev[data-compact]{padding:3px 8px!important}
   #${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evTitle{-webkit-line-clamp:1;font-size:11.5px!important}
   #${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evTime,#${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evWho{display:none!important}
+  /* Short but not tiny: keep the title and the time, drop the faces. */
+  #${id} .tbbq-bp__ev[data-tight] .tbbq-bp__evWho{display:none!important}
 
   /* ── CARD LIST (event rooms, side events) ── */
   #${id} .tbbq-bp__daylabel{margin:26px 0 12px!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -467,14 +472,16 @@ export function buildBrellaEmbedSnippet({
         var s=p.x.s;
         var h=Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4);
         var compact=h<46;
+        /* Between the two: enough room for the title and the time, not for a row of faces. */
+        var tight=!compact&&h<66;
         var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
           +(who?'<span class="tbbq-bp__evWho">'+faces(s.speakers,2)+'<span class="tbbq-bp__evNames">'+esc(who)+'</span></span>':'');
         html+=hasDetail(s)
-          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
-          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
+          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
+          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
       });
       html+='</div>';
     });

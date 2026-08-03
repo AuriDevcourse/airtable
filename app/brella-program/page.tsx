@@ -76,7 +76,10 @@ function startMinutes(slot: string): number {
 // can read across and see what is on at 11:00. That only works if vertical distance means
 // time, which is why the cards are absolutely positioned rather than stacked.
 
-const PX_PER_MIN = 2.4; // 30 minutes = 72px, enough for a two-line title plus the time
+// 30 minutes = 90px. Was 72px until the live page showed 18 of 41 cards clipping: a real
+// column on techbbq.dk is ~270px wide, so titles wrap onto two lines far more often while the
+// card's height still comes from its duration.
+const PX_PER_MIN = 3;
 const SLOT_MIN = 30; // gridline interval
 // Floor for a card's height, so a three-minute session is still readable.
 const MIN_CARD_PX = 26;
@@ -331,6 +334,8 @@ function StageTimeline({
                 // Below ~46px there is only room for one line, so the card drops the time
                 // and the speaker count rather than showing three clipped half-lines.
                 const compact = h < 46;
+                // Between the two: room for the title and time, not for a row of faces.
+                const tight = !compact && h < 66;
                 const style = {
                   ...trackVars(s.room),
                   top: (s.start - from) * PX_PER_MIN,
@@ -360,6 +365,7 @@ function StageTimeline({
                     className="bp-tl__card bp-tl__card--open"
                     style={style}
                     data-compact={compact ? "1" : undefined}
+                    data-tight={tight ? "1" : undefined}
                     title={s.name}
                     onClick={() => onOpen(s)}
                     aria-label={`${s.name} — show details`}
@@ -372,6 +378,7 @@ function StageTimeline({
                     className="bp-tl__card"
                     style={style}
                     data-compact={compact ? "1" : undefined}
+                    data-tight={tight ? "1" : undefined}
                     title={s.name}
                   >
                     {inner}
