@@ -8,12 +8,15 @@ reaching the browser.
 
 # HANDOFF · read this first (2026-08-03)
 
-**State: committed, NOT YET PUSHED.** Head of `main` is "Partners: emit absolute logo URLs so
-the embed works off techbbq.dk" (no hash here on purpose: it is this same commit, so any hash
-written into it is stale the moment it is written). Clean tree, `tsc --noEmit` clean. That
-commit is the partner-logo absolute-URL fix (session 03k below) and it is what makes the
-partners wall work on techbbq.dk. Push it, wait for the deploy, then re-copy the partners embed
-in that order. main auto-deploys, so what is on GitHub is what is on the site.
+**State: pushed and deployed.** Clean tree, `tsc --noEmit` clean. (No commit hash recorded here
+on purpose: this line ships inside the commit it would describe, so any hash written into it is
+stale the moment it is written.) main auto-deploys, so what is on GitHub is what is on the site.
+
+**The one thing left is manual and nothing works without it: re-copy BOTH embeds** from the
+deployed dashboard into their Elementor HTML widgets. Sessions 03k and 03l fixed the partner
+logo 404s, the black panel, the tile geometry and the empty International row, and a pasted
+snippet NEVER self-updates. Paste into an HTML widget, not a Text Editor widget: the latter runs
+wpautop, which injects `<p>` and `<br>` into the script and breaks it outright.
 
 ## What exists now
 
@@ -84,6 +87,72 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 
 ---
+
+## Session 2026-08-03l (embed made to match the dashboard: no black box, 5:3 tiles, no empty tier)
+
+State: fixed and verified against a hostile-CSS harness. `tsc --noEmit` clean.
+
+Four things Auri reported after pasting the fixed snippet. All four were real, and three of them
+were the embed and the dashboard quietly disagreeing about geometry.
+
+**1. The black box.** The panel painted its own `#0d0d0d` background plus 32px padding, which on
+techbbq.dk sat as a dark slab on the section's own background. `transparent` now defaults to
+TRUE in both builders. The wall is white logos on whatever the page provides.
+
+**2 and 3. Logos smaller on the site than locally.** Two independent causes, and the second is
+the one that mattered.
+
+*Cause A, tile shape.* The dashboard's `.lw-logo` is `aspect-ratio:5/3`, so its height tracks
+its width. The embed hardcoded `height:150px`. On the dashboard a 5-column tile is ~245x147, so
+150px is about right; on techbbq.dk the same tile is ~310 wide and should be 186 tall. Every
+logo was working in a box 20% too short. Fixed with `sizeTiles()`, which sets
+`height = round(width * 0.6)` inline with `setProperty(..., "important")` — an ordinary inline
+style loses to the stylesheet's own `!important` fallback.
+
+*Cause B, and this is the real one: the image could never scale UP.* The embed styled the img
+`width:auto; height:auto; max-width:100%; max-height:100%`. That renders an image at its
+INTRINSIC size and only ever shrinks it. Any logo whose natural size is smaller than the tile
+just sat there small, and `object-fit:contain` did nothing because the element box was already
+the intrinsic box. The dashboard never had this bug: there the img IS the tile, `width:100%`,
+so contain scales up as well as down. Fixed by making the embed img fill the tile the same way
+(`width:100%; height:100%; object-fit:contain`) and measuring the img's own box in `fitOne()`.
+
+Measured, all 104 partners, logo area as a fraction of tile area:
+
+| | before | after | dashboard |
+|---|---|---|---|
+| Impact Fund Denmark | 0.081 | 0.403 | 0.375 |
+| Flatpay | 0.390 | 0.390 | 0.342 |
+| Skytek Nordics | — | 0.390 | 0.342 |
+| median | 0.371 | 0.374 | 0.342 |
+| spread (max/min) | 9.93x | 5.92x | 6.13x |
+
+Impact Fund Denmark was five times too small and is now slightly above the dashboard. Spread now
+matches the dashboard's, which is the real test: the embed is no longer a different renderer.
+
+**4. An empty INTERNATIONAL heading on the site but not locally.** There are currently ZERO
+International partners. The dashboard drops rows with no items; the embed mapped over all eight
+tiers unconditionally and printed a bare heading. It now skips empty rows. Filtered in the
+snippet, not the feed, because a tier can be non-empty in Airtable and still have nothing to
+show once logo-less partners are dropped.
+
+**How this was verified**, since the handoff's trap #2 says never trust an image measurement:
+generated the real snippet into a throwaway `public/_embedtest.html` wrapped in deliberately
+hostile host CSS (`a{display:contents}`, `img{aspect-ratio:3/2}`, `span{display:inline}` — the
+same shapes Elementor was imposing), forced every image `eager`, awaited every `onload`, then
+computed the VISIBLE logo size from `naturalWidth/Height` and the contain ratio rather than
+trusting the element box. Same measurement run against `/partners` for the comparison column.
+The harness was deleted afterwards; regenerate it from the builder if this needs revisiting.
+
+Both walls now: transparent, tile ratio 0.600, "More soon" flush with its row, LS 3 rows,
+partners 7 rows.
+
+Files: `lib/partnersEmbedSnippet.ts`, `lib/lsStartupsEmbedSnippet.ts`.
+
+### Next steps
+
+1. Re-copy BOTH embeds from the deployed dashboard. Nothing here reaches techbbq.dk until then.
+2. If the wall ever needs its own dark panel back, pass `transparent: false` in the copy button.
 
 ## Session 2026-08-03k (partner logos 404'd on techbbq.dk: the feed emitted relative URLs)
 

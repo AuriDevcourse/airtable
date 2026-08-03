@@ -32,7 +32,10 @@ const ROWS = [
 
 export function buildPartnersEmbedSnippet({
   uid,
-  transparent = false,
+  // Transparent by DEFAULT. The panel used to paint its own near-black box, which on
+  // techbbq.dk sat as a visible dark slab on top of the section's own background. The wall is
+  // white logos on whatever the page provides; it does not need a background of its own.
+  transparent = true,
 }: PartnersEmbedOptions = {}): string {
   const id = uid || "tbbq-partners";
   const path = "/api/partners";
@@ -68,8 +71,13 @@ export function buildPartnersEmbedSnippet({
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
      drew at its natural size. The fixed height below is the load-bearing rule. */
   #${id} .tbbq-pw__link{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;text-decoration:none!important;color:inherit!important;line-height:0!important}
-  #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:150px!important;max-height:150px!important;aspect-ratio:auto!important;padding:16px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
-  #${id} .tbbq-pw__tile img{transform-origin:center center!important;transition:transform .2s ease!important;display:block!important;width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
+  /* Height is a FALLBACK only. sizeTiles() overwrites it with width x 0.6, so the tile is the
+     same 5:3 box the dashboard uses (.lw-logo in globals.css). A fixed pixel height cannot
+     match, because the column width on techbbq.dk is far wider than on the dashboard: at ~290px
+     columns the correct height is 174px, and 150px squeezed every logo. That mismatch is why
+     the wall looked smaller on the site than in the local preview. */
+  #${id} .tbbq-pw__tile{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;padding:18px!important;margin:0!important;border:0!important;border-radius:12px!important;background:transparent!important;line-height:0!important;overflow:hidden!important;transition:background .2s ease,transform .2s ease!important}
+  #${id} .tbbq-pw__tile img{transform-origin:center center!important;transition:transform .2s ease!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center center!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;aspect-ratio:auto!important}
   #${id} .tbbq-pw__link:hover .tbbq-pw__tile{background:var(--row-hover,var(--card))!important;transform:translateY(-2px)!important}
   /* The ring is drawn on the tile rather than the anchor, so it hugs the logo box.
      Without this the link is keyboard-reachable but invisible when focused, which a wall of
@@ -85,7 +93,9 @@ export function buildPartnersEmbedSnippet({
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
     #${id} .tbbq-pw__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-    #${id} .tbbq-pw__tile{height:110px!important;min-height:110px!important;max-height:110px!important;padding:10px!important}
+    /* 12px to match .lw-logo's phone padding on the dashboard. Height still comes from
+       sizeTiles(), so the 5:3 box holds on a phone too. */
+    #${id} .tbbq-pw__tile{padding:12px!important}
     #${id} .tbbq-pw__label{font-size:11px!important}
   }
 </style>
@@ -147,14 +157,27 @@ export function buildPartnersEmbedSnippet({
   function fitOne(img){
     var w=img.naturalWidth,h=img.naturalHeight;
     if(!w||!h)return;
-    var cs=getComputedStyle(img.parentNode);
-    var boxW=img.parentNode.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
-    var boxH=img.parentNode.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    /* The IMG fills the tile's content box and object-fit:contain does the letterboxing, the
+       same arrangement the dashboard uses. So the box to measure is the img itself, and it has
+       no padding of its own (the tile carries it). */
+    var boxW=img.clientWidth,boxH=img.clientHeight;
     if(boxW<=0||boxH<=0)return;
     var f=Math.min(boxW/w,boxH/h), area=(w*f)*(h*f);
     if(!area)return;
     var k=Math.max(.35,Math.min(1,Math.sqrt(boxW*boxH*.55/area)));
     img.style.transform = k<.999 ? "scale("+k.toFixed(3)+")" : "";
+  }
+  /* Give every tile the dashboard's 5:3 box: height = width x 0.6, measured not guessed.
+     Set as an inline style with PRIORITY, because the stylesheet above declares the fallback
+     height with !important and an ordinary inline style would lose to it. This is what keeps
+     the embed the same shape as the local preview at any column width. */
+  function sizeTiles(){
+    var tiles=root.querySelectorAll(".tbbq-pw__tile");
+    for(var i=0;i<tiles.length;i++){
+      var w=tiles[i].clientWidth;
+      if(!w)continue;
+      tiles[i].style.setProperty("height",Math.round(w*0.6)+"px","important");
+    }
   }
   function fitLogos(){
     var imgs=root.querySelectorAll(".tbbq-pw__tile img");
@@ -164,10 +187,11 @@ export function buildPartnersEmbedSnippet({
       else im.addEventListener("load",(function(x){return function(){fitOne(x);};})(im),{once:true});
     }
   }
+  function layout(){sizeTiles();fitLogos();}
   /* Column count changes at the breakpoints, so the tile changes shape and every scale has to
      be recomputed. Debounced: resize fires continuously while dragging. */
   var fitTimer;
-  window.addEventListener("resize",function(){clearTimeout(fitTimer);fitTimer=setTimeout(fitLogos,120);});
+  window.addEventListener("resize",function(){clearTimeout(fitTimer);fitTimer=setTimeout(layout,120);});
 
   fetch(ENDPOINT).then(function(r){
     /* r.ok matters: a 429 or 502 still returns JSON with no list in it, which without this
@@ -181,13 +205,18 @@ export function buildPartnersEmbedSnippet({
     rowsEl.innerHTML=ROWS.map(function(row){
       /* One tier per partner, unlike the Life Science wall where LS Type is a multi-select. */
       var items=all.filter(function(s){return s.tier===row.name&&safeUrl(s.logo);});
+      /* SKIP an empty tier. The dashboard drops rows with no partners, and without this the
+         embed printed a bare "INTERNATIONAL" heading with nothing under it: there are
+         currently zero International partners. Rows must be filtered here, not in the feed,
+         because a tier can be non-empty in Airtable and still have no logo to show. */
+      if(!items.length)return "";
       return '<section class="tbbq-pw__row" style="'+rowVars(row.color)+';--cols:'+row.cols+'">'
         +'<h3 class="tbbq-pw__label">'+esc(row.name)+'</h3>'
         +'<div class="tbbq-pw__grid">'
         +items.map(tile).join("")
         +'</div></section>';
     }).join("");
-    fitLogos();
+    layout();
   }).catch(function(err){
     statusEl.textContent="Could not load the partners.";
     if(window.console)console.error("[tbbq partners embed]",err);
