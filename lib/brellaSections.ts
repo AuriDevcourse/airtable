@@ -6,16 +6,42 @@
 // the headings, the route filters server-side so an embed can request one section, and a
 // second copy of these rules would drift the moment a track is renamed in Brella.
 
-export type BrellaSection = "stages" | "rooms" | "side";
+export type BrellaSection = "stages" | "rooms" | "grills" | "side";
 
 export const BRELLA_SECTIONS: { key: BrellaSection; label: string }[] = [
   { key: "stages", label: "Stages" },
   { key: "rooms", label: "Event Rooms" },
+  { key: "grills", label: "Grill Sessions" },
   { key: "side", label: "Side Events" },
 ];
 
 export function isBrellaSection(v: string | null): v is BrellaSection {
-  return v === "stages" || v === "rooms" || v === "side";
+  return v === "stages" || v === "rooms" || v === "grills" || v === "side";
+}
+
+/**
+ * The five stages, in the order TechBBQ lists them.
+ *
+ * This is an EXPLICIT list rather than whatever tracks happen to carry sessions, for one
+ * reason: Campfire Stage is a real Brella track (id 43281) with nothing scheduled on it yet.
+ * Derived from the data it would simply not exist, and would then appear without warning the
+ * day someone adds a session. Naming it here gives it a column that is visibly empty instead.
+ *
+ * `match` exists because Brella's track name and the public stage name are not always the same
+ * ("Founders Stage" on the signage is "Founder Stage" in Auri's list).
+ */
+export const BRELLA_STAGES: { label: string; match: RegExp }[] = [
+  { label: "BBQ Stage", match: /^bbq stage/i },
+  { label: "Tech Stage", match: /^tech stage/i },
+  { label: "Campfire Stage", match: /campfire/i },
+  { label: "Founder Stage", match: /^founders? stage/i },
+  { label: "Life Science x Deep Tech Stage", match: /life science/i },
+];
+
+/** The stage a track belongs to, or null when it is not one of the five. */
+export function stageOf(room: string): string | null {
+  const hit = BRELLA_STAGES.find((s) => s.match.test(room));
+  return hit ? hit.label : null;
 }
 
 /**
@@ -33,11 +59,22 @@ export function isBrellaSection(v: string | null): v is BrellaSection {
 // section the day it appears rather than quietly showing up under Stages.
 const ROOM_SUMMITS = /nordic\s+(india|africa)|(india|africa)\s+summit/i;
 
+// The Grill Sessions get their own tab (Auri's call). They are roundtables, not stage
+// programming, and three tracks of them under Stages drowned the five real stages.
+const GRILLS = /grill session/i;
+
+// Future of FinTech runs IN Event Room 1, so it files under Event Rooms. Its own name is kept
+// rather than being rewritten to "Event Room 1": that is a separate Brella track with its own
+// sessions, and merging the two would hide which is which.
+const ROOM_PROGRAMMES = /future of fintech/i;
+
 export function sectionOf(room: string): BrellaSection {
   if (/^side event/i.test(room)) return "side";
+  if (GRILLS.test(room)) return "grills";
   // "Event Room 3" and "Rooms 5,6,7" are both room tracks.
   if (/^(event room|rooms?\b)/i.test(room)) return "rooms";
   if (ROOM_SUMMITS.test(room)) return "rooms";
+  if (ROOM_PROGRAMMES.test(room)) return "rooms";
   return "stages";
 }
 
@@ -53,10 +90,38 @@ export function sectionOf(room: string): BrellaSection {
 // uses and the one on the signage. Brella's own "Day N" is NOT that: it numbers whichever
 // dates happen to exist in the feed, so its Day 1 was 24 August until someone deleted a test
 // row mid-build, after which every day silently shifted by one. Never surface Brella's number.
-export const EVENT_DAYS: { date: string; label: string }[] = [
-  { date: "26 August", label: "DAY 1" },
-  { date: "27 August", label: "DAY 2" },
+export const EVENT_DAYS: { date: string; label: string; monthDay: [number, number] }[] = [
+  { date: "26 August", label: "DAY 1", monthDay: [7, 26] }, // month is 0-based: 7 = August
+  { date: "27 August", label: "DAY 2", monthDay: [7, 27] },
 ];
+
+/**
+ * Which day the program should open on: Day 2 once it is actually the 27th, Day 1 otherwise.
+ *
+ * `now` is injected rather than read here so this stays a pure function — the caller passes
+ * `new Date()`. Never compute "today" at module scope: a value captured once at first render
+ * is wrong for anyone who leaves the page open overnight, and on a static build it would be
+ * frozen at BUILD time, which is the bug that bit the AI Workshop dashboard.
+ */
+export function defaultEventDay(now: Date): number {
+  const [m, d] = EVENT_DAYS[1].monthDay;
+  return now.getMonth() === m && now.getDate() >= d ? 1 : 0;
+}
+
+/** "09:30 - 10:00" → {start: 570, end: 600} in minutes. null for "All day" and junk. */
+export function parseSlot(slot: string): { start: number; end: number } | null {
+  const m = /(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/.exec(slot || "");
+  if (!m) return null;
+  const start = Number(m[1]) * 60 + Number(m[2]);
+  let end = Number(m[3]) * 60 + Number(m[4]);
+  // A slot that ends before it starts has crossed midnight. Nothing on the stages does, but
+  // an unguarded negative height would collapse the card to nothing rather than look wrong.
+  if (end <= start) end = start + 30;
+  return { start, end };
+}
+
+/** The timeline always opens at 09:00, whatever the first session is. Auri's spec. */
+export const DAY_START_MIN = 9 * 60;
 
 export function isStageDay(day: string): boolean {
   return EVENT_DAYS.some((d) => day.includes(d.date));

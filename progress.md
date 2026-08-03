@@ -93,6 +93,55 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03n (Brella Stages rebuilt as a one-day timeline)
+
+State: done, pushed. `tsc --noEmit` clean. DASHBOARD ONLY — the Brella EMBED still renders the
+old day-grouped card list and has NOT been ported.
+
+**Stages is now a clock, not a list.** One column per stage, one day at a time, origin fixed at
+09:00. Controls in order: centred section masthead, stage picker, day picker. Event Rooms, Grill
+Sessions and Side Events keep the card list, because only the stages run in parallel.
+
+**The five stages are an EXPLICIT list** (`BRELLA_STAGES` in `lib/brellaSections.ts`), not
+whatever the data happens to contain. Campfire Stage is a real Brella track (id 43281) with
+nothing on it yet; derived from the data it would not exist at all, then appear unannounced the
+day someone schedules something. It gets a visibly empty column instead. `match` regexes map the
+Brella name to the public one ("Founders Stage" -> "Founder Stage").
+
+**Two tracks moved section**, both Auri's call:
+- Grill Sessions (Green/Blue/Orange, 17 sessions) are their own tab now. Three grill tracks under
+  Stages drowned the five real stages.
+- Future of FinTech (7) runs in Event Room 1, so it files under Event Rooms. Its own name is
+  kept: "Event Room 1" is a separate track with its own sessions and merging them hides which is
+  which.
+
+**Default day follows the calendar**: Day 2 once it is actually 27 August, Day 1 otherwise.
+`defaultEventDay(now)` takes the date as an ARGUMENT and is called from an effect, never at
+module scope. Module scope would freeze it at build time, which is exactly the bug that hit the
+AI Workshop dashboard, and computing it during render would trip a hydration mismatch.
+
+**Three layout bugs worth remembering, all found by looking rather than reasoning:**
+1. Cards showed a time and no title. The card is a flex column and the title, being shrinkable,
+   lost to its siblings and collapsed to zero height. `flex: none` on all three children plus
+   `overflow: hidden` makes the title win and the timestamp the thing that clips.
+2. Short sessions overlapped the next card. A 5-minute slot is 12px at 2.4px/min and is floored
+   to a 26px minimum, so it ends earlier on the clock than it does on screen. The lane packer now
+   compares DRAWN extents (`MIN_CARD_MIN`), not scheduled ones.
+3. One brief clash halved every card in the column for the whole day, because lanes were counted
+   per column. They are now counted per CLUSTER of mutually overlapping sessions.
+
+Cards shorter than 46px get `data-compact`: title only, one line. Half a clipped title above half
+a clipped timestamp reads as broken.
+
+Files: `lib/brellaSections.ts`, `app/brella-program/page.tsx`, `app/globals.css`.
+
+### Next steps
+
+1. **Port the timeline to `lib/brellaEmbedSnippet.ts`.** Nothing here reaches techbbq.dk. The
+   embed also predates the new Grill Sessions section, so its section list is short by one.
+2. Campfire Stage fills itself in as soon as Brella has sessions on track 43281. No code change.
+3. `PX_PER_MIN` (2.4) is the one knob for vertical density.
+
 ## Session 2026-08-03m (per-logo size nudges, the EU frieze, bigger tier labels, more air)
 
 State: done, pushed. `tsc --noEmit` clean.

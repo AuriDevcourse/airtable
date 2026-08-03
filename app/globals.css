@@ -1084,8 +1084,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    and announced. The unselected ones read as muted headings, which is the whole look. */
 .bp-sections {
   display: flex; flex-wrap: wrap; align-items: baseline;
+  /* Centred: this is the page's masthead, and left-aligned it read as a stray heading
+     rather than the primary control. */
+  justify-content: center;
   gap: 8px 28px;
-  margin: 8px 0 28px;
+  margin: 8px 0 24px;
 }
 .bp-sections button {
   padding: 0; border: 0; background: none; cursor: pointer;
@@ -1105,6 +1108,118 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* Inherits .seg for the pill look; this only lets a long track list wrap instead of
    overflowing, which .seg's single row does not do. */
 .bp-tracks { flex-wrap: wrap; margin-bottom: 8px; }
+/* The stage and day pickers sit under the centred masthead, so they centre too. */
+.bp-tracks--center, .bp-days { justify-content: center; }
+.bp-days { flex-wrap: wrap; margin: 10px 0 4px; }
+
+/* ─── STAGE TIMELINE ─────────────────────────────────────────────────────────────────────
+   One column per stage, one day at a time. Vertical distance IS time, so the cards are
+   positioned absolutely against a 09:00 origin rather than stacked in document order. */
+.bp-tl { margin-top: 20px; --gutter: 74px; }
+
+.bp-tl__allday {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; padding: 8px 10px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+}
+.bp-tl__allday > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.bp-tl__alldayLabel {
+  flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--color-muted);
+}
+.bp-tl__chipCard {
+  border: 0; border-left: 3px solid var(--track, var(--color-red));
+  background: var(--color-card); color: var(--color-foreground);
+  padding: 5px 9px; border-radius: 6px; font-size: 12px; cursor: pointer; text-align: left;
+}
+
+/* Head and body share one grid template, or the column headings drift off their columns. */
+.bp-tl__head, .bp-tl__body {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 0 8px;
+}
+.bp-tl__head { position: sticky; top: 0; z-index: 3; background: var(--color-background); }
+.bp-tl__colHead {
+  padding: 8px 6px; border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-heading); font-size: 13px; font-weight: 600; line-height: 1.25;
+  color: var(--color-foreground);
+  /* Five stage names, one of which is "Life Science x Deep Tech Stage". Wrapping beats
+     truncating: the column heading is the only thing identifying the column. */
+  overflow-wrap: anywhere;
+}
+.bp-tl__gutterHead { border-bottom: 1px solid var(--color-border); }
+
+.bp-tl__body { position: relative; }
+.bp-tl__gutter { position: relative; }
+.bp-tl__tick {
+  position: absolute; right: 8px; transform: translateY(-50%);
+  font-size: 11px; color: var(--color-muted); white-space: nowrap;
+}
+.bp-tl__tick[data-hour] { color: var(--color-foreground); }
+
+/* Gridlines span every column. Half-hours are fainter than hours so the eye can still find
+   the hour without counting. */
+.bp-tl__line {
+  position: absolute; left: var(--gutter); right: 0; height: 1px;
+  background: var(--color-border); opacity: .45; pointer-events: none;
+}
+.bp-tl__line[data-hour] { opacity: .9; }
+
+.bp-tl__col { position: relative; min-width: 0; }
+.bp-tl__empty {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  margin: 0; padding: 8px; text-align: center;
+  font-size: 12px; color: var(--color-muted); opacity: .6;
+}
+
+.bp-tl__card {
+  position: absolute; overflow: hidden;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 8px; margin: 0;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--track, var(--color-red));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--track, #FA7000) 14%, var(--color-card));
+  color: var(--color-foreground);
+  text-align: left; font: inherit;
+}
+.bp-tl__card--open { cursor: pointer; }
+.bp-tl__card--open:hover {
+  background: color-mix(in srgb, var(--track, #FA7000) 26%, var(--color-card));
+}
+.bp-tl__card--open:focus-visible { outline: 2px solid var(--track, var(--color-red)); outline-offset: 1px; }
+/* flex: none on all three. As flexible items they SHRANK, and on a short card the title lost
+   the fight and collapsed to zero height, leaving cards showing a time and nothing else.
+   Fixed-size children plus overflow:hidden means the title always wins and the time is what
+   gets clipped. */
+.bp-tl__cardTitle {
+  flex: none;
+  font-size: 12.5px; font-weight: 600; line-height: 1.25;
+  /* Clamped because the card's height is dictated by the session's LENGTH: a 10-minute slot
+     is 24px tall and cannot show a full title however much it would like to. */
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
+.bp-tl__cardMeta { flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted); }
+
+/* A slot too short to hold more than one line: show the title alone. The time is in the
+   dialog, and half a clipped title plus half a clipped timestamp reads as broken. */
+.bp-tl__card[data-compact] { padding: 3px 8px; }
+.bp-tl__card[data-compact] .bp-tl__cardTitle { -webkit-line-clamp: 1; font-size: 11.5px; }
+.bp-tl__card[data-compact] .bp-tl__cardTime,
+.bp-tl__card[data-compact] .bp-tl__cardMeta { display: none; }
+
+@media (max-width: 900px) {
+  /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the
+     gutter pinned. Each column keeps a usable minimum instead of being squeezed to nothing. */
+  .bp-tl { overflow-x: auto; }
+  .bp-tl__head, .bp-tl__body {
+    grid-template-columns: var(--gutter) repeat(var(--cols, 5), minmax(150px, 1fr));
+    min-width: max-content;
+  }
+  .bp-tl { --gutter: 60px; }
+}
 
 .bp-day { margin-top: 28px; }
 .bp-day__label {

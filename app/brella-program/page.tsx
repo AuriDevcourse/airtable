@@ -6,9 +6,15 @@ import { useCachedList } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
 import {
   BRELLA_SECTIONS as SECTIONS,
+  BRELLA_STAGES,
+  DAY_START_MIN,
+  EVENT_DAYS,
   brellaDayLabel as dayLabel,
+  defaultEventDay,
   inBrellaSection,
+  parseSlot,
   sectionOf,
+  stageOf,
   type BrellaSection as SectionKey,
 } from "@/lib/brellaSections";
 
@@ -71,6 +77,222 @@ function dayNumber(day: string): number {
 function startMinutes(slot: string): number {
   const m = /(\d{1,2}):(\d{2})/.exec(slot);
   return m ? Number(m[1]) * 60 + Number(m[2]) : 24 * 60 + 1;
+}
+
+// ─── TIMELINE ───────────────────────────────────────────────────────────────────────────
+// Stages are shown as a clock, not a list: one column per stage, one day at a time, so you
+// can read across and see what is on at 11:00. That only works if vertical distance means
+// time, which is why the cards are absolutely positioned rather than stacked.
+
+const PX_PER_MIN = 2.4; // 30 minutes = 72px, enough for a two-line title plus the time
+const SLOT_MIN = 30; // gridline interval
+// Floor for a card's height, and the same value in MINUTES so the lane packer can reason
+// about what is actually drawn rather than what is scheduled.
+const MIN_CARD_PX = 26;
+const MIN_CARD_MIN = Math.ceil((MIN_CARD_PX + 4) / PX_PER_MIN);
+
+function hhmm(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const ampm = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+/**
+ * Side-by-side placement for sessions that overlap in the same column.
+ *
+ * Without this, two sessions running 11:00-11:30 and 11:15-11:45 would be drawn on top of
+ * each other and the second would be invisible. Each gets the first lane that is free at its
+ * start time, and the column is divided by however many lanes ended up in use.
+ */
+function withLanes<T extends { start: number; end: number }>(items: T[]) {
+  // Lanes are counted per CLUSTER of mutually overlapping sessions, not per column. Counting
+  // per column meant one two-minute clash at 10:05 halved the width of every card on that
+  // stage for the entire day.
+  type Placed = T & { lane: number; lanes: number };
+  const out: Placed[] = [];
+  let cluster: Placed[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = -Infinity;
+
+  const flush = () => {
+    const n = Math.max(1, laneEnds.length);
+    for (const c of cluster) c.lanes = n;
+    out.push(...cluster);
+    cluster = [];
+    laneEnds = [];
+    clusterEnd = -Infinity;
+  };
+
+  for (const it of items) {
+    // Compare against the DRAWN extent, not the scheduled one. A 5-minute session is 12px at
+    // this scale and gets floored to MIN_CARD_PX, so on the clock it ends before the next
+    // session starts while on screen it still covers it. Two consecutive Breathwork Breaks
+    // sat on top of the talk after them until this used the padded end.
+    const drawnEnd = Math.max(it.end, it.start + MIN_CARD_MIN);
+    if (it.start >= clusterEnd) flush(); // nothing here overlaps what came before
+    let lane = laneEnds.findIndex((end) => end <= it.start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(drawnEnd);
+    } else {
+      laneEnds[lane] = drawnEnd;
+    }
+    clusterEnd = Math.max(clusterEnd, drawnEnd);
+    cluster.push({ ...it, lane, lanes: 1 });
+  }
+  flush();
+  return out;
+}
+
+type Placed = Session & { start: number; end: number };
+
+function StageTimeline({
+  columns,
+  sessions,
+  onOpen,
+}: {
+  columns: string[];
+  sessions: Session[];
+  onOpen: (s: Session) => void;
+}) {
+  // Everything with a real clock time goes on the grid; "All day" entries cannot be placed
+  // against a time axis and get a strip of their own above it.
+  const timed: Placed[] = [];
+  const allDay: Session[] = [];
+  for (const s of sessions) {
+    const t = parseSlot(s.timeSlot);
+    if (t) timed.push({ ...s, ...t });
+    else allDay.push(s);
+  }
+
+  // Always open at 09:00 even when the first session is later, so the two days line up and
+  // the morning gap is visible rather than cropped away.
+  const start = Math.min(DAY_START_MIN, ...timed.map((s) => s.start));
+  const end = Math.max(start + 60, ...timed.map((s) => s.end));
+  const from = Math.floor(start / SLOT_MIN) * SLOT_MIN;
+  const to = Math.ceil(end / SLOT_MIN) * SLOT_MIN;
+  const height = (to - from) * PX_PER_MIN;
+
+  const ticks: number[] = [];
+  for (let t = from; t <= to; t += SLOT_MIN) ticks.push(t);
+
+  return (
+    <div className="bp-tl" style={{ "--cols": columns.length } as React.CSSProperties}>
+      {allDay.length > 0 && (
+        <div className="bp-tl__allday">
+          <span className="bp-tl__alldayLabel">All day</span>
+          <div>
+            {allDay.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="bp-tl__chipCard"
+                style={{ "--track": trackColor(s.room) } as React.CSSProperties}
+                onClick={() => onOpen(s)}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="bp-tl__head">
+        <span className="bp-tl__gutterHead" />
+        {columns.map((c) => (
+          <span key={c} className="bp-tl__colHead" title={c}>
+            {c}
+          </span>
+        ))}
+      </div>
+
+      <div className="bp-tl__body" style={{ height }}>
+        <div className="bp-tl__gutter">
+          {ticks.map((t) => (
+            <span
+              key={t}
+              className="bp-tl__tick"
+              style={{ top: (t - from) * PX_PER_MIN }}
+              // Half-hours get the line but not a label, or the gutter turns into a wall of text.
+              data-hour={t % 60 === 0 ? "1" : undefined}
+            >
+              {t % 60 === 0 ? hhmm(t) : ""}
+            </span>
+          ))}
+        </div>
+
+        {ticks.map((t) => (
+          <span
+            key={t}
+            className="bp-tl__line"
+            style={{ top: (t - from) * PX_PER_MIN }}
+            data-hour={t % 60 === 0 ? "1" : undefined}
+          />
+        ))}
+
+        {columns.map((col) => {
+          const mine = timed
+            .filter((s) => (stageOf(s.room) ?? s.room) === col)
+            .sort((a, b) => a.start - b.start || a.name.localeCompare(b.name));
+          const placed = withLanes(mine);
+          return (
+            <div key={col} className="bp-tl__col">
+              {placed.length === 0 && <p className="bp-tl__empty">Nothing scheduled</p>}
+              {placed.map((s) => {
+                const detail = hasDetail(s);
+                const h = Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4);
+                // Below ~46px there is only room for one line, so the card drops the time
+                // and the speaker count rather than showing three clipped half-lines.
+                const compact = h < 46;
+                const style = {
+                  "--track": trackColor(s.room),
+                  top: (s.start - from) * PX_PER_MIN,
+                  height: h,
+                  left: `${(s.lane * 100) / s.lanes}%`,
+                  width: `${100 / s.lanes}%`,
+                } as React.CSSProperties;
+                const inner = (
+                  <>
+                    <span className="bp-tl__cardTitle">{s.name}</span>
+                    <span className="bp-tl__cardTime">{s.timeSlot}</span>
+                    {(s.speakers?.length ?? 0) > 0 && (
+                      <span className="bp-tl__cardMeta">
+                        {s.speakers!.length} speaker{s.speakers!.length === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </>
+                );
+                return detail ? (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="bp-tl__card bp-tl__card--open"
+                    style={style}
+                    data-compact={compact ? "1" : undefined}
+                    onClick={() => onOpen(s)}
+                    aria-label={`${s.name} — show details`}
+                  >
+                    {inner}
+                  </button>
+                ) : (
+                  <article
+                    key={s.id}
+                    className="bp-tl__card"
+                    style={style}
+                    data-compact={compact ? "1" : undefined}
+                  >
+                    {inner}
+                  </article>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function PinIcon() {
@@ -252,6 +474,13 @@ export default function BrellaProgramPage() {
   // "" is the All pill. Reset whenever the section changes, since a track from the previous
   // section would filter the new one down to nothing.
   const [track, setTrack] = useState("");
+  // Which stage column set to show. "" = all five.
+  const [stage, setStage] = useState("");
+  // Day 1 unless it is actually the 27th. Set in an effect, not in useState's initialiser:
+  // the initial render must match on server and client or React logs a hydration mismatch,
+  // and the correct day depends on the visitor's clock.
+  const [dayIdx, setDayIdx] = useState(0);
+  useEffect(() => setDayIdx(defaultEventDay(new Date())), []);
 
   const inSection = useMemo(
     () =>
@@ -275,7 +504,7 @@ export default function BrellaProgramPage() {
   // Same 26-27 rule as inSection, so a heading is never disabled while its section has rows
   // (or enabled while it has none).
   const counts = useMemo(() => {
-    const c: Record<SectionKey, number> = { stages: 0, rooms: 0, side: 0 };
+    const c: Record<SectionKey, number> = { stages: 0, rooms: 0, grills: 0, side: 0 };
     for (const s of all) {
       const k = sectionOf(s.room);
       if (inBrellaSection(s, k)) c[k]++;
@@ -303,6 +532,24 @@ export default function BrellaProgramPage() {
   }, [inSection, track]);
 
   const shown = days.reduce((n, d) => n + d.sessions.length, 0);
+
+  // ── Stages view ──
+  // Columns come from the CANONICAL list, not from the data, so Campfire Stage keeps its
+  // column while it is still empty. Selecting one stage narrows to a single column.
+  const stageColumns = useMemo(
+    () => (stage ? [stage] : BRELLA_STAGES.map((s) => s.label)),
+    [stage]
+  );
+
+  const stageSessions = useMemo(() => {
+    const date = EVENT_DAYS[dayIdx].date;
+    return all.filter(
+      (s) =>
+        inBrellaSection(s, "stages") &&
+        s.day.includes(date) &&
+        stageColumns.includes(stageOf(s.room) ?? s.room)
+    );
+  }, [all, dayIdx, stageColumns]);
 
   return (
     <main>
@@ -365,43 +612,92 @@ export default function BrellaProgramPage() {
               ))}
             </div>
 
-            {tracks.length > 1 && (
-              <div className="seg bp-tracks" role="tablist" aria-label="Filter by track">
-                <button role="tab" aria-selected={track === ""} onClick={() => setTrack("")}>
-                  All
-                </button>
-                {tracks.map((t) => (
-                  <button
-                    key={t}
-                    role="tab"
-                    aria-selected={track === t}
-                    onClick={() => setTrack(t)}
-                  >
-                    {t}
+            {/* Stages is a timeline; every other section stays a card list, because only the
+                stages run in parallel against a clock. */}
+            {section === "stages" ? (
+              <>
+                <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by stage">
+                  <button role="tab" aria-selected={stage === ""} onClick={() => setStage("")}>
+                    All stages
                   </button>
-                ))}
-              </div>
-            )}
+                  {BRELLA_STAGES.map((s) => (
+                    <button
+                      key={s.label}
+                      role="tab"
+                      aria-selected={stage === s.label}
+                      onClick={() => setStage(s.label)}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
 
-            <p className="count-line">
-              {shown} session(s).
-              {revalidating && <span className="reval"> · checking for updates…</span>}
-              {updated && <span className="reval"> · updated</span>}
-            </p>
+                <div className="seg bp-days" role="tablist" aria-label="Event day">
+                  {EVENT_DAYS.map((d, i) => (
+                    <button
+                      key={d.date}
+                      role="tab"
+                      aria-selected={dayIdx === i}
+                      onClick={() => setDayIdx(i)}
+                    >
+                      {d.label} · {d.date.replace(" August", " Aug")}
+                    </button>
+                  ))}
+                </div>
 
-            {days.length === 0 ? (
-              <p className="count-line">Nothing scheduled here yet.</p>
+                <p className="count-line">
+                  {stageSessions.length} session(s).
+                  {revalidating && <span className="reval"> · checking for updates…</span>}
+                  {updated && <span className="reval"> · updated</span>}
+                </p>
+
+                <StageTimeline
+                  columns={stageColumns}
+                  sessions={stageSessions}
+                  onOpen={setOpen}
+                />
+              </>
             ) : (
-              days.map(({ day, sessions }) => (
-                <section key={day} className="bp-day">
-                  <h2 className="bp-day__label">{dayLabel(day)}</h2>
-                  <div className="bp-grid">
-                    {sessions.map((s) => (
-                      <SessionCard key={s.id} s={s} onOpen={setOpen} />
+              <>
+                {tracks.length > 1 && (
+                  <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by track">
+                    <button role="tab" aria-selected={track === ""} onClick={() => setTrack("")}>
+                      All
+                    </button>
+                    {tracks.map((t) => (
+                      <button
+                        key={t}
+                        role="tab"
+                        aria-selected={track === t}
+                        onClick={() => setTrack(t)}
+                      >
+                        {t}
+                      </button>
                     ))}
                   </div>
-                </section>
-              ))
+                )}
+
+                <p className="count-line">
+                  {shown} session(s).
+                  {revalidating && <span className="reval"> · checking for updates…</span>}
+                  {updated && <span className="reval"> · updated</span>}
+                </p>
+
+                {days.length === 0 ? (
+                  <p className="count-line">Nothing scheduled here yet.</p>
+                ) : (
+                  days.map(({ day, sessions }) => (
+                    <section key={day} className="bp-day">
+                      <h2 className="bp-day__label">{dayLabel(day)}</h2>
+                      <div className="bp-grid">
+                        {sessions.map((s) => (
+                          <SessionCard key={s.id} s={s} onOpen={setOpen} />
+                        ))}
+                      </div>
+                    </section>
+                  ))
+                )}
+              </>
             )}
           </>
         )}
