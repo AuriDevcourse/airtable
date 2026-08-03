@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
@@ -59,7 +59,7 @@ const TRACK_COLORS: [RegExp, string][] = [
   [/^tech stage/i, "#2BB4E1"],
   [/campfire/i, "#F2C744"],
   [/^founders? stage/i, "#37C978"],
-  [/life science/i, "#8E7CFF"],
+  [/life science/i, "#2BB4E1"], // pairs with TRACK_COLOR_2 for a blue-to-green gradient
   [/green grill/i, "#5CBC8B"],
   [/blue grill/i, "#1B6CA8"],
   [/orange grill/i, "#FA7000"],
@@ -71,6 +71,23 @@ const TRACK_COLORS: [RegExp, string][] = [
 function trackColor(room: string): string {
   for (const [re, color] of TRACK_COLORS) if (re.test(room)) return color;
   return "#FA7000";
+}
+
+// A SECOND accent, for tracks whose card is a gradient rather than a flat tint. Life Science x
+// Deep Tech is the only one: it is two disciplines in one stage, and Auri wanted the card to
+// read blue-to-green. Everything else leaves --track2 unset and the CSS falls back to --track,
+// which renders as the flat tint it always was.
+const TRACK_COLORS_2: [RegExp, string][] = [[/life science/i, "#37C978"]];
+
+function trackColor2(room: string): string | undefined {
+  for (const [re, color] of TRACK_COLORS_2) if (re.test(room)) return color;
+  return undefined;
+}
+
+/** The custom properties every card/tile sets, so the gradient logic lives in exactly one place. */
+function trackVars(room: string): React.CSSProperties {
+  const two = trackColor2(room);
+  return { "--track": trackColor(room), ...(two ? { "--track2": two } : {}) } as React.CSSProperties;
 }
 
 // Brella's own day number, used ONLY to order the day groups — it is chronological by
@@ -215,7 +232,7 @@ function StageTimeline({
                 key={s.id}
                 type="button"
                 className="bp-tl__chipCard"
-                style={{ "--track": trackColor(s.room) } as React.CSSProperties}
+                style={trackVars(s.room)}
                 onClick={() => onOpen(s)}
               >
                 {s.name}
@@ -273,7 +290,7 @@ function StageTimeline({
                 // and the speaker count rather than showing three clipped half-lines.
                 const compact = h < 46;
                 const style = {
-                  "--track": trackColor(s.room),
+                  ...trackVars(s.room),
                   top: (s.start - from) * PX_PER_MIN,
                   height: h,
                   left: `${(s.lane * 100) / s.lanes}%`,
@@ -366,7 +383,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
       )}
     </>
   );
-  const style = { "--track": trackColor(s.room) } as React.CSSProperties;
+  const style = trackVars(s.room);
 
   // A real <button> when it opens something, a plain <article> when it doesn't — rather than
   // a div with onClick. That is what makes it keyboard-reachable and announced as pressable.
@@ -474,7 +491,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bp-modal" style={{ "--track": trackColor(s.room) } as React.CSSProperties}>
+      <div className="bp-modal" style={trackVars(s.room)}>
         <button type="button" className="bp-modal__close" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
@@ -535,6 +552,38 @@ export default function BrellaProgramPage() {
   const [track, setTrack] = useState("");
   // Which stage column set to show. "" = all five.
   const [stage, setStage] = useState("");
+
+  // Switching section changes how tall the page is. Scrolled down, a shorter section makes the
+  // browser clamp scrollTop and the whole view lurches. This pins the masthead: its distance
+  // from the top of the viewport is measured before the switch and restored after layout, so
+  // the thing you just clicked stays exactly where your eye already was.
+  const barRef = useRef<HTMLDivElement>(null);
+  const anchor = useRef<number | null>(null);
+  const changeSection = useCallback((k: SectionKey) => {
+    anchor.current = barRef.current?.getBoundingClientRect().top ?? null;
+    setSection(k);
+    setTrack("");
+  }, []);
+  // useLayoutEffect, not useEffect: this has to run before the browser paints, or the jump is
+  // visible for a frame and then corrected, which looks worse than not correcting it.
+  useLayoutEffect(() => {
+    if (anchor.current == null || !barRef.current) return;
+    const delta = barRef.current.getBoundingClientRect().top - anchor.current;
+    anchor.current = null;
+    if (delta) window.scrollBy(0, delta);
+  }, [section]);
+
+  // Restoring the scroll only works if the page is still tall enough to scroll there. Side
+  // Events is a third the height of the timeline, so switching to it from deep in the page
+  // let the browser clamp scrollTop and the view lurched ~390px despite the anchor. The
+  // results area keeps a floor equal to the TALLEST section seen this visit, so the document
+  // never shrinks under the scroll position. It only ever grows, so it cannot oscillate.
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [floor, setFloor] = useState(0);
+  useLayoutEffect(() => {
+    const h = resultsRef.current?.offsetHeight ?? 0;
+    setFloor((f) => (h > f ? h : f));
+  });
   // Day 1 unless it is actually the 27th. Set in an effect, not in useState's initialiser:
   // the initial render must match on server and client or React logs a hydration mismatch,
   // and the correct day depends on the visitor's clock.
@@ -653,7 +702,7 @@ export default function BrellaProgramPage() {
           <>
             {/* The three big headings from the mock. Real buttons, not styled text: this is
                 the primary control on the page and it has to be tabbable and announced. */}
-            <div className="bp-sections" role="tablist" aria-label="Program section">
+            <div className="bp-sections" role="tablist" aria-label="Program section" ref={barRef}>
               {SECTIONS.map((s) => (
                 <button
                   key={s.key}
@@ -661,10 +710,7 @@ export default function BrellaProgramPage() {
                   type="button"
                   aria-selected={section === s.key}
                   disabled={counts[s.key] === 0}
-                  onClick={() => {
-                    setSection(s.key);
-                    setTrack("");
-                  }}
+                  onClick={() => changeSection(s.key)}
                 >
                   {s.label}
                 </button>
@@ -673,6 +719,7 @@ export default function BrellaProgramPage() {
 
             {/* Stages is a timeline; every other section stays a card list, because only the
                 stages run in parallel against a clock. */}
+            <div ref={resultsRef} style={floor ? { minHeight: floor } : undefined}>
             {section === "stages" ? (
               <>
                 <div className="bp-controls">
@@ -764,6 +811,7 @@ export default function BrellaProgramPage() {
                 )}
               </>
             )}
+            </div>
           </>
         )}
       </div>

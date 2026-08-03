@@ -93,6 +93,38 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03q (Brella: no scroll jump, pill bars hug content, LS gradient)
+
+State: done, pushed. `tsc --noEmit` clean. Dashboard only.
+
+**Switching section no longer moves the view.** Two mechanisms, and the first alone was not
+enough:
+1. `changeSection()` records the masthead's viewport offset, and a `useLayoutEffect` scrolls by
+   the delta after the new section lays out. `useLayoutEffect`, not `useEffect`: on `useEffect`
+   the jump paints for a frame and is then corrected, which is worse than leaving it.
+2. Restoring the scroll only works if the page is still tall enough to scroll there. Side Events
+   is a third the height of the timeline, so from deep in the page the browser clamped
+   `scrollTop` and the view still lurched ~390px. The results area now keeps a `minHeight` floor
+   equal to the tallest section seen this visit. It only ever grows, so it cannot oscillate.
+Measured before: Side Events moved 388px. After: 0px on all four tabs.
+
+**Pill bars end with their content.** `.seg` is `inline-flex` and hugs its buttons, but
+`.bp-controls` was `align-items: stretch`, and a stretched flex child fills the cross axis, so
+the background ran the full page width with the buttons floating in the middle. `align-items:
+center` fixes it. `display:flex` is still what stops the child margins collapsing (03o), so that
+part must stay.
+
+**Life Science x Deep Tech cards are a blue-to-green gradient.** A second optional accent,
+`TRACK_COLORS_2` -> `--track2`, used by a two-stop `linear-gradient`. Every other track leaves
+`--track2` unset and the CSS falls back to `--track`, so the gradient resolves to the flat tint
+it always was. Life Science moved off the violet from 03o and is now #2BB4E1 -> #37C978.
+
+The top rule stays a SOLID `--track`. A gradient bar would need a pseudo-element sitting over
+the border area, and the card sets `overflow: hidden`, which clips to the PADDING box and would
+have hidden it entirely. Tried, reverted, noted here so nobody tries it again.
+
+Files: `app/brella-program/page.tsx`, `app/globals.css`.
+
 ## Session 2026-08-03p (Brella polish: room aliases, two-line day pills, squarer cards)
 
 State: done, pushed. `tsc --noEmit` clean. Dashboard only; embed still untouched.

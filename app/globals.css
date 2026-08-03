@@ -1112,7 +1112,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    count line and the whole schedule jumped up and down on every tab press. */
 /* flex, so the child margins cannot collapse through the block: with plain block layout the
    stage row and the track row started 10px apart depending on which section was open. */
-.bp-controls { min-height: 92px; display: flex; flex-direction: column; align-items: stretch; }
+/* align-items:center, NOT stretch. .seg is inline-flex and hugs its buttons, but a stretched
+   flex child fills the cross axis, so the pill bar's background ran the full page width with
+   the buttons floating in the middle of it. Centre makes the background end with the content.
+   flex (rather than block) is still what stops the child margins collapsing. */
+.bp-controls { min-height: 92px; display: flex; flex-direction: column; align-items: center; }
 @media (max-width: 720px) { .bp-controls { min-height: 0; } }
 
 .bp-tracks { flex-wrap: wrap; margin-bottom: 8px; }
@@ -1203,13 +1207,23 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   border: 1px solid var(--color-border);
   border-top: 3px solid var(--track, var(--color-red));
   border-radius: 5px;
-  background: color-mix(in srgb, var(--track, #FA7000) 14%, var(--color-card));
+  /* Two stops. --track2 is only set for Life Science x Deep Tech (blue to green, two
+     disciplines in one stage); everywhere else it falls back to --track and the gradient
+     resolves to the flat tint it has always been. */
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--track, #FA7000) 14%, var(--color-card)),
+    color-mix(in srgb, var(--track2, var(--track, #FA7000)) 14%, var(--color-card)));
   color: var(--color-foreground);
   text-align: left; font: inherit;
 }
+/* The top rule stays a SOLID --track. A gradient bar would need a pseudo-element over the
+   border area, and the card sets overflow:hidden, which clips to the padding box and would
+   have hidden it entirely. The background gradient already carries the blue-to-green. */
 .bp-tl__card--open { cursor: pointer; }
 .bp-tl__card--open:hover {
-  background: color-mix(in srgb, var(--track, #FA7000) 26%, var(--color-card));
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--track, #FA7000) 26%, var(--color-card)),
+    color-mix(in srgb, var(--track2, var(--track, #FA7000)) 26%, var(--color-card)));
 }
 .bp-tl__card--open:focus-visible { outline: 2px solid var(--track, var(--color-red)); outline-offset: 1px; }
 /* flex: none on all three. As flexible items they SHRANK, and on a short card the title lost
