@@ -4,6 +4,119 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+---
+
+# HANDOFF · read this first (2026-08-03)
+
+**State: everything is committed and pushed. `main` = `2f1424c`, clean tree, `npm run build`
+green. main auto-deploys, so what is on GitHub is what is on the site.**
+
+## What exists now
+
+| Page | Feed | Source of truth |
+|---|---|---|
+| `/ls-startups` | `/api/ls-startups` | Airtable, live. Logos included. |
+| `/partners` | `/api/partners` | Airtable for WHO + tier. **Logos are local files.** |
+| `/brella-program` | `/api/program?event=brella` | Brella, read-only |
+| `/partner-events` | `/api/partner-events` | Airtable |
+
+## The three things most likely to trip up the next person
+
+**1. Partner logos are a COPY, not live.** Adding a partner in Airtable puts them on the page
+immediately but with NO logo. Someone must run:
+```
+node scripts/sync-partner-logos.mjs --write      # match + copy into public/partner-logos
+node scripts/upload-white-logos.mjs --write      # optional: push the white set back to Airtable
+```
+`/ls-startups` does NOT have this problem — it reads logos straight from Airtable.
+
+**2. Never trust an image measurement.** Three separate hours went to this. An image can look
+broken when it is fine, or fine when it is broken:
+- `loading="lazy"` means an off-screen image is never requested, so `naturalWidth === 0` and
+  every logo reads as "broken". Force `loading="eager"` and await onload first.
+- The photo proxy answers `max-age=86400` on a STABLE url, so after replacing a logo the
+  browser serves yesterday's file for a day. Add a cache-buster before measuring. (The feed now
+  appends `?v=<attachmentId>` so real visitors are fine; this is about measuring.)
+- A measurement taken during a dev-server rebuild reports failures that do not exist.
+
+**3. Nine partner tiers are hard-coded**, in `TIER_OVERRIDES` in `lib/partners.ts`, because
+Airtable and the live site disagree and the live site won. There is no auto-sync: techbbq.dk
+answers a plain request with a 455, so it can only be read through a real browser. Re-check that
+map if the live page is ever re-tiered.
+
+## Open items, none blocking
+
+1. **Re-copy both embeds** from the DEPLOYED dashboard into WordPress. The snippets pasted there
+   predate the Elementor hardening, the 5-per-row change, the row colours and the logo fit.
+2. **Widen Life Science to 6 per row** once a category fills up. It is `--cols` on the row in
+   `app/ls-startups/page.tsx` and the `repeat(5,…)` in `lib/lsStartupsEmbedSnippet.ts`.
+3. **Two very wide logos still read small**, Immunordic (aspect 5.66) and H+H (4.35). They
+   already touch both side edges; only a tighter SVG export fixes it.
+4. **Yoke Bio has no website** ("no website yet" in Airtable), so its logo is unlinked. 23
+   partners are likewise unlinked.
+5. **Walther Therapeutics is linked to a site its own Airtable note calls under construction.**
+   Auri was told; left linked since the event is weeks out.
+6. **Do NOT use the LS `Linkedin` column as a website fallback** — those are personal profiles,
+   not company pages. A company-LinkedIn column would be the clean fix.
+7. Still open from earlier sessions: `parseTimeSlot` has no equivalent in `lib/program.ts`, and
+   the Brella schedule still contains four test rows on Founders Stage.
+
+## Conventions worth keeping
+
+- Read multi-selects with `tags()`, never `===`. `status` being a multi-select silently sent the
+  first version of the LS gate to the wrong field.
+- Publish gates live SERVER-side, never in an embed snippet. A pasted snippet outlives the
+  deploy and cannot be corrected.
+- Attachment writes use `uploadAttachment` (appends). A PATCH on an attachment field replaces
+  the whole array and would erase every existing file.
+- Write JS and Markdown with the editor tools, not shell heredocs. Escaping has silently
+  corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
+
+---
+
+## Session 2026-08-03j (both walls hardened for Elementor, and logos evened out)
+
+State: DONE, pushed as `8dcd85f`, `25f8933`, `2f1424c`.
+
+Everything here came from Auri testing the embeds on the real WordPress page, which surfaced
+three faults the local preview never would have.
+
+**Logos rendered at natural size, overflowing rows and sitting off-centre.** The tile's height
+came from `aspect-ratio` with NO `!important`, and the anchor used `display:contents`. Elementor
+overrides both, and once the tile has no definite height, `max-height:100%` on the image
+resolves against nothing and the cap silently stops applying. Now the height is a real pixel
+value, `aspect-ratio` is decoration rather than load-bearing, and the anchor is an ordinary
+block. Every layout property is forced, `box-sizing` included, since themes reset it globally
+and it quietly changes what a height means.
+
+Verified by rendering the copied snippet under CSS that mimics the overrides (`img{width:100%}`,
+`a{display:inline}`, `aspect-ratio:auto`, `box-sizing:content-box`): every tile holds its height,
+nothing overflows or sits off-centre.
+
+**Row colour never reached the embeds.** The divider was hard-coded white and the hover was a
+flat near-black, invisible on a dark page. Each row now derives a 38% divider and a 14% hover
+wash from its own colour in the snippet's own script — `rgba()` rather than `color-mix()`,
+because a pasted snippet has to work in whatever browser the visitor brings.
+
+**Life Science is five per row**, fixed, replacing an auto-fill that packed seven into a wide
+container. Categories are heading for roughly 15/15/16, so five gives three tidy rows each.
+
+**Logos are now sized by AREA, not bounding box** (`lib/logoFit.ts`). Rilemo, SmartSens and
+Blue2 looked half-size and nothing was wrong with the files: `object-fit:contain` matches
+bounding boxes, and these range from 0.99 (square) to 5.66 (a thin wordmark). In a 2:1 tile a
+wide mark fills it edge to edge while a square one cannot leave the middle third. Scaling to a
+constant area is much closer to how the eye judges "same size". Applied as a transform so no
+layout box moves; capped at 1 because going past contain would crop. Tiles went 3:2 → 5:3,
+which is not cosmetic — a square logo is height-starved in a 2:1 tile at any scale.
+
+Measured across the fifteen: before 6.7k–13.2k (1.96x spread, squares at the bottom), after
+7.7k–12.8k (1.65x), with eleven of fifteen inside 12.0–12.8k.
+
+**Also fixed in the partners builder**, which was generated from the Life Science one and kept
+its descriptions: the HTML comment announced Life Science startups, the header described three
+category rows instead of tiers, and the phone breakpoint had been overwritten with the desktop
+grid rule, so narrow screens tried to hold six columns instead of two.
+
 ## Session 2026-08-03i (LS startups refreshed: 15 confirmed, an invisible logo fixed)
 
 State: DONE, pushed.
