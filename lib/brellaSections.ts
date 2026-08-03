@@ -57,6 +57,27 @@ export function stageOf(room: string): string | null {
 // is wrong: Auri's call is that these are event rooms, not stage programming. Nordic Africa has
 // no track in Brella yet (only Nordic India does); it is matched now so it lands in the right
 // section the day it appears rather than quietly showing up under Stages.
+/**
+ * Brella track name → the room it actually runs in.
+ *
+ * Brella gives a named programme its own track even when it occupies one of the numbered
+ * event rooms, so the Event Rooms tab ended up listing both "Event Room 1" and "Future of
+ * FinTech" as if they were different places. Auri's call: fold them into the room, so the tab
+ * lists rooms and nothing else.
+ *
+ * Applied in lib/brellaprogram.ts as the session is built, so every consumer — page, API
+ * route and embed — sees the same room name and cannot disagree about it.
+ */
+const ROOM_ALIASES: [RegExp, string][] = [
+  [/future of fintech/i, "Event Room 1"],
+  [/nordic\s+india|india\s+summit/i, "Event Room 4"],
+];
+
+export function roomAlias(room: string): string {
+  for (const [re, name] of ROOM_ALIASES) if (re.test(room)) return name;
+  return room;
+}
+
 const ROOM_SUMMITS = /nordic\s+(india|africa)|(india|africa)\s+summit/i;
 
 // The Grill Sessions get their own tab (Auri's call). They are roundtables, not stage

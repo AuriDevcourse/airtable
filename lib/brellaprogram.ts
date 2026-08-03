@@ -12,6 +12,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
+import { roomAlias } from "@/lib/brellaSections";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -262,7 +263,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         timeSlot,
         type: topic,
         description,
-        room: track,
+        // A named programme that occupies a numbered event room is filed under that room.
+        // See ROOM_ALIASES; done here so page, route and embed cannot disagree.
+        room: roomAlias(track),
         location: label(a.location),
         speakers: speakersFor(row),
       },

@@ -93,6 +93,34 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03p (Brella polish: room aliases, two-line day pills, squarer cards)
+
+State: done, pushed. `tsc --noEmit` clean. Dashboard only; embed still untouched.
+
+**Named programmes fold into their room.** Brella gives a programme its own track even when it
+occupies a numbered room, so the Event Rooms tab listed "Event Room 1" and "Future of FinTech"
+as if they were different places. `ROOM_ALIASES` in `lib/brellaSections.ts` now maps
+Future of FinTech -> Event Room 1 and Nordic India Startup Summit -> Event Room 4. Applied in
+`lib/brellaprogram.ts` as the session is built, NOT in the page, so the route and any future
+embed cannot disagree about a room name. Event Room 1 went 2 -> 9 sessions, Event Room 4 1 -> 8,
+and the tab now lists rooms only.
+
+Reversing this means deleting the alias, not renaming anything in Brella.
+
+**Day pills are two lines**: DAY 1 above 26 August, the date at 11px and dimmed. It was
+"DAY 1 · 26 Aug" on one line.
+
+**Cards are squarer**: timeline card 8px -> 5px, all-day chip 6px -> 4px.
+
+**No rule under the stage names.** `.bp-tl__colHead` had a `border-bottom`, and with a border on
+each of five columns it read as five separately underlined words instead of one header row. The
+vertical separators added in 03o already delimit the columns, so the underline was doing nothing
+but adding noise. Removed from the gutter head too, or a stub line would have been left hanging
+under the time column alone.
+
+Files: `lib/brellaSections.ts`, `lib/brellaprogram.ts`, `app/brella-program/page.tsx`,
+`app/globals.css`.
+
 ## Session 2026-08-03o (Brella: moderator roles, stage colours, no layout jump)
 
 State: done, pushed. `tsc --noEmit` clean. Still DASHBOARD ONLY; the Brella embed is untouched.

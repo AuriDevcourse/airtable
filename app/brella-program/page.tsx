@@ -700,7 +700,8 @@ export default function BrellaProgramPage() {
                       aria-selected={dayIdx === i}
                       onClick={() => setDayIdx(i)}
                     >
-                      {d.label} · {d.date.replace(" August", " Aug")}
+                      <span className="bp-days__n">{d.label}</span>
+                      <span className="bp-days__date">{d.date}</span>
                     </button>
                   ))}
                 </div>
