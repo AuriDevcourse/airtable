@@ -34,9 +34,9 @@ export type ColumnDef = { label: string; match: RegExp };
 
 export const BRELLA_STAGES: ColumnDef[] = [
   { label: "BBQ Stage", match: /^bbq stage/i },
+  { label: "Founder Stage", match: /^founders? stage/i },
   { label: "Tech Stage", match: /^tech stage/i },
   { label: "Campfire Stage", match: /campfire/i },
-  { label: "Founder Stage", match: /^founders? stage/i },
   { label: "Life Science x Deep Tech Stage", match: /life science/i },
 ];
 

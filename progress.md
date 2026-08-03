@@ -93,6 +93,37 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03y (bios closed, bigger headings, stage order, short sessions inline)
+
+State: done, pushed. `tsc --noEmit` clean.
+
+**Bios opened on load, and it was my own CSS.** The 03w dialog reset included
+`.tbbq-bp__pbio{display:block!important}`, and `display:block!important` beats the UA style
+behind the `hidden` attribute, so every bio was expanded. Fixed with a following rule of equal
+specificity: `#id .tbbq-bp__modal [hidden]{display:none!important}`. Lesson worth keeping: once
+you force `display` on an element, you have silently disabled `hidden` on it.
+
+**Stage order is now BBQ, Founder, Tech, Campfire, Life Science** (`BRELLA_STAGES`). One list,
+so the dashboard, the embed and the mobile dropdown all reorder together.
+
+**Column headings 15px -> 17px** on both surfaces (15px on a phone).
+
+**A 3-minute Breathwork Break was being exiled to a half-width side lane.** Session 03n had the
+lane packer compare DRAWN extents rather than scheduled ones, so a card floored to 26px could
+not cover the next one. The side effect: a 15:14-15:17 break "overlaps" the 15:19 talk on
+screen while not overlapping on the clock, so it counted as a clash and lost half its width.
+Reverted to comparing scheduled ends. Short sessions now sit in sequence at full width and may
+overlap the next card by a few pixels BELOW their text, which is the better trade.
+
+Verified: 5 of the 6 Breathwork Breaks now render at full column width; the 6th stays at 50%
+because it genuinely clashes with another session, which is what lanes are for.
+
+**Backticks in a comment broke the build for the third time this session.** The snippet is one
+big template literal. There is now a note in the file; the tell is `TS1005: ';' expected`.
+
+Files: `lib/brellaSections.ts`, `lib/brellaEmbedSnippet.ts`, `app/brella-program/page.tsx`,
+`app/globals.css`.
+
 ## Session 2026-08-03x (embed collapsed on techbbq.dk: CSS Grid removed, casing forced)
 
 State: done, pushed. `tsc --noEmit` clean.

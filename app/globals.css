@@ -1180,7 +1180,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
      the one-line names floating at the top of a two-line box. */
   display: flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 46px; text-align: center;
-  font-family: var(--font-heading); font-size: 15px; font-weight: 600; line-height: 1.25;
+  font-family: var(--font-heading); font-size: 17px; font-weight: 600; line-height: 1.25;
   color: var(--color-foreground);
   /* Five stage names, one of which is "Life Science x Deep Tech Stage". Wrapping beats
      truncating: the column heading is the only thing identifying the column. */

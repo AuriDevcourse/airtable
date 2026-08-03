@@ -78,10 +78,8 @@ function startMinutes(slot: string): number {
 
 const PX_PER_MIN = 2.4; // 30 minutes = 72px, enough for a two-line title plus the time
 const SLOT_MIN = 30; // gridline interval
-// Floor for a card's height, and the same value in MINUTES so the lane packer can reason
-// about what is actually drawn rather than what is scheduled.
+// Floor for a card's height, so a three-minute session is still readable.
 const MIN_CARD_PX = 26;
-const MIN_CARD_MIN = Math.ceil((MIN_CARD_PX + 4) / PX_PER_MIN);
 
 // Brella's roles, reduced to the distinction that matters on a card: who is chairing and who
 // is speaking. Panelist, Facilitator and Keynote speaker are all "speaking"; only Moderator
@@ -208,11 +206,11 @@ function withLanes<T extends { start: number; end: number }>(items: T[]) {
   };
 
   for (const it of items) {
-    // Compare against the DRAWN extent, not the scheduled one. A 5-minute session is 12px at
-    // this scale and gets floored to MIN_CARD_PX, so on the clock it ends before the next
-    // session starts while on screen it still covers it. Two consecutive Breathwork Breaks
-    // sat on top of the talk after them until this used the padded end.
-    const drawnEnd = Math.max(it.end, it.start + MIN_CARD_MIN);
+    // Lanes are decided on the SCHEDULED end, not a padded one. Padding it so a floored-height
+    // card could never cover the next one meant a 3-minute Breathwork Break counted as a clash
+    // and was banished to a half-width side lane, when it should sit in sequence at full width.
+    // A few pixels of overlap under its text is the better trade.
+    const drawnEnd = it.end;
     if (it.start >= clusterEnd) flush(); // nothing here overlaps what came before
     let lane = laneEnds.findIndex((end) => end <= it.start);
     if (lane === -1) {

@@ -144,7 +144,7 @@ export function buildBrellaEmbedSnippet({
      script: an absolutely positioned box ignores the parent's display entirely, so there is
      nothing left for a theme to override. */
   #${id} .tbbq-bp__head,#${id} .tbbq-bp__body{display:block!important;position:relative!important;margin:0!important;padding:0!important}
-  #${id} .tbbq-bp__colhead{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:15px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
+  #${id} .tbbq-bp__colhead{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
   #${id} .tbbq-bp__gutterhead{border:0!important}
   #${id} .tbbq-bp__icon{flex:none!important;color:var(--track,currentColor)!important}
 
@@ -208,6 +208,9 @@ export function buildBrellaEmbedSnippet({
   /* The person row is a flex pair; the text side must be free to grow. */
   #${id} .tbbq-bp__person>div{flex:1 1 auto!important;width:100%!important;display:block!important}
   #${id} .tbbq-bp__pname,#${id} .tbbq-bp__prole,#${id} .tbbq-bp__pbio,#${id} .tbbq-bp__pmore{display:block!important;text-transform:none!important;white-space:normal!important}
+  /* MUST come after the rule above and be at least as specific. display:block!important beats
+     the UA style behind the hidden attribute, which is why every bio opened on load. */
+  #${id} .tbbq-bp__modal [hidden],#${id} .tbbq-bp__pbio[hidden]{display:none!important}
   #${id} .tbbq-bp__pmore{display:inline-flex!important}
   #${id} .tbbq-bp__ptag{text-transform:uppercase!important;display:inline-block!important}
   #${id} .tbbq-bp__modal h3{margin:24px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -231,7 +234,7 @@ export function buildBrellaEmbedSnippet({
     #${id}{--gutter:60px}
     #${id} .tbbq-bp__tracks{display:none!important}
     #${id} .tbbq-bp__pickWrap{display:${isTimeline ? "flex" : "none"}!important}
-    #${id} .tbbq-bp__colhead{font-size:14px!important;min-height:0!important}
+    #${id} .tbbq-bp__colhead{font-size:15px!important;min-height:0!important}
     #${id} .tbbq-bp__grid{grid-template-columns:1fr!important}
   }
   @media(max-width:560px){
@@ -267,7 +270,6 @@ export function buildBrellaEmbedSnippet({
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
   var EVENT_YEAR=${EVENT_YEAR};
   var PX=${PX_PER_MIN},SLOT=${SLOT_MIN},MINCARD=${MIN_CARD_PX};
-  var MINCARD_MIN=Math.ceil((MINCARD+4)/PX);
 
   /* Rebuilt here because a RegExp cannot survive JSON. */
   function compile(defs){return (defs||[]).map(function(c){return {label:c.label,rx:new RegExp(c.re,"i")};});}
@@ -422,7 +424,12 @@ export function buildBrellaEmbedSnippet({
       var laneEnds=[],cluster=[],clusterEnd=-1e9,placed=[];
       function flush(){var n=Math.max(1,laneEnds.length);cluster.forEach(function(p){p.lanes=n;});placed=placed.concat(cluster);cluster=[];laneEnds=[];clusterEnd=-1e9;}
       items.forEach(function(x){
-        var drawnEnd=Math.max(x.end,x.start+MINCARD_MIN);
+        /* Lanes are decided on the SCHEDULED end, not the drawn one. Padding the end so a
+           floored-height card could not cover the next one meant a 3-minute Breathwork Break
+           counted as a clash and was banished to a half-width side lane, when what it should
+           do is sit in sequence at full width. A few pixels of overlap below its text is the
+           better trade. */
+        var drawnEnd=x.end;
         if(x.start>=clusterEnd)flush();
         var lane=-1;
         for(var i=0;i<laneEnds.length;i++){if(laneEnds[i]<=x.start){lane=i;break;}}
