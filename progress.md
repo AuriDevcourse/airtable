@@ -4,6 +4,194 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-03b (Event Room times shipped + the Time slot format check, finally)
+
+State: DONE. `tsc --noEmit` + `npm run build` clean, feed verified, page screenshotted.
+NOT committed yet, NOT deployed.
+
+Auri sent a planning sheet
+(`1eNpGsMegPNeGR1r0hYR-N6057qHgPfD95WA69ucX7dc`) and asked to put times on the
+`/partner-events` cards, which had shown none since the page was built.
+
+**The sheet has seven tabs and the first one is the wrong one.** Its default tab is the
+pop-up schedule (booth pop-ups, Hall E, Founders Lounge) and that dataset barely intersects
+these cards, so the first pass matched only 2 events and one of those was a false positive
+(the Google row there is a booth pop-up at E-001, not the Scaling Europe event room). Auri
+pointed to the **Event Rooms** tab (`gid=132451139`) and that one maps cleanly. Read that
+tab, not `gid=0`, next time. `gid=1506604086` ("Side Events 2026 Updated") is the other
+useful one: it carries Time // Day, Location, Description and Registration Link.
+
+**8 events now carry a time, 9 rows written** (Nordic IPO has a duplicate row and both were
+filled so whichever wins the dedup shows the same value):
+Beyond Unicorns 13:30-17:30 · Nordic IPO 12:30-17:30 (×2 rows) · Scaling Europe 12:00-14:45 ·
+Creative Business Cup 15:00-17:30 (26th) and 09:30-13:00 (27th) · Board Summit 09:30-17:30 ·
+Future of Fintech 09:30-13:00 · AI That Sells 14:30-16:30.
+Every target cell was empty first; the fill script skips any non-empty cell rather than
+overwriting. Cross-checked Flatpay against `/api/program?event=fintech` (runs 09:30-12:50,
+so 09:30-13:00 holds).
+
+**Board Summit's two tabs disagreed** — Event Rooms grid says 9.30-17.30, Side Events tab
+says Day 2 (09:30-11:30). Auri chose the full day. If a partner queries it, that is why.
+
+**Deliberately NOT written:** Sweden@TechBBQ VIP Reception (only in the pop-up tab, and that
+cell says "NO Announcement!!!"), Nebius hackathon and CTO Connect (no clock time anywhere),
+and the four Day 0 side events (the sheet only says "Day 0 Evening").
+
+**`parseTimeSlot` in lib/partnerevents.ts is the format check that was overdue three times**
+(`13:30-14-30` on NISS, `'10:00–10:10\n'` on Fintech). Forgiving input, one strict output:
+accepts `.` or `:`, hyphen/en dash/em dash/`to`, stray newlines, and a wrapping label
+(`Day 1 - 12:30-17:30`, `Day 2 (09:30-13:00)` — the sheet's own shape, which someone will
+paste in whole). It insists on finding EXACTLY ONE range, so a cell holding two sessions is
+refused rather than half-published. Unreadable → `null` + `console.warn`, never rendered.
+Output is always `HH:MM-HH:MM` with a plain hyphen (no en dash, per the UI rule).
+**lib/program.ts still has no equivalent** and is where two of the three defects came from.
+
+Also: same-day cards now sort by start time (untimed last), a row carrying a time wins the
+duplicate-submission tiebreak, and date + time render as ONE `.ev-card__when` unit — as
+loose siblings the time broke onto its own line, left-aligned, on any card with three
+badges. Ported into `lib/eventEmbedSnippet.ts` too, so the Elementor embed matches.
+
+### Next steps
+1. Commit + push, then redeploy so techbbq.dk gets it.
+2. Side Event times: only the Side Events tab has them, and mostly as "Day 0 Evening". Ask
+   Marketing for clock times before filling those.
+3. Give `lib/program.ts` the same parser (fintech + niss + techbbq all read a free-text
+   `Time Slot`).
+4. Still open from 2026-08-02c: the 8 empty Fintech `Session Description` cells and the
+   missing `description` key on the `fintech` + `niss` program sources.
+
+## Session 2026-08-03a (Life Science x Deep Tech page update request scoped)
+
+State: **ITEM 1 (speakers stage filter) BUILT AND VERIFIED. Items 2-4 scoped, see below.**
+Uncommitted, on `main` alongside the earlier partner-events work-in-progress. Not deployed.
+
+### What was just done (item 1)
+
+Generalised the single-list pill filter in `lib/embedSnippet.ts` so it can filter on any field,
+then pointed the Life Science embed at `tag`:
+- New `tagTabs?: string[]` option. A `pillFilter` object (`{field, values, label}`) now drives the
+  one pill implementation; `deptTabs` → `department`, `tagTabs` → `tag`. No code was duplicated,
+  and the team embed's behaviour is unchanged.
+- `components/CopyEmbed.tsx` threads `tagTabs` through.
+- `app/life-science/page.tsx` gained the matching pill filter on the dashboard preview itself, and
+  passes `tagTabs={LS_STAGES}` to `CopyEmbed`. The count line now reads "N speaker(s) on <stage>",
+  and under All it appends "· 8 with no stage set in Airtable" as a nudge to fix that data.
+
+### Then: blank-stage speakers excluded outright (marketing's call, same day)
+
+Auri relayed the decision: someone assigned to neither event should not be on the website at all.
+So `lib/lifescience.ts` gained a **second publish gate** on top of view membership — a record also
+needs a recognised value in `Which LS DT stage? `. Deliberately a GATE, not a UI filter: with the
+stage pills live, a blank person would be reachable only under "All", which reads as a bug.
+- `PUBLISHED_STAGES` is derived from `STAGE_COLORS`, so the colour map stays the single source of
+  truth for which stages exist.
+- `publishedStage()` scans the whole multi-select for a RECOGNISED option instead of taking `[0]`,
+  so a person isn't dropped just because some new select option sorts ahead of their real stage.
+- Unrecognised values **fail closed** (hidden), so a typo'd or renamed Airtable option cannot
+  publish someone under a stage the site has no pill or colour for.
+- The dropped names are `console.info`'d once per uncached fetch, so the data gap shows up in
+  Vercel logs without the feed publishing a "who is missing" list.
+- The dashboard's old "N with no stage set" count line note was removed (blanks no longer reach
+  the client) and the hero copy now states both gates.
+
+Verified live: `/api/life-science` went **45 → 37** (32 + 5), zero blank tags. The 8 now hidden,
+for marketing to assign a stage to: Piotr Byrski, Andrea Dimitracopoulos, Michele Dallari,
+Mads Lacoppidan, Louise Rørbæk Heiberg, Christian Brix Tillegreen, Piotr Surma, Magnus Björsne.
+
+`LS_STAGES` is duplicated in the page rather than imported from `lib/lifescience.ts` **on purpose**:
+that module reads `AIRTABLE_TOKEN` at module scope, so importing it into a client component would
+pull a server-only module into the browser bundle. Keep the two lists in sync by hand.
+
+Verified: `npx tsc --noEmit` clean. Snippet asserted to emit `p.tag===want` with no leftover
+`.department`, and both regressions checked (team embed still filters on `department`, a feed with
+neither option emits no pill markup). Then driven in a real browser, both on `/life-science` and on
+the generated embed rendered as a standalone page: All 45 · Life Science x Deep Tech Stage 32 ·
+Deep Tech Event Day 5, matching Airtable exactly, and each pill shows only that stage's cards.
+
+### Still open
+
+Marketing sent a Slack request plus a Google Doc
+("LS DT Project | Website Update July 2026") asking for four things on the Life Science x
+Deep Tech page. Scoped all four against the live sources. Auri has not yet green-lit any build.
+
+**1. Speakers filter — DONE, see above.** Source data was already flowing: `lib/lifescience.ts:34`
+reads `Which LS DT stage? ` and maps both requested options onto `tag`. Live tally in view
+`viw8tGwoWltVeBwpl` (45 records): `Life Science x Deep Tech Stage` 32 · `Deep Tech Event Day` 5 ·
+**blank 8**. The 8 blank rows are now **excluded from the feed entirely** (see the gate above), so
+the published roster is 37. Marketing must assign a stage to get any of those 8 back on the site.
+
+**2. Nebius Grill Session — already live in Brella, do NOT hardcode it.**
+Timeslot `973336`, track `🟢 Green Grill Session`, `location: "Hall E"`, duration 40,
+`start-time 2026-08-26T09:50:00Z → 10:30Z` (= 11:50–12:30 CEST), subtitle
+`Grill Session by Nebius B.V.`. Title and description match the doc verbatim, so
+`/api/program` already serves this session. Two catches:
+- `speaker-assignments` is **empty**. Both presenters (Dr. Ilya Burkov / Nebius, Pia Hardy /
+  NVIDIA) exist only as free text in the last two description blocks. No structured speaker
+  objects, no photos. Marketing said photos are "to be shared soon".
+- Neither presenter exists anywhere in the LS Airtable table (searched the view for
+  burkov/hardy/nebius/nvidia → 0 hits). They are on Grill Session Green, which is **neither**
+  of the two filter categories, so adding them to the LS table would land them in the blank
+  bucket with no pill. Either keep them inside the session card, or the stage column needs a
+  third option.
+- `lib/brellaprogram.ts:228` maps `room` to the track, so this renders "Green Grill Session"
+  and **drops `location` ("Hall E")**. One line to add if marketing wants the hall shown.
+
+**3. Program display for the two tracks — BLOCKED, and not on us.**
+Pulled every Brella track for org 109 / event 10356. The full set is: `1:1 meetings` (50),
+`Nordic India Startup Summit` (7), `Orange Grill Session` (7), `Side Event Promotion` (6),
+`Blue Grill Session` (5), `Green Grill Session` (5), `Founders Stage` (4), `Rooms 5,6,7` (3),
+`Event Room 3` (2), `Event Room 1` (2), `Event Room 2` (2), `Event Room 4` (1).
+**There is no "Life Science x Deep Tech Stage" and no "Deep Tech Stage" track.** The program
+team must create them in Brella and assign sessions before anything can be extracted. Raise
+this in the meeting; it is not a website task.
+Also **the doc contradicts itself on naming**: the speakers filter asks for
+`Life Science x Deep Tech Stage` + `Deep Tech Event Day`, the program section asks for
+`Life Science x Deep Tech Stage` + `Deep Tech Stage`. Pin down which is real.
+
+**4. Deep Tech Event Day — Auri created a WordPress page for it (not in this repo).**
+Content comes from `Downloads/TechBBQ Deep Tech Event Day _ One-Pager _ Aug 26.pdf`. Facts from it
+that were previously unknown: **26 Aug 2026, 09:00–17:00, Bella Center, Event Room 6**; partners
+**Novo Nordisk Foundation, Microsoft, Heartcore Capital**; contacts Alixe Averty
+(alixe@techbbq.org) and Michael Baczyk, Heartcore (michael@heartcore.com); tagline "Where AI,
+Quantum and Life Science leaders come together to shape the future of innovation."
+**Assessment: the one-pager needs no code.** It is all static copy (invitation, 5 What To Expect
+bullets, At A Glance, 3 logos, 2 contacts) which Elementor does natively. Only the parts the
+one-pager does NOT contain would need a feed, and those are exactly the blocked ones below.
+**Flag raised to Auri:** publishing those two email addresses on a public page invites scraping —
+use a form or obfuscate (SECURITY.md r6/r18).
+Awaiting Auri's answer on whether he wants a Deep-Tech-Event-Day-only speaker grid on that page
+(a one-line variant: same embed, `tagTabs` dropped, feed filtered to that stage).
+
+**Old item 4 notes — the startup list still needs a source.**
+Executive Breakfast (Heartcore Capital), Deep Tech Stage programme, and the pitch competition
+(Microsoft-supported, 50,000 DKK + credits) are all just copy, fine as a static block.
+"Participating startups listed in Airtable" is the vague part. Candidates found, **none of
+which is a pitch-competition shortlist**:
+- `Life Science Project` view `Startup Library 2026` = `viwC65YEXxl8iDPzN`
+- standalone table `Startup Library 2026` = `tblVljqHIiozyovxB` (Startup Name, Location,
+  Solution Categories, TechBBQ Categorization, Disease Categories, Maturity, Website, One Liner)
+- `Smarterra Pitch Competition` = `tblsepp3UxW1QtbfH` (but the doc names Microsoft as sponsor)
+
+### Next steps
+
+1. Deploy, then copy the embed from the DEPLOYED `/life-science` (not localhost, or `__ORIGIN__`
+   bakes in localhost) and paste it into the Elementor HTML widget on the LS x DT page.
+2. Ask marketing which Airtable view holds the actual pitch-competition startups.
+3. Ask who creates the two missing Brella tracks, and by when. Item 3 stays blocked until then.
+4. Get the blank `Which LS DT stage? ` column filled for the 8 LS speakers.
+5. Confirm whether the Nebius card should show "Hall E" alongside the track.
+6. Chase the two Nebius headshots; decide static-in-card vs added to Airtable.
+
+### Gotchas found this session
+
+- Brella auth is the header `Brella-API-Access-Token` plus `Accept: application/vnd.brella.v4+json`.
+  A bearer token or `X-Api-Key` returns **403 `user_not_found`**, which reads like a permissions
+  problem but is just the wrong header.
+- Brella track names carry leading emoji (`🟢 Green Grill Session`); `lib/brellaprogram.ts:59`
+  already strips them. Don't match track names on the raw string.
+- The Google Doc export redirects cross-host to `doc-*.googleusercontent.com`, so fetching it
+  takes two hops.
+
 ## Session 2026-08-02c (Future of Fintech program audited against Auri's Google Sheet)
 
 State: **FINDINGS ONLY, NOTHING FIXED.** Auri asked whether the Airtable program matches the

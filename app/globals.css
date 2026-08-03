@@ -921,13 +921,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .ev-card__access--private { color: var(--color-amber); border-color: rgba(253,157,4,0.35); }
 
-.ev-card__date {
+/* Day + time travel as one unit, so a card with a third badge wraps BOTH onto the next
+   line instead of stranding the time alone under the badges. margin-left:auto lives here
+   now rather than on the date. */
+.ev-card__when {
   margin-left: auto;
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.ev-card__date {
   color: var(--color-foreground);
   font-size: 12px; font-weight: 600;
   text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 .ev-card__date--none { color: var(--color-muted); font-weight: 500; font-style: italic; }
+/* Muted and lighter than the date because the day is the
+   coarser fact — you scan for "Wednesday" first and the clock time second. */
+.ev-card__time {
+  color: var(--color-muted);
+  font-size: 12px; font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
 
 /* text-shadow for the same reason .s-card__name/__meta carry one: on hover this text sits
    over the bright part of the glow, and the shadow keeps it legible. */
