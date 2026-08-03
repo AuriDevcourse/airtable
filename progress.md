@@ -93,6 +93,34 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-04c (phone select was squashed; and a guard that let a stale save through)
+
+State: done, live and verified.
+
+**The phone's stage select clipped its own text.** techbbq.dk puts a fixed height on every
+`select`; our rule declared padding but NO height, so the theme won: a 32px box holding 22px of
+padding plus a 17px line. Fixed with an explicit `height:auto; min-height:46px`. Live: 46px box
+for 39px of content.
+
+**A false alarm worth recording.** The single mobile column looked like it was showing the wrong
+sessions — "Welcome to TechBBQ 2026!" under BBQ Stage, where it used to be on Founder. Checked
+the feed: Brella genuinely moved it, and 16 cards is the correct BBQ count for 26 August. The
+filter was right. Check the DATA before rewriting the filter.
+
+**A save silently did nothing, and the guard is why.** The publish step verifies the fetched
+snippet before writing, and the marker used was `min-height:46px` — which ALREADY existed on the
+column headers. A stale fetch passed the check, and the old snippet was re-saved: the giveaway
+was the stored length being byte-identical to the previous save (53272). Re-run with a marker
+unique to the change (`min-height:46px!important;max-height:none`) plus a `?cb=` on the fetch.
+
+Rule for next time: **the marker must be a string that did not exist in the previous version**,
+and an unchanged byte length after a save means nothing was written.
+
+Live at 360px: select 46px with its text fitting, one column, correct stage, 16 cards, 0
+clipping, label inside the box, no horizontal overflow.
+
+Files: `lib/brellaEmbedSnippet.ts`.
+
 ## Session 2026-08-04b (published the embed to techbbq.dk from the browser)
 
 State: done. The live page carries the current snippet. `tsc --noEmit` clean, everything pushed.
