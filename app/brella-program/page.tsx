@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { useCachedList } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
+import { STAGE_ICON_PATHS, trackColor, trackColor2 } from "@/lib/brellaTheme";
 import {
   BRELLA_SECTIONS as SECTIONS,
   BRELLA_STAGES,
@@ -50,44 +51,7 @@ type Session = {
   speakers?: Speaker[];
 };
 
-// Track → accent colour for the card's left bar. The Grill tracks are literally named after
-// their colour, so those are matched by name rather than assigned from a rotation: an
-// "Orange Grill Session" card with a green bar would be actively wrong on site signage.
-// Everything else falls back to the house fire red.
-const TRACK_COLORS: [RegExp, string][] = [
-  // The five stages, coloured to Auri's spec so a column is identifiable without reading its
-  // heading. Life Science was not specified; it takes violet because the other four now own
-  // orange, blue, yellow and green, and leaving it on the default orange clashed with BBQ.
-  [/^bbq stage/i, "#FA7000"],
-  [/^tech stage/i, "#2BB4E1"],
-  [/campfire/i, "#F2C744"],
-  [/^founders? stage/i, "#37C978"],
-  [/life science/i, "#2BB4E1"], // pairs with TRACK_COLOR_2 for a blue-to-green gradient
-  [/green grill/i, "#5CBC8B"],
-  [/blue grill/i, "#1B6CA8"],
-  [/orange grill/i, "#FA7000"],
-  [/india/i, "#2BB4E1"],
-  [/^event room|^rooms?\b/i, "#1B6CA8"],
-  [/^side event/i, "#CE0F2E"],
-];
-
-function trackColor(room: string): string {
-  for (const [re, color] of TRACK_COLORS) if (re.test(room)) return color;
-  return "#FA7000";
-}
-
-// A SECOND accent, for tracks whose card is a gradient rather than a flat tint. Life Science x
-// Deep Tech is the only one: it is two disciplines in one stage, and Auri wanted the card to
-// read blue-to-green. Everything else leaves --track2 unset and the CSS falls back to --track,
-// which renders as the flat tint it always was.
-const TRACK_COLORS_2: [RegExp, string][] = [[/life science/i, "#37C978"]];
-
-function trackColor2(room: string): string | undefined {
-  for (const [re, color] of TRACK_COLORS_2) if (re.test(room)) return color;
-  return undefined;
-}
-
-/** The custom properties every card/tile sets, so the gradient logic lives in exactly one place. */
+/** The custom properties every card/tile sets, so the gradient logic lives in one place. */
 function trackVars(room: string): React.CSSProperties {
   const two = trackColor2(room);
   return { "--track": trackColor(room), ...(two ? { "--track2": two } : {}) } as React.CSSProperties;
@@ -137,45 +101,10 @@ function peopleSummary(speakers: Speaker[] | undefined): string {
   return bits.join(" · ");
 }
 
-// ─── STAGE ICONS ────────────────────────────────────────────────────────────────────────
-// Inlined rather than pulled from lucide-react, for the same reason PinIcon is: the embed
-// builders emit raw HTML strings and cannot render a React component, so these have to exist
-// as plain SVG anyway. A package would cover the dashboard and leave the embed writing its
-// own copies, which is exactly how two sets of icons drift apart.
-//
-// Lucide's drawing conventions throughout: 24x24 box, currentColor stroke, 2px, round caps
-// and joins, no fills.
-const STAGE_ICON_PATHS: Record<string, string[]> = {
-  // flame
-  "BBQ Stage": [
-    "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
-  ],
-  // zap
-  "Tech Stage": [
-    "M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",
-  ],
-  // Two crossed logs. Lucide has no firewood glyph, so this is drawn to its weight and
-  // geometry. A small flame sat above them at first and, at 15px, rendered as a stray dot
-  // over an X — at this size the logs have to carry the whole idea, so they span the box.
-  "Campfire Stage": ["m4 18 16-9", "m4 9 16 9"],
-  // rocket
-  "Founder Stage": [
-    "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91 0z",
-    "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z",
-    "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0",
-    "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5",
-  ],
-  // Double helix: two mirrored strands with three rungs. Drawn across almost the full 24
-  // units — at the original 8-to-16 span it collapsed into an illegible vertical squiggle.
-  "Life Science x Deep Tech Stage": [
-    "M6 2c0 5 12 5 12 10s-12 5-12 10",
-    "M18 2c0 5-12 5-12 10s12 5 12 10",
-    "M8 6.5h8",
-    "M6 12h12",
-    "M8 17.5h8",
-  ],
-};
-
+// Icons come from lib/brellaTheme.ts, shared with the embed builder. Inlined SVG rather than
+// lucide-react: the embed emits raw HTML strings and cannot render a React component, so the
+// glyphs have to exist as plain SVG anyway, and a package would leave the embed with a second
+// copy to drift from.
 function StageIcon({ stage }: { stage: string }) {
   const paths = STAGE_ICON_PATHS[stage];
   if (!paths) return null;

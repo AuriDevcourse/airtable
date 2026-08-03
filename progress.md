@@ -93,6 +93,50 @@ it looks perfect right up until it is pasted. It cost the whole partners wall on
 
 ---
 
+## Session 2026-08-03u (THE EMBED IS PORTED: timeline, mobile dropdown, shared theme)
+
+State: done, pushed. `tsc --noEmit` clean. The embed is finally level with the dashboard.
+
+**`lib/brellaTheme.ts` is new and exists to stop drift.** The page renders React and the embed
+builder emits an HTML string, so neither can import the other's markup, but they must AGREE on
+track colours and stage icons. Both were duplicated by hand and had already diverged (the embed
+still had Founders Stage red after the dashboard moved it to green). Regexes are stored as
+SOURCE STRINGS so the table can be `JSON.stringify`'d straight into the snippet; the page
+compiles them once at module load.
+
+**The embed now has two layouts, chosen by section:**
+- `stages`, `grills` -> the timeline, mirroring the dashboard: 09:00 origin, one column per
+  stage, 30-minute gridlines, cluster-based lanes on drawn extents, five-word titles, avatars,
+  moderator-aware counts, the gradient card for Life Science.
+- `rooms`, `side` -> the card list. Side Events is filtered by DAY, since it has one track.
+
+**The phone layout shows ONE column and a native `<select>` to switch.** Five columns in 360px
+is unreadable. A native select rather than a custom dropdown on purpose: inside an unknown
+WordPress theme a hand-rolled menu is a z-index and portal fight with no upside. Below 760px the
+pill row is hidden and the select appears; `syncNarrow()` picks the first column when none is
+chosen and re-renders on the breakpoint so rotating the phone stays consistent. Day pills stay
+visible at every width, since there are only two and they are what people switch most.
+
+**Verified at 390px and 1440px** inside deliberately hostile host CSS (`a{display:contents}`,
+`img{aspect-ratio:3/2}`, `span{display:inline}`, a serif `button` font). Desktop: 5 columns, 34
+events, 5 icons, 51 avatars, the LS gradient resolving to two stops, grills 10. Mobile: pills
+hidden, select shown, one column, correct counts per stage (BBQ 8, Tech 9, LS 11, Campfire 0
+with "Nothing scheduled"), day switch working, no horizontal overflow at either width, dialog
+showing role tags and collapsed bios.
+
+**Trap #2 caught me again**, and it is worth repeating because it looked exactly like a real
+bug: the first mobile measurement reported 0 events for every stage. Nothing was wrong. The
+measurement ran while the dev server was still compiling the freshly written test page. A clean
+reload gave 8. Never diagnose from the first measurement after touching a file.
+
+Files: `lib/brellaTheme.ts` (new), `lib/brellaEmbedSnippet.ts` (rewritten),
+`app/brella-program/page.tsx` (now imports the shared theme).
+
+### Next steps
+
+1. Copy all four Brella embeds from the DEPLOYED dashboard into their Elementor HTML widgets.
+   HTML widget, not Text Editor: wpautop injects <p> and <br> into the script and breaks it.
+
 ## Session 2026-08-03t (Grills get the timeline, Side Events get days, card avatars)
 
 State: done, pushed. `tsc --noEmit` clean. Dashboard only.
