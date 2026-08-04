@@ -19,6 +19,25 @@ export type CachedState<T> = {
   changes: ChangeSummary | null;
 };
 
+/**
+ * The URL for a feed plus the manual-sync trigger for it.
+ *
+ * Every dashboard page has a "Refresh from Airtable" button, and pressing it cannot just
+ * refetch: on the deployed site the CDN answers a repeat GET of the same URL, so a plain
+ * refetch would hand back the copy already on screen. `?fresh=<n>` is a URL neither the CDN
+ * nor the server cache has seen, which is what makes the read reach Airtable. The counter
+ * increments per press so no two presses share a URL.
+ *
+ * It resets when `base` changes, so switching tabs on a page like /niss goes back to an
+ * ordinary cached read instead of firing an authenticated live read per tab.
+ */
+export function useFreshUrl(base: string): { url: string; refresh: () => void } {
+  const [pressed, setPressed] = useState({ base, n: 0 });
+  const n = pressed.base === base ? pressed.n : 0;
+  const url = n ? `${base}${base.includes("?") ? "&" : "?"}fresh=${n}` : base;
+  return { url, refresh: () => setPressed({ base, n: n + 1 }) };
+}
+
 // Stale-while-revalidate over localStorage:
 // 1. Paint cached data instantly (no skeleton) if we have it.
 // 2. Always fetch in the background.

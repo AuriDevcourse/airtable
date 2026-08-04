@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Same per-image shimmer loader as the other speaker pages: state lives here so parent
@@ -47,11 +48,9 @@ type LsPerson = {
 const LS_STAGES = ["Life Science x Deep Tech Stage", "Deep Tech Event Day"];
 
 export default function LifeSciencePage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<LsPerson>(
-    "lifescience",
-    "/api/life-science",
-    "people"
-  );
+  const { url, refresh } = useFreshUrl("/api/life-science");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<LsPerson>("lifescience", url, "people");
   const all = data ?? [];
 
   // Random order at all times (Auri's rule). Seeded so a background revalidation cannot
@@ -125,6 +124,17 @@ export default function LifeSciencePage() {
                 ? `Copies an Elementor snippet showing only the ${stage} speakers, with no filter pills.`
                 : "Copies an Elementor snippet for this speaker grid, with the stage filter built in. Pick a stage above to copy just those speakers."}
             </span>
+          </div>
+
+          {/* The stage pills filter one cached list client-side, so this reads the whole
+              Life Science feed live regardless of which pill is active. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="lifescience"
+            />
           </div>
         </div>
       </section>

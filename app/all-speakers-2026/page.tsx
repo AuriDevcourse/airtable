@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
+import type { ChangeSummary } from "@/lib/diffList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
@@ -170,18 +172,49 @@ function SpeakerModal({ speaker, onClose }: { speaker: Card; onClose: () => void
   );
 }
 
+// The most changes the report prints before it starts counting the rest as hidden. Matches
+// diffList's own cap, so a merged report reads like a single-feed one.
+const MAX_REPORT_ITEMS = 15;
+
+/**
+ * Sum several feeds' change reports into one, for a tab that renders more than one feed.
+ * Returns null while any of them is still missing: a partial total would claim "1 edited"
+ * when two of the three answers have not arrived, and the button would stop waiting early.
+ */
+function mergeChanges(parts: (ChangeSummary | null)[]): ChangeSummary | null {
+  if (parts.some((c) => c == null)) return null;
+  const present = parts as ChangeSummary[];
+  const items = present.flatMap((c) => c.items);
+  const shown = items.slice(0, MAX_REPORT_ITEMS);
+  return {
+    added: present.reduce((n, c) => n + c.added, 0),
+    removed: present.reduce((n, c) => n + c.removed, 0),
+    changed: present.reduce((n, c) => n + c.changed, 0),
+    total: present.reduce((n, c) => n + c.total, 0),
+    items: shown,
+    hidden: present.reduce((n, c) => n + c.hidden, 0) + (items.length - shown.length),
+  };
+}
+
 export default function AllSpeakers2026Page() {
   const [group, setGroup] = useState<GroupKey>("speakers");
   // Speakers-group detail pop-up (the only group with bios).
   const [selected, setSelected] = useState<Card | null>(null);
 
-  // All four sources load on mount so switching groups is instant. Cache keys are
+  // One manual-sync counter for all five feeds, rather than useFreshUrl per feed: this page
+  // is assembled from five sources and a button that refreshed only the open tab's slice
+  // would leave the other tabs stale behind a control that looked like it covered the page.
+  const [fresh, setFresh] = useState(0);
+  const live = (base: string) =>
+    fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
+
+  // All five sources load on mount so switching groups is instant. Cache keys are
   // shared with the standalone pages, so a warm localStorage entry paints instantly.
-  const speakers = useCachedList<FeedPerson>("speakers-2026", "/api/speakers-2026", "speakers");
-  const niss = useCachedList<FeedPerson>("niss:all", "/api/niss-speakers", "people");
-  const nass = useCachedList<FeedPerson>("nass:all", "/api/nass-speakers", "people");
-  const rooms = useCachedList<FeedPerson>("eventrooms", "/api/event-room-presenters", "people");
-  const investors = useCachedList<FeedPerson>("investors:all", "/api/investor-speakers", "people");
+  const speakers = useCachedList<FeedPerson>("speakers-2026", live("/api/speakers-2026"), "speakers");
+  const niss = useCachedList<FeedPerson>("niss:all", live("/api/niss-speakers"), "people");
+  const nass = useCachedList<FeedPerson>("nass:all", live("/api/nass-speakers"), "people");
+  const rooms = useCachedList<FeedPerson>("eventrooms", live("/api/event-room-presenters"), "people");
+  const investors = useCachedList<FeedPerson>("investors:all", live("/api/investor-speakers"), "people");
 
   // Mount-fixed seed so revalidation/tab-switching doesn't re-jump the shuffled order;
   // a real refresh remounts → new seed → new order (same pattern as /investors).
@@ -258,6 +291,8 @@ export default function AllSpeakers2026Page() {
           revalidating: speakers.revalidating,
           error: speakers.error,
           empty: !speakers.data,
+          revalidateError: speakers.revalidateError,
+          changes: speakers.changes,
         }
       : group === "event-room"
         ? {
@@ -265,12 +300,18 @@ export default function AllSpeakers2026Page() {
             revalidating: niss.revalidating || nass.revalidating || rooms.revalidating,
             error: failedFeeds.length === roomFeeds.length ? niss.error : null,
             empty: !niss.data && !nass.data && !rooms.data,
+            // Any one of the three failing is enough to report: the press did not fully land.
+            revalidateError: niss.revalidateError ?? nass.revalidateError ?? rooms.revalidateError,
+            // Event Room is three feeds in one tab, so its report is the three summed.
+            changes: mergeChanges([niss.changes, nass.changes, rooms.changes]),
           }
         : {
             loading: investors.loading,
             revalidating: investors.revalidating,
             error: investors.error,
             empty: !investors.data,
+            revalidateError: investors.revalidateError,
+            changes: investors.changes,
           };
 
   return (
@@ -310,6 +351,16 @@ export default function AllSpeakers2026Page() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies one Elementor snippet with the tab switcher built in.
             </span>
+          </div>
+
+          {/* One press reads all five feeds live; the report covers the open tab. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={() => setFresh((n) => n + 1)}
+              changes={active.changes}
+              error={active.revalidateError}
+              resetKey={group}
+            />
           </div>
         </div>
       </section>

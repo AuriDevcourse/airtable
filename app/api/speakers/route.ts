@@ -1,27 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchSpeakers } from "@/lib/airtable";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 
 export const OPTIONS = corsPreflight;
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+const KEY = "speakers";
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  // Rate limit + the authenticated ?fresh= live-read. See lib/apiRoute.ts.
+  const gate = feedGate(req, KEY);
+  if (!gate.ok) return gate.res;
 
   try {
-    const speakers = await cached("speakers", fetchSpeakers);
-    const res = NextResponse.json(
-      { count: speakers.length, speakers },
-      { status: 200 }
-    );
-    // Let Vercel's CDN serve repeat hits without re-running the function.
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    // Drop this instance's entry first, so the read below really goes to Airtable AND the
+    // refreshed value is what ordinary cached reads on this instance serve next.
+    if (gate.fresh) invalidate(KEY);
+
+    const speakers = await cached(KEY, fetchSpeakers, feedTtlMs());
+    // Cacheable + CORS for the Elementor embeds; a live-read is no-store instead.
+    return feedResponse({ count: speakers.length, speakers }, gate);
   } catch (err) {
     console.error("[/api/speakers]", err);
     return errorResponse(err, "Something went wrong loading speakers.");

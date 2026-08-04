@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Same per-image shimmer loader as the other feed pages.
@@ -35,11 +36,9 @@ type FintechSpeaker = {
 };
 
 export default function FintechSpeakersPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<FintechSpeaker>(
-    "fintech-speakers",
-    "/api/fintech-speakers",
-    "people"
-  );
+  const { url, refresh } = useFreshUrl("/api/fintech-speakers");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<FintechSpeaker>("fintech-speakers", url, "people");
   // Curated hierarchy order comes from the API (1..9); no shuffle on purpose.
   const people = data ?? [];
 
@@ -64,6 +63,15 @@ export default function FintechSpeakersPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the speakers in Hierarchy order.
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="fintech-speakers"
+            />
           </div>
         </div>
       </section>

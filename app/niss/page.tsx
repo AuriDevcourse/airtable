@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Manual per-person crop overrides. Default card crop is object-position 50% 30% (see
@@ -56,12 +57,13 @@ const roleLabel = (r: string) => (r === "all" ? "All" : r === "Speaker" ? "Prese
 export default function NissPage() {
   const [role, setRole] = useState<Role>("Speaker");
 
-  const url = role === "all" ? "/api/niss-speakers" : `/api/niss-speakers?role=${role}`;
-  const { data, loading, revalidating, error, updated } = useCachedList<NissPerson>(
-    `niss:${role}`,
-    url,
-    "people"
-  );
+  // `base` is the public URL the embed snippet must carry. The page itself fetches `url`,
+  // which the refresh button turns into an authenticated ?fresh= read. Baking that into an
+  // Elementor snippet would 401 for every visitor, so the two stay separate.
+  const base = role === "all" ? "/api/niss-speakers" : `/api/niss-speakers?role=${role}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<NissPerson>(`niss:${role}`, url, "people");
   const people = data ?? [];
 
   return (
@@ -90,13 +92,24 @@ export default function NissPage() {
             {/* Mobile defaults to the list-rows layout for every role now. The Brand
                 Ambassadors embed pins desktop to 3 per row (only 3 people). */}
             <CopyEmbed
-              path={url}
+              path={base}
               listKey="people"
               columns={role === "Brand Ambassadors" ? 3 : undefined}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>
+          </div>
+
+          {/* Reads the open role live from Airtable. Switching tabs resets it to an ordinary
+              cached read. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`niss:${role}`}
+            />
           </div>
         </div>
       </section>

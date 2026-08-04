@@ -4,8 +4,9 @@ import { fetchNiss, NissPerson } from "@/lib/niss";
 import { fetchNass, NassPerson } from "@/lib/nass";
 import { fetchEventRoomPresenters, EventRoomPresenter } from "@/lib/eventrooms";
 import { fetchInvestors, InvestorSpeaker } from "@/lib/investors";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 // Combined feed for the tabbed "All Speakers 2026" embed: one fetch returns all three
 // groups so the embed's tab switcher works without extra round-trips.
@@ -13,7 +14,7 @@ import { FEED_CACHE_CONTROL, clientIp, corsPreflight, tooManyRequests, withCors 
 //   eventRoom = NISS 2026 + NASS 2026 merged (Team Members excluded), tagged per event
 //   investors = Pension & Insurance Summit + LP Forum + Investor Day, tagged per event
 // Cache keys are shared with the individual routes, so this route serves from the same
-// 1h server cache the standalone feeds fill (and vice versa).
+// server cache the standalone feeds fill (and vice versa).
 
 export const dynamic = "force-dynamic";
 // The hub + wide Marketing-table scans each carry their own timeout + retry.
@@ -31,20 +32,28 @@ const INVESTOR_TAGS: Record<string, string> = {
   "investor-day": "Investor Day",
 };
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+// The five entries this feed is assembled from. Shared with the standalone routes, which is
+// why a live-read here has to drop all five: this route owns no key of its own, so
+// invalidating "all-speakers" would clear nothing and the refresh would return the same
+// list it just showed.
+const SOURCE_KEYS = ["speakers-2026", "niss:all", "nass:all", "eventrooms", "investors:all"];
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  const gate = feedGate(req, "all-speakers");
+  if (!gate.ok) return gate.res;
+
+  if (gate.fresh) for (const key of SOURCE_KEYS) invalidate(key);
+
+  const ttl = feedTtlMs();
 
   // One failed source shouldn't blank the whole embed: each group degrades to [] on its
   // own (cached() already serves last-good first), and only all-dead is an error.
   const [hubR, nissR, nassR, roomsR, invR] = await Promise.allSettled([
-    cached("speakers-2026", fetchHubSpeakers),
-    cached("niss:all", () => fetchNiss()),
-    cached("nass:all", () => fetchNass()),
-    cached("eventrooms", fetchEventRoomPresenters),
-    cached("investors:all", () => fetchInvestors()),
+    cached("speakers-2026", fetchHubSpeakers, ttl),
+    cached("niss:all", () => fetchNiss(), ttl),
+    cached("nass:all", () => fetchNass(), ttl),
+    cached("eventrooms", fetchEventRoomPresenters, ttl),
+    cached("investors:all", () => fetchInvestors(), ttl),
   ]);
 
   const val = <T,>(r: PromiseSettledResult<T[]>): T[] => (r.status === "fulfilled" ? r.value : []);
@@ -87,13 +96,11 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const res = NextResponse.json(
+  return feedResponse(
     {
       counts: { speakers: speakers.length, eventRoom: eventRoom.length, investors: investors.length },
       groups: { speakers, eventRoom, investors },
     },
-    { status: 200 }
+    gate
   );
-  res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-  return withCors(res);
 }

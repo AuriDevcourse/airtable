@@ -5,7 +5,8 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 
 // The 12 speakers marketing tick as "Main Page = YES" in Airtable, in curated order.
 // Photos + name + title·company only — no bio, no modal. Same card/row look as the other
@@ -47,11 +48,9 @@ type Speaker = {
 };
 
 export default function MainSpeakers() {
-  const { data, loading, revalidating, error, updated } = useCachedList<Speaker>(
-    "main-speakers",
-    "/api/main-speakers",
-    "speakers"
-  );
+  const { url, refresh } = useFreshUrl("/api/main-speakers");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<Speaker>("main-speakers", url, "speakers");
   const speakers = data ?? [];
 
   return (
@@ -76,6 +75,18 @@ export default function MainSpeakers() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this 12-speaker grid.
             </span>
+          </div>
+
+          {/* Manual sync. Forces a live Airtable read past both caches and reports what
+              changed. Works on the deployed dashboard too — the bypass is gated by the
+              dashboard password. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="main-speakers"
+            />
           </div>
         </div>
       </section>
