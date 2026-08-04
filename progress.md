@@ -23,6 +23,11 @@ still carries the snippet from before 04i, so its Side Events render with the ol
 orange, the hosting company behind a map pin, no Register button, no All chip. The DATA is
 already live through it. Fetch the new snippet from
 `/api/embed?kind=brella&section=all` and replace the HTML widget. Verify with `?cb=`.
+Life Science has its own snippet now: `/api/embed?kind=brella&stage=life-science`.
+
+**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** Partner tiers now derive from the
+deal size, which empties the Prime band. It is finished and verified but needs one decision from
+Auri first — see Session 2026-08-04l. `git status` is dirty on purpose; do not "tidy" it away.
 
 ## What exists now
 
@@ -162,6 +167,82 @@ it to green).
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 - A blanket `#id .modal *` reset ties with every class rule in the same block, so anything it
   stamps out (`float`, `display`) must be RE-DECLARED after it, not before.
+
+---
+
+## Session 2026-08-04l (partner tiers now come from the deal size — UNCOMMITTED, needs a decision)
+
+**STATE: `lib/partners.ts` is CHANGED ON DISK AND NOT COMMITTED.** It works and is verified, but it
+empties the Prime band on the wall, which is Auri's call to make. Do not push it without reading
+"the decision" below. Everything else this session was Airtable data, not code.
+
+**What changed.** `/partners` took its tier from this view's own `Partnership Type 2026` plus TEN
+hand-written corrections copied off the live site, because that column and the CRM's deal-size
+formula disagreed on 16 rows. The tier now comes from `Partnership Tier (from Tier)`
+(fld7V2pEJqa2qybGM), a lookup that resolves `Deal 2026` through a formula on Partners 2026.
+
+The corrections are DELETED. Do not reintroduce them: an override table beside a computed field is
+two sources of truth, and it had already drifted — its Dealroom entry said Challenger while the
+deal says Community.
+
+**35 partners moved band**, mostly promotions out of Community (Business Turku → Core, Clean →
+Pioneer, DI → Core, nine more → Challenger); a few demotions (Skytek, TechSavvy, Dealroom →
+Community). Wall is 105 partners, 104 logos.
+
+**THE DECISION: the Prime row is now empty.** Prime needs >= 751,000 and
+  * Beyond Beta sits at **750,000 — one thousand short** (threshold artifact, surely not intent)
+  * the only real Prime record is **Novo Nordisk Foundation at 2,500,000**, which is NOT in the
+    Partner Deliverables 2026 view at all, so the wall cannot show it
+Pick one: lower the threshold to 750,000, correct Beyond Beta's deal, or add Novo to the view.
+
+**Deliberately NOT changed:** Investor / Academic / Tailored are still excluded, still read from
+`Partnership Type 2026`. Switching that too would put 19 more logos on the wall (EY, HSBC,
+Microsoft Danmark, European Investment Fund, Heartcore, Rockstart, …). That is a content decision
+about who belongs on a partner wall, not a consequence of fixing tiers. One line to flip.
+
+**Dropped off the wall:** AIESEC in Denmark and Crescita Partners have no tier, so no band. Both
+are logged by name. Crescita is correct (no contract, confirmed by Auri); AIESEC needs a
+`Company Link` or a deal.
+
+### The Airtable work behind it (no code, but do not redo the discovery)
+
+`Partner Deliverables 2026` had **45 rows with an empty tier; now 1**. Every one was empty for the
+same reason: **no `Company Link`**. The tier is a lookup, so with no link there is nothing to look
+up — the formula never failed once.
+
+**Matching those rows to Partners 2026 is harder than it looks, and here is what works.** That
+table holds **2,666 records with 245 duplicated company names**, so substring matching is unsafe:
+it paired "Sri Sathya Sai Institute of Higher Learning" with a record called **`Teo`** purely
+because "teo" sits inside "institute". Rules that did work, in order of reliability:
+
+1. **Exact name, and where the name is duplicated, the one record with a `Deal 2026`.** That is the
+   2026 partnership; the duplicates are stale leads. Resolved 23.
+2. **EMAIL DOMAIN (Auri's idea, and the best signal here).** Compare the Marketing row's contact
+   email/website domain against the partner record's. It found matches no name check could:
+   Copenhagen Fintech → `CPH Fintech`, cse advisory → `CSE Ventures`, NTNU Discovery →
+   `Norwegian University of Science and Technology`, Third Law ApS → `3RD`, Plug and Play →
+   `Plug&Play`, Sri Sathya Sai → `SSSIHL (NISS)`. It also REFUTED the Teo false positive
+   (sssihl.edu.in vs c.dk). **Exclude linkedin.com and generic mail hosts** — every record shares
+   them, so they identify nothing.
+3. **Plain substring name search, which I should have run first.** Found `Eryk Group`,
+   `Danish Startup Group DSG` and `Repodo ApS` instantly after the clever rules had missed them.
+4. **Status 2026 = Confirmed** breaks ties between duplicates (Mesh had a `Duplicate`, a
+   `To Be Contacted` and a `Confirmed` row).
+
+**Traps found in that data:**
+  * Boardway's live record is named **`Diversity Commitment / Boardway`** (190,000, Pioneer) while
+    THREE stale rows are named plainly `Boardway` with no deal. The obvious match is the wrong one.
+  * Repodo's real partnership is filed under **`Stealth TBD`** (204,000, Confirmed,
+    ken@repodo.com) — created while they were in stealth, never renamed. A separate `Repodo ApS`
+    row is an uncontacted lead. **Rename that record.**
+  * That same record says `Partnership Type 2026` = **Conqueror** and notes "20% Conqueror Booth",
+    but the formula computes **Pioneer** (Conqueror needs >= 255,000, the deal is 204,000). Sold
+    tier and derived tier disagree.
+  * Marketing rows carry trailing spaces (`"Boardway "`) and one has a trailing newline
+    (`"Cloudflare\n"`).
+
+Also added Archana Jahagirdar to the Event Room Speakers view (`recdRdb2xkLtuC5s6`); she registered
+for NISS on 3 August, after those rows were built on 29 July.
 
 ---
 
