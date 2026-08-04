@@ -152,9 +152,11 @@ export function mergeSideEvents(
         // alone is honest and useful, "Time TBC" is neither. Partners will get a time field on
         // the form; until they fill it, this is what a visitor sees.
         dateLabel: e.date ? dateWords(e.date) : undefined,
-        // The access badge belongs on the card: "Private · invite only" is the difference
-        // between a visitor turning up and not.
-        type: [e.kindLabel, e.accessLabel].filter(Boolean).join(" · "),
+        // Just the kind. Public/private used to be fused into this string, which made the
+        // dialog's badge read "Side Event · Private · invite only" and forced any consumer
+        // wanting the access rule to parse prose. It has its own field now.
+        type: e.kindLabel,
+        access: e.accessKind ?? undefined,
         description: e.description || stripDeadRegisterLine(match?.session.description || ""),
         // "room" for a side event is the hosting partner: these run at the partner's own
         // venue, not in a Bella Center room.
@@ -177,8 +179,18 @@ export function mergeSideEvents(
   // A Brella side event with no Airtable row is kept rather than dropped. None exist today,
   // but silently losing a session because a partner never filled the form is the wrong
   // failure: it would disappear from techbbq.dk with nothing to explain why.
+  //
+  // It is LOUD, though. The realistic cause is not a missing row but a title that stopped
+  // matching after someone edited it on one side, and the visible symptom of that is the same
+  // event appearing TWICE on the live page. A line in the Vercel logs is how that gets caught
+  // during event week instead of by a visitor.
   for (const { session } of brella) {
     if (paired.has(session)) continue;
+    console.warn(
+      `[sideEvents] Brella side event "${session.name}" (${session.day}, ${session.timeSlot}) ` +
+        `matched no Airtable row — shown as-is, with no register link. If this event IS in ` +
+        `Airtable under a different title, it is now listed twice; align the titles to fix.`
+    );
     sessions.push({
       ...session,
       description: stripDeadRegisterLine(session.description || ""),

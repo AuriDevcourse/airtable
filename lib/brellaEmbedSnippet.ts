@@ -210,6 +210,9 @@ export function buildBrellaEmbedSnippet({
      before signing up. 10px radius rather than a pill, to sit with the cards around it instead
      of with the filter chips. background and text-decoration are forced because techbbq.dk
      styles every <a> inside content. */
+  /* The private-event caveat: muted and small, a condition of attending rather than a pitch. */
+  #${id} .tbbq-bp__note{margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-family:var(--sans)!important;font-size:11px!important;font-weight:400!important;line-height:1.4!important;text-transform:none!important}
+  #${id} .tbbq-bp__modal .tbbq-bp__note{font-size:12px!important;line-height:1.5!important}
   #${id} .tbbq-bp__cta{margin:22px 0 0!important;padding:0!important}
   #${id} .tbbq-bp__cta a{display:inline-flex!important;align-items:center!important;padding:11px 20px!important;border-radius:10px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
   #${id} .tbbq-bp__cta a:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
@@ -415,6 +418,11 @@ export function buildBrellaEmbedSnippet({
     if(mods)out.push(mods+" moderator"+(mods===1?"":"s"));
     return out.join(" \\u00b7 ");
   }
+  /* Airtable's "Event type" has only Public / Private (invite only), so it cannot tell an
+     invitation from an approval queue; the Luma pages behind the private ones show "Request to
+     Join · Approval Required", and one uses Google RSVP where the mechanism is unknown. This
+     copy covers both and claims neither — either way a visitor cannot just turn up. */
+  var PRIVATE_NOTE="Private event · you need an invitation or the host's approval to attend";
   function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150||Boolean(safeUrl(s.registerUrl));}
   /* A side event whose partner has not filled in a time shows its DATE instead of "Time TBC":
      the date is real information a visitor can plan around, the placeholder is not. Only the
@@ -573,7 +581,9 @@ export function buildBrellaEmbedSnippet({
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
             +venueLine(s)
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
-            +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'');
+            +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'')
+            /* Last line on the card: it is a caveat, not a headline. */
+            +(s.access==="private-invite"?'<p class="tbbq-bp__note">'+esc(PRIVATE_NOTE)+'</p>':'');
           var st=' style="'+sessionVars(s)+'"';
           /* No Register button on the preview (Auri, 2026-08-04): a pill on every card turned
              this section into a wall of buttons, and someone should read what an event is
@@ -655,6 +665,7 @@ export function buildBrellaEmbedSnippet({
       /* Above the speaker list on purpose: whoever opened a side event came to sign up, and a
          CTA below six bios is off the bottom of a phone screen. */
       +(safeUrl(s.registerUrl)?'<p class="tbbq-bp__cta"><a href="'+esc(safeUrl(s.registerUrl))+'" target="_blank" rel="noopener noreferrer">Register for this event</a></p>':'')
+      +(s.access==="private-invite"?'<p class="tbbq-bp__note">'+esc(PRIVATE_NOTE)+'</p>':'')
       +(people?'<h3>'+esc(summary(s.speakers)||"Speakers")+'</h3><ul class="tbbq-bp__people">'+people+'</ul>':'');
     overlay.hidden=false;
     /* Lock the page behind. Without this a scroll gesture over the dialog moves the article

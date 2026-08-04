@@ -65,7 +65,17 @@ type Session = {
   section?: SectionKey;
   // "25 August" — what goes where the time goes when a side event has no time yet.
   dateLabel?: string;
+  // Side events only. See the note below for why the copy hedges between the two mechanisms.
+  access?: "public" | "private-invite";
 };
+
+// Airtable's `Event type` has exactly two options, "Public Event" and "Private Event (invite
+// only)", so it cannot tell an invitation from an approval queue. The Luma pages behind the
+// private ones show "Request to Join · Approval Required" (checked 2026-08-04), so the label is
+// stricter than reality, and one private event uses Google RSVP where the mechanism is unknown.
+// This copy therefore covers both and claims neither. What matters to a visitor is the same
+// either way: you cannot simply turn up.
+const PRIVATE_NOTE = "Private event · you need an invitation or the host's approval to attend";
 
 /**
  * What to print in the time slot. A side event whose partner has not filled in a time shows
@@ -533,6 +543,8 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
       {peopleSummary(s.speakers) && (
         <p className="bp-card__speakers">{peopleSummary(s.speakers)}</p>
       )}
+      {/* Last line on the card, Auri's placement: it is a caveat, not a headline. */}
+      {s.access === "private-invite" && <p className="bp-card__note">{PRIVATE_NOTE}</p>}
     </>
   );
   const style = sessionVars(s);
@@ -711,6 +723,8 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
             </a>
           </p>
         )}
+        {/* Directly under the button it explains, so nobody presses it expecting a ticket. */}
+        {s.access === "private-invite" && <p className="bp-modal__note">{PRIVATE_NOTE}</p>}
 
         {s.speakers && s.speakers.length > 0 && (
           <>

@@ -61,6 +61,14 @@ export type ProgramSession = {
   // is the hosting partner and would otherwise read as a stage. Absent on Brella sessions,
   // which are classified by name (lib/brellaSections.ts).
   section?: BrellaSection;
+  // Whether anyone can turn up. Side Events only, from Airtable's `Event type`.
+  //
+  // The source offers exactly two options, "Public Event" and "Private Event (invite only)", so
+  // it cannot distinguish an invitation from an approval queue. In practice the private ones do
+  // both: the Luma pages behind them show "Request to Join · Approval Required" (verified
+  // 2026-08-04), while the label says invite only. The UI copy therefore says invitation OR
+  // approval rather than picking one the data cannot support.
+  access?: "public" | "private-invite";
   // What to show where the time goes when there is no time: "25 August". Side Events only,
   // because they are the only sessions that can legitimately lack one — partners submit the
   // date and the `Time slot` cell is often left empty. A card showing the date beats a card
