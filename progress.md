@@ -16,7 +16,13 @@ connector. (No commit hash here on purpose: this line ships inside the commit it
 through August 27th (`lib/cachePolicy.ts`, reverts on its own on the 28th), a Refresh button on
 every page, `/program` renamed to TechBBQ Project Programs, Side Events rebuilt from
 Airtable + Brella + Luma, and Future of Fintech split into Speakers / Moderators / Keynote with
-a no-hierarchy-no-publish gate.
+a no-hierarchy-no-publish gate. Then 04l-04n, all partner wall: tiers from the deal size, logos
+from Airtable, 15 measured size nudges, the tile/logo split that stopped a hover resizing a logo,
+and a multi-origin CORS allowlist for the new site.
+
+**Two tools worth knowing before touching the wall.** `node scripts/measure-logo-ink.mjs` answers
+"why does this logo look small?" with a measurement instead of a guess, and prints the nudge to use.
+`scripts/sync-partner-logos.mjs` is now a FALLBACK only — Airtable is the source of the artwork.
 
 **THE ONE THING OUTSTANDING: the Elementor paste on techbbq.dk (post 58341).** The live page
 still carries the snippet from before 04i, so its Side Events render with the old markup —
@@ -26,11 +32,26 @@ already live through it. Fetch the new snippet from
 Life Science has its own snippet now: `/api/embed?kind=brella&stage=life-science`.
 
 **THE PARTNER WALL NOW TAKES ITS LOGOS FROM AIRTABLE (session 04m), and everything from 04l is
-committed with it.** The Prime band is empty under deal-derived tiers, and that was held back as a
-decision — it no longer blocks anything, because an empty tier renders NOTHING on either surface
-(`app/partners/page.tsx` skips it, `lib/partnersEmbedSnippet.ts:243` returns ""). So nothing looks
-broken on techbbq.dk; the three ex-Prime partners simply sit in the band their deal size says. The
-open item is Airtable data, not code — see "the decision" in Session 2026-08-04l.
+committed with it.** Replacing a logo in Airtable reaches the site on its own; nobody re-runs
+`scripts/sync-partner-logos.mjs`, which is now only a fallback. The Prime band is empty under
+deal-derived tiers, and that was held back as a decision — it no longer blocks anything, because an
+empty tier renders NOTHING on either surface (`app/partners/page.tsx` skips it,
+`lib/partnersEmbedSnippet.ts:243` returns ""). So nothing looks broken on techbbq.dk; the three
+ex-Prime partners simply sit in the band their deal size says. The open item is Airtable data, not
+code — see "the decision" in Session 2026-08-04l.
+
+**THE WALL IS ALSO GOING ON THE NEW SITE, `https://staging.techbbq.dk/partners/` (session 04n).**
+`ALLOWED_ORIGIN` is a comma-separated allowlist now and holds both hosts; set on Vercel and verified
+live from a browser on staging. Adding a third host later is a dashboard edit plus a redeploy, no
+code. The consuming contract handed to that site's developer is written out at the end of 04n.
+
+**TWO THINGS WAITING ON AURI, both content rather than code:**
+1. **Southern Sweden's logo** now renders "Delegation from southern Sweden", straight from Airtable.
+   Nothing else could confirm it, so it needs one look.
+2. **Teknologisk Institut (5.6:1) and AIESEC (7:1) read short** and no scale value can fix it — they
+   already fill the tile's full width. Either stacked exports of those marks, or let very wide logos
+   span two grid columns. Six more are in the same position (Beta Health 10:1, Business Iceland 9:1,
+   Auxxo, Cloudflare, The Residency Vienna, eryk).
 
 ## What exists now
 
@@ -207,15 +228,46 @@ canonical site, so any future call site behaves as before rather than failing op
 Next's generated route types reject the `export const OPTIONS` outright, with an error that names
 `__param_type__` and not your file.
 
-**THE ENV VAR IS THE OPERATIVE HALF AND IT IS NOT IN THIS REPO.** Set on Vercel:
+**THE ENV VAR IS THE OPERATIVE HALF AND IT IS NOT IN THIS REPO.** On Vercel:
 
 ```
 ALLOWED_ORIGIN=https://techbbq.dk,https://staging.techbbq.dk
 ```
 
-Until that is set, the code change does nothing — the default is a single-entry list. Verify from a
-browser console ON staging: `fetch("https://airtable-woad.vercel.app/api/partners").then(r=>r.json()).then(d=>d.count)`
-should print 104. No Vercel CLI on this machine, so it is a dashboard edit.
+**SET AND VERIFIED LIVE, same day.** Auri added it and redeployed. Checked two ways rather than
+assumed. The header, per caller:
+
+| Caller `Origin` | `Access-Control-Allow-Origin` | |
+|---|---|---|
+| `https://staging.techbbq.dk` | `https://staging.techbbq.dk` | allowed |
+| `https://techbbq.dk` | `https://techbbq.dk` | allowed |
+| `https://example.com` | `https://techbbq.dk` | refused, as intended |
+
+Then end-to-end from a browser ON `https://staging.techbbq.dk/partners/`: status 200, `count: 104`,
+all eight tiers, and a logo `<img>` decoded at 123x150. The fetch that was blocked an hour earlier
+now returns the full list.
+
+There is no Vercel CLI on this machine, so adding a THIRD origin later is a dashboard edit plus a
+redeploy — env changes do not apply to deployments that already exist. No code change needed.
+
+**A test that prints nothing is not a failing test.** The first check came back
+`Promise {<pending>}` and read like a block: `.then(d => d.count)` computes the count and discards
+it. Use `.then(d => console.log(d.count))`.
+
+### What was sent to the new site's developer
+
+The contract for consuming `/api/partners`, so it does not have to be reconstructed next time
+someone asks: group by `tier` and order the groups by `data.tiers` (which carries `name`, `color`
+and `cols`, highest tier first) rather than alphabetically · SKIP a tier with no partners, Prime and
+International are empty today · `website` can be null, render that logo unlinked · the logos are
+WHITE and assume a dark background · **do not strip `?v=` from the logo URL**, it is the
+cache-buster that makes a replaced logo appear at all · `scale` (15 rows) and `wide` (1 row, the EU
+frieze) are optional and only matter if they normalise logo sizes.
+
+Also told them to take the drop-in snippet from
+`https://airtable-woad.vercel.app/api/embed?kind=partners` and NEVER from a localhost dashboard —
+the origin is baked in at copy time, which is the empty-wall bug from 04f. Flagged that the snippet
+is styled for a dark background, so on a light page the fetch route is the better one.
 
 ## Session 2026-08-04m (the partner wall reads its logos from Airtable, and every logo is sized from a measurement)
 
