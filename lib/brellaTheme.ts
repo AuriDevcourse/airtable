@@ -36,6 +36,29 @@ export const TRACK_STYLES: TrackStyle[] = [
 
 export const DEFAULT_TRACK_COLOR = "#FA7000";
 
+// A section's own colour, used when the track name cannot carry it.
+//
+// Side Events are RED (#CE0F2E, Auri's rule and what /partner-events already uses). The name
+// rule above matched Brella's track "Side Event Promotion"; now that these come from Airtable
+// their `room` is the hosting partner — "Rockstart", "Google" — which matches nothing and fell
+// through to the orange default. A declared section beats guessing at a company name.
+export const SECTION_COLORS: Record<string, string> = {
+  side: "#CE0F2E",
+};
+
+// Lucide building-2, for the "Hosted by <partner>" line on a side event. Shared here rather
+// than written twice, for the same reason the stage icons are: the embed emits raw SVG strings
+// and cannot render the page's React component.
+export const HOST_ICON_PATHS: string[] = [
+  "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z",
+  "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2",
+  "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2",
+  "M10 6h4",
+  "M10 10h4",
+  "M10 14h4",
+  "M10 18h4",
+];
+
 // Lucide conventions: 24x24, currentColor stroke, 2px, round caps and joins, no fill.
 // BBQ/Tech/Founder are Lucide's own flame, zap and rocket. Campfire and the helix are drawn
 // here because Lucide has no firewood or DNA glyph that fits.
@@ -74,4 +97,14 @@ export function trackColor(room: string): string {
 
 export function trackColor2(room: string): string | undefined {
   return COMPILED.find((t) => t.rx.test(room || ""))?.color2;
+}
+
+/** A session's accent: its section's colour when it declares one, else its track's. */
+export function sessionColor(s: { room: string; section?: string }): string {
+  return (s.section && SECTION_COLORS[s.section]) || trackColor(s.room);
+}
+
+/** Gradient second stop. A section colour is always flat, so this is track-only. */
+export function sessionColor2(s: { room: string; section?: string }): string | undefined {
+  return s.section && SECTION_COLORS[s.section] ? undefined : trackColor2(s.room);
 }

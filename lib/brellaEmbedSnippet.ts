@@ -28,6 +28,8 @@ import {
 } from "@/lib/brellaSections";
 import {
   DEFAULT_TRACK_COLOR,
+  HOST_ICON_PATHS,
+  SECTION_COLORS,
   STAGE_ICON_PATHS,
   TRACK_STYLES,
 } from "@/lib/brellaTheme";
@@ -200,23 +202,16 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__modal .tbbq-bp__time{border-left:3px solid var(--track)!important;padding:2px 52px 2px 10px!important;font-size:12px!important}
   #${id} .tbbq-bp__title{margin:10px 0 0!important;padding:0!important;font-family:var(--head)!important;font-size:15px!important;font-weight:600!important;line-height:1.3!important;color:#fff!important;text-transform:none!important;letter-spacing:normal!important}
   #${id} .tbbq-bp__room{display:flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12px!important;line-height:1.4!important}
-  #${id} .tbbq-bp__desc{margin:8px 0 0!important;padding:0!important;color:rgba(255,255,255,.72)!important;font-size:12px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #${id} .tbbq-bp__desc{margin:8px 0 0!important;padding:0!important;color:rgba(255,255,255,.72)!important;font-family:var(--sans)!important;font-size:12px!important;font-weight:400!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #${id} .tbbq-bp__count{margin:10px 0 0!important;padding:0!important;color:var(--track)!important;font-family:var(--head)!important;font-size:11px!important;font-weight:600!important}
 
-  /* SIDE EVENT ACTIONS. Only Side Events carry a sign-up page. text-decoration and background
-     are forced because techbbq.dk styles every <a> and every <button> in content; the card is
-     column flex so margin-top:auto pins the row to the bottom and the buttons line up across a
-     row of cards with descriptions of different lengths. */
-  #${id} .tbbq-bp__card{display:flex!important;flex-direction:column!important}
-  #${id} .tbbq-bp__actions{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin:0!important;margin-top:auto!important;padding:14px 0 0!important}
-  #${id} .tbbq-bp__register{display:inline-flex!important;align-items:center!important;padding:9px 16px!important;margin:0!important;border:0!important;border-radius:9999px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
-  #${id} .tbbq-bp__register:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
-  #${id} .tbbq-bp__register:focus-visible{outline:2px solid #fff!important;outline-offset:2px!important}
-  #${id} .tbbq-bp__more{appearance:none!important;padding:9px 14px!important;margin:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:transparent!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;line-height:1.2!important;text-transform:none!important;cursor:pointer!important;box-shadow:none!important;transition:color .18s,border-color .18s}
-  #${id} .tbbq-bp__more:hover{color:var(--fg)!important;border-color:var(--track)!important}
-  #${id} .tbbq-bp__more:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px!important}
+  /* THE SIGN-UP BUTTON LIVES IN THE DIALOG ONLY (Auri, 2026-08-04). A pill on every preview
+     card turned Side Events into a wall of buttons, and a visitor should read what the event is
+     before signing up. 10px radius rather than a pill, to sit with the cards around it instead
+     of with the filter chips. background and text-decoration are forced because techbbq.dk
+     styles every <a> inside content. */
   #${id} .tbbq-bp__cta{margin:22px 0 0!important;padding:0!important}
-  #${id} .tbbq-bp__cta a{display:inline-flex!important;align-items:center!important;padding:11px 20px!important;border-radius:9999px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
+  #${id} .tbbq-bp__cta a{display:inline-flex!important;align-items:center!important;padding:11px 20px!important;border-radius:10px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
   #${id} .tbbq-bp__cta a:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
   #${id} .tbbq-bp__cta a:focus-visible{outline:2px solid #fff!important;outline-offset:2px!important}
 
@@ -244,7 +239,7 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__modal,#${id} .tbbq-bp__modal *{min-width:0!important;max-width:100%!important;float:none!important;columns:auto!important;column-count:1!important;column-width:auto!important;letter-spacing:normal!important;word-break:normal!important;overflow-wrap:break-word!important;hyphens:none!important}
   #${id} .tbbq-bp__modal{max-width:640px!important;width:100%!important}
   #${id} .tbbq-bp__body,#${id} .tbbq-bp__body p{display:block!important;width:100%!important;text-align:left!important;text-transform:none!important;white-space:normal!important}
-  #${id} .tbbq-bp__body p{margin:12px 0 0!important;padding:0!important;color:rgba(255,255,255,.8)!important;font-size:14px!important;line-height:1.6!important}
+  #${id} .tbbq-bp__body p{margin:12px 0 0!important;padding:0!important;color:rgba(255,255,255,.8)!important;font-family:var(--sans)!important;font-size:14px!important;font-weight:400!important;line-height:1.6!important}
   /* The person row is a flex pair; the text side must be free to grow. */
   #${id} .tbbq-bp__person>div{flex:1 1 auto!important;width:100%!important;display:block!important}
   #${id} .tbbq-bp__pname,#${id} .tbbq-bp__prole,#${id} .tbbq-bp__pbio,#${id} .tbbq-bp__pmore{display:block!important;text-transform:none!important;white-space:normal!important}
@@ -331,7 +326,9 @@ export function buildBrellaEmbedSnippet({
   var IS_TL=${isAll ? "true" : isTimeline ? "true" : "false"};
   var COLDEFS=${JSON.stringify(isAll ? columnsBySection["stages"] : columns)};
   var STYLES=${JSON.stringify(TRACK_STYLES)};
+  var SECTION_COLORS=${JSON.stringify(SECTION_COLORS)};
   var ICONS=${JSON.stringify(STAGE_ICON_PATHS)};
+  var HOST_ICON=${JSON.stringify(HOST_ICON_PATHS)};
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
   var EVENT_YEAR=${EVENT_YEAR};
   var PX=${PX_PER_MIN},SLOT=${SLOT_MIN},MINCARD=${MIN_CARD_PX};
@@ -349,6 +346,25 @@ export function buildBrellaEmbedSnippet({
   function safeUrl(u){var s=String(u==null?"":u).trim();return /^https?:\\/\\//i.test(s)?s:"";}
   function styleOf(room){for(var i=0;i<STYLE_RX.length;i++){if(STYLE_RX[i].rx.test(room||""))return STYLE_RX[i];}return {color:"${DEFAULT_TRACK_COLOR}"};}
   function trackVars(room){var t=styleOf(room);return "--track:"+t.color+(t.color2?";--track2:"+t.color2:"");}
+  /* A SESSION's accent. Side Events must go through this: their room is the hosting partner
+     ("Rockstart", "Google"), which matches no track rule and would take the orange default
+     instead of the red these are supposed to be. */
+  function sessionVars(s){
+    var sc=s&&s.section?SECTION_COLORS[s.section]:null;
+    return sc?("--track:"+sc):trackVars(s&&s.room);
+  }
+  function hostIcon(){
+    return '<svg class="tbbq-bp__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      +HOST_ICON.map(function(d){return '<path d="'+d+'"/>';}).join("")+'</svg>';
+  }
+  /* A stage or an event room is a PLACE, so it gets a pin. A side event's "room" is the
+     hosting partner — Airtable has no venue field for these at all — and a pin beside a
+     company name claims something untrue. */
+  function venueLine(s){
+    if(!s.room)return "";
+    if(s.section==="side")return '<p class="tbbq-bp__room">'+hostIcon()+esc("Hosted by "+s.room)+'</p>';
+    return '<p class="tbbq-bp__room">'+PIN+esc(s.room)+'</p>';
+  }
   function columnOf(room){for(var i=0;i<COLS.length;i++){if(COLS[i].rx.test(room||""))return COLS[i].label;}return null;}
   function iconFor(label){
     var p=ICONS[label];if(!p)return "";
@@ -396,7 +412,7 @@ export function buildBrellaEmbedSnippet({
     if(mods)out.push(mods+" moderator"+(mods===1?"":"s"));
     return out.join(" \\u00b7 ");
   }
-  function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150;}
+  function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150||Boolean(safeUrl(s.registerUrl));}
   /* A side event whose partner has not filled in a time shows its DATE instead of "Time TBC":
      the date is real information a visitor can plan around, the placeholder is not. Only the
      Side Events carry dateLabel, so every other section is unaffected. */
@@ -459,7 +475,7 @@ export function buildBrellaEmbedSnippet({
     var html="";
     if(allday.length){
       html+='<div class="tbbq-bp__allday"><span class="tbbq-bp__alldayLabel">All day</span><div class="tbbq-bp__alldayList">'
-        +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+trackVars(s.room)+'">'+esc(s.name)+'</button>';}).join("")
+        +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+sessionVars(s)+'">'+esc(s.name)+'</button>';}).join("")
         +'</div></div>';
     }
     /* Written inline, not left to the stylesheet. On techbbq.dk the timeline collapsed to
@@ -521,7 +537,7 @@ export function buildBrellaEmbedSnippet({
            78px is measured, not guessed: two lines of title (32) + the time (14) + the faces
            (16) + padding (12) is what a full card needs. */
         var tight=!compact&&h<78;
-        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+trackVars(s.room);
+        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+sessionVars(s);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
@@ -552,22 +568,14 @@ export function buildBrellaEmbedSnippet({
           var sum=summary(s.speakers);
           var inner='<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
-            +(s.room?'<p class="tbbq-bp__room">'+PIN+esc(s.room)+'</p>':'')
+            +venueLine(s)
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
             +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'');
-          var st=' style="'+trackVars(s.room)+'"';
-          /* A side event with a sign-up page cannot be a card-sized button: an anchor inside a
-             button is invalid markup and the click target becomes browser-dependent. Those
-             cards stay a div and get explicit actions instead. safeUrl keeps a non-http value
-             (an Airtable cell once literally held "No link") from becoming a live link. */
-          var reg=safeUrl(s.registerUrl);
-          if(reg){
-            return '<div class="tbbq-bp__card"'+st+'>'+inner
-              +'<div class="tbbq-bp__actions">'
-              +'<a class="tbbq-bp__register" href="'+esc(reg)+'" target="_blank" rel="noopener noreferrer">Register</a>'
-              +(hasDetail(s)?'<button type="button" class="tbbq-bp__more" data-id="'+esc(s.id)+'">Details</button>':'')
-              +'</div></div>';
-          }
+          var st=' style="'+sessionVars(s)+'"';
+          /* No Register button on the preview (Auri, 2026-08-04): a pill on every card turned
+             this section into a wall of buttons, and someone should read what an event is
+             before signing up. The sign-up page lives in the dialog, and hasDetail() counts a
+             registerUrl so every side event can be opened. */
           return hasDetail(s)
             ? '<button type="button" class="tbbq-bp__card" data-id="'+esc(s.id)+'"'+st+'>'+inner+'</button>'
             : '<div class="tbbq-bp__card"'+st+'>'+inner+'</div>';
@@ -615,7 +623,7 @@ export function buildBrellaEmbedSnippet({
   function openModal(s){
     if(!s)return;
     lastFocus=document.activeElement;
-    modal.setAttribute("style",trackVars(s.room));
+    modal.setAttribute("style",sessionVars(s));
     /* Brella's location often repeats the track name verbatim, so it is only appended when it
        says something new. */
     var meta=[s.room,s.location!==s.room?s.location:""].filter(Boolean).join(" \\u00b7 ");
@@ -639,7 +647,7 @@ export function buildBrellaEmbedSnippet({
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
       +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
       +'<h2>'+esc(s.name)+'</h2>'
-      +'<p class="tbbq-bp__meta">'+stageIcon+esc(meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
+      +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?("Hosted by "+s.room):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')
       /* Above the speaker list on purpose: whoever opened a side event came to sign up, and a
          CTA below six bios is off the bottom of a phone screen. */
@@ -729,10 +737,16 @@ export function buildBrellaEmbedSnippet({
       var seen=[];
       ALL.forEach(function(s){if(s.day&&seen.indexOf(s.day)<0)seen.push(s.day);});
       seen.sort(function(a,b){return dayNum(a)-dayNum(b);});
-      if(seen.length)sideDay=seen[0];
-      daysEl.innerHTML=seen.map(function(d,i){
+      /* Opens on ALL so the section reads as one list running down the page, like the track
+         filters elsewhere (Auri, 2026-08-04). renderList already treats an empty sideDay as
+         "every day", grouped under its own day heading. */
+      sideDay="";
+      daysEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-sd="">'
+          +'<span class="tbbq-bp__dnum">ALL</span>'
+          +'<span class="tbbq-bp__ddate">'+esc(ALL.length+" events")+'</span></button>'
+        +seen.map(function(d){
         var w=weekday(d).split("|");
-        return '<button type="button" role="tab" aria-selected="'+(i===0)+'" data-sd="'+esc(d)+'">'
+        return '<button type="button" role="tab" aria-selected="false" data-sd="'+esc(d)+'">'
           +'<span class="tbbq-bp__dnum">'+esc(w[0])+'</span>'
           +'<span class="tbbq-bp__ddate">'+esc(w[1]||"")+'</span></button>';
       }).join("");

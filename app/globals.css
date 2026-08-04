@@ -1362,7 +1362,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-card__desc {
   margin: 8px 0 0;
   color: rgba(255,255,255,0.72);
-  font-size: 12px; line-height: 1.5;
+  /* Weight declared, not inherited. The heading font is only used for chrome here, and a bold
+     description turns a card into a block of shouting (Auri, 2026-08-04). */
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 400; line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
@@ -1389,47 +1392,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-size: 11px; font-weight: 600;
 }
 
-/* Side event actions. Only Side Events have a sign-up page, so only they get this row; it is
-   why those cards are articles with explicit buttons rather than one card-sized button (an
-   <a> inside a <button> is invalid). margin-top:auto pins the row to the bottom so cards in
-   a row line their buttons up regardless of description length. */
-.bp-card__actions {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-top: auto; padding-top: 14px;
-}
-.bp-card__register {
-  display: inline-flex; align-items: center;
-  padding: 9px 16px;
-  border-radius: 9999px;
-  background: var(--track);
-  color: #fff;
-  font-family: var(--font-heading);
-  font-size: 13px; font-weight: 600;
-  text-decoration: none;
-  transition: filter 0.18s;
-}
-.bp-card__register:hover { filter: brightness(1.12); }
-.bp-card__register:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.bp-card__more {
-  appearance: none;
-  padding: 9px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 9999px;
-  background: transparent;
-  color: var(--color-muted);
-  font-family: var(--font-heading);
-  font-size: 13px; font-weight: 600;
-  cursor: pointer;
-  transition: color 0.18s, border-color 0.18s;
-}
-.bp-card__more:hover { color: var(--color-foreground); border-color: var(--track); }
-.bp-card__more:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
-
+/* Register lives ONLY in the dialog (Auri, 2026-08-04): a pill on every preview card turned
+   the Side Events section into a wall of buttons, and someone should read what an event is
+   before signing up. A 10px radius rather than a pill, to match the cards and inputs around it
+   rather than the filter chips. */
 .bp-modal__cta { margin: 22px 0 0; }
 .bp-modal__cta a {
   display: inline-flex; align-items: center;
   padding: 11px 20px;
-  border-radius: 9999px;
+  border-radius: 10px;
   background: var(--track);
   color: #fff;
   font-family: var(--font-heading);
@@ -1502,7 +1473,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-size: 10px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em;
 }
-.bp-modal__desc p { margin: 12px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; line-height: 1.6; }
+.bp-modal__desc p {
+  margin: 12px 0 0;
+  color: rgba(255,255,255,0.8);
+  /* Body font at regular weight, declared rather than inherited — same reason as the card. */
+  font-family: var(--font-body);
+  font-size: 14px; font-weight: 400; line-height: 1.6;
+}
 .bp-modal__heading {
   margin: 24px 0 0;
   font-family: var(--font-heading);

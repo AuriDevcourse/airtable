@@ -5,7 +5,14 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
-import { STAGE_ICON_PATHS, trackColor, trackColor2 } from "@/lib/brellaTheme";
+import {
+  HOST_ICON_PATHS,
+  STAGE_ICON_PATHS,
+  sessionColor,
+  sessionColor2,
+  trackColor,
+  trackColor2,
+} from "@/lib/brellaTheme";
 import {
   BRELLA_SECTIONS as SECTIONS,
   BRELLA_STAGES,
@@ -72,6 +79,16 @@ function timeLabel(s: Session): string {
 function trackVars(room: string): React.CSSProperties {
   const two = trackColor2(room);
   return { "--track": trackColor(room), ...(two ? { "--track2": two } : {}) } as React.CSSProperties;
+}
+
+/**
+ * The same thing for a SESSION, which may declare its section. Side Events must use it: their
+ * `room` is the hosting partner, so the name-matched rules would paint them the orange default
+ * instead of red.
+ */
+function sessionVars(s: Session): React.CSSProperties {
+  const two = sessionColor2(s);
+  return { "--track": sessionColor(s), ...(two ? { "--track2": two } : {}) } as React.CSSProperties;
 }
 
 // Brella's own day number, used ONLY to order the day groups — it is chronological by
@@ -289,7 +306,7 @@ function StageTimeline({
                 key={s.id}
                 type="button"
                 className="bp-tl__chipCard"
-                style={trackVars(s.room)}
+                style={sessionVars(s)}
                 onClick={() => onOpen(s)}
               >
                 {s.name}
@@ -355,7 +372,7 @@ function StageTimeline({
                 // 78px measured: 2 lines of title (32) + time (14) + faces (16) + padding (12).
                 const tight = !compact && h < 78;
                 const style = {
-                  ...trackVars(s.room),
+                  ...sessionVars(s),
                   top: (s.start - from) * PX_PER_MIN,
                   height: h,
                   left: `${(s.lane * 100) / s.lanes}%`,
@@ -433,11 +450,55 @@ function PinIcon() {
   );
 }
 
+/** Lucide building-2, for "Hosted by <partner>". Paths shared with the embed via brellaTheme. */
+function HostIcon() {
+  return (
+    <svg
+      className="bp-card__pin"
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {HOST_ICON_PATHS.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 // A session is worth opening only if the dialog would show something the card does not:
-// the speaker list, or a description long enough that the card's 3-line clamp hides part of
-// it. Making every card clickable would promise detail that half of them do not have.
+// the speaker list, a description long enough that the card's 3-line clamp hides part of it,
+// or a sign-up page. Making every card clickable would promise detail that half of them do
+// not have.
+//
+// registerUrl counts because the Register button lives ONLY in the dialog (Auri's call): a row
+// of pills on every preview card turned the section into a wall of buttons, and a visitor
+// should read what the event is before signing up for it.
 function hasDetail(s: Session): boolean {
-  return Boolean(s.speakers?.length) || s.description.length > 150;
+  return Boolean(s.speakers?.length) || s.description.length > 150 || Boolean(s.registerUrl);
+}
+
+/**
+ * The line under the title. For a stage or event room it is a PLACE, so it gets a pin. For a
+ * side event `room` is the hosting PARTNER — Airtable has no venue field for these, checked
+ * across all 128 columns — and a pin next to a company name claims something untrue, so it
+ * reads "Hosted by" with a building icon instead.
+ */
+function VenueLine({ s }: { s: Session }) {
+  if (!s.room) return null;
+  const hosted = s.section === "side";
+  return (
+    <p className="bp-card__room">
+      {hosted ? <HostIcon /> : <PinIcon />}
+      {hosted ? `Hosted by ${s.room}` : s.room}
+    </p>
+  );
 }
 
 function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }) {
@@ -446,46 +507,14 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
     <>
       <p className="bp-card__time">{timeLabel(s)}</p>
       <h3 className="bp-card__title">{s.name}</h3>
-      {s.room && (
-        <p className="bp-card__room">
-          <PinIcon />
-          {s.room}
-        </p>
-      )}
+      <VenueLine s={s} />
       {s.description && <p className="bp-card__desc">{s.description}</p>}
       {peopleSummary(s.speakers) && (
         <p className="bp-card__speakers">{peopleSummary(s.speakers)}</p>
       )}
     </>
   );
-  const style = trackVars(s.room);
-
-  // A side event with a sign-up page can NOT be a card-sized button: an <a> inside a <button>
-  // is invalid HTML and browsers disagree about which one a click belongs to. So the card
-  // stays an <article> and the two actions become explicit — Register, and Details when there
-  // is anything to open. Registering is what a visitor came for, so it leads.
-  if (s.registerUrl) {
-    return (
-      <article className="bp-card" style={style}>
-        {body}
-        <div className="bp-card__actions">
-          <a
-            className="bp-card__register"
-            href={s.registerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Register
-          </a>
-          {detail && (
-            <button type="button" className="bp-card__more" onClick={() => onOpen(s)}>
-              Details
-            </button>
-          )}
-        </div>
-      </article>
-    );
-  }
+  const style = sessionVars(s);
 
   // A real <button> when it opens something, a plain <article> when it doesn't — rather than
   // a div with onClick. That is what makes it keyboard-reachable and announced as pressable.
@@ -610,7 +639,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bp-modal" style={trackVars(s.room)}>
+      <div className="bp-modal" style={sessionVars(s)}>
         <button type="button" className="bp-modal__close" onClick={onClose} aria-label="Close">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <path d="M18 6 6 18M6 6l12 12" />
@@ -623,15 +652,21 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
         </h2>
         <p className="bp-modal__meta">
           {/* The stage's own icon when the room is one of the five, so the dialog matches the
-              column you clicked from; the generic pin for event rooms and side events. */}
-          {STAGE_ICON_PATHS[stageOf(s.room) ?? ""] ? (
+              column you clicked from; a building for a side event's host, the generic pin for
+              anything that is a real place. */}
+          {s.section === "side" ? (
+            <HostIcon />
+          ) : STAGE_ICON_PATHS[stageOf(s.room) ?? ""] ? (
             <StageIcon stage={stageOf(s.room) as string} />
           ) : (
             <PinIcon />
           )}
           {/* Brella's `location` often repeats the track name verbatim ("Founders Stage ·
-              Founders Stage"), so it is only appended when it says something new. */}
-          {[s.room, s.location !== s.room ? s.location : ""].filter(Boolean).join(" · ")}
+              Founders Stage"), so it is only appended when it says something new. A side event
+              has no venue in Airtable at all, so its line names the host instead. */}
+          {s.section === "side"
+            ? `Hosted by ${s.room}`
+            : [s.room, s.location !== s.room ? s.location : ""].filter(Boolean).join(" · ")}
           {s.type && <span className="bp-modal__topic">{s.type}</span>}
         </p>
 
@@ -812,11 +847,12 @@ export default function BrellaProgramPage() {
     const seen = [...new Set(inSection.map((s) => s.day))];
     return seen.sort((a, b) => dayNumber(a) - dayNumber(b));
   }, [inSection, section]);
-  // Whenever the set of days changes (first load), settle on one rather than showing none.
+  // Opens on ALL — sideDay "" — so the section reads as one list running down the page, the way
+  // Event Rooms does with its "All" pill (Auri, 2026-08-04). The day chips narrow it from
+  // there. No effect is needed to settle on a day any more: "" is a valid, and now the default,
+  // state, and a day that disappears from the data simply stops matching.
   useEffect(() => {
-    if (section === "side" && sideDays.length && !sideDays.includes(sideDay)) {
-      setSideDay(sideDays[0]);
-    }
+    if (section === "side" && sideDay && !sideDays.includes(sideDay)) setSideDay("");
   }, [section, sideDays, sideDay]);
 
   return (
@@ -941,8 +977,13 @@ export default function BrellaProgramPage() {
                 <div className="bp-controls">
                   {section === "side" ? (
                     /* One track and three dates, so "All / Side Event Promotion" filtered
-                       nothing. Days are the useful axis here. */
+                       nothing. Days are the useful axis here, with an All that lists every day
+                       down the page the way the track filters do elsewhere. */
                     <div className="seg bp-days" role="tablist" aria-label="Event day">
+                      <button role="tab" aria-selected={sideDay === ""} onClick={() => setSideDay("")}>
+                        <span className="bp-days__n">ALL</span>
+                        <span className="bp-days__date">{inSection.length} events</span>
+                      </button>
                       {sideDays.map((d) => (
                         <button
                           key={d}
