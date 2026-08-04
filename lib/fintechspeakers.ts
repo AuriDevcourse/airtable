@@ -14,7 +14,10 @@
 // "Keynote" on the keynote row. Parsed as a FLOAT for that reason — parseInt would read both
 // moderators as 1 and lose their order.
 //
-// Publish rule: name + photo, like every other feed.
+// Publish rule: name + photo + a non-empty `Hierarchy ` cell. That last one is the gate Auri
+// added on 2026-08-04: someone with no hierarchy has not been placed yet and does not go on the
+// site. It also means a fresh form submission cannot appear on techbbq.dk before a human has
+// looked at it, which is the same instinct as `On Website?` on the speakers table.
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
@@ -45,8 +48,9 @@ export type FintechSpeaker = {
   company: string;
   photo: string | null;
   linkedin: string | null;
-  // Curated order: 1..9 for speakers, 1.1/1.2 for moderators. null = unranked (sorts last,
-  // alphabetical), which is also what the keynote row gets since its cell says "Keynote".
+  // Curated order: 1..9 for speakers, 1.1/1.2 for moderators. null only where the cell holds
+  // text rather than a number, which today is the keynote row ("Keynote Speaker"); a BLANK cell
+  // is not published at all, so this is never null for want of curation.
   hierarchy: number | null;
   role: FintechRole;
 };
@@ -103,8 +107,24 @@ export async function fetchFintechSpeakers(): Promise<FintechSpeaker[]> {
       const name = str(f["Name"]);
       const photo = firstPhoto(f["Attachments"]);
       if (!name || !photo) continue;
+
+      // A BLANK Hierarchy cell means the team has not placed this person yet, and an unplaced
+      // person is not published (Auri, 2026-08-04). It used to sort them to the end of the
+      // grid instead, which put whoever submitted the form most recently on techbbq.dk before
+      // anyone had decided they belonged there.
+      //
+      // The test is "is the cell empty", NOT "is it a number". The keynote row carries the text
+      // "Keynote Speaker" rather than a digit — that is a curated row with a deliberate value in
+      // it, and a numeric test would have quietly emptied the Keynote tab.
+      const rankText = str(f["Hierarchy "]);
+      if (!rankText) {
+        console.warn(
+          `[fintech-speakers] "${name}" (${str(f["Company Name"])}, ${role}) has no Hierarchy — not published. Give it a number in Airtable to publish.`
+        );
+        continue;
+      }
       // Float, not int: the moderators are numbered 1.1 and 1.2.
-      const rank = parseFloat(str(f["Hierarchy "]));
+      const rank = parseFloat(rankText);
       people.push({
         id: rec.id,
         name,
