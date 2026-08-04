@@ -25,21 +25,19 @@ already live through it. Fetch the new snippet from
 `/api/embed?kind=brella&section=all` and replace the HTML widget. Verify with `?cb=`.
 Life Science has its own snippet now: `/api/embed?kind=brella&stage=life-science`.
 
-**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** It carries THREE changes: partner
-tiers now derive from the deal size (which empties the Prime band), Repodo is embargoed from the
-wall until 26 August, and one redundant website override was dropped. The logo work is already
-committed and pushed separately. Both are finished and verified; the Prime band is the one decision
-blocking a push — see Session 2026-08-04l. `git status` is dirty on purpose; do not "tidy" it away.
-
-If Repodo needs to ship before the Prime question is settled, the embargo is separable: it is a
-`HIDDEN_UNTIL` map plus one guard clause, and can be committed on its own.
+**THE PARTNER WALL NOW TAKES ITS LOGOS FROM AIRTABLE (session 04m), and everything from 04l is
+committed with it.** The Prime band is empty under deal-derived tiers, and that was held back as a
+decision — it no longer blocks anything, because an empty tier renders NOTHING on either surface
+(`app/partners/page.tsx` skips it, `lib/partnersEmbedSnippet.ts:243` returns ""). So nothing looks
+broken on techbbq.dk; the three ex-Prime partners simply sit in the band their deal size says. The
+open item is Airtable data, not code — see "the decision" in Session 2026-08-04l.
 
 ## What exists now
 
 | Page | Feed | Source of truth |
 |---|---|---|
 | `/brella-program` | `/api/program?event=brella` | Brella, read-only. **The big one.** |
-| `/partners` | `/api/partners` | Airtable for WHO + tier. **Logos are local files.** |
+| `/partners` | `/api/partners` | Airtable for WHO, tier **and logos** (since 04m). |
 | `/ls-startups` | `/api/ls-startups` | Airtable, live. Logos included. |
 | `/partner-events` | `/api/partner-events` | Airtable |
 | speaker pages | `/api/all-speakers` + friends | Airtable |
@@ -175,11 +173,88 @@ it to green).
 
 ---
 
-## Session 2026-08-04l (partner tiers now come from the deal size — UNCOMMITTED, needs a decision)
+## Session 2026-08-04m (the partner wall reads its logos from Airtable, and every logo is sized from a measurement)
 
-**STATE: `lib/partners.ts` is CHANGED ON DISK AND NOT COMMITTED.** It works and is verified, but it
-empties the Prime band on the wall, which is Auri's call to make. Do not push it without reading
-"the decision" below. Everything else this session was Airtable data, not code.
+**Auri's ask: "update the logos from [the Partner Deliverables 2026 view] to our interface".** Done,
+and it reversed an earlier decision on purpose. Then, mid-session: "logo for southern sweden is not
+correct, innovation centre denmark too small, aiesec i uploaded new logo, skytek and terkko seems
+too small" — all four fell out of the same switch plus one measurement pass.
+
+### 1. Airtable is now the source of the artwork, not just of who and which tier
+
+`lib/partners.ts` used to say, in a long comment, that logos must NOT come from Airtable, because
+the `Logo` column held colour originals (69 PNG, 8 JPEG, 16 SVG, a zip, a PDF, an .ai) that render
+as white boxes on a near-black wall. That was TRUE WHEN IT WAS WRITTEN. It is not true now: Auri
+has uploaded white SVG exports into the same column, which today holds 146 SVGs.
+
+Checked before switching, not after: all 104 published partners resolve to a drawable image, 100 of
+them to a white SVG. So the second copy of the artwork in this repo had stopped earning its keep.
+
+- **new photo source** `partners` in `lib/photo.ts` → table `tblTecOBecLQCNIeD`, field `Logo`,
+  `pickLogo: true`. The picker (`lib/logoPick.ts`) already existed for the Life Science startup
+  wall, which has the exact same shape of data: several variants of one mark per cell.
+- **`lib/partners.ts`** resolves in three steps: a hand-composed local file, then Airtable, then the
+  old manifest as a fallback. Serves `/api/photo/partners/<rec>?v=<attachment id>` — never a raw
+  Airtable URL, which 410s after ~2h and would leave the wall blank behind a cached feed.
+- **What this buys:** replacing a logo in Airtable now reaches techbbq.dk on its own. Nobody re-runs
+  `scripts/sync-partner-logos.mjs` and nobody has to know it exists. It stays as the safety net.
+- **Southern Sweden and AIESEC fixed themselves this way.** Airtable holds
+  `Southern Sweden bild TechBBQ.svg` and `AiesecDenmark.svg` (the file Auri named), and the switch
+  picked both up. **Southern Sweden now renders "Delegation from southern Sweden" — worth one look
+  from Auri to confirm that is the intended mark.**
+
+**One row needs the local copy: `AIRTABLE_LOGO_REJECT`.** Every published partner's chosen SVG was
+fetched and its fill/stroke colours averaged. Exactly one came back dark:
+`Virksomhedsguiden_Logo.svg` at luminance 72/255, near-black ink on a near-black wall. Note the
+filename does not say "black" — a name-based rule would have shipped it. Re-run that check after any
+bulk upload.
+
+**One dedupe repair.** The duplicate check compares artwork by FILENAME, and Beta Health sits in this
+view twice, once holding `white-Beta-Heath.svg` and once `Beta-Heath.svg`. Same file, two exports, so
+the logo appeared twice. `logoIdent()` strips the variant words (`white`, `black`, `logo`, `rgb`…)
+before comparing, which is the same normalisation the sync script uses for the same reason. Count is
+back to 104 with one Beta Health tile.
+
+### 2. "Too small" was measurable, so it got measured
+
+**`scripts/measure-logo-ink.mjs` is new and is the answer to every future "why is this one small?".**
+It rasterises each logo through `sharp`, finds the bounding box of the visible pixels, and models
+what `lib/logoFit.ts` will do to it. It reports the nudge that brings the ink up to target area, the
+largest nudge that keeps the ink inside the tile, and which of the two to use.
+
+Two DIFFERENT causes, which is why eyeballing it had not worked:
+
+- **Transparent margin inside the file.** Skytek's wordmark fills 23% of the square it was exported
+  into. The fitter sizes that square correctly and the logo still looks tiny. Terkko: 52%. PSV: 12%.
+- **The area rule shrinking a wide mark.** Innovation Centre Denmark has NO margin — 100% ink — and
+  was still small because a 2.2:1 mark gets scaled to 0.79 to hold its area constant.
+
+15 nudges now sit in `LOGO_SCALE`, every one a measured number. **The old 1.6 ceiling in
+`logoFit.ts` was silently clipping five of them and is now 3.** That is safe for a specific reason:
+scaling past `contain` only crops if there is ink at the edge, and these logos are mostly margin.
+
+**Verified in the browser on the real wall, not by eye:** each of the 104 rendered logos was drawn to
+a canvas at its rendered size and its ink box measured. **0 cropped, 0 still reading small** (every
+logo now covers ≥60% of its tile on one axis), and the darkest ink on the wall is 178/255 — Creative
+Business Network's colour roundel and the EU frieze, both deliberately not white.
+
+**What a nudge CANNOT fix, and Auri should know:** Teknologisk Institut (5.6:1) and AIESEC (7:1)
+already fill the full width of their tile. They read short because a 7:1 mark in a 5:3 tile is 24px
+tall and no scale factor changes that. The only real fixes are a stacked export of those two marks,
+or letting very wide logos span two grid columns. Six more partners are in the same position
+(Beta Health 10:1, Business Iceland 9:1, Auxxo and Cloudflare 7:1, The Residency Vienna, eryk).
+
+### 3. Session 04l shipped with this
+
+Held back only for the empty-Prime question, which turned out not to matter: an empty tier renders
+nothing on either surface, so techbbq.dk shows no gap. Committed.
+
+## Session 2026-08-04l (partner tiers now come from the deal size — SHIPPED with 04m)
+
+**STATE: shipped with 04m.** It was held back for a day because it empties the Prime band, and that
+looked like Auri's call to make before pushing. It was not, in the end: an empty tier renders nothing
+on either surface, so no gap appears on techbbq.dk. "The decision" below is still open, but it is an
+AIRTABLE question about where three partners belong, not a reason to hold code back.
 
 **What changed.** `/partners` took its tier from this view's own `Partnership Type 2026` plus TEN
 hand-written corrections copied off the live site, because that column and the CRM's deal-size

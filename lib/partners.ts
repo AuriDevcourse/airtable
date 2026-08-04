@@ -1,26 +1,50 @@
 // Server-only access to the TechBBQ 2026 partner list, grouped by partnership tier.
 //
-// Source: Marketing Project Overview, view "Partner Deliverables 2026" — the same view
-// scripts/community-tier-audit.mjs maintains, so the tier shown here is the tier marketing
-// actually curates rather than the deal-size formula on the Partners 2026 CRM. Those two
-// disagree (the CRM formula collapses everything into 6 buckets and has no Community), and
-// this one is the marketing-facing truth.
+// Source: Marketing Project Overview, view "Partner Deliverables 2026".
+//
+// THE TIER COMES FROM THE DEAL SIZE (Auri, 2026-08-04). It used to come from this view's own
+// `Partnership Type 2026` plus ten hand-written corrections copied off the live site, because
+// that column and the CRM disagreed on 16 rows and nobody trusted the CRM. That is no longer
+// true: the `Company Link` column has been filled in across this view, so
+// `Partnership Tier (from Tier)` now resolves for every partner but one, and it derives from
+// Deal 2026 through a formula on Partners 2026 rather than from anybody's memory.
+//
+// So the corrections are GONE. Do not reintroduce them: a hand-maintained override table beside
+// a computed field is two sources of truth, and it was already drifting (its Dealroom entry said
+// Challenger while the deal says Community).
+//
+// WHICH COMPANIES APPEAR is a separate question from which tier they land in, and it has NOT
+// changed: Investor, Academic and Tailored partnerships are still excluded, read from
+// `Partnership Type 2026`. Switching that too would have put 19 more logos on the wall,
+// including EY, HSBC, Microsoft and the investor partners — a content decision, not a
+// consequence of fixing tiers.
 //
 // ─── WHERE THE LOGOS COME FROM ──────────────────────────────────────────────────────
-// NOT from Airtable. The attachments on this view are the colour originals (69 PNG, 8 JPEG,
-// 16 SVG, plus a zip, a PDF and an .ai) and would render as white boxes on a near-black wall.
-// The images are served from public/partner-logos/, copied out of the tbbqvisualgen logo
-// library by scripts/sync-partner-logos.mjs, which prefers the white SVG variant of each mark.
-// lib/partnerLogoManifest.json maps Airtable record id -> filename.
+// AIRTABLE, as of 2026-08-04 (Auri). This reversed the previous decision, and the reason is
+// simply that the data changed: the `Logo` column used to hold colour originals only (69 PNG,
+// 8 JPEG, 16 SVG, plus a zip, a PDF and an .ai), which is why the wall was built off a copy of
+// the tbbqvisualgen library instead. Auri has since uploaded white SVG exports into that column
+// — it now holds 146 SVGs — so the view carries the right artwork for a near-black wall and
+// there is no longer a reason to keep a second copy of it in this repo.
 //
-// Consequence worth knowing: adding a partner in Airtable puts them on the page immediately,
-// but WITHOUT a logo until someone re-runs that script. That is the price of white logos, and
-// the page names the gap rather than hiding it.
+// What that buys, and it is the whole point: adding or REPLACING a partner logo in Airtable now
+// shows up on techbbq.dk on its own. Nobody has to re-run a script, and nobody has to remember
+// that a script exists. Measured before switching: all 104 published partners resolve to a
+// usable image, 100 of them to a white SVG.
+//
+// The bytes are served through /api/photo/partners/<recordId>, not by linking Airtable directly:
+// attachment URLs are signed and 410 after ~2 hours, so a cached feed would serve dead images
+// (see lib/photo.ts). ?v=<attachment id> rides along so REPLACING a file busts every cache.
+//
+// public/partner-logos/ + lib/partnerLogoManifest.json + scripts/sync-partner-logos.mjs are kept
+// as the FALLBACK, for a row whose Airtable cell holds nothing a browser can draw. That is
+// currently no rows at all, so treat the script as a safety net rather than part of the workflow.
 
 import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
 import manifest from "@/lib/partnerLogoManifest.json";
-import { baseUrl } from "@/lib/photo";
+import { baseUrl, photoUrl } from "@/lib/photo";
+import { pickLogo } from "@/lib/logoPick";
 
 const API = "https://api.airtable.com/v0";
 
@@ -31,9 +55,14 @@ const VIEW = "viw7FVbsTb9IRaWF0"; // Partner Deliverables 2026
 
 const SAFE_FIELDS = [
   "Company",
+  // Still read, but only to decide who is EXCLUDED — never for the tier itself.
   "Partnership Type 2026",
+  // The tier, looked up from Partners 2026 where a formula derives it from Deal 2026.
+  "Partnership Tier (from Tier)",
   "Put on web",
   "Link to your website",
+  // The wall's artwork. Several variants per cell; lib/logoPick.ts chooses.
+  "Logo",
 ];
 
 // Auri's call: drop these. Academic is really Community, Investor is a different thing, and
@@ -65,33 +94,37 @@ export const PARTNER_TIERS: { name: string; color: string; cols: number }[] = [
 
 const TIER_NAMES = new Set(PARTNER_TIERS.map((t) => t.name));
 
-// TIER CORRECTIONS, taken from the live techbbq.dk/partners page.
+// ─── PARTNERS HELD BACK UNTIL A DATE ────────────────────────────────────────────────────
+// Repodo is not public until 26 August (Auri, 2026-08-04). Their CRM row was literally named
+// "Stealth TBD" until this week and the announcement is timed to the event, so the logo must not
+// appear on the wall before then — including on techbbq.dk, which fetches this feed on every page
+// load and would otherwise reveal them early.
 //
-// Airtable's `Partnership Type 2026` and the deal-size formula on the Partners CRM disagree on
-// 16 rows, and Auri's call is that the LIVE SITE is the correct placement — "Nordea is not a
-// prime partner, it has a 48,000 crown deal". So the site wins where the two differ.
+// The date is read from the CLOCK ON EVERY CALL and never captured at module load. A value read
+// once at cold start would freeze, and a long-lived Vercel instance would keep hiding them after
+// the 26th — the same rule as lib/cachePolicy.ts, and the bug that bit the AI Workshop dashboard.
+// So this reveals itself with no deploy and needs no cleanup afterwards; the entry can simply be
+// deleted whenever someone is tidying.
 //
-// Only the DIFFERENCES are listed. Everything else already matches, so a silent Airtable change
-// still flows through untouched, and this map stays short enough to audit by eye. Derived by
-// matching our partners to the site's tier bands on website HOSTNAME, which is stable where
-// company names are not (the site says "advores", Airtable says "advores Advokater &
-// Rechtsanwälte PartGmbB").
-//
-// Re-check this map if the live page is re-tiered. There is no automatic sync: techbbq.dk sits
-// behind a WAF that 455s a plain request, so this cannot be fetched at build time.
-const TIER_OVERRIDES: Record<string, string> = {
-  // Placed too high in Airtable
-  Nordea: "Challenger", // was Prime — a 48k deal, per Auri
-  Dealroom: "Challenger", // was Main
-  "Owl Ventures": "Challenger", // was Conqueror
-  "TÜV SÜD Danmark ApS": "Community", // was Challenger
-  // "International" is not a band on the live site; each of these sits in a real tier there
-  "advores Advokater & Rechtsanwälte PartGmbB": "Challenger",
-  "European Innovation Council": "Conqueror",
-  swisstech: "Challenger",
-  TONIK: "Pioneer",
-  eryk: "Core",
+// Keyed on the company name normalized the same way the dedupe below does it, because this data
+// is full of trailing spaces ("Boardway ", "Cloudflare\n") and an exact match would silently fail
+// to hide someone.
+const HIDDEN_UNTIL: Record<string, string> = {
+  repodo: "2026-08-25T22:00:00Z", // 26 August 2026, 00:00 Copenhagen (CEST = UTC+2)
 };
+
+function hiddenUntilDate(company: string, now: number = Date.now()): string | null {
+  const until = HIDDEN_UNTIL[company.toLowerCase().replace(/\s+/g, " ").trim()];
+  return until && now < Date.parse(until) ? until : null;
+}
+
+// A lookup field always arrives as an ARRAY, because a link can point at several records. One
+// partner, one tier, so the first value wins; a row linked to two partner companies would be a
+// data error to fix in Airtable rather than something to average here.
+function tierOf(v: unknown): string {
+  if (Array.isArray(v)) return str(v[0]);
+  return str(v);
+}
 
 export type Partner = {
   id: string;
@@ -107,26 +140,82 @@ export type Partner = {
 };
 
 // ─── PER-LOGO ADJUSTMENTS ───────────────────────────────────────────────────────────────
-// The area-based fitter in logoFit.ts gets a wall of mixed artwork most of the way there, but
-// it can only measure the BOUNDING BOX. It cannot see that a mark is mostly padding inside its
-// own file, or that a wordmark is visually heavy for its area. These are the leftovers, judged
-// by eye on the real wall by Auri. Keep the list short: if it grows past a handful, the artwork
-// is the problem, not the fitter.
+// The area-based fitter in logoFit.ts gets a wall of mixed artwork most of the way there, but it
+// can only measure the BOUNDING BOX. It cannot see that a mark is mostly transparent margin
+// inside its own file — Skytek's wordmark occupies 23% of the square it was exported into, so
+// the fitter sizes the empty square correctly and the logo still looks tiny.
+//
+// MEASURED, NOT EYEBALLED (2026-08-04). Every value below comes from
+// `node scripts/measure-logo-ink.mjs`, which rasterises each logo, finds the bounding box of the
+// visible pixels, and reports both the nudge that brings the ink up to the target area and the
+// largest nudge that keeps the ink inside the tile. Where those disagree the smaller one is used,
+// which is why a few sit below what the ink alone would ask for.
+//
+// Re-run that script after replacing artwork in Airtable — a new export usually has different
+// margins, so a stale number here is worse than none. Anything it reports as "already maxed" is
+// a logo that fills its tile's width already, and no number in this table can help it.
+//
 // NOTE these are LINEAR scales, so the visible area changes with the SQUARE: 0.85 removes ~28%
-// of the area, 1.3 adds ~69%. A value that looks like a small tweak is not one.
+// of the area, 2.11 adds ~345%. A value that looks like a small tweak is not one.
 const LOGO_SCALE: Record<string, number> = {
   Repodo: 0.85, // measures average but reads huge: a dense, very high-ink wordmark
-  Flatpay: 1.3,
-  "Skytek Nordics ApS": 1.3,
-  Nordea: 1.3, // "Nordea Startup & Growth" — lots of internal whitespace in the file
+  // Marks exported into a square canvas with a thin wordmark inside it. The worst offenders.
+  PSV: 2.92,
+  "INCUBA x KITCHEN": 2.29,
+  "Skytek Nordics ApS": 2.11,
+  "Beyond Beta": 1.96,
+  Flatpay: 1.83,
+  IDA: 1.8,
+  Nordea: 1.71, // "Nordea Startup & Growth" — lots of internal whitespace in the file
+  "Terkko Health Hub": 1.44,
+  Copenhagen: 1.38,
+  "Gothenburg Tech Week": 1.31,
+  "Adeo Web": 1.29,
+  "Southern Sweden": 1.25,
+  "advores Advokater & Rechtanwälte PartGmbB": 1.24,
+  // No margin to reclaim, but the AREA rule shrinks a near-2:1 mark to 0.79 and these read short
+  // next to their neighbours. The nudge takes them back to what `contain` would give.
+  "Innovation Centre Denmark": 1.19,
+  "Creative Business Network": 1.17,
 };
 
-// Swap in a different file than the sync script matched. Erhvervshus Sjælland's tile carries
+// Serve a LOCAL file instead of whatever sits in Airtable. Erhvervshus Sjælland's tile carries
 // the EU co-funding frieze (Closing Loops + Co-funded by the European Union + Danish Board of
-// Business Development) exactly as techbbq.dk shows it: one image, three marks, full width.
+// Business Development) exactly as techbbq.dk shows it: one image, three marks, full width. That
+// composite exists nowhere in Airtable, so it cannot come from there.
 const LOGO_FILE_OVERRIDES: Record<string, { file: string; wide?: boolean }> = {
   "Erhvervshus Sjælland": { file: "Erhvervshus-frieze.png", wide: true },
 };
+
+// Rows where the Airtable cell holds a DRAWABLE image that is still the wrong one for this wall,
+// so the curated local copy is used instead. Airtable wins everywhere else.
+//
+// Measured, not guessed: every published partner's chosen SVG was fetched and its fill/stroke
+// colours averaged. One came back dark — Virksomhedsguiden_Logo.svg at luminance 72 out of 255,
+// which is near-black ink on a near-black wall. The library's "Erhvervsstyrelsen White" is the
+// same mark, already inverted.
+//
+// Re-run that check after a bulk upload to Airtable rather than trusting filenames: this file
+// was NOT named "black", so a name-based rule would have shipped it.
+const AIRTABLE_LOGO_REJECT = new Set(["Erhvervsstyrelsen / Virksomhedsguiden"]);
+
+// Two filenames, one mark. The duplicate check below compares artwork by FILENAME, and moving to
+// Airtable broke that for the one organisation that sits in this view twice: "Beta Health " holds
+// white-Beta-Heath.svg and "BETA.HEALTH" holds Beta-Heath.svg. Same file, exported twice, so the
+// wall showed the logo twice.
+//
+// Stripping the variant words and the punctuation collapses both to "betaheath". Same
+// normalisation scripts/sync-partner-logos.mjs uses to match a CRM name to a filename, for the
+// same reason: these words describe which EXPORT it is, never which brand.
+function logoIdent(filename: string): string {
+  return filename
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(white|black|colour|color|logo|rgb|cmyk|transparent|negative|inverted)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, "");
+}
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
@@ -149,9 +238,19 @@ const LOGOS = manifest as Record<string, { file: string; tone: string }>;
 //
 // `null` means "no website" on purpose: INCUBA x KITCHEN is four organisations sharing a row
 // and there is no single site to send a visitor to, so its logo stays unlinked.
+// RE-CHECKED 2026-08-04 after Auri filled in every website in Airtable — all 125 rows now hold
+// one. These are NOT stale corrections: they are exactly the rows whose cell holds SEVERAL
+// organisations' urls, where safeUrl's "first one wins" picks the wrong one.
+//
+//   Copenhagen                → cell starts with copcap.com (Copenhagen Capacity, a different
+//                               organisation); the partner is the municipality
+//   cse advisory, OMR Reviews → cell starts with omr.com; two companies share the row
+//   INCUBA x KITCHEN          → four organisations, no single site to send a visitor to
+//
+// "Owl Ventures" was dropped from this list: its cell now begins with owlvc.com, so the override
+// agreed with the data and was doing nothing.
 const WEBSITE_OVERRIDES: Record<string, string | null> = {
   Copenhagen: "https://www.kk.dk/erhverv",
-  "Owl Ventures": "https://www.owlvc.com",
   "cse advisory, OMR Reviews": "https://www.cse-advisory.com/en",
   "INCUBA x KITCHEN": null,
 };
@@ -212,13 +311,32 @@ export async function fetchPartners(): Promise<Partner[]> {
     const company = str(f["Company"]);
     if (!company) continue;
 
-    // The live site wins where it disagrees with Airtable — see TIER_OVERRIDES.
-    const tier = TIER_OVERRIDES[company] ?? str(f["Partnership Type 2026"]);
-    if (EXCLUDED_TIERS.has(tier)) continue;
+    // Not public yet. Checked before anything else, so an embargoed partner cannot leak through
+    // a tier, a logo or a website link.
+    const embargo = hiddenUntilDate(company);
+    if (embargo) {
+      console.info(`[partners] "${company}" is held back until ${embargo} — not published yet`);
+      continue;
+    }
+
+    // Excluded on the PARTNERSHIP TYPE, which is a different question from the tier: an
+    // investor partnership has a deal size and would otherwise be handed a tier and a place on
+    // the wall.
+    if (EXCLUDED_TIERS.has(str(f["Partnership Type 2026"]))) continue;
+
+    // The tier as derived from the deal, not as typed by a human.
+    const tier = tierOf(f["Partnership Tier (from Tier)"]);
     // A tier the wall has no row for would leave the partner rendered nowhere, so it is
     // skipped explicitly and logged rather than silently dropped by the grouping below.
     if (!TIER_NAMES.has(tier)) {
-      if (tier) console.info(`[partners] "${company}" has unlisted tier "${tier}", skipped`);
+      // An EMPTY tier means the row has no Company Link, or the linked partner has no Deal 2026
+      // for the formula to work from. Either way there is no band to put them in, so they are
+      // skipped and named — a partner silently missing from the wall is the worse failure.
+      console.info(
+        tier
+          ? `[partners] "${company}" has unlisted tier "${tier}", skipped`
+          : `[partners] "${company}" has no partnership tier (no Company Link, or the linked partner has no Deal 2026) — skipped`
+      );
       continue;
     }
 
@@ -227,40 +345,58 @@ export async function fetchPartners(): Promise<Partner[]> {
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const hit = LOGOS[rec.id];
+    // ─── PICK THE ARTWORK ───────────────────────────────────────────────────────────────
+    // Three sources in priority order: a hand-composed local file, then Airtable, then the
+    // library copy as a fallback. `ident` is whatever the choice resolves to, and it exists so
+    // the duplicate check below can compare two rows regardless of which source each came from.
+    const override = LOGO_FILE_OVERRIDES[company];
+    const att = AIRTABLE_LOGO_REJECT.has(company) ? null : pickLogo(f["Logo"]);
+    const local = LOGOS[rec.id];
 
-    // ...and sometimes under two DIFFERENT names that resolve to one mark: "AISTART Incubator
-    // - Business Helsinki" and "Business Helsinki" are one organisation with one logo. The
-    // same image twice in the same row is always wrong on a logo wall, whatever the CRM says,
-    // so the tier+logo pair is deduplicated too.
-    //
-    // Only WITHIN a tier. A brand legitimately appearing in two different tiers is a data
-    // question for the partnerships team, not something to hide here — it is logged instead.
-    if (hit) {
-      const logoKey = `${tier}|${hit.file}`;
-      if (seen.has(logoKey)) {
-        console.info(`[partners] "${company}" duplicates ${hit.file} inside ${tier}, skipped`);
-        continue;
-      }
-      seen.add(logoKey);
-    } else if (!LOGO_FILE_OVERRIDES[company]) {
-      // An override supplies a file the sync script never matched, so it is not a gap.
+    let logo: string | null = null;
+    let ident: string | null = null;
+    if (override) {
+      ident = override.file;
+      logo = `${baseUrl()}/partner-logos/${encodeURIComponent(override.file)}`;
+    } else if (att) {
+      // The FILENAME is the identity, not the attachment id: the same mark uploaded to two rows
+      // gets two different ids, and those two rows are exactly what the dedupe below is for.
+      ident = att.filename ?? att.id ?? null;
+      // ?v=<attachment id> means REPLACING the file in Airtable changes this URL, so a corrected
+      // logo appears immediately instead of sitting behind a week of CDN cache.
+      logo = photoUrl("partners", rec.id, undefined, att.id);
+    } else if (local) {
+      ident = local.file;
+      // ABSOLUTE, via the same baseUrl() every other feed uses for its photo proxy. A bare
+      // "/partner-logos/..." works on the dashboard and silently breaks in the embed, where
+      // the browser resolves it against techbbq.dk and gets a 404 for all 104 logos. That
+      // shipped once and produced a wall of empty tiles on the live partners page.
+      logo = `${baseUrl()}/partner-logos/${encodeURIComponent(local.file)}`;
+    } else {
       noLogo.push(company);
     }
 
-    // A hand-picked file wins over whatever the sync script matched.
-    const override = LOGO_FILE_OVERRIDES[company];
-    const file = override ? override.file : hit ? hit.file : null;
+    // The same organisation sometimes appears under two DIFFERENT names that resolve to one
+    // mark: "AISTART Incubator - Business Helsinki" and "Business Helsinki", or "Beta Health"
+    // and "BETA.HEALTH". The same image twice in the same row is always wrong on a logo wall,
+    // whatever the CRM says, so the tier+artwork pair is deduplicated too.
+    //
+    // Only WITHIN a tier. A brand legitimately appearing in two different tiers is a data
+    // question for the partnerships team, not something to hide here — it is logged instead.
+    if (ident) {
+      const logoKey = `${tier}|${logoIdent(ident) || ident.toLowerCase()}`;
+      if (seen.has(logoKey)) {
+        console.info(`[partners] "${company}" duplicates ${ident} inside ${tier}, skipped`);
+        continue;
+      }
+      seen.add(logoKey);
+    }
 
     partners.push({
       id: rec.id,
       company,
       tier,
-      // ABSOLUTE, via the same baseUrl() every other feed uses for its photo proxy. A bare
-      // "/partner-logos/..." works on the dashboard and silently breaks in the embed, where
-      // the browser resolves it against techbbq.dk and gets a 404 for all 104 logos. That
-      // shipped once and produced a wall of empty tiles on the live partners page.
-      logo: file ? `${baseUrl()}/partner-logos/${encodeURIComponent(file)}` : null,
+      logo,
       website:
         company in WEBSITE_OVERRIDES
           ? WEBSITE_OVERRIDES[company]
@@ -272,8 +408,8 @@ export async function fetchPartners(): Promise<Partner[]> {
 
   if (noLogo.length) {
     console.info(
-      `[partners] ${noLogo.length} partner(s) have no logo matched by ` +
-        `scripts/sync-partner-logos.mjs: ${noLogo.join(", ")}`
+      `[partners] ${noLogo.length} partner(s) have no drawable logo in Airtable and none in ` +
+        `lib/partnerLogoManifest.json either: ${noLogo.join(", ")}`
     );
   }
 

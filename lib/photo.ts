@@ -46,6 +46,12 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
     fields: ["High quality company logo"],
     pickLogo: true,
   },
+  // Marketing Project Overview a third time, for the PARTNER WALL's company logos rather than a
+  // speaker headshot. Its cells hold several variants of one mark (the colour original plus the
+  // white export Auri uploaded for this wall), so it needs the picker, not first-wins.
+  // "Logo" is a unique field name in this 112-field table — checked, unlike "Partners 2026 copy",
+  // which appears eight times — so requesting it by name is safe.
+  partners: { table: "tblTecOBecLQCNIeD", fields: ["Logo"], pickLogo: true },
   nass: { table: "tbl3dTaHrIFrHF6Mo", fields: ["Headshots"] },
   niss: { table: "tblfIPjV4t1c1628h", fields: ["Self Portrait"] },
   "niss-2025": { table: "tblyWVASxceyLRCaL", fields: ["Photo"] },

@@ -55,10 +55,15 @@ export function fitLogo(img: HTMLImageElement): void {
   // Per-logo nudge from the feed (LOGO_SCALE in lib/partners.ts), for the handful the area
   // rule cannot judge: it measures the bounding box and cannot see that a file is mostly
   // internal padding, or that a mark is visually heavy for the area it covers. Allowed ABOVE
-  // 1 here, unlike the automatic factor, because it is a deliberate human decision. Capped at
-  // 1.6 so a typo cannot blow a logo out of its tile; overflow is hidden, so it would crop.
+  // 1 here, unlike the automatic factor, because it is a deliberate human decision.
+  //
+  // The ceiling is 3, not the 1.6 it used to be. Scaling past `contain` only crops if there is
+  // INK out at the edge, and the extreme nudges exist precisely because there is not: Skytek's
+  // wordmark fills 23% of its own square, so 2.11 grows mostly empty margin and no pixel of the
+  // logo leaves the tile. scripts/measure-logo-ink.mjs computes that per-logo limit, and 1.6 was
+  // quietly clipping five of its results. A ceiling still exists so a typo cannot destroy a tile.
   const nudge = Number(img.dataset.scale);
-  if (nudge > 0) k = Math.min(1.6, k * nudge);
+  if (nudge > 0) k = Math.min(3, k * nudge);
 
   img.style.transform = Math.abs(k - 1) > 0.001 ? `scale(${k.toFixed(3)})` : "";
 }
