@@ -12,10 +12,16 @@ reaching the browser.
 Clean tree, `tsc --noEmit` clean. main auto-deploys, so what is on GitHub is what is on the
 connector. (No commit hash here on purpose: this line ships inside the commit it would name.)
 
-**One thing is NOT on main:** branch `feat/event-week-refresh` — the 30-minute refresh cadence
-through August 27th plus a Refresh button on every page. Built and verified, awaiting review.
-See Session 2026-08-04g. How often the feeds update now lives in `lib/cachePolicy.ts` and
-reverts to the calm cadences on its own on the 28th.
+**Everything is on main and deployed.** Sessions 04g-04i shipped: the 30-minute refresh cadence
+through August 27th (`lib/cachePolicy.ts`, reverts on its own on the 28th), a Refresh button on
+every page, `/program` renamed to TechBBQ Project Programs, and Side Events rebuilt from
+Airtable + Brella + Luma.
+
+**THE ONE THING OUTSTANDING: the Elementor paste on techbbq.dk (post 58341).** The live page
+still carries the snippet from before 04i, so its Side Events render with the old markup —
+orange, the hosting company behind a map pin, no Register button, no All chip. The DATA is
+already live through it. Fetch the new snippet from
+`/api/embed?kind=brella&section=all` and replace the HTML widget. Verify with `?cb=`.
 
 ## What exists now
 
@@ -155,6 +161,76 @@ it to green).
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 - A blanket `#id .modal *` reset ties with every class rule in the same block, so anything it
   stamps out (`float`, `display`) must be RE-DECLARED after it, not before.
+
+---
+
+## Session 2026-08-04i (Side Events rebuilt: Airtable + Brella + Luma, three sources)
+
+All on main and deployed. **The Elementor paste on techbbq.dk is NOT done** — see next steps.
+
+**The bug Auri reported.** The Side Events tab showed dead "LINK TO REGISTER" text and 6 of the
+10 events the partnerships team had filled in. Both had one cause: that section read from
+Brella.
+
+**What each source actually has**, measured 2026-08-04, because no single one of them can render
+this section:
+
+| | Airtable | Brella | Luma |
+|---|---|---|---|
+| all events | 10 (now 11) | 6 | per-event |
+| register link | 9 of 10 | **never** | n/a |
+| description | all | yes | n/a |
+| time | **empty on every row** | its 6 | 5 events |
+| venue | **no field at all** | no | 5 events |
+
+Brella's API returns the description as plain text ending in the WORDS "LINK TO REGISTER" with
+no URL in the payload — the hyperlink lives in their editor and does not survive the API. That
+is unfixable from our side, which is why Airtable is the spine now.
+
+Airtable has NO venue field: all 128 columns of Partnership Success checked. The venue comes
+from each partner's public Luma page, which carries a schema.org Event in JSON-LD with the venue
+AND exact times. 3 of the Luma links are private events that publish no JSON-LD, 2 use other
+ticketing (nrich.io, rsvp.withgoogle.com), 1 has no link — so Luma fills about half.
+
+**Precedence, and why.** Time: Airtable → Brella → Luma. Luma is last because it is the
+partner's own listing and can disagree with what TechBBQ scheduled; it fills a gap and never
+overrides. Two events that showed only a date now show a time from it.
+
+**Traps for whoever touches this next.**
+
+- **A page's fetch URL and its embed URL are different things.** `useFreshUrl` returns `url` for
+  the page; `CopyEmbed path=` must stay on `base`. `?fresh=` in a pasted snippet 401s for every
+  public visitor.
+- **The substitution happens ONCE in the route**, so `?section=all`, `?section=side` and the
+  plain feed cannot disagree. They did in the first cut: the grouped embed showed 10 while the
+  dashboard still showed Brella's 6, because the page slices the plain feed client-side.
+- **A session can now DECLARE its section** (`section: "side"`). It has to: a side event's `room`
+  is the hosting partner, and `sectionOf()` reads an unrecognised name as a stage, so they landed
+  in the Stages timeline and the Side Events heading counted 0. Same reason `SECTION_COLORS`
+  exists — the name rule was what made them red, and a company name matches nothing, so they
+  went orange.
+- **An unmatched Brella side event is APPENDED, not dropped.** Correct for not losing data,
+  but it means a title changing on either side would show that event TWICE. Nothing logs this
+  yet. See next steps.
+- **`/api/partner-events` publishes what Airtable holds, and Airtable does not validate a url
+  field.** The Beyond Unicorns row contains the literal text "No link"; only http(s) passes now.
+- Cards with a sign-up page are ordinary card-buttons again: Register lives in the DIALOG only
+  (a pill on every preview turned the section into a wall of buttons). `hasDetail()` counts a
+  registerUrl so every side event still opens.
+- The Luma lookup is cached SIX HOURS, not on the feed cadence: a venue does not move and this
+  is someone else's site. Verified reachable from Vercel, which was the real risk (Cloudflare
+  often challenges datacenter IPs).
+
+**Verified in production:** 11 side events, 9 links, 5 venues, times on 8, Stages/Event
+Rooms/Grill Sessions untouched at 124/24/17.
+
+**Next steps.** 1. **Paste the embed on techbbq.dk** (post 58341) from
+`/api/embed?kind=brella&section=all` — until then the live page still shows the OLD markup:
+orange cards, the company behind a map pin, no Register button, no All chip. The DATA is already
+live. 2. Log a warning when a Brella side event fails to pair, so a duplicate cannot appear
+silently during event week. 3. Airtable, no deploy needed: a real URL on Beyond Unicorns, and
+`Time slot` on the three events still showing only a date. 4. When the partnerships team gets a
+venue column, make it the first source and drop Luma to fallback.
 
 ---
 
