@@ -1,0 +1,108 @@
+name: Warm feeds (event window)
+
+# Keeps every public feed within half an hour of Airtable / Brella until the event ends.
+#
+# The caching does most of the work on its own: lib/cachePolicy.ts marks each feed fresh for
+# 30 minutes, then serves the stale copy to the next visitor while it refetches in the
+# background. The hole that leaves is a feed nobody requests for a while — the first visitor
+# after a quiet spell gets whatever the CDN last stored, which can be an hour and a half old.
+# On a Wednesday in February that is fine. On the morning of August 26th it is a wrong
+# program on techbbq.dk.
+#
+# So this asks for each feed on a schedule. Every request that arrives after the fresh window
+# triggers the background refetch, which means the copy waiting for a real visitor is always
+# a recent one. It deliberately does NOT use the ?fresh= bypass: that URL skips the CDN
+# entirely, so it would read Airtable and leave the copy techbbq.dk actually gets untouched.
+#
+# Why Actions and not vercel.json: Vercel Hobby native cron runs once a day. Same reason
+# sync-speakers.yml exists. GitHub's scheduler is best-effort and can run several minutes
+# late under load, so treat the real cadence as roughly every 30 to 45 minutes.
+#
+# It stops itself after the event — no cleanup deploy to remember. The workflow can be
+# deleted whenever convenient after that; until then it exits immediately.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {} # manual run from the Actions tab
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Is the event window still open?
+        id: window
+        # Must match FAST_UNTIL_MS in lib/cachePolicy.ts: end of August 27th, Copenhagen.
+        # Past that the feeds are back on their calm cadences and warming them every half
+        # hour would just be noise in the Actions log.
+        run: |
+          if [ "$(date -u +%s)" -ge "$(date -u -d '2026-08-27 22:00:00' +%s)" ]; then
+            echo "Past the event window (ended 2026-08-27 24:00 Copenhagen). Nothing to warm."
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Request each feed
+        if: steps.window.outputs.active == 'true'
+        env:
+          # Optional. Without it the base URL is derived from the SYNC_URL secret that
+          # sync-speakers.yml already uses, so this needs no new configuration to work.
+          FEED_BASE_URL: ${{ secrets.FEED_BASE_URL }}
+          SYNC_URL: ${{ secrets.SYNC_URL }}
+        run: |
+          set -uo pipefail
+
+          BASE="${FEED_BASE_URL:-${SYNC_URL%/api/sync-speakers}}"
+          if [ -z "$BASE" ] || [ "$BASE" = "$SYNC_URL" ]; then
+            echo "::error::No usable base URL. Set the FEED_BASE_URL secret to the deployed origin."
+            exit 1
+          fi
+          echo "Warming $BASE"
+
+          # The feeds, plus the query variants the WordPress embeds actually request. A
+          # variant is its own CDN entry, so ?event=brella has to be asked for by name —
+          # warming /api/program alone would leave the Brella program to whatever traffic
+          # happens to arrive. They share one server-side cache entry per source, so the
+          # extra URLs cost CDN round-trips, not Airtable reads.
+          PATHS="
+          /api/program?event=brella
+          /api/program?event=brella&section=all
+          /api/program
+          /api/program?event=niss
+          /api/program?event=fintech
+          /api/speakers
+          /api/speakers-2026
+          /api/all-speakers
+          /api/main-speakers
+          /api/niss-speakers
+          /api/niss-speakers?role=Speaker
+          /api/nass-speakers
+          /api/nass-speakers?role=Speaker
+          /api/niss-2025
+          /api/event-room-presenters
+          /api/investor-speakers
+          /api/fintech-speakers
+          /api/life-science
+          /api/ls-startups
+          /api/partners
+          /api/partner-events
+          /api/partner-events?kind=side-event
+          /api/partner-events?kind=event-room
+          /api/team
+          "
+
+          failed=0
+          for path in $PATHS; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 45 "$BASE$path")
+            echo "$code  $path"
+            # A warm-up that quietly 500s for two days is worse than no warm-up: the pages
+            # would look fine (the CDN still has an old copy) while nothing refreshed. So a
+            # bad status fails the run and shows up in the Actions tab.
+            if [ "$code" != "200" ]; then failed=1; fi
+          done
+
+          if [ "$failed" = "1" ]; then
+            echo "::error::At least one feed did not return 200. See the statuses above."
+            exit 1
+          fi

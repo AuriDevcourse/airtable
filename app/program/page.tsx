@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
@@ -16,11 +17,17 @@ type Session = {
   room: string;
 };
 
-// One tab per event program. brella reads the live TechBBQ 2026 schedule out of the Brella
-// attendee app (30 sessions, the real one); techbbq reads the purpose-built Program 2026
-// Airtable table; niss/fintech read the program views the teams fill inside their own
-// tables. heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "brella" | "techbbq" | "niss" | "fintech";
+// This page is the PROJECT programs: NISS and Future of Fintech, each read from the program
+// view its own team fills inside its own Airtable table.
+//
+// TechBBQ's own 2026 program is not here. It lives on /brella-program, which reads the live
+// Brella schedule and is the one installed on techbbq.dk. It used to have two tabs here as
+// well — Brella and the purpose-built Program 2026 Airtable table — and two places showing
+// the same agenda is how a stale one ends up on the live site. `/api/program?event=brella`
+// and the bare `/api/program` still serve both, so nothing that already fetches them broke.
+//
+// heading/note bake a fixed date line + ticket notice into that event's embed.
+type EventKey = "niss" | "fintech";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -30,8 +37,6 @@ const EVENTS: {
   icons?: boolean;
   bigOpening?: boolean;
 }[] = [
-  { key: "brella", label: "TechBBQ 2026 (Brella)", heading: "August 26th & 27th" },
-  { key: "techbbq", label: "TechBBQ 2026 (Airtable)" },
   {
     key: "niss",
     label: "NISS 2026",
@@ -79,15 +84,14 @@ function CopyAgendaEmbed({
 }
 
 export default function ProgramPage() {
-  // Brella first: it's the schedule that's actually filled in.
-  const [event, setEvent] = useState<EventKey>("brella");
+  const [event, setEvent] = useState<EventKey>("niss");
   // Bumped by the refresh button. It goes into the URL rather than being a bare re-render
   // trigger, because the value has to reach the network: `?fresh=<n>` is what makes the
   // request miss the CDN and skip the server's hour-long cache. Zero means "normal cached
   // read", which is what an ordinary visit does.
   const [fresh, setFresh] = useState(0);
 
-  const base = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
+  const base = `/api/program?event=${event}`;
   const path = fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
 
   // The cache key stays free of `fresh`, so the localStorage baseline survives a refresh and
@@ -113,15 +117,21 @@ export default function ProgramPage() {
       <section className="hero">
         <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Programs · one source per event</p>
+          <p className="eyebrow">Project programs · one Airtable view per event</p>
           <h1>
-            Program <span className="text-tbbq-gradient">2026</span>
+            TechBBQ Project <span className="text-tbbq-gradient">Programs</span>
           </h1>
           <p className="lede">
-            The public agendas. TechBBQ 2026 comes live from Brella, the attendee app, with
-            times converted to Copenhagen; the other events come from their Airtable views.
-            One entry per session: time slot, topic, name, description, stage. Served as
-            JSON at <code>/api/program</code>.
+            The agendas for the events around TechBBQ, live from the program view each team
+            fills in its own Airtable table. One entry per session: time slot, topic, name,
+            description, stage. Served as JSON at <code>/api/program</code>.
+          </p>
+          <p className="lede" style={{ fontSize: 14 }}>
+            TechBBQ&apos;s own agenda is not here. It comes from Brella and lives on{" "}
+            <Link href="/brella-program" style={{ color: "var(--color-orange, #fa7000)" }}>
+              Program 2026
+            </Link>
+            , which is the one installed on techbbq.dk.
           </p>
 
           <div className="seg" role="tablist" aria-label="Program" style={{ marginTop: 28 }}>

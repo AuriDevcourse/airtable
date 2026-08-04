@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEventEmbed } from "@/components/CopyEventEmbed";
 
 // One card per partner-hosted event: Side Events in red, Event Rooms in blue.
@@ -152,11 +153,9 @@ function EventCard({ ev }: { ev: PartnerEvent }) {
 }
 
 export default function PartnerEventsPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<PartnerEvent>(
-    "partnerevents",
-    "/api/partner-events",
-    "events"
-  );
+  const { url, refresh } = useFreshUrl("/api/partner-events");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<PartnerEvent>("partnerevents", url, "events");
   const all = data ?? [];
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
 
@@ -212,6 +211,17 @@ export default function PartnerEventsPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copy from the deployed dashboard, not localhost.
             </span>
+          </div>
+
+          {/* Side events change late and often, so this is the page most likely to need a
+              read that does not wait for the next cycle. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="partnerevents"
+            />
           </div>
         </div>
       </section>

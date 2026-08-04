@@ -1,21 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchLifeScience, PUBLISHED_STAGES } from "@/lib/lifescience";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 
 export const OPTIONS = corsPreflight;
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+const KEY = "lifescience:all";
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  const gate = feedGate(req, "life-science");
+  if (!gate.ok) return gate.res;
 
   try {
+    if (gate.fresh) invalidate(KEY);
+
     // listKey is "people" to match the shared embed snippet + NISS feeds.
-    const all = await cached("lifescience:all", () => fetchLifeScience());
+    const all = await cached(KEY, () => fetchLifeScience(), feedTtlMs());
 
     // ?stage=<exact Airtable option> narrows the list to one stage, so techbbq.dk can embed
     // just the Deep Tech Event Day speakers on that event's own page. Filtered AFTER the
@@ -30,9 +33,7 @@ export async function GET(req: NextRequest) {
     const people =
       stage && PUBLISHED_STAGES.includes(stage) ? all.filter((p) => p.tag === stage) : all;
 
-    const res = NextResponse.json({ count: people.length, people }, { status: 200 });
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    return feedResponse({ count: people.length, people }, gate);
   } catch (err) {
     console.error("[/api/life-science]", err);
     return errorResponse(err, "Something went wrong loading Life Science speakers.");

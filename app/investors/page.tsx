@@ -4,7 +4,8 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
@@ -79,12 +80,12 @@ function InvestorsView() {
     router.replace(next === "all" ? "/investors" : `/investors?event=${next}`, { scroll: false });
   };
 
-  const url = event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
-  const { data, loading, revalidating, error, updated } = useCachedList<InvestorSpeaker>(
-    `investors:${event}`,
-    url,
-    "people"
-  );
+  // `base` for the embed snippet, `url` for this page's own fetch (see /niss).
+  const base =
+    event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<InvestorSpeaker>(`investors:${event}`, url, "people");
   // Random order, re-rolled on every page load (same approach as Speakers 2026 / NASS).
   // Anyone with a curated numeric Hierarchy keeps that order at the top; only the rest is
   // shuffled (today everyone is unranked, so everything shuffles). The seed is fixed for
@@ -133,11 +134,20 @@ function InvestorsView() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Mobile defaults to the list-rows layout for every filter. */}
-            <CopyEmbed path={url} listKey="people" shuffle />
+            <CopyEmbed path={base} listKey="people" shuffle />
             <CopyApiSnippet feed="investor-speakers" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{eventLabel(event)}</code>).
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`investors:${event}`}
+            />
           </div>
         </div>
       </section>

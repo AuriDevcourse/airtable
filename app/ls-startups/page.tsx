@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { fitLogosIn } from "@/lib/logoFit";
 import { CopyLsStartupsEmbed } from "@/components/CopyLsStartupsEmbed";
 
@@ -100,11 +101,9 @@ function LogoWall({ items }: { items: Startup[] }) {
 }
 
 export default function LsStartupsPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<Startup>(
-    "lsstartups",
-    "/api/ls-startups",
-    "startups"
-  );
+  const { url, refresh } = useFreshUrl("/api/ls-startups");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<Startup>("lsstartups", url, "startups");
   const all = useMemo(() => data ?? [], [data]);
 
   // Even out how BIG each logo looks. object-fit only matches bounding boxes, and these range
@@ -144,6 +143,15 @@ export default function LsStartupsPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies the whole three-row wall. Copy from the deployed dashboard, not localhost.
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="lsstartups"
+            />
           </div>
         </div>
       </section>

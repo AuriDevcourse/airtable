@@ -49,15 +49,12 @@ export function rateLimit(
 }
 
 // TTL cache so we don't hit Airtable on every page view (also dodges Airtable's
-// 5 req/sec limit). Refreshes once an hour by default: a speaker list barely changes, so an
-// Airtable edit can take up to TTL_MS to show. Lower TTL_MS if you need it faster.
+// 5 req/sec limit). How long an entry lives is NOT decided here: the routes pass a TTL from
+// lib/cachePolicy.ts, which shortens every cadence during the event window and reverts
+// afterwards. The hour below is only the fallback for a caller that passes nothing.
 type CacheEntry<T> = { value: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const TTL_MS = 60 * 60_000; // 1 hour
-
-// For feeds that should refresh once a day rather than hourly. Pass as cached()'s third
-// argument — used by /api/team, where the staff list changes a few times a year.
-export const DAY_MS = 24 * 60 * 60_000;
 
 // In-flight loaders, so N concurrent misses on the same key run the loader ONCE and all
 // await the same promise. Without this, a cold cache plus a burst of traffic fired one

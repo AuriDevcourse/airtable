@@ -40,7 +40,49 @@ Notes:
 
 - Only fields in `SAFE_FIELDS` (see `lib/airtable.ts`) are ever requested from Airtable.
 - Only records where the gate checkbox (`On Website?`) is `TRUE` are returned.
-- Cached 5 min (CDN + in-memory), rate-limited 60 req/min/IP.
+- Cached (CDN + in-memory), rate-limited 60 req/min/IP. See the refresh cadence below.
+
+## How often the feeds update
+
+One file decides: `lib/cachePolicy.ts`. It has two modes and picks by the clock.
+
+| | until end of Aug 27 2026 | from Aug 28 2026 |
+| --- | --- | --- |
+| CDN (`s-maxage`) | 30 min, stale-servable 1h | 1h, stale-servable 24h (`/api/team`: 24h) |
+| in-memory per instance | 10 min | 1h (`/api/team`: 24h) |
+
+TechBBQ 2026 runs August 26th and 27th, when the tables change all day, so every feed runs
+on a ~30 minute cadence through it. **The switch back is automatic** — a clock comparison,
+not a deploy, so nothing has to be undone on the 28th. To move the date, edit
+`FAST_UNTIL_MS` in `lib/cachePolicy.ts` and the matching guard in
+`.github/workflows/warm-feeds.yml`.
+
+The in-memory TTL is deliberately shorter than `s-maxage`: only a CDN revalidation reaches
+the function, so when one does it should read Airtable rather than answer from a copy nearly
+as old as the one the CDN just gave up on.
+
+`.github/workflows/warm-feeds.yml` requests every feed every 30 minutes during the window
+(Vercel Hobby cron only runs daily, same reason `sync-speakers.yml` exists). Without it, a
+feed nobody has requested for hours hands the next visitor whatever the CDN last stored. The
+workflow exits on its own after August 27th and can be deleted any time after that. It needs
+no new secrets: it derives the origin from the existing `SYNC_URL`, or from `FEED_BASE_URL`
+if you set one.
+
+## Refresh now, from the dashboard
+
+Every feed page has a **Refresh from Airtable** button (Brella on the program pages). It
+forces a live read past both caches and then reports what changed, field by field.
+
+It works on the deployed dashboard, not just locally, which is the whole point of how it is
+built: the button adds `?fresh=<n>`, a URL the CDN has never seen, because dropping one
+serverless instance's in-memory cache would change nothing when the CDN is what answers a
+visitor. The bypass is gated by the dashboard password (`DASHBOARD_PASSWORD`) and metered at
+10/min/IP separately from ordinary reads — it hits Airtable on every call, so leaving it open
+would be an unauthenticated route that costs a third-party API call (SECURITY r5). The
+feeds themselves stay public for the Elementor embeds.
+
+Pressing it does **not** purge the CDN copy on techbbq.dk. That still updates on its own
+cadence, and the button says so.
 
 ## Before it works: two Airtable steps
 

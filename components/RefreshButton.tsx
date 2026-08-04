@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import type { ChangeSummary, ListChange } from "@/lib/diffList";
+import { cadenceLabel } from "@/lib/cachePolicy";
 
-// "Refresh from Airtable" for the dashboard. The feeds cache for an hour, which is right for
-// techbbq.dk and useless while someone is editing a table, so this forces a live read and
-// then reports what actually changed.
+// "Refresh from Airtable" for the dashboard. The feeds cache for half an hour during the
+// event window and an hour outside it, which is right for techbbq.dk and useless while
+// someone is editing a table, so this forces a live read and then reports what changed.
 //
 // It does not fetch anything itself. Pressing it calls onRefresh(), and the page re-runs
 // useCachedList against `?fresh=<n>` — a URL neither the CDN nor the server cache has seen.
@@ -33,7 +34,7 @@ function headline(c: ChangeSummary): string {
   return parts.join(", ");
 }
 
-function ChangeReport({ changes }: { changes: ChangeSummary }) {
+function ChangeReport({ changes, source }: { changes: ChangeSummary; source: string }) {
   const empty = changes.total === 0;
   return (
     <div
@@ -49,7 +50,7 @@ function ChangeReport({ changes }: { changes: ChangeSummary }) {
       }}
     >
       <strong style={{ color: empty ? "var(--color-muted)" : undefined }}>
-        {empty ? "No changes. This page already matched Airtable." : headline(changes)}
+        {empty ? `No changes. This page already matched ${source}.` : headline(changes)}
       </strong>
 
       {changes.items.map((c, i) => (
@@ -77,9 +78,11 @@ function ChangeReport({ changes }: { changes: ChangeSummary }) {
 
       {!empty && (
         // Refusing to overstate what the press did. The public copy on techbbq.dk is served
-        // by the CDN under its own 1-hour s-maxage, which this cannot purge.
+        // by the CDN under its own s-maxage, which this cannot purge. The lag comes from
+        // cachePolicy, so this line stays true when the event window ends and the cadence
+        // goes back to hourly.
         <div style={{ marginTop: 10, color: "var(--color-muted)", fontSize: 12 }}>
-          This page is now live with Airtable. techbbq.dk picks the change up within the hour.
+          This page is now live with {source}. techbbq.dk picks the change up {cadenceLabel()}.
         </div>
       )}
     </div>
@@ -91,6 +94,7 @@ export function RefreshButton({
   changes,
   error,
   resetKey,
+  source,
 }: {
   // Bump the page's `fresh` counter. The refetch is the page's job, not this component's.
   onRefresh: () => void;
@@ -101,7 +105,13 @@ export function RefreshButton({
   // Identifies which feed is on screen. When it changes the report is dropped, because a
   // diff for the tab you just left is worse than no diff at all.
   resetKey?: string;
+  // Where this page's data comes from. Airtable for almost everything; /brella-program reads
+  // Brella, and a button that claims to refresh Airtable on a page Airtable does not feed is
+  // a small lie that costs someone ten minutes.
+  source?: string;
 }) {
+  const from = source ?? "Airtable";
+
   // The report only appears in response to a press. useCachedList also fills `changes` on
   // ordinary background revalidation, and printing a diff nobody asked for on page load is
   // noise.
@@ -126,11 +136,11 @@ export function RefreshButton({
     <div>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
         <button type="button" className="copy-embed" onClick={run} disabled={pressed && !settled}>
-          {pressed && !settled ? "Refreshing…" : "Refresh from Airtable"}
+          {pressed && !settled ? "Refreshing…" : `Refresh from ${from}`}
         </button>
         {pressed && !settled && (
           <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-            Reading Airtable…
+            Reading {from}…
           </span>
         )}
         {pressed && error && (
@@ -139,7 +149,7 @@ export function RefreshButton({
           </span>
         )}
       </span>
-      {pressed && !error && changes != null && <ChangeReport changes={changes} />}
+      {pressed && !error && changes != null && <ChangeReport changes={changes} source={from} />}
     </div>
   );
 }

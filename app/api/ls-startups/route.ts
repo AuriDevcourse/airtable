@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchLsStartups, LS_CATEGORIES } from "@/lib/lsstartups";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -9,16 +10,18 @@ export const OPTIONS = corsPreflight;
 
 const CATEGORIES: readonly string[] = LS_CATEGORIES;
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+const KEY = "ls-startups";
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  const gate = feedGate(req, KEY);
+  if (!gate.ok) return gate.res;
 
   try {
+    if (gate.fresh) invalidate(KEY);
+
     // listKey is "startups". The gate (Confirmation = Selected) lives in the lib, so an
     // unconfirmed applicant cannot be reached from this route under any query string.
-    const all = await cached("ls-startups", fetchLsStartups);
+    const all = await cached(KEY, fetchLsStartups, feedTtlMs());
 
     // ?category=Human Health | Planetary Health | Deep Tech narrows the list, so a page can
     // embed one category on its own. Filtered after the cache, like the other feeds, so all
@@ -31,9 +34,7 @@ export async function GET(req: NextRequest) {
         ? all.filter((s) => s.categories.includes(category))
         : all;
 
-    const res = NextResponse.json({ count: startups.length, startups }, { status: 200 });
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    return feedResponse({ count: startups.length, startups }, gate);
   } catch (err) {
     console.error("[/api/ls-startups]", err);
     return errorResponse(err, "Something went wrong loading Life Science startups.");

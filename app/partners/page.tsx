@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { fitLogosIn } from "@/lib/logoFit";
 import { CopyPartnersEmbed } from "@/components/CopyPartnersEmbed";
 
@@ -80,11 +81,9 @@ function LogoWall({ items }: { items: Partner[] }) {
 }
 
 export default function PartnersPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<Partner>(
-    "partners",
-    "/api/partners",
-    "partners"
-  );
+  const { url, refresh } = useFreshUrl("/api/partners");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<Partner>("partners", url, "partners");
   const all = useMemo(() => data ?? [], [data]);
 
   // Even out how BIG each logo looks. object-fit only matches bounding boxes, and these range
@@ -122,6 +121,17 @@ export default function PartnersPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies every tier as one block. Copy from the deployed dashboard, not localhost.
             </span>
+          </div>
+
+          {/* Manual sync: a live Airtable read past both caches, with a report of what
+              changed. Gated by the dashboard password. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="partners"
+            />
           </div>
         </div>
       </section>

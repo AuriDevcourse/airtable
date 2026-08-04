@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
 import { STAGE_ICON_PATHS, trackColor, trackColor2 } from "@/lib/brellaTheme";
 import {
@@ -618,11 +619,10 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
 }
 
 export default function BrellaProgramPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<Session>(
-    "brellaprogram",
-    "/api/program?event=brella",
-    "sessions"
-  );
+  // This page reads Brella, not Airtable, so the refresh button forces a live Brella call.
+  const { url, refresh } = useFreshUrl("/api/program?event=brella");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<Session>("brellaprogram", url, "sessions");
   const all = useMemo(() => data ?? [], [data]);
 
   const [section, setSection] = useState<SectionKey>("stages");
@@ -787,6 +787,17 @@ export default function BrellaProgramPage() {
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               All four sections in one snippet. Copy from the deployed dashboard, not localhost.
             </span>
+          </div>
+
+          {/* The live schedule, so this is the one to press after a room or time moves. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="brellaprogram"
+              source="Brella"
+            />
           </div>
         </div>
       </section>

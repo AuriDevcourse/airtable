@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Same per-image shimmer loader as the other speaker pages: state lives here so parent
@@ -46,12 +47,11 @@ const roleLabel = (r: string) => (r === "all" ? "All" : r === "Speaker" ? "Prese
 export default function Niss2025Page() {
   const [role, setRole] = useState<Role>("Speaker");
 
-  const url = role === "all" ? "/api/niss-2025" : `/api/niss-2025?role=${role}`;
-  const { data, loading, revalidating, error, updated } = useCachedList<NissPerson>(
-    `niss2025:${role}`,
-    url,
-    "people"
-  );
+  // `base` for the embed snippet, `url` for this page's own fetch (see /niss).
+  const base = role === "all" ? "/api/niss-2025" : `/api/niss-2025?role=${role}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<NissPerson>(`niss2025:${role}`, url, "people");
   const people = data ?? [];
 
   return (
@@ -78,10 +78,19 @@ export default function Niss2025Page() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Mobile defaults to the list-rows layout for every role now. */}
-            <CopyEmbed path={url} listKey="people" loadMore={false} />
+            <CopyEmbed path={base} listKey="people" loadMore={false} />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`niss2025:${role}`}
+            />
           </div>
         </div>
       </section>

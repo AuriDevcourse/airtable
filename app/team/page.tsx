@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Public TechBBQ team directory: current staff grouped by department, with contact email and
@@ -119,11 +120,9 @@ const TABS_ALL = "all";
 export default function TeamPage() {
   const [active, setActive] = useState<string>(TABS_ALL);
 
-  const { data, loading, revalidating, error, updated } = useCachedList<TeamMember>(
-    "team:all",
-    "/api/team",
-    "team"
-  );
+  const { url, refresh } = useFreshUrl("/api/team");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<TeamMember>("team:all", url, "team");
   const members = data ?? [];
   const allSections = groupByDepartment(members);
   // Department tabs still come from the grouping, but "All" no longer renders those groups.
@@ -195,6 +194,17 @@ export default function TeamPage() {
               loadMore={false}
               email
               deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
+            />
+          </div>
+
+          {/* This feed is the slowest to refresh on its own — daily outside the event window
+              — so the manual read matters most here. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="team"
             />
           </div>
         </div>
