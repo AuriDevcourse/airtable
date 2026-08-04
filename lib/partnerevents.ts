@@ -180,12 +180,36 @@ function firstAttachment(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
 }
 
+// `Link to register` is a url field, but Airtable does not enforce that a url field holds a
+// url: the Beyond Unicorns row contains the literal text "No link", and this feed published
+// it as a registration link. Anything that is not an absolute http(s) URL becomes null and is
+// logged, because a Register button that navigates to "No link" is worse than no button.
+// Trailing punctuation gets trimmed — a pasted link often arrives with a full stop attached.
+function cleanUrl(raw: string): string | null {
+  const cleaned = raw.trim().replace(/[.,;)]+$/, "");
+  return cleaned && /^https?:\/\/\S+$/i.test(cleaned) ? cleaned : null;
+}
+
+function registerUrl(raw: string, context: string): string | null {
+  const cleaned = cleanUrl(raw);
+  if (cleaned) return cleaned;
+  if (raw.trim()) {
+    console.warn(
+      `[partnerevents] Link to register is not a URL on ${context}: ${JSON.stringify(raw)} — dropped`
+    );
+    return null;
+  }
+  return cleaned;
+}
+
 // How much a row actually carries, used to pick a winner among resubmissions of the same
 // session. A partner filling in the description + register link later is the common case.
 function richness(f: Record<string, unknown>): number {
   return (
     (str(f[FIELDS.description]) ? 1 : 0) +
-    (str(f[FIELDS.registerUrl]) ? 1 : 0) +
+    // A real URL only. Scoring "No link" as a filled-in link would let a weaker row beat the
+    // one that actually carries the sign-up page.
+    (cleanUrl(str(f[FIELDS.registerUrl])) ? 1 : 0) +
     // Duplicate submissions exist (Nordic IPO has two rows for the same day); whichever
     // copy the time was typed into should be the one that wins.
     (str(f[FIELDS.timeSlot]) ? 1 : 0) +
@@ -289,7 +313,7 @@ export async function fetchPartnerEvents(): Promise<PartnerEvent[]> {
       accessKind: accessInfo?.accessKind ?? null,
       accessLabel: accessInfo?.accessLabel ?? null,
       description: str(f[FIELDS.description]) || null,
-      registerUrl: str(f[FIELDS.registerUrl]) || null,
+      registerUrl: registerUrl(str(f[FIELDS.registerUrl]), `${rec.id} "${title}"`),
       // Presence is checked against the attachment cell, but the URL served is the stable
       // proxy — raw signed Airtable URLs 410 after ~2h (lib/photo.ts).
       logo: firstAttachment(f[FIELDS.logo]) ? photoUrl("partner-events", rec.id) : null,

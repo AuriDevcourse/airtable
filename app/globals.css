@@ -1316,6 +1316,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .bp-card {
   position: relative;
+  /* Column flex so a side event's action row can be pinned to the bottom with margin-top:auto
+     and line up across a row of cards of different heights. Harmless for the cards that have
+     no action row: block and column-flex lay these children out identically. */
+  display: flex;
+  flex-direction: column;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -1383,6 +1388,57 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-family: var(--font-heading);
   font-size: 11px; font-weight: 600;
 }
+
+/* Side event actions. Only Side Events have a sign-up page, so only they get this row; it is
+   why those cards are articles with explicit buttons rather than one card-sized button (an
+   <a> inside a <button> is invalid). margin-top:auto pins the row to the bottom so cards in
+   a row line their buttons up regardless of description length. */
+.bp-card__actions {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: auto; padding-top: 14px;
+}
+.bp-card__register {
+  display: inline-flex; align-items: center;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  background: var(--track);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.18s;
+}
+.bp-card__register:hover { filter: brightness(1.12); }
+.bp-card__register:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.bp-card__more {
+  appearance: none;
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 600;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+}
+.bp-card__more:hover { color: var(--color-foreground); border-color: var(--track); }
+.bp-card__more:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+
+.bp-modal__cta { margin: 22px 0 0; }
+.bp-modal__cta a {
+  display: inline-flex; align-items: center;
+  padding: 11px 20px;
+  border-radius: 9999px;
+  background: var(--track);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.18s;
+}
+.bp-modal__cta a:hover { filter: brightness(1.12); }
+.bp-modal__cta a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* Session dialog. align-items:flex-start + overflow-y on the overlay so a long speaker list
    scrolls the overlay rather than being clipped by a centred flex item. */
