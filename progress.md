@@ -25,9 +25,13 @@ already live through it. Fetch the new snippet from
 `/api/embed?kind=brella&section=all` and replace the HTML widget. Verify with `?cb=`.
 Life Science has its own snippet now: `/api/embed?kind=brella&stage=life-science`.
 
-**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** Partner tiers now derive from the
-deal size, which empties the Prime band. It is finished and verified but needs one decision from
-Auri first — see Session 2026-08-04l. `git status` is dirty on purpose; do not "tidy" it away.
+**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** It carries TWO changes: partner
+tiers now derive from the deal size (which empties the Prime band), and Repodo is embargoed from
+the wall until 26 August. Both are finished and verified; the Prime band is the one decision
+blocking a push — see Session 2026-08-04l. `git status` is dirty on purpose; do not "tidy" it away.
+
+If Repodo needs to ship before the Prime question is settled, the embargo is separable: it is a
+`HIDDEN_UNTIL` map plus one guard clause, and can be committed on its own.
 
 ## What exists now
 
@@ -203,6 +207,27 @@ about who belongs on a partner wall, not a consequence of fixing tiers. One line
 **Dropped off the wall:** AIESEC in Denmark and Crescita Partners have no tier, so no band. Both
 are logged by name. Crescita is correct (no contract, confirmed by Auri); AIESEC needs a
 `Company Link` or a deal.
+
+**REPODO IS EMBARGOED UNTIL 26 AUGUST** (Auri, 2026-08-04), in the same uncommitted change.
+`HIDDEN_UNTIL` in `lib/partners.ts` holds `repodo: "2026-08-25T22:00:00Z"` (= 26 Aug 00:00
+Copenhagen). Their CRM row was named "Stealth TBD" until this week and the announcement is timed
+to the event.
+
+  * The gate runs BEFORE the tier and logo lookups, so an embargoed partner cannot leak through a
+    stray field. Verified: the string "repodo" appears nowhere in the payload, not just off the
+    wall. 105 partners → 104, Pioneer 5 → 4.
+  * It covers techbbq.dk automatically — the partner wall embed fetches this feed on every page
+    load, so they appear on the 26th with NO re-paste.
+  * **It reveals itself and needs no cleanup**: the date is read from the clock on every call,
+    never captured at module load. A captured value would freeze and keep hiding them AFTER the
+    26th on a long-lived Vercel instance (same rule as lib/cachePolicy.ts). Delete the entry
+    whenever convenient.
+  * Keyed on the name normalized (lowercase, collapsed spaces, trimmed) because this data is full
+    of trailing spaces and an exact match would silently fail to hide someone.
+
+**Noticed, not fixed:** `"Put on web"` is requested in `SAFE_FIELDS` and never read by anything. If
+that checkbox was meant to be the visibility switch, wiring it up would give Airtable-side control
+over who appears, leaving the date gate only for timed reveals like this one.
 
 ### The Airtable work behind it (no code, but do not redo the discovery)
 
