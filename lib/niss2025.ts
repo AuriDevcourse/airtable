@@ -6,7 +6,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -55,7 +55,9 @@ function mapRecord(rec: AirtableRecord): NissPerson {
     company: str(f["Company Name"]),
     bio: "", // no bio/description field in this table
     // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
-    photo: firstPhoto(f["Photo"]) ? photoUrl("niss-2025", rec.id) : null,
+    photo: firstPhoto(f["Photo"])
+      ? photoUrl("niss-2025", rec.id, undefined, firstAttachmentId(f["Photo"]))
+      : null,
     // Free-text field — normalized (www./scheme-less/mobile variants) or dropped.
     linkedin: normalizeLinkedInUrl(f["LinkedIn"]),
     role: str(f["Role"]),

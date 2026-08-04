@@ -11,7 +11,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, linkedinUrl, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, linkedinUrl, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -82,7 +82,7 @@ async function fetchOnce(token: string, base: string): Promise<SummitExtra[]> {
         company: str(f["Company"]),
         bio: "", // the marketing table has no bio column
         // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
-        photo: photoUrl("marketing", rec.id),
+        photo: photoUrl("marketing", rec.id, undefined, firstAttachmentId(f["Profile Picture"])),
         linkedin: linkedinUrl(f["Link to LinkedIn"], f["LinkedIn Handle"]),
         location: "",
         role: "",

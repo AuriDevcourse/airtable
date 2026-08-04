@@ -27,7 +27,7 @@ export function numOrNull(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
+type AirtableAttachment = { id?: string; url: string; thumbnails?: { large?: { url: string } } };
 
 /**
  * The first attachment's URL, preferring the large thumbnail. Only used as a PRESENCE
@@ -38,6 +38,25 @@ export function firstPhoto(v: unknown): string | null {
   if (!Array.isArray(v) || v.length === 0) return null;
   const att = v[0] as AirtableAttachment;
   return att?.thumbnails?.large?.url || att?.url || null;
+}
+
+/**
+ * The first attachment's ID, for the `?v=` cache-buster on a proxy photo URL.
+ *
+ * WHY THIS MATTERS (2026-08-04). /api/photo/<feed>/<recordId> is stable by design, and the
+ * CDN holds it for a WEEK. Replacing a headshot in Airtable changes nothing about that URL,
+ * so visitors kept the old picture: Kent Damsgaard's replacement sat unseen while the CDN
+ * served a 36,841-byte file against Airtable's 55,268. The route's own comment claimed "a
+ * swapped photo shows up within a day", which was wrong for the same reason.
+ *
+ * Airtable issues a NEW attachment id whenever the file is replaced, so threading it into the
+ * URL makes a replaced photo a URL no cache has ever seen — instant everywhere — while an
+ * unchanged photo keeps its week-long cache. Undefined when there is no attachment, which
+ * leaves the URL exactly as it was.
+ */
+export function firstAttachmentId(v: unknown): string | undefined {
+  if (!Array.isArray(v) || v.length === 0) return undefined;
+  return (v[0] as AirtableAttachment)?.id || undefined;
 }
 
 /** First option of a multi-select (which arrives as an array), or a plain single-select. */

@@ -6,7 +6,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -58,9 +58,17 @@ function mapRecord(rec: AirtableRecord): Speaker {
     quote: str(f["Personal Quote for Marketing Purposes"]),
     // Stable proxy URL, not the raw signed attachment URL — those expire after ~2h
     // and 410 once this JSON outlives them in a cache (see lib/photo.ts).
+    // The version follows the SAME priority order the route resolves in ("Picture" first,
+    // then "Headshots For marketing?"), so a replaced file in whichever field is actually
+    // served is the one that busts the cache.
     photo:
       firstPhoto(f["Picture"]) || firstPhoto(f["Headshots For marketing?"])
-        ? photoUrl("speakers", rec.id)
+        ? photoUrl(
+            "speakers",
+            rec.id,
+            undefined,
+            firstAttachmentId(f["Picture"]) ?? firstAttachmentId(f["Headshots For marketing?"])
+          )
         : null,
     linkedin: normalizeLinkedInUrl(f["Linkedin (Personal)"]),
     website: str(f["Company website"]) || str(f["Company LinkedIn"]) || null,

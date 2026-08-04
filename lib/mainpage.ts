@@ -11,7 +11,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, linkedinUrl, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, linkedinUrl, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -62,7 +62,9 @@ function mapRecord(rec: AirtableRecord): MainSpeaker {
     title: str(f["Job Title"]),
     company: str(f["Company"]),
     // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
-    photo: firstPhoto(f["Profile Picture"]) ? photoUrl("marketing", rec.id) : null,
+    photo: firstPhoto(f["Profile Picture"])
+      ? photoUrl("marketing", rec.id, undefined, firstAttachmentId(f["Profile Picture"]))
+      : null,
     // "Link to LinkedIn" is mostly empty; "LinkedIn Handle" holds the real profile URL.
     linkedin: linkedinUrl(f["Link to LinkedIn"], f["LinkedIn Handle"]),
     hierarchy: typeof rank === "number" && Number.isFinite(rank) ? rank : null,

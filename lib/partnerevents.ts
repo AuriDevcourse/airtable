@@ -27,7 +27,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
-import { str } from "@/lib/fields";
+import { firstAttachmentId, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -316,7 +316,9 @@ export async function fetchPartnerEvents(): Promise<PartnerEvent[]> {
       registerUrl: registerUrl(str(f[FIELDS.registerUrl]), `${rec.id} "${title}"`),
       // Presence is checked against the attachment cell, but the URL served is the stable
       // proxy — raw signed Airtable URLs 410 after ~2h (lib/photo.ts).
-      logo: firstAttachment(f[FIELDS.logo]) ? photoUrl("partner-events", rec.id) : null,
+      logo: firstAttachment(f[FIELDS.logo])
+        ? photoUrl("partner-events", rec.id, undefined, firstAttachmentId(f[FIELDS.logo]))
+        : null,
     });
   }
 

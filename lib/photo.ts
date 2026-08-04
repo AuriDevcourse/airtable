@@ -164,8 +164,17 @@ async function fetchSignedUrl(
 // don't hit Airtable, but a served URL is never close to expiry.
 const SIGNED_URL_TTL_MS = 45 * 60_000;
 
-function cacheKey(feed: string, recordId: string, fieldIndex?: number): string {
-  return `photo:${feed}:${recordId}:${fieldIndex ?? "*"}`;
+// The VERSION is part of the key. Without it, replacing a headshot left this cache pointing at
+// the old file's signed URL for up to 45 minutes, so even the new ?v= URL served the old
+// picture — the CDN was only half the reason Kent Damsgaard's swap stayed invisible. A new
+// attachment id is a new key, which forces a fresh resolve immediately.
+function cacheKey(
+  feed: string,
+  recordId: string,
+  fieldIndex?: number,
+  version?: string
+): string {
+  return `photo:${feed}:${recordId}:${fieldIndex ?? "*"}:${version ?? "*"}`;
 }
 
 // Airtable record ids: "rec" + 14 alphanumerics. The route checks this too, but the
@@ -176,14 +185,15 @@ const REC_ID = /^rec[A-Za-z0-9]{14}$/;
 export async function resolveSignedUrl(
   feed: string,
   recordId: string,
-  fieldIndex?: number
+  fieldIndex?: number,
+  version?: string
 ): Promise<string | null> {
   const source = PHOTO_SOURCES[feed];
   if (!source) return null;
   if (!REC_ID.test(recordId)) return null;
   if (fieldIndex !== undefined && !source.fields[fieldIndex]) return null;
   return cached(
-    cacheKey(feed, recordId, fieldIndex),
+    cacheKey(feed, recordId, fieldIndex, version),
     () => fetchSignedUrl(source, recordId, fieldIndex),
     SIGNED_URL_TTL_MS
   );
@@ -193,7 +203,19 @@ export async function resolveSignedUrl(
 export function invalidateSignedUrl(
   feed: string,
   recordId: string,
-  fieldIndex?: number
+  fieldIndex?: number,
+  version?: string
 ): void {
-  invalidate(cacheKey(feed, recordId, fieldIndex));
+  invalidate(cacheKey(feed, recordId, fieldIndex, version));
 }
+
+/**
+ * Airtable attachment ids: "att" + 14 alphanumerics.
+ *
+ * The route validates `?v=` against this before it reaches the cache key, and that check is
+ * load-bearing rather than cosmetic: the key goes into a long-lived in-memory Map, so an
+ * unvalidated value would let anyone grow that map without limit by requesting ?v=1, ?v=2 and
+ * so on. An unrecognised value is ignored, not rejected — the photo still serves, just on the
+ * unversioned key.
+ */
+export const ATTACHMENT_ID = /^att[A-Za-z0-9]{14}$/;
