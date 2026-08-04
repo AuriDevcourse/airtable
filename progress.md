@@ -12,10 +12,11 @@ reaching the browser.
 Clean tree, `tsc --noEmit` clean. main auto-deploys, so what is on GitHub is what is on the
 connector. (No commit hash here on purpose: this line ships inside the commit it would name.)
 
-**Everything is on main and deployed.** Sessions 04g-04i shipped: the 30-minute refresh cadence
+**Everything is on main and deployed.** Sessions 04g-04j shipped: the 30-minute refresh cadence
 through August 27th (`lib/cachePolicy.ts`, reverts on its own on the 28th), a Refresh button on
-every page, `/program` renamed to TechBBQ Project Programs, and Side Events rebuilt from
-Airtable + Brella + Luma.
+every page, `/program` renamed to TechBBQ Project Programs, Side Events rebuilt from
+Airtable + Brella + Luma, and Future of Fintech split into Speakers / Moderators / Keynote with
+a no-hierarchy-no-publish gate.
 
 **THE ONE THING OUTSTANDING: the Elementor paste on techbbq.dk (post 58341).** The live page
 still carries the snippet from before 04i, so its Side Events render with the old markup —
@@ -161,6 +162,52 @@ it to green).
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 - A blanket `#id .modal *` reset ties with every class rule in the same block, so anything it
   stamps out (`float`, `display`) must be RE-DECLARED after it, not before.
+
+---
+
+## Session 2026-08-04j (Future of Fintech: three roles separated, and a publish gate)
+
+All on main and deployed. No embed re-paste needed — the bare feed URL still serves exactly what
+it served before, on purpose.
+
+**What was wrong.** `lib/fintechspeakers.ts` hard-filtered to `Role = "Speaker"` and dropped the
+rest, so the two moderators and the keynote had been invisible since July even though the team
+had filled them in. Someone had numbered the moderators **1.1 and 1.2**, which is what told me
+the separation was always intended.
+
+**The view holds three roles** (`Role ` and `Hierarchy ` both carry trailing spaces in Airtable —
+do not "fix" them):
+
+| Role | Hierarchy cell | Published |
+|---|---|---|
+| Speaker | "1".."9" | 9 |
+| Moderator | "1.1", "1.2" | 2 |
+| Keynote Speaker | the TEXT "Keynote Speaker" | 1 |
+
+**Three decisions worth keeping.**
+
+1. **The default is still `?role=Speaker`.** Whatever is pasted on techbbq.dk fetches this URL
+   bare; defaulting to `all` would drop two moderators and a keynote into the middle of a live
+   speaker grid, fixable only by a re-paste. An unknown `?role=` falls back to Speaker for the
+   same reason rather than serving everyone. `?role=all` exists for a combined view.
+2. **NO HIERARCHY, NO PUBLISH.** A blank `Hierarchy ` cell means the team has not placed that
+   person, and they stay off the site (Viggo Stenseth, Jacob Nyman today). Held-back rows are
+   logged by name so they read as waiting, not lost. Side effect worth knowing: a fresh form
+   submission can no longer reach techbbq.dk before a human places it, which is the protection
+   `On Website?` gives the main speakers table and this feed never had.
+3. **The gate tests EMPTY, not numeric.** The keynote's cell holds text, so a numeric test would
+   have quietly emptied the Keynote tab. If that row ever gets a number, the test can tighten.
+
+**Two traps.** `Hierarchy` is parsed as a FLOAT — `parseInt` read both moderators as 1 and lost
+their order. And this is a FORM table, so people submit twice: Jens Grønlund (Norlix) was in the
+live feed twice, once ranked 5 and once unranked. Dedupe collapses same name+company keeping the
+RANKED row (a number is something a human typed on purpose; keeping the unranked copy would have
+dropped him to the bottom and left a hole at position 5). Auri has since deleted the extra row,
+so it no longer fires — it stays as a safety net.
+
+**Open, Airtable side:** Viggo Stenseth and Jacob Nyman need a Hierarchy number to appear. And
+`?role=all` sorts purely numerically, so the moderators land between speakers 1 and 2 — fine for
+the tabs, a decision to make if a combined block is ever embedded.
 
 ---
 
