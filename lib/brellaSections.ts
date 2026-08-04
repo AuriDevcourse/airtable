@@ -138,9 +138,23 @@ export function weekdayLabel(day: string): string {
  * Applied in lib/brellaprogram.ts as the session is built, so every consumer — page, API
  * route and embed — sees the same room name and cannot disagree about it.
  */
+// BOTH SUMMITS RUN IN EVENT ROOM 2 (Auri, 2026-08-04). Nordic India was mapped to Event Room 4
+// here, which was simply the wrong room — Brella's own track is called "Nordic India Startup
+// Summit" and carries no room number, so this table is the only thing that decides, and nothing
+// upstream contradicts it. It also brings the program in line with /api/all-speakers, which has
+// tagged both summits as Event Room 2 all along.
+//
+// The two do not collide: India runs 26 August, Africa 27 August, so Event Room 2 lists twelve
+// sessions across two days rather than two things at once. Event Room 4 keeps the one session
+// that is genuinely in it.
+//
+// Nordic Africa has no track of its own in Brella yet — its sessions already sit on the "Event
+// Room 2" track — so its rule is future-proofing: the day someone gives it a named track, it
+// lands in the right room instead of defaulting to Stages.
 const ROOM_ALIASES: [RegExp, string][] = [
   [/future of fintech/i, "Event Room 1"],
-  [/nordic\s+india|india\s+summit/i, "Event Room 4"],
+  [/nordic\s+india|india\s+summit/i, "Event Room 2"],
+  [/nordic\s+africa|africa\s+summit/i, "Event Room 2"],
 ];
 
 export function roomAlias(room: string): string {
