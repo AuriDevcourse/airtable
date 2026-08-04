@@ -21,6 +21,7 @@
 
 import {
   BRELLA_SECTIONS,
+  findTimelineColumn,
   EVENT_DAYS,
   EVENT_YEAR,
   TIMELINE_COLUMNS,
@@ -40,6 +41,18 @@ export type BrellaEmbedOptions = {
   uid?: string;
   // Drop the panel's own background + padding, for a page that already provides them.
   transparent?: boolean;
+  /**
+   * ONE timeline column, by label: "Life Science x Deep Tech Stage".
+   *
+   * For a page that is about a single stage — the Life Science page on techbbq.dk wants its own
+   * programme, not the five-column board with four columns a visitor there does not care about.
+   * It overrides `section`, since a column already implies which section it belongs to.
+   *
+   * The result is a one-column timeline with the day pills and nothing else: the track pills and
+   * the phone picker would both be a menu of one, so they disappear on their own (see
+   * buildSectionControls — it skips them when there is a single column).
+   */
+  stage?: string;
 };
 
 // Vertical scale, shared with the dashboard: 30 minutes = 90px. It was 72px until the live
@@ -54,10 +67,27 @@ export function buildBrellaEmbedSnippet({
   section,
   uid,
   transparent = true,
+  stage,
 }: BrellaEmbedOptions): string {
   const id = uid || "tbbq-brella";
-  const path = `/api/program?event=brella&section=${section}`;
-  const isAll = section === "all";
+
+  // A named stage decides everything: which section to fetch, and that the timeline has exactly
+  // one column. An unknown name throws rather than falling back — silently handing someone the
+  // five-column board for a page about one stage is worse than an error they can read.
+  const single = stage ? findTimelineColumn(stage) : null;
+  if (stage && !single) {
+    throw new Error(
+      `Unknown stage ${JSON.stringify(stage)}. Known: ${Object.values(TIMELINE_COLUMNS)
+        .flat()
+        .map((c) => c?.label)
+        .filter(Boolean)
+        .join(", ")}`
+    );
+  }
+
+  const effectiveSection = single ? single.section : section;
+  const path = `/api/program?event=brella&section=${effectiveSection}`;
+  const isAll = !single && section === "all";
   // Every section's columns travel, keyed by section, because in "all" mode the visitor can
   // switch between them without another request. RegExp cannot be JSON.stringify'd, so the
   // source travels as a string and the snippet rebuilds it. Same list the dashboard uses, so
@@ -66,11 +96,18 @@ export function buildBrellaEmbedSnippet({
     (defs ?? []).map((c) => ({ label: c.label, re: c.match.source }));
   const columnsBySection: Record<string, { label: string; re: string }[]> = {};
   for (const { key } of BRELLA_SECTIONS) columnsBySection[key] = serialiseCols(TIMELINE_COLUMNS[key]);
-  const columnDefs = isAll ? undefined : TIMELINE_COLUMNS[section as BrellaSection];
+  const columnDefs = single
+    ? [single.column]
+    : isAll
+      ? undefined
+      : TIMELINE_COLUMNS[effectiveSection as BrellaSection];
   const isTimeline = isAll || Boolean(columnDefs);
   const columns = serialiseCols(columnDefs);
+  // In single-stage mode the section's own full column list must not travel either: the only
+  // list the snippet may ever draw from is the one column that was asked for.
+  if (single) columnsBySection[effectiveSection] = columns;
 
-  return `<!-- TechBBQ program (Brella${isTimeline ? " · timeline" : ""}) — paste into an Elementor HTML widget -->
+  return `<!-- TechBBQ program (Brella${single ? ` · ${single.column.label}` : isTimeline ? " · timeline" : ""}) — paste into an Elementor HTML widget -->
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <div id="${id}" class="tbbq-bp">
   <div class="tbbq-bp__sections" role="tablist" aria-label="Program section"></div>
@@ -733,12 +770,21 @@ export function buildBrellaEmbedSnippet({
   function buildSectionControls(){
     pillsEl.innerHTML="";daysEl.innerHTML="";if(pickEl)pickEl.innerHTML="";
     if(IS_TL){
-      pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
-        +(SECTION==="grills"?"All grills":"All stages")+'</button>'
-        +COLS.map(function(c){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(c.label)+'">'+esc(c.label)+'</button>';}).join("");
-      fillPicker(SECTION==="grills"?"Grill":"Stage",
-                 SECTION==="grills"?"All grills":"All stages",
-                 COLS.map(function(c){return c.label;}));
+      /* ONE COLUMN NEEDS NO FILTER. A single-stage embed would otherwise show "All stages" next
+         to the one stage it contains, and a phone picker with one option — a menu of one is
+         noise. Both containers hide themselves when empty (the :empty rule on .tbbq-bp__tracks
+         and the --off class on the picker), so leaving them unbuilt is all it takes. The DAY
+         pills stay: a single stage still runs on two days. */
+      if(COLS.length>1){
+        pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
+          +(SECTION==="grills"?"All grills":"All stages")+'</button>'
+          +COLS.map(function(c){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(c.label)+'">'+esc(c.label)+'</button>';}).join("");
+        fillPicker(SECTION==="grills"?"Grill":"Stage",
+                   SECTION==="grills"?"All grills":"All stages",
+                   COLS.map(function(c){return c.label;}));
+      } else {
+        fillPicker("Stage","",[]);
+      }
       daysEl.innerHTML=EVENT_DAYS.map(function(d,i){
         return '<button type="button" role="tab" aria-selected="'+(i===dayIdx)+'" data-d="'+i+'">'
           +'<span class="tbbq-bp__dnum">'+esc(d.label)+'</span>'

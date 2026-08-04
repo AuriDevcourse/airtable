@@ -65,6 +65,40 @@ export const TIMELINE_COLUMNS: Partial<Record<BrellaSection, ColumnDef[]>> = {
   grills: BRELLA_GRILLS,
 };
 
+/** "Life Science x Deep Tech Stage" → "life-science-x-deep-tech-stage". */
+export function columnSlug(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/**
+ * Find one timeline column by label or slug, and say which section it lives in.
+ *
+ * For the single-column embeds: /api/embed?kind=brella&stage=life-science has to resolve to the
+ * Life Science column without the caller having to spell out "Life Science x Deep Tech Stage"
+ * and url-encode it. A PREFIX match on the slug is deliberate — "life-science" should find the
+ * column whose full slug is much longer, because that is what a human will type.
+ *
+ * Returns null rather than guessing when nothing matches, so a typo yields a 400 instead of a
+ * snippet quietly showing the wrong stage.
+ */
+export function findTimelineColumn(
+  q: string | null | undefined
+): { section: BrellaSection; column: ColumnDef } | null {
+  if (!q) return null;
+  const want = columnSlug(q);
+  if (!want) return null;
+  for (const key of Object.keys(TIMELINE_COLUMNS) as BrellaSection[]) {
+    for (const column of TIMELINE_COLUMNS[key] ?? []) {
+      const slug = columnSlug(column.label);
+      if (slug === want || slug.startsWith(want)) return { section: key, column };
+    }
+  }
+  return null;
+}
+
 // Brella's day strings carry no year ("25 August"), and a weekday cannot be derived without
 // one. The event year is a fixed fact about this deployment, unlike "today", which must never
 // be a constant.

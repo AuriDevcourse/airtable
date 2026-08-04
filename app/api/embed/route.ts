@@ -9,6 +9,7 @@
 // code is visible in the source of any page that has already pasted it.
 //
 //   /api/embed?kind=brella&section=all   → the whole program, one snippet
+//   /api/embed?kind=brella&stage=life-science → ONE stage as its own timeline
 //   /api/embed?kind=partners             → the partner logo wall
 //   /api/embed?kind=ls-startups          → the Life Science wall
 //
@@ -19,7 +20,7 @@ import { corsPreflight, withCors } from "@/lib/apiRoute";
 import { buildBrellaEmbedSnippet } from "@/lib/brellaEmbedSnippet";
 import { buildPartnersEmbedSnippet } from "@/lib/partnersEmbedSnippet";
 import { buildLsStartupsEmbedSnippet } from "@/lib/lsStartupsEmbedSnippet";
-import { isBrellaSection } from "@/lib/brellaSections";
+import { columnSlug, findTimelineColumn, isBrellaSection, TIMELINE_COLUMNS } from "@/lib/brellaSections";
 import { baseUrl } from "@/lib/photo";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,30 @@ export async function GET(req: NextRequest) {
     if (kind === "brella") {
       const raw = q.get("section") || "all";
       const section = raw === "all" || isBrellaSection(raw) ? raw : "all";
-      snippet = buildBrellaEmbedSnippet({ section: section as "all", uid: uid("tbbq-bp") });
+      // ?stage= narrows the timeline to ONE column, for a page that is about a single stage:
+      // /api/embed?kind=brella&stage=life-science. It overrides ?section=, because a column
+      // already says which section it belongs to. A name that matches nothing is a 400 rather
+      // than a silent fall back to the whole board — see findTimelineColumn.
+      const stageParam = q.get("stage");
+      if (stageParam && !findTimelineColumn(stageParam)) {
+        return withCors(
+          NextResponse.json(
+            {
+              error: `Unknown stage "${stageParam}".`,
+              stages: Object.values(TIMELINE_COLUMNS)
+                .flat()
+                .filter(Boolean)
+                .map((c) => ({ label: c!.label, slug: columnSlug(c!.label) })),
+            },
+            { status: 400 }
+          )
+        );
+      }
+      snippet = buildBrellaEmbedSnippet({
+        section: section as "all",
+        uid: uid("tbbq-bp"),
+        stage: stageParam ?? undefined,
+      });
     } else if (kind === "partners") {
       snippet = buildPartnersEmbedSnippet({ uid: uid("tbbq-pw") });
     } else if (kind === "ls-startups") {

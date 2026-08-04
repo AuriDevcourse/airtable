@@ -13,10 +13,17 @@ import type { BrellaSection } from "@/lib/brellaSections";
 export function CopyBrellaEmbed({
   section,
   label,
+  stage,
 }: {
   /** A single section, or "all" for the whole program with its own section switcher. */
   section: BrellaSection | "all";
   label?: string;
+  /**
+   * One column by label, e.g. "Life Science x Deep Tech Stage" — a snippet for a page that is
+   * about a single stage. Overrides `section`, and drops the track pills and the phone picker,
+   * both of which would be a menu of one.
+   */
+  stage?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -24,7 +31,7 @@ export function CopyBrellaEmbed({
     // Fresh id per copy so two sections can sit on the same WordPress page without their
     // #id-scoped styles and their scripts colliding.
     const uid = "tbbq-bp-" + Math.random().toString(36).slice(2, 8);
-    const code = buildBrellaEmbedSnippet({ section, uid }).replace(
+    const code = buildBrellaEmbedSnippet({ section, uid, stage }).replace(
       /__ORIGIN__/g,
       window.location.origin
     );

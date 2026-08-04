@@ -910,8 +910,24 @@ export default function BrellaProgramPage() {
               rather than four. */}
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <CopyBrellaEmbed section="all" label="Copy embed (whole program)" />
+            {/* ONE STAGE ON ITS OWN, for a page that is about that stage and nothing else — the
+                Life Science page does not want a five-column board with four columns its readers
+                did not come for (Auri, 2026-08-04). It follows the column picker below rather
+                than being its own dropdown: pick Life Science, press this, paste. `key` so the
+                button's "Copied" state cannot survive a switch and claim the previous stage's
+                snippet was copied. */}
+            {stage && (
+              <CopyBrellaEmbed
+                key={stage}
+                section={section}
+                stage={stage}
+                label={`Copy embed (${stage})`}
+              />
+            )}
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              All four sections in one snippet. Copy from the deployed dashboard, not localhost.
+              {stage
+                ? `Two snippets: the whole program, or just ${stage} as its own timeline. Copy from the deployed dashboard, not localhost.`
+                : "All four sections in one snippet. Pick a column below to also copy that stage on its own. Copy from the deployed dashboard, not localhost."}
             </span>
           </div>
 
