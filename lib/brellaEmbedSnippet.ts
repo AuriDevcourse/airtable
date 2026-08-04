@@ -362,7 +362,7 @@ export function buildBrellaEmbedSnippet({
   var SECTIONS=${JSON.stringify(BRELLA_SECTIONS)};
   var COLS_BY_SECTION=${JSON.stringify(columnsBySection)};
   var GROUPS={};              /* section -> sessions, only used in "all" mode */
-  var SECTION=${JSON.stringify(isAll ? "stages" : section)};
+  var SECTION=${JSON.stringify(isAll ? "stages" : effectiveSection)};
   var IS_TL=${isAll ? "true" : isTimeline ? "true" : "false"};
   var COLDEFS=${JSON.stringify(isAll ? columnsBySection["stages"] : columns)};
   var STYLES=${JSON.stringify(TRACK_STYLES)};
