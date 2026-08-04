@@ -1214,6 +1214,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   /* A separator per stage. On the grid's 8px gap this lands in the channel between columns,
      so it reads as a divider rather than a border drawn on the cards. */
   border-left: 1px solid var(--color-border);
+  /* NO PADDING HERE, deliberately. The cards are absolutely positioned, and an abs-positioned
+     child resolves its left/width against the PADDING box — which includes the padding — so
+     padding on this element moves nothing at all. Measured: it left the gap at 9px. The inset
+     lives on the cards instead, as CARD_INSET_PX in the page. */
 }
 .bp-tl__col:last-child { border-right: 1px solid var(--color-border); }
 .bp-tl__empty {

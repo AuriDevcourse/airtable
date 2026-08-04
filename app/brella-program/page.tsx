@@ -127,6 +127,14 @@ const PX_PER_MIN = 3;
 const SLOT_MIN = 30; // gridline interval
 // Floor for a card's height, so a three-minute session is still readable.
 const MIN_CARD_PX = 26;
+// Breathing room either side of every card, so one column's card does not run up against its
+// neighbour (Auri, 2026-08-04). With the grid's own 8px channel that makes ~24px between two
+// cards. It also separates overlapping sessions sharing a column, which used to touch.
+//
+// It has to be applied to the CARD. Padding on .bp-tl__col does nothing: the cards are
+// absolutely positioned, and an abs-positioned child resolves left/width against the padding
+// box, padding included. Measured before and after — padding left the gap at 9px.
+const CARD_INSET_PX = 8;
 
 // Brella's roles, reduced to the distinction that matters on a card: who is chairing and who
 // is speaking. Panelist, Facilitator and Keynote speaker are all "speaking"; only Moderator
@@ -387,8 +395,10 @@ function StageTimeline({
                   ...sessionVars(s),
                   top: (s.start - from) * PX_PER_MIN,
                   height: h,
-                  left: `${(s.lane * 100) / s.lanes}%`,
-                  width: `${100 / s.lanes}%`,
+                  // Inset on the CARD, not as padding on the column: padding cannot move an
+                  // absolutely positioned child, which resolves against the padding box.
+                  left: `calc(${(s.lane * 100) / s.lanes}% + ${CARD_INSET_PX}px)`,
+                  width: `calc(${100 / s.lanes}% - ${CARD_INSET_PX * 2}px)`,
                 } as React.CSSProperties;
                 const names = shortNames(s.speakers);
                 const inner = (

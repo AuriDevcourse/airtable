@@ -595,7 +595,10 @@ export function buildBrellaEmbedSnippet({
     cols.forEach(function(c,ci){
       var items=timed.filter(function(x){return colKey(x.s)===c;})
         .sort(function(a,b){return a.start-b.start||String(a.s.name).localeCompare(String(b.s.name));});
-      html+='<div class="tbbq-bp__col" style="position:absolute;top:0;height:100%;left:'+CL(ci)+';width:'+CW+';box-sizing:border-box;padding:0 4px">';
+      /* No padding on the column: the cards inside are absolutely positioned, and an
+         abs-positioned child resolves left/width against the PADDING box — padding included —
+         so padding here moves nothing. The inset is applied to each card below instead. */
+      html+='<div class="tbbq-bp__col" style="position:absolute;top:0;height:100%;left:'+CL(ci)+';width:'+CW+';box-sizing:border-box">';
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
@@ -628,7 +631,13 @@ export function buildBrellaEmbedSnippet({
            78px is measured, not guessed: two lines of title (32) + the time (14) + the faces
            (16) + padding (12) is what a full card needs. */
         var tight=!compact&&h<78;
-        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:"+((p.lane*100)/p.lanes)+"%;width:"+(100/p.lanes)+"%;"+sessionVars(s);
+        /* Breathing room either side of every card, so one column's card does not run up
+           against its neighbour (Auri, 2026-08-04). These columns are adjacent boxes with no
+           channel of their own, so 12px a side gives the ~24px between cards that the dashboard
+           gets from 8px plus its 8px grid gap — the preview and the pasted embed have to match.
+           Tighter on a phone, where there is one column and the width is all text. */
+        var INSET=narrow?6:12;
+        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:calc("+((p.lane*100)/p.lanes)+"% + "+INSET+"px);width:calc("+(100/p.lanes)+"% - "+(INSET*2)+"px);"+sessionVars(s);
         var who=names(s.speakers,2);
         var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
