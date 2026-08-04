@@ -61,6 +61,11 @@ export type ProgramSession = {
   // is the hosting partner and would otherwise read as a stage. Absent on Brella sessions,
   // which are classified by name (lib/brellaSections.ts).
   section?: BrellaSection;
+  // What to show where the time goes when there is no time: "25 August". Side Events only,
+  // because they are the only sessions that can legitimately lack one — partners submit the
+  // date and the `Time slot` cell is often left empty. A card showing the date beats a card
+  // showing "Time TBC", which tells a visitor nothing they can act on.
+  dateLabel?: string;
 };
 
 // Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one

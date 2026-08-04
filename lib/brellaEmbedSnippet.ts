@@ -397,6 +397,10 @@ export function buildBrellaEmbedSnippet({
     return out.join(" \\u00b7 ");
   }
   function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150;}
+  /* A side event whose partner has not filled in a time shows its DATE instead of "Time TBC":
+     the date is real information a visitor can plan around, the placeholder is not. Only the
+     Side Events carry dateLabel, so every other section is unaffected. */
+  function timeLabel(s){return s.timeSlot||s.dateLabel||"Time TBC";}
   var PIN='<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>';
   var CHEV='<svg class="tbbq-bp__chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 
@@ -546,7 +550,7 @@ export function buildBrellaEmbedSnippet({
       return '<h3 class="tbbq-bp__daylabel">'+esc(dayLabel(d))+'</h3><div class="tbbq-bp__grid">'
         +rows.map(function(s){
           var sum=summary(s.speakers);
-          var inner='<p class="tbbq-bp__time">'+esc(s.timeSlot||"Time TBC")+'</p>'
+          var inner='<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
             +(s.room?'<p class="tbbq-bp__room">'+PIN+esc(s.room)+'</p>':'')
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
@@ -633,7 +637,7 @@ export function buildBrellaEmbedSnippet({
     }).join("");
     modal.innerHTML='<button type="button" class="tbbq-bp__close" aria-label="Close">'
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
-      +'<p class="tbbq-bp__time">'+esc(s.timeSlot||"Time TBC")+'</p>'
+      +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
       +'<h2>'+esc(s.name)+'</h2>'
       +'<p class="tbbq-bp__meta">'+stageIcon+esc(meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')

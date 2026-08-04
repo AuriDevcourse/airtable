@@ -67,19 +67,21 @@ function stripDeadRegisterLine(text: string): string {
     .trim();
 }
 
+/** "2026-08-25" → "25 August". UTC, because a date-only cell formatted west of UTC moves back a day. */
+function dateWords(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${iso}T00:00:00Z`));
+}
+
 /** "2026-08-25" → "Day 1 · 25 August", the shape Brella emits and both consumers parse. */
 function dayStrings(events: PartnerEvent[]): Map<string, string> {
   const dates = [...new Set(events.map((e) => e.date).filter((d): d is string => Boolean(d)))].sort();
   const out = new Map<string, string>();
   dates.forEach((iso, i) => {
-    // UTC on purpose: these are date-only cells, and formatting them west of UTC shifts the
-    // day back by one (same reason as formatDate in lib/partnerevents.ts).
-    const words = new Intl.DateTimeFormat("en-GB", {
-      day: "numeric",
-      month: "long",
-      timeZone: "UTC",
-    }).format(new Date(`${iso}T00:00:00Z`));
-    out.set(iso, `Day ${i + 1} · ${words}`);
+    out.set(iso, `Day ${i + 1} · ${dateWords(iso)}`);
   });
   return out;
 }
@@ -124,9 +126,13 @@ export function mergeSideEvents(
         name: e.title,
         day: (e.date && days.get(e.date)) || match?.session.day || "",
         // The whole reason for the merge. Empty on every Airtable row today, so in practice
-        // this is Brella's value for the 6 it knows and blank for the other 4, which the card
-        // renders as "Time TBC".
+        // this is Brella's value for the 6 it knows and blank for the other 4, where the card
+        // falls back to dateLabel below.
         timeSlot: e.timeSlot || match?.session.timeSlot || "",
+        // Shown in the time's place when there is no time. Auri's call (2026-08-04): the date
+        // alone is honest and useful, "Time TBC" is neither. Partners will get a time field on
+        // the form; until they fill it, this is what a visitor sees.
+        dateLabel: e.date ? dateWords(e.date) : undefined,
         // The access badge belongs on the card: "Private · invite only" is the difference
         // between a visitor turning up and not.
         type: [e.kindLabel, e.accessLabel].filter(Boolean).join(" · "),

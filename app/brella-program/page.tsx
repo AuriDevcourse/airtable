@@ -56,7 +56,17 @@ type Session = {
   // Set by the feed on the Airtable-sourced Side Events, whose `room` is the hosting partner
   // and would be read as a stage track otherwise. inBrellaSection() prefers it over the name.
   section?: SectionKey;
+  // "25 August" — what goes where the time goes when a side event has no time yet.
+  dateLabel?: string;
 };
+
+/**
+ * What to print in the time slot. A side event whose partner has not filled in a time shows
+ * its DATE rather than "Time TBC": the date is real information, the placeholder is not.
+ */
+function timeLabel(s: Session): string {
+  return s.timeSlot || s.dateLabel || "Time TBC";
+}
 
 /** The custom properties every card/tile sets, so the gradient logic lives in one place. */
 function trackVars(room: string): React.CSSProperties {
@@ -434,7 +444,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
   const detail = hasDetail(s);
   const body = (
     <>
-      <p className="bp-card__time">{s.timeSlot || "Time TBC"}</p>
+      <p className="bp-card__time">{timeLabel(s)}</p>
       <h3 className="bp-card__title">{s.name}</h3>
       {s.room && (
         <p className="bp-card__room">
@@ -607,7 +617,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
           </svg>
         </button>
 
-        <p className="bp-modal__time">{s.timeSlot || "Time TBC"}</p>
+        <p className="bp-modal__time">{timeLabel(s)}</p>
         <h2 className="bp-modal__title" id="bp-dialog-title">
           {s.name}
         </h2>
