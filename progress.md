@@ -25,9 +25,10 @@ already live through it. Fetch the new snippet from
 `/api/embed?kind=brella&section=all` and replace the HTML widget. Verify with `?cb=`.
 Life Science has its own snippet now: `/api/embed?kind=brella&stage=life-science`.
 
-**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** It carries TWO changes: partner
-tiers now derive from the deal size (which empties the Prime band), and Repodo is embargoed from
-the wall until 26 August. Both are finished and verified; the Prime band is the one decision
+**AND: `lib/partners.ts` IS MODIFIED ON DISK, NOT COMMITTED.** It carries THREE changes: partner
+tiers now derive from the deal size (which empties the Prime band), Repodo is embargoed from the
+wall until 26 August, and one redundant website override was dropped. The logo work is already
+committed and pushed separately. Both are finished and verified; the Prime band is the one decision
 blocking a push — see Session 2026-08-04l. `git status` is dirty on purpose; do not "tidy" it away.
 
 If Repodo needs to ship before the Prime question is settled, the embargo is separable: it is a
@@ -228,6 +229,37 @@ to the event.
 **Noticed, not fixed:** `"Put on web"` is requested in `SAFE_FIELDS` and never read by anything. If
 that checkbox was meant to be the visibility switch, wiring it up would give Airtable-side control
 over who appears, leaving the date gate only for timed reveals like this one.
+
+**WEBSITE OVERRIDES trimmed, third change in the same uncommitted file.** Auri filled in every
+website in Airtable (125 of 125 rows now hold one), so I re-checked all four hand-written
+overrides. Three still do real work and MUST STAY: they are exactly the rows whose cell holds
+SEVERAL organisations' urls, where safeUrl's "first one wins" picks the wrong one —
+`Copenhagen` (cell starts with copcap.com, Copenhagen Capacity, a different organisation from the
+municipality), `cse advisory, OMR Reviews` (starts with omr.com), and `INCUBA x KITCHEN` (four
+organisations, deliberately unlinked). Only `Owl Ventures` was dropped: its cell now begins with
+owlvc.com so the override agreed with the data. Wall: 102 of 104 clickable, the two without being
+INCUBA x KITCHEN (deliberate) and Mesh (no url in Airtable).
+
+### Logos — COMMITTED and pushed separately (`92809a5`, `6ffd220`)
+
+Three logos Auri exported went in via `MANUAL_FILES` in `scripts/sync-partner-logos.mjs`, NOT by
+editing the manifest: **that script rebuilds `lib/partnerLogoManifest.json` from scratch, so a
+hand-written entry is destroyed on the next run.**
+
+  * `BETA.HEALTH` points at the SAME file as "Beta Health" on purpose. The view holds two rows for
+    one organisation, and fetchPartners drops a logo repeating inside a tier, so they collapse to
+    ONE tile. Log confirms: `"BETA.HEALTH" duplicates Beta-Heath.svg inside Challenger, skipped`.
+  * **AIESEC needed more than a logo.** No Company Link meant no tier and no band, so the logo
+    would have sat unused. Linked to the Confirmed `AIESEC` record (the other two are Duplicates).
+  * **GOTCHA THAT NEARLY SHIPPED BROKEN:** running the sync also switched 8 partners to WHITE
+    variants found in the library (AstraZeneca was colour-on-black — the dry run's single
+    "NOT light") and pulled in new files. The first commit shipped the manifest WITHOUT those
+    files, which would have 404'd ten logos in production while localhost looked perfect because
+    the files were on disk. **After touching the manifest, always check every referenced file
+    against `git ls-files`** — and normalise unicode when you do, or "Business Region Göteborg.svg"
+    reads as missing when it is tracked.
+
+Wall now: 104 partners, 0 without a logo, 0 broken images, 0 text fallbacks, no dark-on-dark logo.
 
 ### The Airtable work behind it (no code, but do not redo the discovery)
 
