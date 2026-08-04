@@ -18,7 +18,7 @@ import {
   defaultEventDay,
   inBrellaSection,
   parseSlot,
-  sectionOf,
+  sectionKeyOf,
   stageOf,
   type BrellaSection as SectionKey,
 } from "@/lib/brellaSections";
@@ -50,6 +50,12 @@ type Session = {
   room: string; // the Brella TRACK — "Founders Stage", "Event Room 3", "Side Event Promotion"
   location?: string; // Brella's venue string, e.g. "Hall E"
   speakers?: Speaker[];
+  // Side Events only, and only because that section comes from Airtable (lib/sideEvents.ts).
+  // Brella's API sends the words "LINK TO REGISTER" with no URL behind them.
+  registerUrl?: string | null;
+  // Set by the feed on the Airtable-sourced Side Events, whose `room` is the hosting partner
+  // and would be read as a stage track otherwise. inBrellaSection() prefers it over the name.
+  section?: SectionKey;
 };
 
 /** The custom properties every card/tile sets, so the gradient logic lives in one place. */
@@ -444,6 +450,33 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
   );
   const style = trackVars(s.room);
 
+  // A side event with a sign-up page can NOT be a card-sized button: an <a> inside a <button>
+  // is invalid HTML and browsers disagree about which one a click belongs to. So the card
+  // stays an <article> and the two actions become explicit — Register, and Details when there
+  // is anything to open. Registering is what a visitor came for, so it leads.
+  if (s.registerUrl) {
+    return (
+      <article className="bp-card" style={style}>
+        {body}
+        <div className="bp-card__actions">
+          <a
+            className="bp-card__register"
+            href={s.registerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Register
+          </a>
+          {detail && (
+            <button type="button" className="bp-card__more" onClick={() => onOpen(s)}>
+              Details
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
+
   // A real <button> when it opens something, a plain <article> when it doesn't — rather than
   // a div with onClick. That is what makes it keyboard-reachable and announced as pressable.
   if (!detail) {
@@ -603,6 +636,16 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
           </div>
         )}
 
+        {/* Above the speaker list on purpose: someone who opened a side event came to sign up,
+            and on a phone a CTA under six bios is below the fold. */}
+        {s.registerUrl && (
+          <p className="bp-modal__cta">
+            <a href={s.registerUrl} target="_blank" rel="noopener noreferrer">
+              Register for this event
+            </a>
+          </p>
+        )}
+
         {s.speakers && s.speakers.length > 0 && (
           <>
             <h3 className="bp-modal__heading">{peopleSummary(s.speakers)}</h3>
@@ -699,7 +742,9 @@ export default function BrellaProgramPage() {
   const counts = useMemo(() => {
     const c: Record<SectionKey, number> = { stages: 0, rooms: 0, grills: 0, side: 0 };
     for (const s of all) {
-      const k = sectionOf(s.room);
+      // sectionKeyOf, not sectionOf(s.room): a side event's `room` is the hosting partner and
+      // reads as a stage track, so counting by name alone left this heading on 0.
+      const k = sectionKeyOf(s);
       if (inBrellaSection(s, k)) c[k]++;
     }
     return c;

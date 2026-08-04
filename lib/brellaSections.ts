@@ -203,11 +203,27 @@ export function brellaDayLabel(day: string): string {
  *
  * Only Stages gets the date restriction. Side Events genuinely run on the 25th and must keep
  * showing, which is why the rule lives here rather than being applied to the whole feed.
+ *
+ * `s.section`, when present, WINS over the name test. The Side Events now come from Airtable
+ * (lib/sideEvents.ts) where `room` is the hosting partner — "Rockstart", "Google" — and
+ * sectionOf() would read those as stage tracks and drop them into the timeline. A session that
+ * knows its own section says so instead of being guessed at from a string.
  */
 export function inBrellaSection(
-  s: { room: string; day: string },
+  s: { room: string; day: string; section?: BrellaSection },
   section: BrellaSection
 ): boolean {
-  if (sectionOf(s.room) !== section) return false;
+  if (sectionKeyOf(s) !== section) return false;
   return section !== "stages" || isStageDay(s.day);
+}
+
+/**
+ * Which section a SESSION belongs to: what it declares, or the track name as a fallback.
+ *
+ * Use this rather than sectionOf(s.room) whenever a session object is in hand. Reading the
+ * name directly is what left the Airtable-sourced Side Events counted under Stages while
+ * inBrellaSection refused to show them there, so the Side Events heading read 0.
+ */
+export function sectionKeyOf(s: { room: string; section?: BrellaSection }): BrellaSection {
+  return s.section ?? sectionOf(s.room);
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchProgram, PROGRAM_SOURCES, ProgramSourceKey } from "@/lib/program";
+import { fetchProgram, ProgramSession, PROGRAM_SOURCES, ProgramSourceKey } from "@/lib/program";
 import { cached, invalidate } from "@/lib/rate-limit";
 import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
+import { fetchPartnerEvents } from "@/lib/partnerevents";
+import { mergeSideEvents } from "@/lib/sideEvents";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
 
@@ -27,8 +29,38 @@ export async function GET(req: NextRequest) {
     // Drop this instance's entry first, so the read below really goes to Airtable AND the
     // refreshed value is what ordinary cached reads on this instance serve next.
     if (fresh) invalidate(`program:${source}`);
+    // The Brella program's Side Events come from Airtable, so a live read has to drop that
+    // entry too or the refresh button would report no change on the one section a partner is
+    // most likely to have just edited.
+    if (fresh && source === "brella") invalidate("partnerevents");
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
+
+    // SIDE EVENTS ARE A MERGE, not pure Brella. Airtable carries all 10 events and the real
+    // sign-up links; Brella carries the times, which no Airtable row has. Neither source
+    // alone can render this section correctly — see lib/sideEvents.ts for the measurements.
+    // The cache key is the one /api/partner-events already fills, so this costs no extra
+    // Airtable read.
+    //
+    // A failure here falls back to Brella's own side sessions rather than blanking the
+    // section: six events without links still beats an empty tab on techbbq.dk.
+    // The substitution happens ONCE, here, so every variant of this endpoint agrees about what
+    // the Side Events are: ?section=all, ?section=side and the plain feed the dashboard page
+    // slices client-side. Doing it per-variant is how the page ended up still showing Brella's
+    // six while the grouped embed showed all ten.
+    let sessionsAll: ProgramSession[] = all;
+    if (source === "brella") {
+      try {
+        const partnerEvents = await cached("partnerevents", fetchPartnerEvents, feedTtlMs());
+        const merged = mergeSideEvents(
+          partnerEvents,
+          all.filter((s) => inBrellaSection(s, "side"))
+        );
+        sessionsAll = [...all.filter((s) => !inBrellaSection(s, "side")), ...merged];
+      } catch (err) {
+        console.error("[/api/program] side events unavailable, falling back to Brella", err);
+      }
+    }
 
     // ?section=stages|rooms|side narrows the BRELLA feed to one of the three groups the
     // /brella-program page shows, so a WordPress page can embed just the Side Events.
@@ -44,14 +76,14 @@ export async function GET(req: NextRequest) {
     // regexes into the snippet — puts a second copy on techbbq.dk that can never be corrected
     // once pasted.
     if (source === "brella" && sectionParam === "all") {
-      const groups: Record<string, typeof all> = {};
+      const groups: Record<string, ProgramSession[]> = {};
       const counts: Record<string, number> = {};
       for (const { key } of BRELLA_SECTIONS) {
-        groups[key] = all.filter((s) => inBrellaSection(s, key));
+        groups[key] = sessionsAll.filter((s) => inBrellaSection(s, key));
         counts[key] = groups[key].length;
       }
       const grouped = NextResponse.json(
-        { count: all.length, event: source, counts, groups },
+        { count: sessionsAll.length, event: source, counts, groups },
         { status: 200 }
       );
       // Same cache rules as the ungrouped path below: an authenticated refresh is never
@@ -66,8 +98,8 @@ export async function GET(req: NextRequest) {
 
     const sessions =
       source === "brella" && isBrellaSection(sectionParam)
-        ? all.filter((s) => inBrellaSection(s, sectionParam))
-        : all;
+        ? sessionsAll.filter((s) => inBrellaSection(s, sectionParam))
+        : sessionsAll;
 
     return feedResponse({ count: sessions.length, event: source, sessions }, gate);
   } catch (err) {

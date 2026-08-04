@@ -203,6 +203,23 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__desc{margin:8px 0 0!important;padding:0!important;color:rgba(255,255,255,.72)!important;font-size:12px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   #${id} .tbbq-bp__count{margin:10px 0 0!important;padding:0!important;color:var(--track)!important;font-family:var(--head)!important;font-size:11px!important;font-weight:600!important}
 
+  /* SIDE EVENT ACTIONS. Only Side Events carry a sign-up page. text-decoration and background
+     are forced because techbbq.dk styles every <a> and every <button> in content; the card is
+     column flex so margin-top:auto pins the row to the bottom and the buttons line up across a
+     row of cards with descriptions of different lengths. */
+  #${id} .tbbq-bp__card{display:flex!important;flex-direction:column!important}
+  #${id} .tbbq-bp__actions{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin:0!important;margin-top:auto!important;padding:14px 0 0!important}
+  #${id} .tbbq-bp__register{display:inline-flex!important;align-items:center!important;padding:9px 16px!important;margin:0!important;border:0!important;border-radius:9999px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
+  #${id} .tbbq-bp__register:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
+  #${id} .tbbq-bp__register:focus-visible{outline:2px solid #fff!important;outline-offset:2px!important}
+  #${id} .tbbq-bp__more{appearance:none!important;padding:9px 14px!important;margin:0!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:transparent!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:13px!important;font-weight:600!important;line-height:1.2!important;text-transform:none!important;cursor:pointer!important;box-shadow:none!important;transition:color .18s,border-color .18s}
+  #${id} .tbbq-bp__more:hover{color:var(--fg)!important;border-color:var(--track)!important}
+  #${id} .tbbq-bp__more:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px!important}
+  #${id} .tbbq-bp__cta{margin:22px 0 0!important;padding:0!important}
+  #${id} .tbbq-bp__cta a{display:inline-flex!important;align-items:center!important;padding:11px 20px!important;border-radius:9999px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
+  #${id} .tbbq-bp__cta a:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
+  #${id} .tbbq-bp__cta a:focus-visible{outline:2px solid #fff!important;outline-offset:2px!important}
+
   /* ── DIALOG ── position:fixed so it escapes whatever Elementor column it was pasted into. */
   #${id} .tbbq-bp__overlay{position:fixed!important;inset:0!important;z-index:99999!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;padding:5vh 16px!important;background:rgba(0,0,0,.72)!important;overflow-y:auto!important}
   #${id} .tbbq-bp__overlay[hidden]{display:none!important}
@@ -535,6 +552,18 @@ export function buildBrellaEmbedSnippet({
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
             +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'');
           var st=' style="'+trackVars(s.room)+'"';
+          /* A side event with a sign-up page cannot be a card-sized button: an anchor inside a
+             button is invalid markup and the click target becomes browser-dependent. Those
+             cards stay a div and get explicit actions instead. safeUrl keeps a non-http value
+             (an Airtable cell once literally held "No link") from becoming a live link. */
+          var reg=safeUrl(s.registerUrl);
+          if(reg){
+            return '<div class="tbbq-bp__card"'+st+'>'+inner
+              +'<div class="tbbq-bp__actions">'
+              +'<a class="tbbq-bp__register" href="'+esc(reg)+'" target="_blank" rel="noopener noreferrer">Register</a>'
+              +(hasDetail(s)?'<button type="button" class="tbbq-bp__more" data-id="'+esc(s.id)+'">Details</button>':'')
+              +'</div></div>';
+          }
           return hasDetail(s)
             ? '<button type="button" class="tbbq-bp__card" data-id="'+esc(s.id)+'"'+st+'>'+inner+'</button>'
             : '<div class="tbbq-bp__card"'+st+'>'+inner+'</div>';
@@ -608,6 +637,9 @@ export function buildBrellaEmbedSnippet({
       +'<h2>'+esc(s.name)+'</h2>'
       +'<p class="tbbq-bp__meta">'+stageIcon+esc(meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')
+      /* Above the speaker list on purpose: whoever opened a side event came to sign up, and a
+         CTA below six bios is off the bottom of a phone screen. */
+      +(safeUrl(s.registerUrl)?'<p class="tbbq-bp__cta"><a href="'+esc(safeUrl(s.registerUrl))+'" target="_blank" rel="noopener noreferrer">Register for this event</a></p>':'')
       +(people?'<h3>'+esc(summary(s.speakers)||"Speakers")+'</h3><ul class="tbbq-bp__people">'+people+'</ul>':'');
     overlay.hidden=false;
     /* Lock the page behind. Without this a scroll gesture over the dialog moves the article

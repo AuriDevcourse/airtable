@@ -17,6 +17,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
+import type { BrellaSection } from "@/lib/brellaSections";
 
 const API = "https://api.airtable.com/v0";
 
@@ -51,6 +52,15 @@ export type ProgramSession = {
   // both as possibly-absent: the agenda embed predates them and ignores them entirely.
   location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
   speakers?: ProgramSpeaker[];
+  // Public sign-up page. Only the Side Events carry one, and only because they come from
+  // Airtable (lib/sideEvents.ts) — Brella's API sends the WORDS "LINK TO REGISTER" in the
+  // description with no URL behind them, so a Brella-sourced side event can never have this.
+  registerUrl?: string | null;
+  // Which part of the program this belongs to, when the session knows rather than leaving it
+  // to be guessed from the track name. Set on the Airtable-sourced Side Events, whose `room`
+  // is the hosting partner and would otherwise read as a stage. Absent on Brella sessions,
+  // which are classified by name (lib/brellaSections.ts).
+  section?: BrellaSection;
 };
 
 // Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one
