@@ -165,6 +165,69 @@ it to green).
 
 ---
 
+## Session 2026-08-04k (a replaced headshot now appears immediately; the sync refreshes photos)
+
+All on main and deployed. Started from Auri noticing that Saloumeh Sarabi's new Speaker Hub photo
+had not reached us, and that Kent Damsgaard's replacement was not on the investor page.
+
+**TWO SEPARATE FAULTS, both about photos. Do not conflate them.**
+
+**1. A replaced photo could not be seen for up to a week.** `/api/photo/<feed>/<recordId>` is
+stable by design and the CDN holds it for `s-maxage=604800`. Replacing the file in Airtable
+changes nothing about that URL, so nothing ever invalidated: a visitor got Kent's old thumbnail
+(36,841 bytes) while Airtable held a new one (31,825). The route's comment claimed a swap "shows
+up within a day" — never true, same reason.
+
+Fix: the feeds append `?v=<attachment id>`. Airtable issues a new attachment id on every replace,
+so a new photo is a URL no cache has seen, while unchanged photos keep the week-long cache. The
+mechanism already existed — `photoUrl()` took a `version` and `lsstartups` used it — and was
+simply never applied to the other 13 call sites. All of them do now.
+
+**The CDN was only half of it.** `resolveSignedUrl` caches the Airtable lookup for 45 minutes
+keyed on feed+record+field, so even a fresh `?v=` URL resolved to the old file's signed link for
+up to 45 minutes. The version is part of that cache key now.
+
+`?v=` is validated against `/^att[A-Za-z0-9]{14}$/` BEFORE it reaches that key, and that check is
+load-bearing: the key lives in a long-lived Map, so an unvalidated value would let anyone grow it
+without limit via `?v=1`, `?v=2`, … An unrecognised value is ignored, not rejected, so an old link
+with a stale token still serves a picture.
+
+**2. The hub sync never updated anything.** It matched on Full Name and skipped anyone present, so
+a profile edited after its first copy stayed frozen in Airtable forever. It could not have done
+otherwise: it read Full Name ONLY, so it had no record id to patch and no stored photo to compare.
+
+Six speakers had re-uploaded headshots (Saloumeh Sarabi, Andreas Holbak Espersen, Mikkel Bardram,
+Tina Tarighian, Ellie Middleton, Tuomo Riekki). All six are now refreshed and match the hub byte
+for byte.
+
+**Compared by BYTE SIZE, and that is not laziness.** Every hub photo lives at `<uuid>/avatar.jpg`,
+so the filename is identical for everybody AND identical before and after a re-upload — filename
+comparison can never detect a change, which is exactly the false negative my first attempt hit.
+The URL carries a `?t=` upload stamp but Airtable does not record when an attachment was added, so
+there is nothing to compare it against. A HEAD gives the size without downloading. A failed HEAD
+means "cannot tell" and the row is left alone.
+
+**TEXT IS REPORTED, NEVER WRITTEN.** Five speakers also have a title or company that differs
+(Bettina Curtze, Ellie Middleton, Henriette Schultz Kirkegaard, Karl Liapunov, Raman Rai). An
+Airtable value may be a human's correction and a six-hourly job must not silently undo one, so
+`textDrift` comes back in the result for a person to decide. Photos carry no such risk.
+
+Attachment writes REPLACE the array rather than appending. That is wanted here (one headshot each)
+and only safe because every TechBBQ Summit row carries exactly one — verified across all 196, and
+re-checked per row at runtime so a future multi-attachment row is skipped with a warning rather
+than stripped. Capped at 20 re-uploads per run; the rest defer to the next run.
+
+**Also this session:** Archana Jahagirdar was added to Marketing Project Overview / Event Room
+Speakers (`recdRdb2xkLtuC5s6`) — she registered for NISS on 3 August, after those rows were
+created on 29 July. The NISS list view is the source of truth for Nordic India; all 21 shared
+people match field for field.
+
+**Airtable, still outstanding for a human:** remove Air Marshal Philip Thomas from that Marketing
+view (role "Not attending"), set `Should be On Website = NO` on him and on Seshadri Vangala
+(role "canceled"), and delete the empty-name NISS row.
+
+---
+
 ## Session 2026-08-04j (Future of Fintech: three roles separated, and a publish gate)
 
 All on main and deployed. No embed re-paste needed — the bare feed URL still serves exactly what
