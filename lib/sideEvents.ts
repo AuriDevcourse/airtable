@@ -31,6 +31,7 @@
 
 import { PartnerEvent } from "@/lib/partnerevents";
 import { ProgramSession } from "@/lib/program";
+import { LumaDetail } from "@/lib/lumaEvents";
 
 /**
  * Titles do not match exactly across the two systems, so compare them loosely: lowercase,
@@ -86,6 +87,18 @@ function dayStrings(events: PartnerEvent[]): Map<string, string> {
   return out;
 }
 
+/**
+ * The venue line, or undefined when there is nothing worth printing.
+ *
+ * A host who runs the event at their own office puts their own name in Luma's location, so the
+ * card would read "Hosted by Rockstart" and then "Rockstart · København" underneath. When the
+ * venue only repeats the host, the city carries the line on its own.
+ */
+function venueLabel(venue: string | undefined, city: string | undefined, company: string): string | undefined {
+  const sameAsHost = venue && company && titleKey(venue) === titleKey(company);
+  return [sameAsHost ? "" : venue, city].filter(Boolean).join(" · ") || undefined;
+}
+
 // Sorts "09:30-11:00" and "09:00 - 11:00" alike; anything unreadable goes last within its day
 // rather than to midnight, so a timeless event does not lead the list.
 function startMinutes(slot: string): number {
@@ -106,7 +119,8 @@ function dayRank(day: string): number {
  */
 export function mergeSideEvents(
   events: PartnerEvent[],
-  brellaSide: ProgramSession[] = []
+  brellaSide: ProgramSession[] = [],
+  luma: Map<string, LumaDetail> = new Map()
 ): ProgramSession[] {
   const days = dayStrings(events);
   const brella = brellaSide.map((s) => ({ key: titleKey(s.name), session: s }));
@@ -119,16 +133,21 @@ export function mergeSideEvents(
       const match = brella.find((b) => sameEvent(key, b.key));
       if (match) paired.add(match.session);
 
+      // The partner's own Luma page, when they sell through Luma. It is the only source that
+      // has the VENUE, and it is the last resort for a time.
+      const extra = (e.registerUrl && luma.get(e.registerUrl)) || {};
+
       return {
         id: e.id,
         // Airtable's title wins: it is the name the partner submitted, and Brella sometimes
         // carries a longer marketing variant of the same session.
         name: e.title,
         day: (e.date && days.get(e.date)) || match?.session.day || "",
-        // The whole reason for the merge. Empty on every Airtable row today, so in practice
-        // this is Brella's value for the 6 it knows and blank for the other 4, where the card
-        // falls back to dateLabel below.
-        timeSlot: e.timeSlot || match?.session.timeSlot || "",
+        // The whole reason for the merge. Airtable first because that is what the team
+        // maintains, then Brella, then the partner's Luma page as a last resort. Luma is LAST
+        // on purpose: it is the partner's own listing and can disagree with what TechBBQ
+        // scheduled, so it fills a gap and never overrides an answer we already have.
+        timeSlot: e.timeSlot || match?.session.timeSlot || extra.timeSlot || "",
         // Shown in the time's place when there is no time. Auri's call (2026-08-04): the date
         // alone is honest and useful, "Time TBC" is neither. Partners will get a time field on
         // the form; until they fill it, this is what a visitor sees.
@@ -140,7 +159,11 @@ export function mergeSideEvents(
         // "room" for a side event is the hosting partner: these run at the partner's own
         // venue, not in a Bella Center room.
         room: e.company || "Side Event",
-        location: e.company || "",
+        // The actual place, when Luma knows it: "Matrikel1", "Højbro Pl. 10 · København". The
+        // city alone is still worth showing — it tells a visitor the event is in town.
+        // Undefined rather than the company name: `location` means WHERE, and repeating the
+        // host there is what put a map pin next to "Rockstart" in the first place.
+        location: venueLabel(extra.venue, extra.city, e.company),
         // Airtable's view carries no speaker link, so keep Brella's if it had any.
         speakers: match?.session.speakers ?? [],
         registerUrl: e.registerUrl,

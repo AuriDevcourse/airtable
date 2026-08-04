@@ -361,9 +361,12 @@ export function buildBrellaEmbedSnippet({
      hosting partner — Airtable has no venue field for these at all — and a pin beside a
      company name claims something untrue. */
   function venueLine(s){
-    if(!s.room)return "";
-    if(s.section==="side")return '<p class="tbbq-bp__room">'+hostIcon()+esc("Hosted by "+s.room)+'</p>';
-    return '<p class="tbbq-bp__room">'+PIN+esc(s.room)+'</p>';
+    if(s.section!=="side")return s.room?('<p class="tbbq-bp__room">'+PIN+esc(s.room)+'</p>'):"";
+    /* Two lines for a side event, because they answer different questions: who runs it, and
+       where it is. The venue is read off the partner's Luma page and is absent for the private
+       events and the non-Luma ticketing, so the pin line only appears when it is real. */
+    return (s.room?('<p class="tbbq-bp__room">'+hostIcon()+esc("Hosted by "+s.room)+'</p>'):"")
+      +(s.location?('<p class="tbbq-bp__room">'+PIN+esc(s.location)+'</p>'):"");
   }
   function columnOf(room){for(var i=0;i<COLS.length;i++){if(COLS[i].rx.test(room||""))return COLS[i].label;}return null;}
   function iconFor(label){
@@ -647,7 +650,7 @@ export function buildBrellaEmbedSnippet({
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
       +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
       +'<h2>'+esc(s.name)+'</h2>'
-      +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?("Hosted by "+s.room):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
+      +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?[("Hosted by "+s.room),s.location].filter(Boolean).join(" · "):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')
       /* Above the speaker list on purpose: whoever opened a side event came to sign up, and a
          CTA below six bios is off the bottom of a phone screen. */

@@ -491,13 +491,34 @@ function hasDetail(s: Session): boolean {
  * reads "Hosted by" with a building icon instead.
  */
 function VenueLine({ s }: { s: Session }) {
-  if (!s.room) return null;
   const hosted = s.section === "side";
+  if (!hosted) {
+    return s.room ? (
+      <p className="bp-card__room">
+        <PinIcon />
+        {s.room}
+      </p>
+    ) : null;
+  }
+  // A side event gets up to two lines, because they answer different questions: who is running
+  // it, and where it actually is. The venue comes from the partner's Luma page (lib/
+  // lumaEvents.ts) and is absent for the private events and the non-Luma ticketing, so the
+  // second line only appears when there is something true to put in it.
   return (
-    <p className="bp-card__room">
-      {hosted ? <HostIcon /> : <PinIcon />}
-      {hosted ? `Hosted by ${s.room}` : s.room}
-    </p>
+    <>
+      {s.room && (
+        <p className="bp-card__room">
+          <HostIcon />
+          {`Hosted by ${s.room}`}
+        </p>
+      )}
+      {s.location && (
+        <p className="bp-card__room">
+          <PinIcon />
+          {s.location}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -665,7 +686,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
               Founders Stage"), so it is only appended when it says something new. A side event
               has no venue in Airtable at all, so its line names the host instead. */}
           {s.section === "side"
-            ? `Hosted by ${s.room}`
+            ? [`Hosted by ${s.room}`, s.location].filter(Boolean).join(" · ")
             : [s.room, s.location !== s.room ? s.location : ""].filter(Boolean).join(" · ")}
           {s.type && <span className="bp-modal__topic">{s.type}</span>}
         </p>

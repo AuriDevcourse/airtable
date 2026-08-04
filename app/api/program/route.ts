@@ -4,6 +4,7 @@ import { cached, invalidate } from "@/lib/rate-limit";
 import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
 import { fetchPartnerEvents } from "@/lib/partnerevents";
 import { mergeSideEvents } from "@/lib/sideEvents";
+import { fetchLumaDetails, LumaDetail } from "@/lib/lumaEvents";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
 
@@ -14,6 +15,12 @@ export const OPTIONS = corsPreflight;
 // The ?fresh= live-read this route pioneered now lives in lib/apiRoute.ts (feedGate), because
 // every feed page has a refresh button. The rules it enforces — authenticated, separately
 // metered, never stored — are documented there.
+
+// Side event venues are read off the partners' Luma pages, and a venue does not move. Six
+// hours keeps that lookup to a handful of requests a day against someone else's site, and it
+// deliberately does NOT follow the feed's 30-minute cadence. `?fresh=` still drops it, so the
+// dashboard's Refresh button re-reads Luma when a partner has just changed something.
+const LUMA_TTL_MS = 6 * 60 * 60_000;
 
 export async function GET(req: NextRequest) {
   const gate = feedGate(req, "program");
@@ -32,7 +39,10 @@ export async function GET(req: NextRequest) {
     // The Brella program's Side Events come from Airtable, so a live read has to drop that
     // entry too or the refresh button would report no change on the one section a partner is
     // most likely to have just edited.
-    if (fresh && source === "brella") invalidate("partnerevents");
+    if (fresh && source === "brella") {
+      invalidate("partnerevents");
+      invalidate("luma:side-events");
+    }
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
 
@@ -52,9 +62,26 @@ export async function GET(req: NextRequest) {
     if (source === "brella") {
       try {
         const partnerEvents = await cached("partnerevents", fetchPartnerEvents, feedTtlMs());
+
+        // The venue comes from each partner's own Luma page — Airtable has no field for it.
+        // Cached for SIX HOURS rather than on the feed cadence: a venue does not move, and this
+        // reaches out to a third-party site, so a handful of lookups a day is the polite
+        // amount. An empty map is a fine answer; the cards simply show no venue line.
+        let luma = new Map<string, LumaDetail>();
+        try {
+          luma = await cached(
+            "luma:side-events",
+            () => fetchLumaDetails(partnerEvents.map((e) => e.registerUrl)),
+            LUMA_TTL_MS
+          );
+        } catch (err) {
+          console.error("[/api/program] Luma lookup failed, continuing without venues", err);
+        }
+
         const merged = mergeSideEvents(
           partnerEvents,
-          all.filter((s) => inBrellaSection(s, "side"))
+          all.filter((s) => inBrellaSection(s, "side")),
+          luma
         );
         sessionsAll = [...all.filter((s) => !inBrellaSection(s, "side")), ...merged];
       } catch (err) {
