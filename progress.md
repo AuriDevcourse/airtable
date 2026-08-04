@@ -12,6 +12,11 @@ reaching the browser.
 Clean tree, `tsc --noEmit` clean. main auto-deploys, so what is on GitHub is what is on the
 connector. (No commit hash here on purpose: this line ships inside the commit it would name.)
 
+**One thing is NOT on main:** branch `feat/event-week-refresh` — the 30-minute refresh cadence
+through August 27th plus a Refresh button on every page. Built and verified, awaiting review.
+See Session 2026-08-04g. How often the feeds update now lives in `lib/cachePolicy.ts` and
+reverts to the calm cadences on its own on the 28th.
+
 ## What exists now
 
 | Page | Feed | Source of truth |
@@ -150,6 +155,102 @@ it to green).
   corrupted a regex (a literal 0x08 byte) and eaten backticks out of this file.
 - A blanket `#id .modal *` reset ties with every class rule in the same block, so anything it
   stamps out (`float`, `display`) must be RE-DECLARED after it, not before.
+
+---
+
+## Session 2026-08-04h (/program is now TechBBQ Project Programs; Brella owns "Program 2026")
+
+Same branch as 04g. Auri's call: two pages both called Program 2026 is how a stale agenda ends
+up on techbbq.dk.
+
+- **`/program`** · heading is now **TechBBQ Project Programs**, and the tab strip is NISS 2026
+  + Future of Fintech only. The TechBBQ 2026 (Brella) and TechBBQ 2026 (Airtable) tabs are
+  gone, `EventKey` is down to `"niss" | "fintech"`, the default tab is NISS, and `base` is
+  always `?event=<key>` (there is no bare-URL source left on this page). The Refresh button
+  lost its Brella/Airtable conditional and is always Airtable here. New line in the lede links
+  to `/brella-program`.
+- **`/brella-program`** · untouched, and it is now the only **Program 2026**.
+- **`TopNav`** · `/brella-program` = "Program 2026", `/program` = "TechBBQ Project Programs",
+  in that order.
+
+**The API did not change.** `/api/program?event=brella` and the bare `/api/program` (the
+Airtable Program 2026 table, `tblI4IW0b3sLxNWgz`) both still serve, and the warmer still warms
+them. Anything already embedded on techbbq.dk keeps working. The Airtable program table simply
+has no dashboard page pointing at it anymore, which is worth remembering if someone asks why
+edits there are not visible: nothing reads it in the UI.
+
+`tsc --noEmit` clean, build clean, both tabs verified in the browser (NISS 15 sessions,
+Fintech 8).
+
+---
+
+## Session 2026-08-04g (30-min refresh until Aug 27, manual sync on every page)
+
+Branch `feat/event-week-refresh`, NOT merged. Build + lint + `tsc --noEmit` clean, and the
+behaviour was checked against a running server rather than assumed (statuses below).
+
+**What changed, and why it is one file and not fourteen.**
+
+1. **`lib/cachePolicy.ts` is new and owns every cadence.** Until the end of August 27th 2026
+   every feed is `s-maxage=1800, stale-while-revalidate=3600` with a 10-minute in-memory TTL;
+   from the 28th it is the old `3600/86400` and 1h (`/api/team` back to daily). The mode is a
+   clock comparison read on every call, so **nothing has to be undone after the event.** It is
+   deliberately not a module-level `Date.now()`: that freezes at cold start and a long-lived
+   Vercel instance would serve the event cadence forever.
+   The in-memory TTL is a third of `s-maxage` on purpose. Only a CDN revalidation reaches the
+   function, so when one does it must read Airtable, not answer from a copy nearly as old as
+   the one the CDN just gave up on. Two equal TTLs stack into 60 minutes of staleness.
+2. **`feedGate()` + `feedResponse()` in `lib/apiRoute.ts`.** `/api/program`'s authenticated
+   `?fresh=` bypass is now shared by all 16 feed routes, along with the cache headers. Each
+   route shrank to: gate, `invalidate(key)` if fresh, `cached(key, loader, feedTtlMs())`,
+   `feedResponse(body, gate)`. `FEED_CACHE_CONTROL` / `DAILY_CACHE_CONTROL` / `DAY_MS` are
+   gone — a constant cannot answer "what is the cadence right now".
+3. **A Refresh button on all 15 feed pages** (it was only on `/program`). `useFreshUrl(base)`
+   in `lib/useCachedList.ts` builds the `?fresh=<n>` URL and resets when `base` changes, so
+   flipping the role tabs on `/niss` no longer fires an authenticated live read per tab.
+   `RefreshButton` took a `source` prop: `/brella-program` and the program's TechBBQ 2026 tab
+   say "Refresh from **Brella**", because a button claiming Airtable on a page Airtable does
+   not feed costs someone ten minutes.
+4. **`.github/workflows/warm-feeds.yml`**, every 30 min, requests all 24 public feed URLs so
+   the CDN never hands a visitor a copy from hours ago. It skips itself after Aug 27 (a `date`
+   guard that must stay in step with `FAST_UNTIL_MS`), and needs no new secret: the origin
+   comes from the existing `SYNC_URL`, or `FEED_BASE_URL` if set.
+
+**Traps worth knowing.**
+
+- **A page's fetch URL and its embed URL are now different things.** `useFreshUrl` returns
+  `url` for the page; `CopyEmbed path={...}` must stay on `base`. Bake `?fresh=` into an
+  Elementor snippet and every public visitor gets a 401. `/niss`, `/nass`, `/niss-2025`,
+  `/investors` all had `path={url}` and were switched to `path={base}`.
+- **`/api/all-speakers` owns no cache key.** It is assembled from five (`speakers-2026`,
+  `niss:all`, `nass:all`, `eventrooms`, `investors:all`), so its live-read invalidates all
+  five; invalidating "all-speakers" would clear nothing and the refresh would silently return
+  the same list. Same reason `/all-speakers-2026` uses one shared `fresh` counter across its
+  five `useCachedList` calls instead of `useFreshUrl` per feed, and merges the three Event Room
+  change reports (`mergeChanges`, returns null while any is missing so the button keeps
+  waiting).
+- **`/api/team` is on the fast cadence too, temporarily.** That contradicts the standing daily
+  rule (2026-07-30) for two weeks only; `dailyTtlMs()` restores daily on the 28th by itself.
+
+**Verified, not assumed** (dev server, `DASHBOARD_PASSWORD=testpw123` on a second port):
+
+| check | result |
+|---|---|
+| ordinary read | 200, `s-maxage=1800, stale-while-revalidate=3600`, CORS present |
+| `?fresh=`, no password | **401**, `no-store` |
+| `?fresh=`, correct password | 200, `no-store`, **no CORS header** |
+| `?fresh=`, wrong password | 401 |
+| dashboard page unauthenticated | 401 (unchanged) |
+| bypass rate limit | 10x 200 then 429; ordinary reads still 200 (separate bucket) |
+| does the bypass really re-read? | 2 fresh reads = 2 Airtable scans, and the next plain read served from the refilled cache (not a 3rd scan) |
+| all 24 warmer URLs | 200 |
+| window boundary | Aug 27 23:00 CEST fast, Aug 28 01:00 calm; cutoff = midnight Copenhagen |
+
+**Next steps.** 1. Review the diff and merge to main (it auto-deploys). 2. Confirm
+`DASHBOARD_PASSWORD` is set in Vercel — without it the bypass fails CLOSED in production and
+every Refresh button returns 401. 3. Watch the first `warm-feeds` run in the Actions tab; if
+`SYNC_URL` is not exactly `<origin>/api/sync-speakers`, add the `FEED_BASE_URL` secret.
+4. After Aug 27, optionally delete `warm-feeds.yml` — it is already inert by then.
 
 ---
 

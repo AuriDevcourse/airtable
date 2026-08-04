@@ -52,8 +52,10 @@ const MENU: MenuGroup[] = [
   {
     heading: "Program & internal",
     items: [
-      { href: "/program", label: "Program 2026" },
-      { href: "/brella-program", label: "Program 2026 (Brella)" },
+      // /brella-program is THE TechBBQ program (Brella, the one on techbbq.dk). /program is
+      // the other events' agendas, so it no longer competes for the "Program 2026" name.
+      { href: "/brella-program", label: "Program 2026" },
+      { href: "/program", label: "TechBBQ Project Programs" },
       { href: "/partner-events", label: "Side Events & Event Rooms" },
       { href: "/partners", label: "Partners 2026" },
       { href: "/team", label: "Team" },
