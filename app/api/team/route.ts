@@ -37,6 +37,6 @@ export async function GET(req: NextRequest) {
     );
   } catch (err) {
     console.error("[/api/team]", err);
-    return errorResponse(err, "Something went wrong loading the team.");
+    return errorResponse(err, "Something went wrong loading the team.", gate);
   }
 }

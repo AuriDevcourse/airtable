@@ -26,6 +26,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, role: role || "all", people }, gate);
   } catch (err) {
     console.error("[/api/nass-speakers]", err);
-    return errorResponse(err, "Something went wrong loading NASS people.");
+    return errorResponse(err, "Something went wrong loading NASS people.", gate);
   }
 }

@@ -92,7 +92,8 @@ export async function GET(req: NextRequest) {
 
   if ([hubR, nissR, nassR, roomsR, invR].every((r) => r.status === "rejected")) {
     return withCors(
-      NextResponse.json({ error: "Could not reach any speaker source." }, { status: 502 })
+      NextResponse.json({ error: "Could not reach any speaker source." }, { status: 502 }),
+      gate.origin
     );
   }
 

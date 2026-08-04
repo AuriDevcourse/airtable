@@ -173,6 +173,50 @@ it to green).
 
 ---
 
+## Session 2026-08-04n (CORS allowlist takes several origins, for the new site)
+
+**Auri: the partner wall is going on `https://staging.techbbq.dk/partners/`.** It would not have
+worked. `ALLOWED_ORIGIN` held a SINGLE value (`https://techbbq.dk`), and the server sent that back
+to every caller, so a browser on staging had its fetch refused.
+
+Proven before changing anything, from a real third-party page (`https://example.com`):
+
+| | |
+|---|---|
+| `fetch()` of `/api/partners` | **BLOCKED: Failed to fetch** |
+| `<img>` of `/api/photo/partners/…` | **OK, 123x150** |
+
+That asymmetry is the trap: images need no CORS, so the wall would have shown a full set of logos
+with "Could not load the partners" over it, and nothing in the browser would say why.
+
+**`ALLOWED_ORIGIN` is now COMMA-SEPARATED.** `lib/apiRoute.ts` parses it into a list, and
+`originHeader()` echoes back the caller's origin **only on an exact match** — reflecting an
+unmatched Origin would allow the whole internet while looking like an allowlist. A caller not on
+the list gets the canonical origin, which its own browser then refuses.
+
+**`Vary: Origin` stopped being cosmetic.** With one allowed value it did nothing; with two, a CDN
+without it would cache the header computed for techbbq.dk and serve it to staging.
+
+**How the origin reaches the header without threading `req` through twenty call sites:** `FeedGate`
+carries it. Every feed route already calls `feedGate(req, …)` first and hands the gate to
+`feedResponse()`, so `errorResponse()` took the gate too (15 routes) and the three routes calling
+`withCors()` directly pass it explicitly. `withCors(res)` with no origin still falls back to the
+canonical site, so any future call site behaves as before rather than failing open.
+
+**Gotcha for next time:** `corsPreflight(req)` must take a REQUIRED param. Typing it `req?:` makes
+Next's generated route types reject the `export const OPTIONS` outright, with an error that names
+`__param_type__` and not your file.
+
+**THE ENV VAR IS THE OPERATIVE HALF AND IT IS NOT IN THIS REPO.** Set on Vercel:
+
+```
+ALLOWED_ORIGIN=https://techbbq.dk,https://staging.techbbq.dk
+```
+
+Until that is set, the code change does nothing — the default is a single-entry list. Verify from a
+browser console ON staging: `fetch("https://airtable-woad.vercel.app/api/partners").then(r=>r.json()).then(d=>d.count)`
+should print 104. No Vercel CLI on this machine, so it is a dashboard edit.
+
 ## Session 2026-08-04m (the partner wall reads its logos from Airtable, and every logo is sized from a measurement)
 
 **Auri's ask: "update the logos from [the Partner Deliverables 2026 view] to our interface".** Done,

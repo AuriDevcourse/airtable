@@ -28,6 +28,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, event: event || "all", people }, gate);
   } catch (err) {
     console.error("[/api/investor-speakers]", err);
-    return errorResponse(err, "Something went wrong loading investor speakers.");
+    return errorResponse(err, "Something went wrong loading investor speakers.", gate);
   }
 }

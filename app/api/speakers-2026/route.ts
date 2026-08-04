@@ -23,6 +23,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: speakers.length, speakers }, gate);
   } catch (err) {
     console.error("[/api/speakers-2026]", err);
-    return errorResponse(err, "Something went wrong loading 2026 speakers.");
+    return errorResponse(err, "Something went wrong loading 2026 speakers.", gate);
   }
 }

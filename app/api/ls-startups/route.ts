@@ -37,6 +37,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: startups.length, startups }, gate);
   } catch (err) {
     console.error("[/api/ls-startups]", err);
-    return errorResponse(err, "Something went wrong loading Life Science startups.");
+    return errorResponse(err, "Something went wrong loading Life Science startups.", gate);
   }
 }

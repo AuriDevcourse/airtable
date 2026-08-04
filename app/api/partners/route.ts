@@ -30,6 +30,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: partners.length, tiers: PARTNER_TIERS, partners }, gate);
   } catch (err) {
     console.error("[/api/partners]", err);
-    return errorResponse(err, "Something went wrong loading partners.");
+    return errorResponse(err, "Something went wrong loading partners.", gate);
   }
 }

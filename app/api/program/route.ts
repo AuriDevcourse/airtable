@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
         return grouped;
       }
       grouped.headers.set("Cache-Control", feedCacheControl());
-      return withCors(grouped);
+      return withCors(grouped, gate.origin);
     }
 
     const sessions =
@@ -131,6 +131,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: sessions.length, event: source, sessions }, gate);
   } catch (err) {
     console.error("[/api/program]", err);
-    return errorResponse(err, "Something went wrong loading the program.");
+    return errorResponse(err, "Something went wrong loading the program.", gate);
   }
 }

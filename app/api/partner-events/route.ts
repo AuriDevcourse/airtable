@@ -27,6 +27,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: events.length, events }, gate);
   } catch (err) {
     console.error("[/api/partner-events]", err);
-    return errorResponse(err, "Something went wrong loading partner events.");
+    return errorResponse(err, "Something went wrong loading partner events.", gate);
   }
 }

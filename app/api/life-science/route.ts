@@ -36,6 +36,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, people }, gate);
   } catch (err) {
     console.error("[/api/life-science]", err);
-    return errorResponse(err, "Something went wrong loading Life Science speakers.");
+    return errorResponse(err, "Something went wrong loading Life Science speakers.", gate);
   }
 }

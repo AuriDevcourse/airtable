@@ -26,6 +26,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, role: role || "all", people }, gate);
   } catch (err) {
     console.error("[/api/niss-2025]", err);
-    return errorResponse(err, "Something went wrong loading NISS 2025 people.");
+    return errorResponse(err, "Something went wrong loading NISS 2025 people.", gate);
   }
 }

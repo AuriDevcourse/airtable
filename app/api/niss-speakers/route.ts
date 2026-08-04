@@ -28,6 +28,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, role: role || "all", people }, gate);
   } catch (err) {
     console.error("[/api/niss-speakers]", err);
-    return errorResponse(err, "Something went wrong loading NISS people.");
+    return errorResponse(err, "Something went wrong loading NISS people.", gate);
   }
 }

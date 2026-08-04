@@ -21,6 +21,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, people }, gate);
   } catch (err) {
     console.error("[/api/event-room-presenters]", err);
-    return errorResponse(err, "Something went wrong loading event room presenters.");
+    return errorResponse(err, "Something went wrong loading event room presenters.", gate);
   }
 }

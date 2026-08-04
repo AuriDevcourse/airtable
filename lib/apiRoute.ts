@@ -14,22 +14,61 @@ import { isDashboardRequest } from "@/lib/dashboardAuth";
 import { dailyCacheControl, feedCacheControl } from "@/lib/cachePolicy";
 import { rateLimit } from "@/lib/rate-limit";
 
-// Which site may fetch these feeds. Set to the WordPress origin in prod; "*" only as a
-// local-dev fallback.
-export const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "*";
+// Which sites may fetch these feeds. COMMA-SEPARATED, because the wall now has to work on two
+// hosts at once: techbbq.dk and the new site at staging.techbbq.dk. It used to be a single value,
+// so the staging page's fetch was refused and the wall rendered "Could not load the partners"
+// while the logos (which are <img> and need no CORS) loaded fine — a confusing half-working page.
+//
+//   ALLOWED_ORIGIN=https://techbbq.dk,https://staging.techbbq.dk
+//
+// "*" is still honoured, for local dev and as the fallback when the variable is unset.
+const ALLOWED_ORIGINS: string[] = (process.env.ALLOWED_ORIGIN || "*")
+  .split(",")
+  .map((s) => s.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-export function withCors(res: NextResponse): NextResponse {
-  res.headers.set("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+// Kept for lib/apiSnippet.ts, which documents the policy in the generated snippet. The FIRST
+// entry is the canonical site.
+export const ALLOWED_ORIGIN = ALLOWED_ORIGINS[0] ?? "*";
+
+/**
+ * The value to send back for a given request Origin.
+ *
+ * Echoes the caller's origin ONLY on an exact match against the list. That distinction is the
+ * whole security of this function: reflecting an unmatched Origin would allow every site on the
+ * internet while looking like an allow-list. An unmatched caller gets the canonical origin
+ * instead, which its browser then refuses — a refusal, not a silent allow.
+ */
+function originHeader(requestOrigin?: string | null): string {
+  if (ALLOWED_ORIGINS.includes("*")) return "*";
+  const o = (requestOrigin || "").trim().replace(/\/+$/, "");
+  return o && ALLOWED_ORIGINS.includes(o) ? o : ALLOWED_ORIGIN;
+}
+
+/**
+ * Tag a response for cross-origin reads.
+ *
+ * `requestOrigin` comes from the caller's Origin header. Omitting it falls back to the canonical
+ * site, which is exactly the old single-origin behaviour — so a call site that has no request to
+ * hand still behaves as it always did rather than failing open.
+ *
+ * `Vary: Origin` is not optional once there is more than one allowed value: without it a CDN
+ * would cache the header it computed for techbbq.dk and hand it to staging, or the reverse.
+ */
+export function withCors(res: NextResponse, requestOrigin?: string | null): NextResponse {
+  res.headers.set("Access-Control-Allow-Origin", originHeader(requestOrigin));
   res.headers.set("Vary", "Origin");
   return res;
 }
 
 /** The shared OPTIONS preflight. Re-export from a route as `export const OPTIONS = corsPreflight`. */
-export function corsPreflight(): NextResponse {
+// `req` is REQUIRED, not optional. Next.js always passes the request to a route handler, and
+// typing it as optional makes the generated route types reject the export outright.
+export function corsPreflight(req: NextRequest): NextResponse {
   const res = new NextResponse(null, { status: 204 });
   res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  return withCors(res);
+  return withCors(res, req.headers.get("origin"));
 }
 
 /** Best-effort client IP for the rate limiter. Behind Vercel, x-forwarded-for is set. */
@@ -42,13 +81,13 @@ export function clientIp(req: NextRequest): string {
 }
 
 /** The 429 body + Retry-After, already CORS-tagged. */
-export function tooManyRequests(retryAfter: number): NextResponse {
+export function tooManyRequests(retryAfter: number, requestOrigin?: string | null): NextResponse {
   const res = NextResponse.json(
     { error: "Too many requests. Try again shortly." },
     { status: 429 }
   );
   res.headers.set("Retry-After", String(retryAfter));
-  return withCors(res);
+  return withCors(res, requestOrigin);
 }
 
 // Feed cache headers now come from lib/cachePolicy.ts, which shortens every cadence to
@@ -76,9 +115,13 @@ export function tooManyRequests(retryAfter: number): NextResponse {
 
 const FRESH_MAX_PER_WINDOW = 10; // per IP per minute, against 60 for ordinary cached reads
 
+// `origin` rides along on the gate because every feed route calls feedGate() first and then hands
+// the gate to feedResponse()/errorResponse(). That is the one path guaranteed to have the request,
+// so it is how the caller's Origin reaches the CORS header without threading `req` through
+// twenty call sites.
 export type FeedGate =
   | { ok: false; res: NextResponse } // rate limited or not authorized — return this as-is
-  | { ok: true; fresh: boolean };
+  | { ok: true; fresh: boolean; origin: string | null };
 
 /**
  * Rate-limit the request and decide whether it is an authenticated live-read.
@@ -88,12 +131,13 @@ export type FeedGate =
  */
 export function feedGate(req: NextRequest, bucket: string): FeedGate {
   const ip = clientIp(req);
+  const origin = req.headers.get("origin");
   const fresh = req.nextUrl.searchParams.get("fresh");
 
   const limit = fresh
     ? rateLimit(ip, { bucket: `${bucket}-fresh:`, max: FRESH_MAX_PER_WINDOW })
     : rateLimit(ip);
-  if (!limit.ok) return { ok: false, res: tooManyRequests(limit.retryAfter) };
+  if (!limit.ok) return { ok: false, res: tooManyRequests(limit.retryAfter, origin) };
 
   if (fresh && !isDashboardRequest(req.headers.get("authorization"))) {
     // Deliberately 401 rather than quietly serving the cached copy: a bypass that silently
@@ -104,7 +148,7 @@ export function feedGate(req: NextRequest, bucket: string): FeedGate {
     return { ok: false, res };
   }
 
-  return { ok: true, fresh: Boolean(fresh) };
+  return { ok: true, fresh: Boolean(fresh), origin };
 }
 
 /**
@@ -116,7 +160,7 @@ export function feedGate(req: NextRequest, bucket: string): FeedGate {
  */
 export function feedResponse(
   body: unknown,
-  gate: { fresh: boolean },
+  gate: { fresh: boolean; origin?: string | null },
   opts?: { daily?: boolean }
 ): NextResponse {
   const res = NextResponse.json(body, { status: 200 });
@@ -125,7 +169,7 @@ export function feedResponse(
     return res;
   }
   res.headers.set("Cache-Control", opts?.daily ? dailyCacheControl() : feedCacheControl());
-  return withCors(res);
+  return withCors(res, gate.origin);
 }
 
 /**
@@ -133,11 +177,18 @@ export function feedResponse(
  * carrying a `status`; anything else is an unexpected bug and becomes a generic 500 so no
  * internal detail reaches the browser (the full error is logged by the caller).
  */
-export function errorResponse(err: unknown, fallbackMessage: string): NextResponse {
+export function errorResponse(
+  err: unknown,
+  fallbackMessage: string,
+  // Pass the gate so a failure on a NON-canonical origin still reaches the page as a readable
+  // message. Without it the browser blocks the response and the embed reports a bare network
+  // error, which is the least helpful thing to see on the host you are still setting up.
+  gate?: { origin?: string | null }
+): NextResponse {
   const carried = err instanceof Error ? (err as Error & { status?: unknown }).status : undefined;
   const status = typeof carried === "number" ? carried : 500;
   // Only a lib's own deliberate message is echoed. An unexpected 500 gets the generic
   // fallback so a stack-trace message can never reach the browser.
   const message = err instanceof Error && status !== 500 ? err.message : fallbackMessage;
-  return withCors(NextResponse.json({ error: message }, { status }));
+  return withCors(NextResponse.json({ error: message }, { status }), gate?.origin);
 }

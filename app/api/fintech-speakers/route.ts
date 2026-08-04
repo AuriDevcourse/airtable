@@ -43,6 +43,6 @@ export async function GET(req: NextRequest) {
     return feedResponse({ count: people.length, role, counts, people }, gate);
   } catch (err) {
     console.error("[/api/fintech-speakers]", err);
-    return errorResponse(err, "Something went wrong loading fintech speakers.");
+    return errorResponse(err, "Something went wrong loading fintech speakers.", gate);
   }
 }

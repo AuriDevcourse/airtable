@@ -35,6 +35,9 @@ function uid(prefix: string): string {
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const kind = q.get("kind") || "brella";
+  // The CALLER's origin, for the CORS header. Not to be confused with `origin` further down,
+  // which is this server's own address baked into the snippet.
+  const reqOrigin = req.headers.get("origin");
 
   let snippet: string;
   try {
@@ -57,7 +60,8 @@ export async function GET(req: NextRequest) {
                 .map((c) => ({ label: c!.label, slug: columnSlug(c!.label) })),
             },
             { status: 400 }
-          )
+          ),
+          reqOrigin
         );
       }
       snippet = buildBrellaEmbedSnippet({
@@ -74,12 +78,16 @@ export async function GET(req: NextRequest) {
         NextResponse.json(
           { error: "Unknown kind. Use brella, partners or ls-startups." },
           { status: 400 }
-        )
+        ),
+        reqOrigin
       );
     }
   } catch (err) {
     console.error("[embed] build failed", err);
-    return withCors(NextResponse.json({ error: "Could not build the snippet." }, { status: 500 }));
+    return withCors(
+      NextResponse.json({ error: "Could not build the snippet." }, { status: 500 }),
+      reqOrigin
+    );
   }
 
   // The builders leave __ORIGIN__ for the copy button to swap. Here the server already knows
@@ -92,7 +100,8 @@ export async function GET(req: NextRequest) {
       NextResponse.json(
         { error: "No absolute origin. Set PUBLIC_BASE_URL, or copy from the deployed dashboard." },
         { status: 409 }
-      )
+      ),
+      reqOrigin
     );
   }
 
@@ -108,5 +117,5 @@ export async function GET(req: NextRequest) {
         : {}),
     },
   });
-  return withCors(res);
+  return withCors(res, reqOrigin);
 }

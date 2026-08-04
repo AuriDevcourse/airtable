@@ -55,8 +55,10 @@ export const API_SNIPPETS: Record<string, ApiSnippetSpec> = {
 // Worth stating in the snippet itself: a designer who hits a CORS wall on their staging domain
 // has no way to guess that the allowlist is the cause.
 const CORS_NOTE = `
-// CORS: this connector allows ONE origin, set by ALLOWED_ORIGIN on the deployment (currently
-// https://techbbq.dk). A browser on any other domain is blocked. Ask Auri to add yours.`;
+// CORS: this connector answers browsers on an ALLOWLIST of origins, set by ALLOWED_ORIGIN on the
+// deployment (currently techbbq.dk and staging.techbbq.dk). A browser on any other domain is
+// blocked — ask Auri to add yours, it is one comma-separated value. A SERVER-side fetch is not
+// subject to this and works from anywhere today.`;
 
 /**
  * The combined feed. One request returns all three groups, which is what a single "speakers"
