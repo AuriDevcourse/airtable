@@ -244,7 +244,37 @@ tall and no scale factor changes that. The only real fixes are a stacked export 
 or letting very wide logos span two grid columns. Six more partners are in the same position
 (Beta Health 10:1, Business Iceland 9:1, Auxxo and Cloudflare 7:1, The Residency Vienna, eryk).
 
-### 3. Session 04l shipped with this
+### 3. The wall is now TWO elements per logo, and that split is load-bearing
+
+**Auri, straight after the nudges shipped: "it cannot be these hovers like that, stay the same size
+with hovers."** Hovering Flatpay opened a hover card nearly twice the size of its neighbours.
+
+**Cause, and it was mine.** On the dashboard the `<img>` WAS the tile: it carried the 5:3 box, the
+background, the rounded corners AND the fitter's `transform: scale()`. That is invisible while every
+nudge sits near 1. At 1.83 the background and the corner radius scale with the picture, so the tile
+itself grows and only shows it once a hover paints the background. The EMBED never had this bug —
+`lib/partnersEmbedSnippet.ts` already used a tile span with the img inside — so this was the local
+preview drifting from the live page, in the one direction nobody checks.
+
+- `.lw-tile` owns the box, background, radius, `overflow:hidden`, hover. `.lw-logo` is the content
+  and the only thing transformed. Both `/partners` and `/ls-startups` updated; `.lw-logo--wide` and
+  `.lw-logo--text` became `.lw-tile--wide` / `.lw-tile--text`.
+- **The img is STRETCHED by the grid, not sized with `height:100%`.** The tile centres its content,
+  so a percentage height had nothing definite to resolve against, fell back to auto, and the img took
+  its own intrinsic ratio — 209px tall inside a 111px box, which silently changed every computed fit
+  (Flatpay came out 1.357 instead of 1.83). `align-self/justify-self: stretch` fixes it. If a logo
+  ever looks subtly wrong again, measure `img.clientHeight` FIRST.
+- **The hover no longer moves anything.** It sets a background and nothing else. The old rule also
+  said `transform: translateY(-2px)`, which never actually applied (the fitter's inline transform
+  outranked it) and would now fight it, so it is gone rather than newly enabled.
+- Embed nudge ceiling raised 1.6 → 3 to match `logoFit.ts`, or five measured values would have been
+  clipped on techbbq.dk while looking right locally.
+
+**Re-verified after the fix, because the first audit measured the broken geometry:** all 104 logos
+drawn to canvas at their real rendered size — 0 cropped, 0 reading small — and every tile's box
+compared with hover forced on across all 104: nothing changes size.
+
+### 4. Session 04l shipped with this
 
 Held back only for the empty-Prime question, which turned out not to matter: an empty tier renders
 nothing on either surface, so techbbq.dk shows no gap. Committed.

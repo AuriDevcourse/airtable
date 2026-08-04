@@ -184,10 +184,13 @@ export function buildPartnersEmbedSnippet({
     var k=Math.max(.35,Math.min(1,Math.sqrt(boxW*boxH*.55/area)));
     /* Deliberate per-logo nudge from the feed, for the handful the area rule cannot judge:
        it measures the bounding box and cannot see that a file is mostly internal padding.
-       Allowed above 1, unlike the automatic factor, but capped at 1.6 because overflow is
-       hidden and an over-large scale would crop the mark. */
+       Allowed above 1, unlike the automatic factor.
+       Ceiling 3, matching lib/logoFit.ts — these values are measured by
+       scripts/measure-logo-ink.mjs, and 1.6 was silently clipping five of them. Safe because
+       what grows past contain is the file's transparent margin, not ink: Skytek's wordmark
+       fills 23% of its own square. The ceiling only exists so a typo cannot destroy a tile. */
     var n=parseFloat(img.getAttribute("data-scale"));
-    if(n>0)k=Math.min(1.6,k*n);
+    if(n>0)k=Math.min(3,k*n);
     img.style.transform = Math.abs(k-1)>.001 ? "scale("+k.toFixed(3)+")" : "";
   }
   /* Give every tile the dashboard's 5:3 box: height = width x 0.6, measured not guessed.

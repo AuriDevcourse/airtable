@@ -27,26 +27,32 @@ type Partner = {
 type Tier = { name: string; color: string; cols: number };
 
 function Mark({ p }: { p: Partner }) {
+  // The TILE is the fixed box and the IMG is the content inside it. Not one element: fitLogo()
+  // scales the img, and when that scale reached 2.9 on a single element it grew the tile's
+  // background and rounded corners too, so hovering one logo opened a hover card several times
+  // the size of its neighbours. Same split the embed uses.
   return p.logo ? (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      className={p.wide ? "lw-logo lw-logo--wide" : "lw-logo"}
-      src={p.logo}
-      alt={p.company}
-      loading="lazy"
-      // Read by fitLogo(); plain attributes rather than props so the embed, which builds raw
-      // HTML strings, can carry the same values in the same places.
-      data-scale={p.scale ?? undefined}
-      // A frieze is not one mark, so the equal-area rule does not apply to it: it should run
-      // the full width of its row, and letting the fitter shrink it to a "fair" area would
-      // defeat the point of giving it the row.
-      data-nofit={p.wide ? "1" : undefined}
-    />
+    <span className={p.wide ? "lw-tile lw-tile--wide" : "lw-tile"}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="lw-logo"
+        src={p.logo}
+        alt={p.company}
+        loading="lazy"
+        // Read by fitLogo(); plain attributes rather than props so the embed, which builds raw
+        // HTML strings, can carry the same values in the same places.
+        data-scale={p.scale ?? undefined}
+        // A frieze is not one mark, so the equal-area rule does not apply to it: it should run
+        // the full width of its row, and letting the fitter shrink it to a "fair" area would
+        // defeat the point of giving it the row.
+        data-nofit={p.wide ? "1" : undefined}
+      />
+    </span>
   ) : (
     // No logo matched by the sync script. The partner still belongs on the DASHBOARD wall so
     // the gap is visible, and it looks unfinished on purpose. These name tiles are
     // deliberately absent from the embed — see lib/partnersEmbedSnippet.ts.
-    <span className="lw-logo lw-logo--text">{p.company}</span>
+    <span className="lw-tile lw-tile--text">{p.company}</span>
   );
 }
 
@@ -61,7 +67,7 @@ function LogoWall({ items }: { items: Partner[] }) {
         p.website ? (
           <a
             key={p.id}
-            className={p.wide ? "lw-link lw-link--wide" : "lw-link"}
+            className="lw-link"
             href={p.website}
             target="_blank"
             rel="noopener noreferrer"

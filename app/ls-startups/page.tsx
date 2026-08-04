@@ -49,21 +49,25 @@ const ROWS: { name: string; color: string }[] = [
 ];
 
 function Mark({ s }: { s: Startup }) {
+  // Tile = the fixed box, img = the content fitLogo() scales. See .lw-tile in globals.css for
+  // why those cannot be the same element.
   return s.logo ? (
-    /* eslint-disable-next-line @next/next/no-img-element */
-    <img
-      className="lw-logo"
-      src={s.logo}
-      // The name is not shown, but it still has to be readable by a screen reader and it is
-      // what appears if the image itself fails.
-      alt={s.company}
-      loading="lazy"
-    />
+    <span className="lw-tile">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="lw-logo"
+        src={s.logo}
+        // The name is not shown, but it still has to be readable by a screen reader and it is
+        // what appears if the image itself fails.
+        alt={s.company}
+        loading="lazy"
+      />
+    </span>
   ) : (
     // No renderable logo (an .ai or .cdr upload — see lib/lsstartups.ts). Without a stand-in
     // the company would silently vanish from a wall that shows no names, so its name is set
     // as a plain wordmark instead. Fix the upload in Airtable and it becomes a logo.
-    <span className="lw-logo lw-logo--text">{s.company}</span>
+    <span className="lw-tile lw-tile--text">{s.company}</span>
   );
 }
 
