@@ -77,6 +77,17 @@ const MANUAL_FILES = {
   "Women in Data Science AI and ML": "C:/Users/User/Desktop/SVG/WomenInData Science.svg",
   "Odense Robotics": "C:/Users/User/Desktop/SVG/Odense Robotics.svg",
   Dealroom: "C:/Users/User/Desktop/SVG/Dealroom.svg",
+  // Added 2026-08-04. The wall reported these three as logo-less.
+  //
+  // BETA.HEALTH is the SAME organisation as "Beta Health", which already had this file — the
+  // view holds two rows for it. Pointing both at one file is deliberate: fetchPartners drops a
+  // logo that repeats inside a tier, so the two rows collapse into ONE tile instead of showing
+  // the same mark twice.
+  "BETA.HEALTH": "C:/Users/User/Desktop/Beta-Heath.svg",
+  "DanBAN - Danish Business Angels": "C:/Users/User/Desktop/SVG/DanishBAN.svg",
+  // AIESEC needs more than a logo to appear: its row had no Company Link, so it has no tier and
+  // no band. Linked to the Confirmed AIESEC record in Partners 2026 at the same time.
+  "AIESEC in Denmark": "C:/Users/User/Desktop/AIESECs.svg",
 };
 
 // Airtable's company name -> the logo library's filename stem. Only for the cases automatic

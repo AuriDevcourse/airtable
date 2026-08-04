@@ -19,6 +19,11 @@
   "tone": "light",
   "from": "library"
  },
+ "recn2UwQT0wpQYp7h": {
+  "file": "AIESECs.svg",
+  "tone": "light",
+  "from": "C:/Users/User/Desktop/AIESECs.svg"
+ },
  "recFFI2HTMi0JACiF": {
   "file": "AIStart Incubator.svg",
   "tone": "light",
@@ -30,10 +35,9 @@
   "from": "library"
  },
  "rec1CROtIRjX9Gwnc": {
-  "file": "AstraZeneca Colour.svg",
+  "file": "AstraZeneca White.svg",
   "tone": "light",
-  "from": "library",
-  "whitened": true
+  "from": "library"
  },
  "recmSd7OV7Ym30FYq": {
   "file": "AUXXO Female Catalyst Fund.svg",
@@ -41,6 +45,11 @@
   "from": "library"
  },
  "recoDV31XucOrMh8X": {
+  "file": "Beta-Heath.svg",
+  "tone": "light",
+  "from": "C:/Users/User/Desktop/Beta-Heath.svg"
+ },
+ "recLZHcO55NDJPDK5": {
   "file": "Beta-Heath.svg",
   "tone": "light",
   "from": "C:/Users/User/Desktop/Beta-Heath.svg"
@@ -135,6 +144,11 @@
   "tone": "light",
   "from": "library"
  },
+ "recEnQwFBDDlWWYEv": {
+  "file": "Crescita partners.svg",
+  "tone": "light",
+  "from": "desktop-svg"
+ },
  "recQnnBb4aZ3gr07A": {
   "file": "Crispa.svg",
   "tone": "light",
@@ -145,16 +159,20 @@
   "tone": "light",
   "from": "library"
  },
+ "reccC0p5h2p8b7XG1": {
+  "file": "DanishBAN.svg",
+  "tone": "light",
+  "from": "C:/Users/User/Desktop/SVG/DanishBAN.svg"
+ },
  "recyh759nTPOasUIT": {
   "file": "Danish Entrepreneurs.svg",
   "tone": "light",
   "from": "library"
  },
  "rec8hOtCCFU0RKhWY": {
-  "file": "Danish Life Science Cluster.svg",
+  "file": "Danish Life Science Cluster White.svg",
   "tone": "light",
-  "from": "library",
-  "whitened": true
+  "from": "library"
  },
  "recEIQVzSqdiTnibp": {
   "file": "Danish Startup Group.svg",
@@ -258,9 +276,9 @@
   "from": "library"
  },
  "receqToBQ5wR0phn7": {
-  "file": "HumbleAI.svg",
+  "file": "Humble AI White.svg",
   "tone": "light",
-  "from": "desktop-svg"
+  "from": "library"
  },
  "recM3BD0xPT0Mdy6L": {
   "file": "IDA White.svg",
@@ -273,15 +291,14 @@
   "from": "C:/Users/User/Desktop/Ignite.svg"
  },
  "recdhLC6MJMRxkrDA": {
-  "file": "Imec.svg",
+  "file": "Imec White.svg",
   "tone": "light",
-  "from": "desktop-svg"
+  "from": "library"
  },
  "reccRRnELm8jjSGoh": {
-  "file": "Impact Fund Denmark.svg",
+  "file": "Impact Fund Denmark White.svg",
   "tone": "light",
-  "from": "library",
-  "whitened": true
+  "from": "library"
  },
  "rech7qKVT8SjTaZAh": {
   "file": "INCUBA.svg",
@@ -439,9 +456,9 @@
   "from": "desktop-svg"
  },
  "recLKQlMh3oJPsapa": {
-  "file": "Skiftr.svg",
+  "file": "Skiftr White.svg",
   "tone": "light",
-  "from": "desktop-svg"
+  "from": "library"
  },
  "recKt7B6shaMTCYBH": {
   "file": "SKYtek.svg",
@@ -514,12 +531,7 @@
   "from": "C:/Users/User/Desktop/SVG/3rd.svg"
  },
  "recOxj7tjPJCODmLO": {
-  "file": "Tonik.svg",
-  "tone": "light",
-  "from": "desktop-svg"
- },
- "recgMFG1vdpm8ZSxt": {
-  "file": "Tuvsud.svg",
+  "file": "Tonik White.svg",
   "tone": "light",
   "from": "library"
  },
@@ -529,10 +541,9 @@
   "from": "library"
  },
  "rec4JrqByXKF4BuNI": {
-  "file": "Venture Cafe Warsaw Horiz.svg",
+  "file": "Venture Cafe Warsaw Horiz White.svg",
   "tone": "light",
-  "from": "library",
-  "whitened": true
+  "from": "library"
  },
  "recbPE07wHaRlyIJh": {
   "file": "Voice AI Space.svg",
