@@ -294,9 +294,11 @@ function StageTimeline({
     else allDay.push(s);
   }
 
-  // Always open at 09:00 even when the first session is later, so the two days line up and
-  // the morning gap is visible rather than cropped away.
-  const start = Math.min(DAY_START_MIN, ...timed.map((s) => s.start));
+  // Start where the programme starts, not at 09:00 (Auri, 2026-08-04). Life Science opens at
+  // 10:45 and the old floor drew an hour and three quarters of empty grid above it, which reads
+  // as a broken embed rather than as a morning off. DAY_START_MIN is only the fallback for a
+  // column with nothing timed in it at all, so it still has a sane height.
+  const start = timed.length ? Math.min(...timed.map((s) => s.start)) : DAY_START_MIN;
   const end = Math.max(start + 60, ...timed.map((s) => s.end));
   const from = Math.floor(start / SLOT_MIN) * SLOT_MIN;
   const to = Math.ceil(end / SLOT_MIN) * SLOT_MIN;

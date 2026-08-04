@@ -364,6 +364,9 @@ export function buildBrellaEmbedSnippet({
   var GROUPS={};              /* section -> sessions, only used in "all" mode */
   var SECTION=${JSON.stringify(isAll ? "stages" : effectiveSection)};
   var IS_TL=${isAll ? "true" : isTimeline ? "true" : "false"};
+  /* One column to spare, so the two days sit side by side instead of behind a switcher. Only a
+     single-stage snippet does this; the five-stage board already spends its width on stages. */
+  var SPLIT_DAYS=${single ? "true" : "false"};
   var COLDEFS=${JSON.stringify(isAll ? columnsBySection["stages"] : columns)};
   var STYLES=${JSON.stringify(TRACK_STYLES)};
   var SECTION_COLORS=${JSON.stringify(SECTION_COLORS)};
@@ -498,11 +501,33 @@ export function buildBrellaEmbedSnippet({
   /* ── TIMELINE ── */
   function renderTimeline(){
     var date=EVENT_DAYS[dayIdx]?EVENT_DAYS[dayIdx].date:"";
-    var cols=col?[col]:COLS.map(function(c){return c.label;});
-    /* One column on a phone: five in 360px is unreadable. */
-    if(narrow&&cols.length>1)cols=[cols[0]];
+    /* SPLIT DAYS. A single-stage embed has one column to spare, so the two days go side by side
+       instead of behind a day switcher — Day 1 left, Day 2 right, one shared time gutter, which
+       is how a two-day programme is read (Auri, 2026-08-04). Not on a phone: two columns in
+       360px is the unreadability the five-stage board already avoids, so there the day pills come
+       back and it shows one day at a time. */
+    var SPLIT=SPLIT_DAYS&&!narrow;
+    var cols,colKey;
+    if(SPLIT){
+      cols=EVENT_DAYS.map(function(d){return d.label;});
+      colKey=function(s){
+        for(var i=0;i<EVENT_DAYS.length;i++){
+          if(String(s.day||"").indexOf(EVENT_DAYS[i].date)>=0)return EVENT_DAYS[i].label;
+        }
+        return null;
+      };
+    } else {
+      cols=col?[col]:COLS.map(function(c){return c.label;});
+      /* One column on a phone: five in 360px is unreadable. */
+      if(narrow&&cols.length>1)cols=[cols[0]];
+      colKey=function(s){return columnOf(s.room)||s.room;};
+    }
+    var STAGE=COLS.length?COLS[0].label:"";
     var mine=ALL.filter(function(s){
-      return String(s.day||"").indexOf(date)>=0 && cols.indexOf(columnOf(s.room)||s.room)>=0;
+      /* In split mode the COLUMN is the day, so the stage is what narrows the list — there is
+         exactly one column in a single-stage snippet, which is the only mode that splits. */
+      if(SPLIT)return columnOf(s.room)===STAGE && colKey(s)!==null;
+      return String(s.day||"").indexOf(date)>=0 && cols.indexOf(colKey(s))>=0;
     });
 
     var timed=[],allday=[];
@@ -513,8 +538,17 @@ export function buildBrellaEmbedSnippet({
        the minute scale gives that text somewhere to go, and leaves room to label every half
        hour instead of every hour, which a phone has space for once the rows are this tall. */
     var PXN=narrow?4.2:PX;
-    var start=9*60,end=start+60;
-    timed.forEach(function(x){if(x.start<start)start=x.start;if(x.end>end)end=x.end;});
+    /* START WHERE THE PROGRAMME STARTS. This used to floor at 09:00, which drew nearly two hours
+       of empty grid above a stage that opens at 10:45 — that reads as a broken embed, not as a
+       free morning (Auri, 2026-08-04). 09:00 survives only as the fallback for a column with
+       nothing timed in it, so it still has a sane height. */
+    var start=null,end=null;
+    timed.forEach(function(x){
+      if(start===null||x.start<start)start=x.start;
+      if(end===null||x.end>end)end=x.end;
+    });
+    if(start===null){start=9*60;end=start+60;}
+    if(end-start<60)end=start+60;
     var from=Math.floor(start/SLOT)*SLOT,to=Math.ceil(end/SLOT)*SLOT;
     var height=(to-from)*PXN;
 
@@ -540,7 +574,16 @@ export function buildBrellaEmbedSnippet({
     var HEADH=narrow?46:58;
     html+='<div class="tbbq-bp__tl" style="--cols:'+N+'">'
       +'<div class="tbbq-bp__head" style="position:relative;display:block;height:'+HEADH+'px">'
-      +cols.map(function(c,i){return '<span class="tbbq-bp__colhead" style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+trackVars(c)+'">'+iconFor(c)+'<span>'+esc(c)+'</span></span>';}).join("")
+      +cols.map(function(c,i){
+        var vars=SPLIT?trackVars(STAGE):trackVars(c);
+        /* A day column has no track name to draw an icon from, so it prints the day and its date;
+           the date is inline-styled rather than classed because a theme cannot lose an inline
+           style (the same reasoning as the geometry below). */
+        var inner=SPLIT
+          ? '<span>'+esc(c)+'</span><span style="opacity:.62;font-weight:500;font-size:12px;margin-left:7px">'+esc((EVENT_DAYS[i]||{}).date||"")+'</span>'
+          : iconFor(c)+'<span>'+esc(c)+'</span>';
+        return '<span class="tbbq-bp__colhead" style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner+'</span>';
+      }).join("")
       +'</div>'
       +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
       +'<div class="tbbq-bp__gutter" style="position:absolute;left:0;top:0;width:'+GUT+'px;height:100%">'
@@ -550,13 +593,13 @@ export function buildBrellaEmbedSnippet({
       +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PXN)+'px"></span>';}).join("");
 
     cols.forEach(function(c,ci){
-      var items=timed.filter(function(x){return (columnOf(x.s.room)||x.s.room)===c;})
+      var items=timed.filter(function(x){return colKey(x.s)===c;})
         .sort(function(a,b){return a.start-b.start||String(a.s.name).localeCompare(String(b.s.name));});
       html+='<div class="tbbq-bp__col" style="position:absolute;top:0;height:100%;left:'+CL(ci)+';width:'+CW+';box-sizing:border-box;padding:0 4px">';
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
-      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled")+'</p>';
+      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(SPLIT?"Nothing on this day":(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled"))+'</p>';
       /* Lanes per CLUSTER of overlapping sessions, compared on the DRAWN extent: a 5-minute
          slot is floored to a minimum height and so covers the next card even though the clock
          says it has finished. Counting per column would halve every card on the stage. */
@@ -748,7 +791,12 @@ export function buildBrellaEmbedSnippet({
     narrow=window.matchMedia("(max-width:760px)").matches;
     if(IS_TL&&narrow&&!col)col=COLS.length?COLS[0].label:"";
     if(pickEl)pickEl.value=col;
-    if(was!==narrow)render();
+    if(was!==narrow){
+      /* In split mode the controls themselves change across the breakpoint — day pills on a
+         phone, none on a wide screen — so rebuild them, not just the schedule. */
+      if(SPLIT_DAYS)buildSectionControls();
+      render();
+    }
   }
 
   /* The phone picker mirrors whatever the pill row holds for the CURRENT section. It used to
@@ -785,7 +833,9 @@ export function buildBrellaEmbedSnippet({
       } else {
         fillPicker("Stage","",[]);
       }
-      daysEl.innerHTML=EVENT_DAYS.map(function(d,i){
+      /* Both days are already columns in split mode, so a day switcher would switch nothing.
+         On a phone split mode is off and these come back. */
+      daysEl.innerHTML=(SPLIT_DAYS&&!narrow)?"":EVENT_DAYS.map(function(d,i){
         return '<button type="button" role="tab" aria-selected="'+(i===dayIdx)+'" data-d="'+i+'">'
           +'<span class="tbbq-bp__dnum">'+esc(d.label)+'</span>'
           +'<span class="tbbq-bp__ddate">'+esc(d.date)+'</span></button>';
