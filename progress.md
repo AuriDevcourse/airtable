@@ -11,9 +11,10 @@ reaching the browser.
 Auri asked whether we can tell speakers from moderators for the other projects and event rooms. **No,
 not today**, and the reason is that most of the forms never ask. Measured, so nobody has to guess again:
 
-**The CRM's new `Role` column is filled for 13 rows out of 313** — only the Future of Fintech import.
-Event Room 3 is 13/14 (Sander blank); TechBBQ Summit 0/196, Event Room 2 0/47, LP Forum 0/18, Pension
-Summit 0/18, Event Rooms 5/1/4/6 0/17, Investor Day 0/3.
+**The CRM's new `Role` column is filled only for the Future of Fintech import** — 15 of the 16 rows
+now in Event Room 1 (Sander blank), out of ~314 named rows in the table. Everything else is zero:
+TechBBQ Summit 0/196, Event Room 2 0/47, LP Forum 0/18, Pension Summit 0/18, Event Rooms 4/5/6 0/13,
+Investor Day 0/3, and the 4 Beyond Unicorns rows that share Event Room 1.
 
 Which SOURCE tables know a role at all:
 
@@ -39,12 +40,12 @@ submissions carry it. Nothing to copy from until then. Recommended, awaiting Aur
 
 # DONE · the Future of Fintech speakers are in the CRM (Airtable write, no code changed)
 
-**13 records created in Marketing Project Overview on 2026-08-05**, then refiled to
-`Project Name = "Event Room 3"` with `Session Name = "Future of Fintech"` — see the convention below.
-Read back and verified: Event Room 3 holds 14 rows, all complete, no duplicate names, every photo
-processed, every LinkedIn present. 11 Speakers, 2 Moderators. **No code changed and the website is
-unaffected** — `/fintech-speakers` reads the Future of Fintech table directly
-(`lib/fintechspeakers.ts`), never this one.
+**13 records created in Marketing Project Overview on 2026-08-05**, then refiled twice as the facts
+arrived: first to Event Room 3, finally to **Event Room 1** with `Session Name = "Future of Fintech"`
+(see the correction above, which is the current state). Read back and verified at every step: all
+complete, no duplicate names, every photo processed, every LinkedIn present. 11 Speakers,
+2 Moderators. **No code changed**, and `/fintech-speakers` is unaffected — it reads the Future of
+Fintech table directly (`lib/fintechspeakers.ts`), never this one.
 
 Two scripts kept, both dry-run by default with `--write` to commit:
 `scratchpad/fintech-import.mjs` (creates; re-reads the target first, so a second run cannot duplicate
@@ -55,9 +56,11 @@ anybody) and `scratchpad/fintech-to-room3.mjs` (refiles, and skips a row that wo
 `viwLptcHWF3Wce6Im` showed ONE Future of Fintech person. The TABLE already held two, which that view
 does not include:
 
-- `recIO5xXLa1QcjWLL` Sander Janca-Jensen (Flatpay) — so he was already filed under BOTH
-  "Future of Fintech" and "Event Room 3", on separate rows. That answered the open question about
-  him: one row per appearance is already the convention, so he was skipped and nothing duplicated.
+(Both of these rows have since been DELETED by Auri; kept here because the reasoning is what matters.)
+
+- `recIO5xXLa1QcjWLL` Sander Janca-Jensen (Flatpay) — he was already filed twice, on separate rows.
+  That answered the open question about him: one row per appearance is already the convention, so he
+  was skipped and nothing duplicated.
 - `recKWpN5pxjB9fkEX` Ken Villum Klausen (Lunar) — under Future of Fintech in the CRM but **not in
   the Future of Fintech submissions table at all**, so he does not appear on the website's fintech
   page. Worth someone checking.
@@ -66,7 +69,32 @@ Both pre-existing rows have no Role and no Session Name; they need filling by ha
 
 **Count rows against the TABLE, not a view, before concluding anything is missing.**
 
-## THE CONVENTION, and where the 13 ended up
+## CORRECTION 2026-08-05 · it is EVENT ROOM 1, and Ken is in
+
+Auri: "the future of fintech actually is in event room one, not event room three." All 14 rows were
+repointed (`scratchpad/fintech-to-room1.mjs`, dry run then `--write`), Sander's older row included —
+Flatpay's Partnership Success row confirms the grouping: Session Title "Future of Fintech",
+Type "Event Room at TechBBQ", 27 August, so it is Flatpay's own event room session.
+
+**Event Room 1 now holds 19 rows across two sessions:** Future of Fintech 15 (all complete on name,
+job title, company, LinkedIn, photo) and Beyond Unicorns 4, untouched. **Event Room 3 is empty.**
+
+- **Ken Villum Klausen IS speaking** (Auri). His old fintech row had been deleted, and his only
+  survivor was his **TechBBQ Summit** row — NOT repointed, because `lib/hierarchy.ts` filters on
+  `Project Name = "TechBBQ Summit"` and moving it would have dropped him from the summit roster. He
+  got a second row instead, `recRg37Vik93CvCtM`, one row per appearance like Sander.
+- **The duplicate was deleted by Auri**, not by this session. `recIO5xXLa1QcjWLL` and the old Ken row
+  both 403 now, and the "Future of Fintech" project value holds zero rows.
+- **THIS IS VISIBLE ON techbbq.dk.** `lib/eventrooms.ts` reads this table for room ASSIGNMENTS, so
+  Flatpay's presenter Sander now shows as Event Room 1 rather than 3. Intended, worth knowing.
+- Still blank: **Sander's Role.** He is the Keynote Speaker in the submissions table and the Role
+  select offers only Speaker and Moderator, so it was left empty rather than downgrade him. Add a
+  Keynote option, or say Speaker is fine.
+
+Decisions Auri closed at the same time: no Role question on the event room form (not needed now),
+`Hierarchy` precision skipped, partner publish rules still waiting.
+
+## THE CONVENTION, and how the room was found (the 13 first landed in Event Room 3)
 
 They first landed under `Project Name = "Future of Fintech"`, which put them OUTSIDE
 `viwLptcHWF3Wce6Im` — that view contains only rows whose Project Name is an Event Room (65 of them;
@@ -74,24 +102,11 @@ TechBBQ Summit 196, LP Forum 18, Pension Summit 18, Investor Day 3 are all outsi
 looking and saw nothing, which is how the convention got pinned down:
 
 > **`Project Name` is WHERE the session happens. `Session Name` is WHAT it is.**
-> Future of Fintech happens in Event Room 3, so: Project Name = "Event Room 3",
-> Session Name = "Future of Fintech". Sander's older row already followed this.
+> Sander's older row already followed this, which is how the pattern was spotted.
 
-All 13 were refiled accordingly (`scratchpad/fintech-to-room3.mjs`, dry run then `--write`).
-**Event Room 3 now holds 14 rows**, every one complete on the five fields Auri named — Full Name,
-Job Title, Company, LinkedIn Handle, Profile Picture — plus Role. No duplicates. They appear in the
-event-room tab now.
-
-Nothing on the website changed: `lib/eventrooms.ts` reads this table only for room ASSIGNMENTS, and
-the presenters themselves come from the partner submissions table.
-
-**TWO ROWS LEFT ALONE ON PURPOSE**, both still under `Project Name = "Future of Fintech"` with no
-Session Name and no Role:
-
-- `recIO5xXLa1QcjWLL` Sander Janca-Jensen — he has a SECOND row that is already correctly in
-  Event Room 3, so refiling this one would duplicate him inside the room. Looks deletable; Auri's call.
-- `recKWpN5pxjB9fkEX` Ken Villum Klausen (Lunar) — filed under fintech but absent from the
-  submissions table, so nobody has confirmed he is speaking. Waiting on that before moving him.
+The room itself was wrong at first: the rows went to Event Room 3 (`fintech-to-room3.mjs`) and Auri
+then corrected it to Event Room 1 (`fintech-to-room1.mjs`). Both scripts are kept, dry-run by default.
+The CONVENTION is the durable part; the room number came from Auri, not from the data.
 
 ## Left undone on purpose
 
