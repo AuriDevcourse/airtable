@@ -174,10 +174,12 @@ function tierOf(v: unknown): string {
  *
  *   "no-logo"     the Logo cell holds nothing this wall can draw. Upload a white SVG.
  *   "not-on-web"  the logo is fine, the "Put on web" box is not ticked. Tick it.
+ *   "no-tier"     no tier resolves, so there is no band to draw them in. Fill in Company Link, or
+ *                 give the linked partner a Deal 2026 for the formula to work from.
  *
  * Only ever set when the caller asked for pending rows. A strict read has none.
  */
-export type PendingReason = "no-logo" | "not-on-web";
+export type PendingReason = "no-logo" | "not-on-web" | "no-tier";
 
 export type Partner = {
   id: string;
@@ -401,18 +403,21 @@ export async function fetchPartners({
 
     // The tier as derived from the deal, not as typed by a human.
     const tier = tierOf(f["Partnership Tier (from Tier)"]);
-    // A tier the wall has no row for would leave the partner rendered nowhere, so it is
-    // skipped explicitly and logged rather than silently dropped by the grouping below.
-    if (!TIER_NAMES.has(tier)) {
-      // An EMPTY tier means the row has no Company Link, or the linked partner has no Deal 2026
-      // for the formula to work from. Either way there is no band to put them in, so they are
-      // skipped and named — a partner silently missing from the wall is the worse failure.
+    // No tier means no BAND, so the public wall cannot place them at all.
+    //
+    // It used to end here for every reader, and that made a partner INVISIBLE IN BOTH DIRECTIONS:
+    // Crescita Partners had "Put on web" ticked and two logos uploaded, and still appeared nowhere,
+    // with the only trace a line in the Vercel log (Auri, 2026-08-05). A dashboard read now keeps
+    // them, flagged, and /partners lists them outside the bands — a person who has just uploaded a
+    // logo must be able to see what is still missing.
+    const noTier = !TIER_NAMES.has(tier);
+    if (noTier) {
       console.info(
         tier
-          ? `[partners] "${company}" has unlisted tier "${tier}", skipped`
-          : `[partners] "${company}" has no partnership tier (no Company Link, or the linked partner has no Deal 2026) — skipped`
+          ? `[partners] "${company}" has unlisted tier "${tier}", not on the wall`
+          : `[partners] "${company}" has no partnership tier (no Company Link, or the linked partner has no Deal 2026) — not on the wall`
       );
-      continue;
+      if (!includePending) continue;
     }
 
     // The same company appears twice in this view a few times (resubmitted deliverables rows).
@@ -462,13 +467,17 @@ export async function fetchPartners({
       if (!includePending) continue;
     }
 
-    // The logo is the actionable half when a row fails both, so it wins the label: somebody has
-    // to find artwork either way, and ticking a box for a partner with no logo publishes nothing.
+    // Ordered by what somebody has to DO about it. A missing logo wins, because artwork has to be
+    // found either way and ticking a box for a partner with no logo publishes nothing. A missing
+    // tier comes next, since it blocks the wall regardless of the checkbox. The unticked box is
+    // last: it is the one-click fix.
     const pending: PendingReason | undefined = !logo
       ? "no-logo"
-      : notTicked
-        ? "not-on-web"
-        : undefined;
+      : noTier
+        ? "no-tier"
+        : notTicked
+          ? "not-on-web"
+          : undefined;
 
     // The same organisation sometimes appears under two DIFFERENT names that resolve to one
     // mark: "AISTART Incubator - Business Helsinki" and "Business Helsinki", or "Beta Health"

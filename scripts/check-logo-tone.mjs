@@ -57,6 +57,16 @@ async function inkTone(bytes) {
   };
 }
 
+// KNOWN EXCEPTIONS, recorded here rather than kept as a mental note.
+//
+// Creative Business Network's mark is genuinely complicated and Auri's call (2026-08-05) is to ship it
+// as it is, so it is reported as accepted instead of as a failure.
+//
+// Repodo is NOT in this list. It is embargoed until 26 August so it is absent from the feed, and when
+// it appears it will fail this check for real — its file is a white box rather than a knockout. That is
+// a thing to fix on the day, not an exception to wave through.
+const ACCEPTED = new Set(["Creative Business Network"]);
+
 const res = await fetch(`${BASE}/api/partners`);
 if (!res.ok) {
   console.error(`Could not read ${BASE}/api/partners — ${res.status}. Is the dev server up?`);
@@ -89,18 +99,24 @@ for (const p of partners) {
   }
 }
 
-const bad = rows.filter((r) => r.verdict !== "ok");
-const listed = showAll ? rows : bad;
+const failed = rows.filter((r) => r.verdict !== "ok");
+const accepted = failed.filter((r) => ACCEPTED.has(r.company));
+const bad = failed.filter((r) => !ACCEPTED.has(r.company));
+// Accepted exceptions are listed too, marked as such: a silent exception is one nobody remembers
+// making, and the point of measuring is to know what the wall is actually shipping.
+const listed = showAll ? rows : [...bad, ...accepted];
 listed.sort((a, b) => (a.lum ?? -1) - (b.lum ?? -1));
 
 for (const r of listed) {
   const lum = r.lum == null ? "  -" : String(Math.round(r.lum)).padStart(3);
   const cov = r.coverage == null ? "  - " : `${Math.round(r.coverage * 100)}%`.padStart(4);
-  console.log(`${r.verdict.padEnd(42)} lum=${lum} ink=${cov}  ${r.company} [${r.tier}]`);
+  const verdict = ACCEPTED.has(r.company) ? `${r.verdict} — ACCEPTED` : r.verdict;
+  console.log(`${verdict.padEnd(42)} lum=${lum} ink=${cov}  ${r.company} [${r.tier}]`);
 }
 
 console.log(
-  `\n${rows.length} published · ${rows.length - bad.length} white · ${bad.length} to fix in Airtable`
+  `\n${rows.length} published · ${rows.length - failed.length} white · ` +
+    `${accepted.length} accepted · ${bad.length} to fix in Airtable`
 );
 // Non-zero exit so this can gate a deploy later without rewriting it.
 process.exit(bad.length ? 1 : 0);

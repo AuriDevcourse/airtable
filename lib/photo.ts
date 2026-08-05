@@ -124,6 +124,44 @@ function attachmentUrl(v: unknown, usePicker?: boolean): string | null {
   return att?.thumbnails?.large?.url || att?.url || null;
 }
 
+// ─── ONE AIRTABLE LOOKUP PER PHOTO, AND 99 PHOTOS ON A PAGE ─────────────────────────────
+// Every cold photo request costs one Airtable API call to re-resolve the signed URL. The partner
+// wall carries 99 logos, so a cold load fires ~99 lookups at once — and Airtable's limit is 5
+// requests per second per base, answering the excess with 429 and a 30-second penalty. The route
+// turned each of those into a 404/502, which is exactly the "some logos don't load, it looks
+// crashed" that Auri reported (2026-08-05).
+//
+// The CDN hides this most of the time: each URL is cached for a week, so the burst only happens
+// after a deploy, a region cold-start, or an upload that changes ?v=. But "most of the time" on a
+// partner wall means a partner occasionally seeing a hole where their logo should be.
+//
+// So lookups queue. Three at a time leaves headroom under the 5/s limit for the feeds themselves,
+// and a 429 is retried with the delay Airtable asks for rather than being reported as a missing
+// photo. A cold wall now paints in a few seconds instead of dropping a third of its images.
+const MAX_CONCURRENT_LOOKUPS = 3;
+const LOOKUP_RETRIES = 3;
+// Airtable's documented penalty is 30s, but it sends Retry-After; this is only the fallback for a
+// response that omits it. Deliberately short — the request is already waiting on a page.
+const RETRY_AFTER_FALLBACK_MS = 2_000;
+
+let active = 0;
+const queue: (() => void)[] = [];
+
+async function withLookupSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= MAX_CONCURRENT_LOOKUPS) {
+    await new Promise<void>((resolve) => queue.push(resolve));
+  }
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    queue.shift()?.();
+  }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchSignedUrl(
   source: PhotoSource,
   recordId: string,
@@ -144,10 +182,22 @@ async function fetchSignedUrl(
   params.set("pageSize", "1");
   for (const f of fields) params.append("fields[]", f);
 
-  const res = await fetchWithTimeout(
-    `${API}/${base}/${encodeURIComponent(source.table)}?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
-  );
+  const url = `${API}/${base}/${encodeURIComponent(source.table)}?${params.toString()}`;
+  const res = await withLookupSlot(async () => {
+    for (let attempt = 1; ; attempt++) {
+      const r = await fetchWithTimeout(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      // 429 is the one status worth waiting on: it means the base is busy, not that the photo is
+      // gone. Anything else is answered immediately, success or not.
+      if (r.status !== 429 || attempt > LOOKUP_RETRIES) return r;
+      const after = Number(r.headers.get("retry-after"));
+      const waitMs = Number.isFinite(after) && after > 0 ? after * 1000 : RETRY_AFTER_FALLBACK_MS * attempt;
+      console.info(`[photo] rate-limited by Airtable, retrying in ${waitMs}ms (attempt ${attempt})`);
+      await sleep(waitMs);
+    }
+  });
   if (!res.ok) {
     console.error("[photo] airtable lookup failed", res.status, await res.text());
     throw new Error(`Airtable lookup failed (${res.status})`);

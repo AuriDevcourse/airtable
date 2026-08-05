@@ -26,13 +26,16 @@ type Partner = {
   wide?: boolean;
   scale?: number;
   // Why this one is not live yet. Only ever present on this page's authenticated read.
-  pending?: "no-logo" | "not-on-web";
+  pending?: "no-logo" | "not-on-web" | "no-tier";
 };
 
 // What a placeholder tile says it is waiting for. Short enough for a 5:3 tile.
 const PENDING_LABEL: Record<NonNullable<Partner["pending"]>, string> = {
   "no-logo": "needs a white logo",
   "not-on-web": "needs Put on web ticked",
+  // No tier means no BAND, so these cannot be drawn inside the wall at all — they get their own
+  // section below it. The fix is in Airtable: a Company Link, or a Deal 2026 on the linked partner.
+  "no-tier": "needs a Company Link",
 };
 
 // Tier order and colour come from the feed (lib/partners.ts owns them), so the page cannot
@@ -138,6 +141,10 @@ export default function PartnersPage() {
   const live = useMemo(() => all.filter((p) => !p.pending), [all]);
   const missingLogo = useMemo(() => all.filter((p) => p.pending === "no-logo"), [all]);
   const notTicked = useMemo(() => all.filter((p) => p.pending === "not-on-web"), [all]);
+  // No tier, so no band can hold them. Rendered on their own below the wall rather than dropped:
+  // Crescita Partners had a ticked box and two uploaded logos and still appeared NOWHERE, which is
+  // the failure this exists to prevent (Auri, 2026-08-05).
+  const noTier = useMemo(() => all.filter((p) => p.pending === "no-tier"), [all]);
 
   return (
     <main>
@@ -206,6 +213,7 @@ export default function PartnersPage() {
                   {all.length - live.length} not yet:{" "}
                   {[
                     missingLogo.length > 0 && `${missingLogo.length} needing a logo`,
+                    noTier.length > 0 && `${noTier.length} needing a Company Link`,
                     notTicked.length > 0 && `${notTicked.length} needing a tick`,
                   ]
                     .filter(Boolean)
@@ -227,6 +235,17 @@ export default function PartnersPage() {
               </section>
             ))}
 
+            {/* NO TIER, SO NO BAND. These cannot be drawn inside the wall — a band is chosen by tier —
+                so they get their own row underneath it. Before this they were dropped entirely and
+                the only trace was a line in the Vercel log, which is how a partner with a ticked box
+                and two uploaded logos came to appear nowhere at all. */}
+            {noTier.length > 0 && (
+              <section className="lw-row" style={{ "--row": "#9a9a9c" } as React.CSSProperties}>
+                <h2 className="lw-row__label">Not placed in a tier yet</h2>
+                <LogoWall items={noTier} />
+              </section>
+            )}
+
             {/* Internal notes for whoever maintains the wall, not for a techbbq.dk visitor. Both
                 lists are the placeholder tiles above, spelled out so they can be worked through
                 and pasted to whoever owns the row. */}
@@ -241,6 +260,15 @@ export default function PartnersPage() {
                       <strong>white SVG</strong> (a white PNG at worst) into the row&apos;s{" "}
                       <code>Logo</code> cell in Partner Deliverables 2026. Nothing else is needed —
                       the wall reads Airtable directly.
+                    </li>
+                  )}
+                  {noTier.length > 0 && (
+                    <li>
+                      <strong>{noTier.length} have no tier</strong>, so the wall has no band to draw
+                      them in: {noTier.map((p) => p.company).join(", ")}. Fill in{" "}
+                      <code>Company Link</code> on the row, or give the linked partner a{" "}
+                      <code>Deal 2026</code> — the tier is derived from the deal, never typed. Their
+                      logo and their ticked box do not matter until then.
                     </li>
                   )}
                   {notTicked.length > 0 && (
