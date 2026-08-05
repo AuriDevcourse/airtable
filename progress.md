@@ -6,6 +6,42 @@ reaching the browser.
 
 ---
 
+# PUSHED `e436069` · the Future of Fintech roster was missing from All Speakers 2026
+
+**13 of its 15 people appeared nowhere on `/all-speakers-2026`.** The Event Room tab read NISS, NASS
+and the partner presenter form; fintech speakers submit through their OWN form, which neither surface
+read. Only Sander Janca-Jensen showed, and only because Flatpay separately submitted him as their
+presenter.
+
+Fintech is now folded into the `eventRoom` group exactly as NISS and NASS are, in BOTH places that
+build it — `app/api/all-speakers/route.ts` (the embed) and `app/all-speakers-2026/page.tsx` (the
+dashboard). Verified: 14 of 15 present, tagged "Event Room 1", zero duplicate names, page renders 109.
+
+Three things not to undo:
+
+1. **`?role=all` on the page's fintech fetch is deliberate.** `/api/fintech-speakers` defaults to
+   `Speaker` on purpose, so that whatever is already pasted on techbbq.dk keeps its shape. Taking that
+   default here is exactly how the two moderators and the keynote went missing before.
+2. **`FINTECH_ROOM = "Event Room 1"` exists in both files** and must stay in step. It is a constant
+   rather than a literal because the number has already moved once, from Event Room 3.
+3. **Both surfaces collapse the group by NAME and union the tags** — one person, one card. Sander
+   arrives twice, as Flatpay's presenter and as the fintech keynote. This also merged a duplicate that
+   already existed between two of the room sources, which is why the tab reads 109 after 14 additions
+   rather than 111.
+
+## KEN VILLUM KLAUSEN IS STILL NOT ON THAT TAB, and the reason matters
+
+The fintech feed reads the SUBMISSIONS table (`tbleh7Lqv1zMQaUKx`). Ken was only ever added to the CRM,
+so he shows on the Speakers tab via the Speaker Hub but not as a fintech speaker, and
+`/fintech-speakers` will not show him either.
+
+**A CRM row does not publish anybody.** To put him on the site he needs a row in the submissions table
+with a `Hierarchy` value — the publish rule there is name + photo + non-empty hierarchy
+(`lib/fintechspeakers.ts`). His job title, company, photo and LinkedIn can be copied from
+`rec3AeWQ2VXV2XpuI`. Waiting on Auri for the hierarchy number and confirmation that Speaker is right.
+
+---
+
 # REFERENCE · where "Speaker vs Moderator" actually exists (measured 2026-08-05, read-only)
 
 Auri asked whether we can tell speakers from moderators for the other projects and event rooms. **No,
@@ -161,7 +197,7 @@ the destination `Hierarchy` is numeric, so that one cell arrives empty whatever 
 techbbq.dk until their "Put on web" boxes are ticked, and that was Auri's call to make. Full detail
 in session 05b below.
 
-Pushed today, newest first: `4f3a026` LP Forum hidden · `c6182c4` one person, one card ·
+Pushed today, newest first: `e436069` fintech on All Speakers 2026 · `4f3a026` LP Forum hidden · `c6182c4` one person, one card ·
 `55615c4` breathwork legend dropped · `db0eb00` breathwork visible + the front page is a hub.
 
 Two things reach the live site with no re-paste, because the embeds fetch the feeds at page load:
