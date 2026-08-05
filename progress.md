@@ -6,6 +6,151 @@ reaching the browser.
 
 ---
 
+# SESSION 2026-08-05d · one person, one card
+
+**LOCAL AND UNCOMMITTED**: `lib/investors.ts`, `lib/eventrooms.ts`, `app/api/all-speakers/route.ts`,
+`app/investors/page.tsx`, `app/all-speakers-2026/page.tsx`. `tsc --noEmit` clean.
+
+Auri spotted **Yoram Wijngaarde** (Dealroom) twice on the investor roster, once per event, with a
+different upload of the same face each time. The rule he asked for: somebody speaking in two places
+is ONE picture, and the card names both projects.
+
+- `lib/investors.ts` · `dedupe()` now keys on the NAME ALONE, not `event:name`. The winning row
+  (LinkedIn first, then hierarchy) supplies the identity; `events: string[]` is UNIONED across every
+  row so choosing an identity cannot lose an event. `event` stays as the primary and follows
+  `events[0]` in `INVESTOR_EVENTS` declaration order, so it cannot flip with the data. **38 → 37.**
+- `lib/eventrooms.ts` · new `mergeByPerson()` after the existing per-host dedupe, plus
+  `hosts: string[]` and `rooms: string[]`. The old `seen` set collapsed a presenter across the
+  SESSIONS of one partner; it could not collapse one booked by TWO partners, which is the same
+  two-faces bug.
+- The plural fields are ADDITIVE. `event`, `host` and `room` still mean what they meant, so a
+  pasted embed that never heard of them keeps working — it just shows one card instead of two.
+- Where the projects show: `app/api/all-speakers/route.ts` joins them into the card `tag`
+  (rooms when every room is assigned, else the partner names), `/investors` joins the event labels
+  above the name, `/all-speakers-2026` does both.
+
+Verified live: `/api/investor-speakers` = 37, zero duplicate names, Yoram carries
+`events: ["pension-summit","lp-forum"]` and reads `PENSION & INSURANCE SUMMIT · LP FORUM` on his one
+card. `?event=lp-forum` still returns him among its 18.
+
+**NOT verified by data: the event-room half.** No presenter is currently booked by two partners, so
+`mergeByPerson()` has no live case to exercise — it is the same shape as the investor merge, which is
+proven, but the first real two-partner presenter is worth an eyeball.
+
+**A namesake would merge two different people.** Deliberate: keying on name + company instead would
+fail the real case whenever a partner types the company differently on the second submission, which
+these forms do constantly. At 97 presenters and 37 investors it has not happened.
+
+---
+
+# SESSION 2026-08-05c · the LP Forum track is hidden, on request
+
+**LOCAL AND UNCOMMITTED**, one file: `lib/brellaprogram.ts`. `tsc --noEmit` clean, the Brella feed
+goes 193 → 192 sessions and `/brella-program`, `/program`, `/partner-events`, `/investors` all 200.
+
+Auri is building an **LP Forum** track inside the 2026 programme and asked for it to be ignored until
+he says otherwise. One row exists in Brella today: track "LP Forum 2026", session "LP Forum", all day
+on 25 August, Hotel d'Angleterre, no speakers.
+
+- `HIDDEN_TRACKS = [/^lp forum/i]` in `lib/brellaprogram.ts`, checked in the same place as the
+  `1:1 meetings` exclusion, against the RAW track before `roomAlias()` can rewrite it.
+- **At the SOURCE on purpose.** `/brella-program`, the pasted embed and `/api/program?event=brella`
+  all read `fetchBrellaProgram()`, so hiding it in the page would have left it live in the other two.
+- Matched on the TRACK and as a PREFIX: rows added under it stay hidden with no further edits, and a
+  rename to plain "LP Forum" does not un-hide it.
+- **TO REVEAL:** delete the constant and its one `continue`. Nothing else references it.
+- The LP Forum entries on `/investors` are a different thing (investor speakers, from Airtable) and
+  were deliberately left alone.
+
+---
+
+# SESSION 2026-08-05b · the partner wall enforces two publish rules
+
+**State: LOCAL AND UNCOMMITTED** (`lib/partners.ts`, `app/api/partners/route.ts`,
+`app/partners/page.tsx`, `app/globals.css`, `scripts/check-logo-tone.mjs`). `tsc --noEmit` clean,
+`/partners` and `/api/partners` both 200. **Pushing this removes five logos from techbbq.dk**, so it
+was left for Auri to decide — see next steps.
+
+## What the wall shows, and what it used to show
+
+"Partner Deliverables 2026" holds 126 rows. The wall published 104; it now publishes 99. The gates,
+in the order `fetchPartners()` applies them:
+
+| Gate | Drops | Note |
+|---|---|---|
+| `Partnership Type 2026` | −15 | Investor 11, Tailored 3, Academic 1 |
+| **`Put on web` ticked** | **−5** | NEW. Was read and ignored. |
+| Tier resolves from the deal | −2 | Copenhagen Institute for Futures Studies, Crescita Partners: no Company Link |
+| Same company + tier twice | −1 | resubmitted deliverables row |
+| Same artwork inside one tier | −3 | "Beta Health" / "BETA.HEALTH" are one mark |
+| Embargo | −1 | Repodo, until 26 August |
+
+The five that dropped are all unticked boxes, nothing else: AIESEC in Denmark, Brotherhood for
+Professionals of Color, DanBAN, Third Law ApS, Plug and Play. Tick them and they return.
+
+**THE BAND IS THE DEAL SIZE, NOT `Partnership Type 2026`.** This surprises everyone once. 23 rows
+sit in Core while only 11 rows say Core, and there is no Prime band at all though three rows say
+Prime. The page now says this out loud instead of leaving it in this file.
+
+## The two rules (Auri, 2026-08-05)
+
+1. `Put on web` must be ticked. It is the record of what is live, so it decides what is live.
+2. The logo must be a white SVG, or a white PNG at worst. No usable logo means no place on the
+   wall — it used to publish with `logo: null` and draw an empty tile among filled ones.
+
+## THE DASHBOARD IS THE WORKLIST, THE EMBED IS THE PRODUCT
+
+Auri's follow-up, and the reason the rules above are safe to be strict: a rule that silently removes
+a partner is a rule nobody can act on. So the two audiences get different lists out of ONE Airtable
+read.
+
+- `fetchPartners({ includePending: true })` also returns the rows the rules turned away, each with
+  `pending: "no-logo" | "not-on-web"`. `/api/partners` caches THAT list and filters `pending` out of
+  the public response, so there is no second API call.
+- **`?pending=1` keeps them, and it needs the dashboard password** (same treatment as `?fresh=`:
+  no CDN store, no CORS headers). An unannounced partnership does not belong on a public endpoint.
+- **Strict is the default, and that direction is the safety.** The snippet pasted into techbbq.dk
+  fetches the bare path, so it cannot show an unfinished row even if someone forgets a parameter.
+  Never invert this.
+- `/partners` reads `?pending=1` and draws each one as a tile in its own tier band, sorted last:
+  a missing logo becomes a dashed NAME tile, an unticked row shows its logo at 45% with the reason
+  under it. Plus a spelled-out list under the wall, per reason, with the fix.
+- An EMBARGOED partner (Repodo) is never pending and never returned either way.
+
+Verified: public `/api/partners` = 99 with zero `pending`; `?pending=1` = 104 with the five named.
+
+**WHY WHITENESS IS NOT ENFORCED IN THE FEED, and don't "fix" this.** Format is structural and is
+enforced (`PUBLISHABLE_LOGO`, SVG or PNG only). Whiteness is a property of the pixels, and this feed
+cannot fetch and rasterise 99 logos per request. Filenames are worthless here: the darkest file in
+the set is called `Virksomhedsguiden_Logo.svg` (ink luminance 69/255) and another is
+`CBN Logo white_CBN logo black (1).png`, which holds BOTH lockups. So whiteness is measured out of
+band by `node scripts/check-logo-tone.mjs` (rasterises via sharp, reports ink luminance and ink
+coverage, exits non-zero on failure so it can gate a deploy later). Run it after any bulk upload.
+
+Current reading: **98 of 99 white, 1 to fix.**
+
+- **Creative Business Network** · the PNG holds the white AND the black lockup in one image, so it
+  measures grey (180). Needs a white-only export.
+- **Erhvervsstyrelsen / Virksomhedsguiden** · passes ONLY because `AIRTABLE_LOGO_REJECT` swaps in a
+  curated local white copy. The Airtable cell is still near-black.
+- **Repodo** · not measured, because the embargo keeps it out of the feed until 26 August. Its
+  `Repodo icon (white).svg` is 100% opaque, so it will draw a white rectangle on the wall the day it
+  goes live. Fix before the 26th.
+
+## Next steps
+
+1. Auri's call: tick the five boxes in Airtable, then commit and push (the count should read 104
+   again — re-run `/api/partners?fresh=1` to confirm before pushing), or push as is and accept five
+   fewer logos. The five are visible on `/partners` now, dimmed, at the end of their bands.
+2. Fix the three logo assets above in Airtable, then re-run `node scripts/check-logo-tone.mjs`.
+3. Fill in `Company Link` for Copenhagen Institute for Futures Studies and Crescita Partners, or
+   accept that they stay off the wall. They are invisible in both directions today.
+4. Auri was deleting the duplicate rows by hand. After that, the "same artwork inside one tier"
+   drops (−3) should fall to zero; if they do not, the remaining pairs are real data questions.
+5. The Elementor paste on post 58341 is still outstanding, and it carries the partner wall too.
+
+---
+
 # SESSION 2026-08-05 · Breathwork Breaks made visible + the front page is now a hub
 
 **Both changes are PUSHED to main (`db0eb00`), so Vercel has them.** `tsc --noEmit` clean, every

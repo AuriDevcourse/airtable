@@ -29,6 +29,24 @@ const TZ = "Europe/Copenhagen";
 // 80 timeslots. They belong to this track and are not sessions.
 const NETWORKING_TRACK = "1:1 meetings";
 
+// ─── HIDDEN FOR NOW ─────────────────────────────────────────────────────────────────────
+// The LP Forum track. Auri is building it inside the 2026 programme and asked for it to stay out
+// of every surface until he says otherwise (2026-08-05). One all-day row exists today: "LP Forum",
+// 25 August, Hotel d'Angleterre, no speakers yet.
+//
+// Filtered on the TRACK rather than the session name, so any number of rows added under it stay
+// hidden without anyone touching this file again. Matched as a PREFIX because the track is called
+// "LP Forum 2026" today and a rename to plain "LP Forum" should not un-hide it.
+//
+// Deliberately here, at the source, rather than in the page: /brella-program, the pasted embed and
+// /api/program?event=brella all read this function, and hiding it in one of them would have left it
+// live in the other two.
+//
+// TO REVEAL IT: delete this constant and the one `continue` below. Nothing else references it.
+// The LP Forum entries on /investors are a DIFFERENT thing (investor speakers, from Airtable) and
+// are not affected.
+const HIDDEN_TRACKS: RegExp[] = [/^lp forum/i];
+
 // Anything this long is an all-day thing (side-event promos run 720 minutes), and printing
 // "00:00 - 12:00" for it reads like a bug.
 const ALL_DAY_MINUTES = 360;
@@ -231,6 +249,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     // them out even if someone later types a title into one.
     if (!title || !startIso) continue;
     if (track === NETWORKING_TRACK) continue;
+    // Held back on request — see HIDDEN_TRACKS. Checked against the RAW track, before roomAlias()
+    // can rewrite it into an event room number.
+    if (HIDDEN_TRACKS.some((rx) => rx.test(track))) continue;
 
     const dateKey = localDateKey(startIso);
     if (!dateKey) continue;
