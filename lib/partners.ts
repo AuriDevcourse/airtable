@@ -284,17 +284,18 @@ const LOGO_FILE_OVERRIDES: Record<string, { file: string; wide?: boolean }> = {
   "Erhvervshus Sjælland": { file: "Erhvervshus-frieze.png", wide: true },
 };
 
-// Rows where the Airtable cell holds a DRAWABLE image that is still the wrong one for this wall,
-// so the curated local copy is used instead. Airtable wins everywhere else.
+// Rows where the Airtable cell holds a DRAWABLE image that is still the wrong one for this wall, so
+// the curated local copy is used instead. Airtable wins everywhere else.
 //
-// Measured, not guessed: every published partner's chosen SVG was fetched and its fill/stroke
-// colours averaged. One came back dark — Virksomhedsguiden_Logo.svg at luminance 72 out of 255,
-// which is near-black ink on a near-black wall. The library's "Erhvervsstyrelsen White" is the
-// same mark, already inverted.
+// EMPTY, AND THAT IS THE POINT. It held "Erhvervsstyrelsen / Virksomhedsguiden" because the only SVG
+// in that cell measured luminance 69 — near-black ink on a near-black wall — so the wall fell back to
+// a local white copy. Auri uploaded a proper white SVG on 2026-08-05, so Airtable is the source again
+// and the dark file is demoted by name in lib/logoPick.ts instead.
 //
-// Re-run that check after a bulk upload to Airtable rather than trusting filenames: this file
-// was NOT named "black", so a name-based rule would have shipped it.
-const AIRTABLE_LOGO_REJECT = new Set(["Erhvervsstyrelsen / Virksomhedsguiden"]);
+// Prefer that route for the next one of these: demoting a FILE keeps the feed and the photo proxy
+// agreeing on which attachment a record means, while rejecting a COMPANY sends the wall to a copy of
+// the artwork that nobody will remember to update.
+const AIRTABLE_LOGO_REJECT = new Set<string>([]);
 
 // Two filenames, one mark. The duplicate check below compares artwork by FILENAME, and moving to
 // Airtable broke that for the one organisation that sits in this view twice: "Beta Health " holds

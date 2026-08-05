@@ -59,7 +59,14 @@ const PRINT_HINT = /(^|[^a-z])(high[\s_-]?res|hi[\s_-]?res|print|cmyk|original)(
 // above. A filename is all both callers have in common.
 //
 // Deleting the file in Airtable is the better fix, and then the entry here harmlessly matches nothing.
-const DEMOTED_FILES = new Set(["white-Microsoft White.svg"]);
+// Virksomhedsguiden_Logo.svg is the second kind of dud: not empty, but DARK. Measured luminance 69 —
+// near-black ink on a #0d0d0d wall. Auri uploaded virksomhedsguiden.svg beside it (luminance 255), and
+// the two tie at score 5 because both are SVG and neither filename mentions its colour, so upload
+// order would hand the wall the invisible one (2026-08-05).
+//
+// This file is also why AIRTABLE_LOGO_REJECT existed for that company. With the dark file demoted the
+// picker gets it right, so the reject entry is gone and Airtable is the source again.
+const DEMOTED_FILES = new Set(["white-Microsoft White.svg", "Virksomhedsguiden_Logo.svg"]);
 
 function score(a: LogoAttachment): number {
   const name = a.filename ?? "";
