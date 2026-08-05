@@ -6,6 +6,42 @@ reaching the browser.
 
 ---
 
+# PUSHED `fee811d` · a multi-room label broke every Policy Stage room assignment
+
+`fetchRoomAssignments()` in `lib/eventrooms.ts` matched `/^Event Room [1-6]$/` — a SINGLE DIGIT. The
+Policy Stage runs across rooms 5, 6 and 7, so marketing added an "Event Room 5,6,7" option, and all 31
+people filed under it were silently dropped here. Their cards fell back to the hosting partner's name,
+so a visitor read **"Danish Entrepreneurs"** where a room should be.
+
+Now `ROOM_PROJECT = /^Event Room \d+(\s*,\s*\d+)*$/`, deliberately loose on the digits: room numbers are
+a venue's business and a 7 or an 8 next year must not need a code change to be seen.
+
+Verified: all 48 presenters resolve to a room, none falling back to a host — Event Room 2 48,
+**Event Room 5,6,7 31**, Event Room 1 19, Event Room 5 10, Event Room 4 2. The All Speakers Event Room
+tab reads the same, so the Policy Stage is live on the site with no re-paste.
+
+**The lesson generalises:** a `Project Name` value invented in Airtable can silently disappear inside a
+regex in this repo. Any new option shaped unlike its siblings needs a check here.
+
+---
+
+# PUSHED `0e28925` · the partner wall enforces its two publish rules
+
+Auri released this after holding it back all afternoon ("You can publish also that"). **The wall goes
+104 → 99.** Five drop for an unticked "Put on web", nobody for format: AIESEC in Denmark, Brotherhood
+for Professionals of Color, DanBAN, Third Law ApS, Plug and Play. Ticking the box brings them back with
+no deploy.
+
+Everything about the design is in session 05b below — the strict-by-default feed, the password-gated
+`?pending=1`, the placeholder tiles, and why whiteness is measured out of band by
+`scripts/check-logo-tone.mjs` rather than in the feed. **Do not invert the default.**
+
+Outstanding in Airtable, not code: Creative Business Network's PNG holds both the white and the black
+lockup (measures grey 180), and Repodo's file is a white BOX rather than a knockout — unmeasured until
+the embargo lifts on 26 August, and it will draw a white rectangle on the wall that day.
+
+---
+
 # PUSHED `e436069` · the Future of Fintech roster was missing from All Speakers 2026
 
 **13 of its 15 people appeared nowhere on `/all-speakers-2026`.** The Event Room tab read NISS, NASS
@@ -244,12 +280,12 @@ the destination `Hierarchy` is numeric, so that one cell arrives empty whatever 
 
 # WHERE THINGS STAND (2026-08-05, end of session)
 
-**Everything is pushed EXCEPT the partner publish rules.** Those four files plus
-`scripts/check-logo-tone.mjs` are still local, because pushing them removes five logos from
-techbbq.dk until their "Put on web" boxes are ticked, and that was Auri's call to make. Full detail
-in session 05b below.
+**Everything is pushed. The working tree is clean and nothing is outstanding in git.** The partner
+publish rules were the last hold-out and Auri released them; they took the wall from 104 to 99 logos
+until five "Put on web" boxes get ticked.
 
-Pushed today, newest first: `e436069` fintech on All Speakers 2026 · `4f3a026` LP Forum hidden · `c6182c4` one person, one card ·
+Pushed today, newest first: `0e28925` partner publish rules · `fee811d` multi-room labels ·
+`e436069` fintech on All Speakers 2026 · `4f3a026` LP Forum hidden · `c6182c4` one person, one card ·
 `55615c4` breathwork legend dropped · `db0eb00` breathwork visible + the front page is a hub.
 
 Two things reach the live site with no re-paste, because the embeds fetch the feeds at page load:
