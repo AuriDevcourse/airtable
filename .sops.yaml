@@ -1,0 +1,15 @@
+# Which files SOPS encrypts, and who can decrypt them.
+#
+# Each age key is ONE MACHINE. The file is encrypted so any single listed key
+# opens it, so adding a machine does not re-encrypt the secrets.
+#
+# NOTE: this repo is PUBLIC. SOPS encrypts values but leaves key NAMES readable.
+# That is acceptable here only because .env.example already publishes the same
+# key list by design. If you add a secret whose NAME is sensitive, it will be
+# public. Values stay encrypted either way.
+
+creation_rules:
+  - path_regex: \.enc\.env$
+    age: >-
+      age17h7nzszgrku5y3u9fqypsgyalrp2lxvheregwctag3tmqtagpukqggw285,
+      age1exudn0qhcj8fq8zq9rr0c4aacaypn3mujgu7qqfqekeshg89aagsrj76fn
