@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { RefreshButton } from "@/components/RefreshButton";
@@ -57,13 +57,35 @@ const ROLES: { value: string; label: string }[] = [
 export default function PolicyStagePage() {
   const [role, setRole] = useState("Speaker");
 
+  // RANDOM ORDER EVERY LOAD (Auri, 2026-08-05). Nobody on this roster is ranked, and a fixed
+  // alphabetical order means the same ministers open the grid at every event — fair exposure is the
+  // same rule /all-speakers-2026 and the Event Room tab already follow.
+  //
+  // The seed is fixed at MOUNT, not per render: SWR revalidates in the background and a fresh seed
+  // there would re-jump the grid under the reader's cursor. A real page refresh remounts, so it
+  // re-rolls then, which is exactly when a new order is wanted.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+
   // `base` is the public URL a snippet may carry; `url` is what this page fetches and what the
   // refresh button turns into an authenticated live read. Never put ?fresh= in a snippet.
   const base = `/api/policy-stage?role=${encodeURIComponent(role)}`;
   const { url, refresh } = useFreshUrl(base);
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
     useCachedList<PolicyPerson>(`policy-stage:${role}`, url, "people");
-  const people = data ?? [];
+
+  // Seeded Fisher-Yates, the same LCG the other shuffling pages use. Seeded rather than
+  // Math.random() per pass so the order holds still across a revalidation; the server cannot do this
+  // for us because its response is cached for an hour and the order would freeze with it.
+  const people = useMemo(() => {
+    const list = [...(data ?? [])];
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  }, [data, seed]);
 
   const label = ROLES.find((r) => r.value === role)?.label ?? role;
 
@@ -104,6 +126,10 @@ export default function PolicyStagePage() {
               listKey="people"
               loadMore={false}
               transparent
+              // The snippet shuffles client-side on every visit, for the same reason this page does:
+              // the feed is cached for an hour, so a server-side order would be the SAME order for
+              // every visitor in that hour.
+              shuffle
               label={role === "Speaker" ? "Copy embed code" : `Copy embed (${label})`}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>

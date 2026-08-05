@@ -13,6 +13,13 @@ import { isDashboardRequest } from "@/lib/dashboardAuth";
 
 // Exact pathnames, not prefixes — "/api/speakers" is a prefix of "/api/speakers-2026",
 // so a startsWith() check here would be a footgun the moment someone adds a route.
+//
+// ADDING A FEED? ADD IT HERE, AND KNOW THAT LOCAL DEV WILL NOT TELL YOU.
+// A route missing from this list returns 401 with no CORS headers, and the browser reports it as
+// "No 'Access-Control-Allow-Origin' header is present" — which sends you hunting through the CORS
+// code instead of looking here. It cannot reproduce locally either: isDashboardRequest() allows
+// everything when no DASHBOARD_PASSWORD is set, which is the normal `npm run dev` state.
+// /api/policy-stage shipped without its entry and broke on techbbq.dk exactly this way (2026-08-05).
 const PUBLIC_PATHS = new Set([
   "/api/speakers",
   "/api/speakers-2026",
@@ -25,6 +32,7 @@ const PUBLIC_PATHS = new Set([
   "/api/partner-events",
   "/api/investor-speakers",
   "/api/fintech-speakers",
+  "/api/policy-stage",
   "/api/program",
   "/api/life-science",
   "/api/ls-startups",
