@@ -17,9 +17,14 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
+import { photoUrl } from "@/lib/photo";
 import type { BrellaSection } from "@/lib/brellaSections";
 
 const API = "https://api.airtable.com/v0";
+
+// The /api/photo feed key for the Policy Stage's photo cells (lib/photo.ts). One key covers both the
+// speaker and the moderator field, because the proxy scans a source's fields in order.
+const PHOTO_FEED = "policy-program";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
@@ -74,6 +79,10 @@ export type ProgramSession = {
   // date and the `Time slot` cell is often left empty. A card showing the date beats a card
   // showing "Time TBC", which tells a visitor nothing they can act on.
   dateLabel?: string;
+  // WHO IS ON STAGE for a hand-typed programme (the Policy Stage). Separate from `speakers` above,
+  // which is Brella's structured speaker-assignment data — these come from a text cell and a photo
+  // cell, so they carry a display line and a face and nothing else.
+  onStage?: { speakers: ProgramPerson[]; moderators: ProgramPerson[] };
 };
 
 // Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one
@@ -90,6 +99,13 @@ type AirtableSource = {
     description?: string;
     room?: string;
     gate?: string; // single-select whose value "NO" hides the row
+    // WHO IS ON STAGE, as two free-text lines plus their photo cells. Only the Policy Stage has
+    // these: its programme came from a PDF, so the people are typed into the row rather than
+    // linked, and one cell holds every face on a panel.
+    speakerDetails?: string;
+    speakerPhoto?: string;
+    moderatorDetails?: string;
+    moderatorPhoto?: string;
   };
 };
 
@@ -124,6 +140,25 @@ export const PROGRAM_SOURCES = {
       gate: "Should be On Website",
     },
   },
+  // THE POLICY STAGE, from the purpose-built Sessions table. Its programme arrived as a PDF, so it is
+  // typed in by hand rather than linked to speaker records: `Speaker Details` is one line of
+  // "Name, Title, Company" entries joined with " · ", and `Speaker Photo` holds the matching faces in
+  // the same order. parsePeople() below pairs them.
+  policy: {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    view: "viwrTVxvTBucbJW7S", // The Policy Stage
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   fintech: {
     kind: "airtable",
     table: "tbleh7Lqv1zMQaUKx", // Future of Fintech
@@ -145,6 +180,42 @@ function startMinutes(slot: string): number {
   const m = slot.match(/(\d{1,2})[:.](\d{2})/);
   if (!m) return 24 * 60;
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+/** One name on a hand-typed programme: the display line, and a face when the row has one. */
+export type ProgramPerson = { name: string; meta: string; photo: string | null };
+
+/**
+ * Split a "Speaker Details" line into people and pair each with the photo at the same index.
+ *
+ * The cell reads "Karen Ellemann, Secretary General, Nordic Council of Ministers · Stina Lantz, CEO,
+ * SISP" — people separated by " · ", and commas INSIDE a person separating name from title. So the
+ * split is on the bullet only, and the first comma divides name from the rest.
+ *
+ * PAIRING IS BY INDEX, which is safe only while the photo cell holds one face per person in the same
+ * order. When the counts disagree the photos are dropped rather than guessed: a panel showing the
+ * wrong face next to the wrong minister is worse than a panel showing no faces.
+ */
+function parsePeople(details: string, photos: unknown, feed: string, recordId: string): ProgramPerson[] {
+  const entries = details
+    .split("·")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (!entries.length) return [];
+
+  const atts = Array.isArray(photos)
+    ? (photos as { id?: string }[]).filter((a) => a?.id)
+    : [];
+  const aligned = atts.length === entries.length;
+
+  return entries.map((entry, i) => {
+    const comma = entry.indexOf(",");
+    const name = comma === -1 ? entry : entry.slice(0, comma).trim();
+    const meta = comma === -1 ? "" : entry.slice(comma + 1).trim();
+    // ?v=<attachment id> picks this person's face out of a shared cell — see lib/photo.ts.
+    const photo = aligned && atts[i]?.id ? photoUrl(feed, recordId, undefined, atts[i].id) : null;
+    return { name, meta, photo };
+  });
 }
 
 export class ProgramError extends Error {
@@ -175,9 +246,23 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   }
 
   const f = cfg.fields;
-  const wanted = [f.name, f.day, f.timeSlot, f.type, f.description, f.room, f.gate].filter(
-    (x): x is string => Boolean(x)
-  );
+  // Every field the source declares, and nothing else — this list IS the allow-list sent to Airtable
+  // as fields[], so a column missing here comes back undefined however carefully it is parsed later.
+  // The four people fields were added to the config and forgotten here, and the result was a feed
+  // that looked complete with no speakers in it (2026-08-05).
+  const wanted = [
+    f.name,
+    f.day,
+    f.timeSlot,
+    f.type,
+    f.description,
+    f.room,
+    f.gate,
+    f.speakerDetails,
+    f.speakerPhoto,
+    f.moderatorDetails,
+    f.moderatorPhoto,
+  ].filter((x): x is string => Boolean(x));
 
   const sessions: ProgramSession[] = [];
   let offset: string | undefined;
@@ -214,6 +299,17 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
         description: f.description ? str(r[f.description]) : "",
         room: f.room ? str(r[f.room]) : "",
       };
+      // Hand-typed programmes carry their people in two text cells. Only built when the source
+      // declares those fields, so every other Airtable programme is unchanged.
+      if (f.speakerDetails || f.moderatorDetails) {
+        const speakers = f.speakerDetails
+          ? parsePeople(str(r[f.speakerDetails]), f.speakerPhoto ? r[f.speakerPhoto] : null, PHOTO_FEED, rec.id)
+          : [];
+        const moderators = f.moderatorDetails
+          ? parsePeople(str(r[f.moderatorDetails]), f.moderatorPhoto ? r[f.moderatorPhoto] : null, PHOTO_FEED, rec.id)
+          : [];
+        if (speakers.length || moderators.length) s.onStage = { speakers, moderators };
+      }
       const dayOk = f.day ? Boolean(s.day) : true;
       if (s.name && s.timeSlot && dayOk) sessions.push(s);
     }

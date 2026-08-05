@@ -23,6 +23,10 @@ export type AgendaOptions = {
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
   // Fintech wants every title the same size, so it passes false.
   bigOpening?: boolean;
+  // Show WHO IS ON STAGE under each session: the moderator first, then the speakers, each with their
+  // face when the feed has one. Off by default, because only the Policy Stage feed carries `onStage`
+  // and turning it on for the others would render nothing while changing their markup.
+  people?: boolean;
 };
 
 // Everything that differs between the two looks lives here.
@@ -76,6 +80,7 @@ export function buildAgendaSnippet({
   theme = "orange",
   icons = true,
   bigOpening = true,
+  people = false,
 }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
   const t = THEMES[theme];
@@ -101,6 +106,17 @@ export function buildAgendaSnippet({
   #${id} .tbbq-agenda__title--big{font-size:26px;font-weight:700;letter-spacing:-.01em}
   #${id} .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
   #${id} .tbbq-agenda__ic{display:inline-block;width:19px;height:19px;vertical-align:-3px;margin-right:9px;color:var(--acc)}
+  /* WHO IS ON STAGE. One row per person: a face, the name, then the title in the muted colour, so a
+     four-person panel reads as a list of people rather than a paragraph of commas. */
+  #${id} .tbbq-agenda__people{margin:12px 0 0;display:flex;flex-direction:column;gap:8px}
+  #${id} .tbbq-agenda__person{display:flex;align-items:center;gap:10px;min-width:0}
+  #${id} .tbbq-agenda__face{flex:none;width:34px;height:34px;border-radius:9999px;object-fit:cover;object-position:50% 30%;background:rgba(255,255,255,.06)}
+  #${id} .tbbq-agenda__face--empty{display:grid;place-items:center;font-family:"Onest",sans-serif;font-size:13px;font-weight:700;color:var(--acc)}
+  #${id} .tbbq-agenda__who{min-width:0;font-size:14px;line-height:1.35;color:var(--fg)}
+  #${id} .tbbq-agenda__who b{font-weight:600}
+  #${id} .tbbq-agenda__who span{color:var(--muted)}
+  /* The role sits above its group, small and spaced, so "Moderator" is never mistaken for a name. */
+  #${id} .tbbq-agenda__role{margin:14px 0 6px;font-family:"Onest",sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   @media(max-width:640px){#${id} .tbbq-agenda__row{grid-template-columns:1fr;gap:6px;padding:16px 2px}#${id} .tbbq-agenda__time{padding-top:0}#${id} .tbbq-agenda__title--big{font-size:21px}}
 </style>
 
@@ -111,11 +127,36 @@ export function buildAgendaSnippet({
   var NOTE = ${JSON.stringify(note || "")};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var BIG_OPENING = ${bigOpening ? "true" : "false"};
+  var PEOPLE = ${people ? "true" : "false"};
   var root = document.getElementById("${id}");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function icon(type){
     var p=ICONS[String(type||"").toLowerCase()];
     return p?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tbbq-agenda__ic">'+p+'</svg>':'';
+  }
+  // One person: face (or their initial when the row has no photo), name, then title.
+  function person(p){
+    var face = p.photo
+      ? '<img class="tbbq-agenda__face" src="'+esc(p.photo)+'" alt="" loading="lazy">'
+      : '<span class="tbbq-agenda__face tbbq-agenda__face--empty" aria-hidden="true">'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
+    return '<div class="tbbq-agenda__person">'+face
+      +'<div class="tbbq-agenda__who"><b>'+esc(p.name)+'</b>'+(p.meta?'<span>, '+esc(p.meta)+'</span>':'')+'</div></div>';
+  }
+  // Moderator first: they open the session, and on a panel of four the reader wants to know who is
+  // steering before who is talking. Singular or plural label from the count, so one moderator is not
+  // announced as "Moderators".
+  function people(st){
+    if(!PEOPLE||!st)return "";
+    var out="";
+    if(st.moderators&&st.moderators.length){
+      out+='<div class="tbbq-agenda__role">'+(st.moderators.length>1?"Moderators":"Moderator")+'</div>'
+        +'<div class="tbbq-agenda__people">'+st.moderators.map(person).join("")+'</div>';
+    }
+    if(st.speakers&&st.speakers.length){
+      out+='<div class="tbbq-agenda__role">'+(st.speakers.length>1?"Speakers":"Speaker")+'</div>'
+        +'<div class="tbbq-agenda__people">'+st.speakers.map(person).join("")+'</div>';
+    }
+    return out;
   }
   // A 429/502 still returns JSON ({error:...}), so without an r.ok check the page said
   // "Program coming soon." during an outage instead of admitting it could not load.
@@ -140,6 +181,7 @@ export function buildAgendaSnippet({
         +(s.type?'<span class="tbbq-agenda__tag">'+esc(s.type)+'</span>':'')
         +'<div class="tbbq-agenda__title'+big+'">'+icon(s.type)+esc(s.name)+'</div>'
         +(s.description?'<p class="tbbq-agenda__desc">'+esc(s.description)+'</p>':'')
+        +people(s.onStage)
         +'</div></div>';
     }
     root.innerHTML=html;

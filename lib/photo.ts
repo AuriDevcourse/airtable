@@ -60,6 +60,13 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
   // (lib/partnerevents.ts). Separate key because the field list differs; "Company Logo"
   // is NOT one of the duplicated names in that table, so it is safe to request by name.
   "partner-events": { table: "tbllvkwLhB4Omdphd", fields: ["Company Logo"] },
+  // The Policy Stage programme (lib/program.ts, source "policy"). ONE CELL HOLDS SEVERAL FACES —
+  // a four-person panel puts four attachments in "Speaker Photo" — which is why ?v= now SELECTS an
+  // attachment rather than only busting the cache. See fetchSignedUrl.
+  "policy-program": {
+    table: "tblSlpTzDi2oVYwqv",
+    fields: ["Speaker Photo", "Moderator Photo"],
+  },
   // Partnership Success: five per-slot photo fields plus the overflow form's field.
   // Callers pin the slot with photoUrl(..., fieldIndex) — see ?f= in the route.
   "event-rooms": {
@@ -111,8 +118,30 @@ export function photoUrl(
 
 type AirtableAttachment = { url: string; thumbnails?: { large?: { url: string } } };
 
-function attachmentUrl(v: unknown, usePicker?: boolean): string | null {
+function attachmentUrl(v: unknown, usePicker?: boolean, attachmentId?: string): string | null {
   if (!Array.isArray(v) || v.length === 0) return null;
+  // ?v=<attachment id> SELECTS that attachment when the cell holds it.
+  //
+  // It began life as a cache-buster and nothing more, which was fine while every cell held one
+  // photo. The Policy Stage programme broke that assumption: a four-person panel keeps four faces in
+  // one "Speaker Photo" cell, and first-wins would serve the same face four times.
+  //
+  // Still a cache-buster for every existing caller — a replaced file gets a new id, so a new URL.
+  // An id the cell does not contain falls through to the rules below rather than 404ing, so an old
+  // link keeps working after the artwork is swapped.
+  // STRICT when an id is named: a miss returns null instead of falling through to "first attachment".
+  //
+  // Without that, the first pass in fetchSignedUrl scans "Speaker Photo" for the MODERATOR's id, does
+  // not find it, and happily returns the first speaker's face — so the panel's moderator appeared
+  // wearing another panelist's photo. Caught by hashing the bytes of all five faces on one panel and
+  // finding four distinct images (2026-08-05). The caller runs a second pass with no id, which is
+  // where the priority-order fallback belongs.
+  if (attachmentId) {
+    const hit = (v as { id?: string; url?: string; thumbnails?: { large?: { url: string } } }[]).find(
+      (a) => a?.id === attachmentId
+    );
+    return hit ? hit.thumbnails?.large?.url || hit.url || null : null;
+  }
   // Cells holding several variants of one logo choose by what the file IS, not by position.
   // Must stay in step with lib/lsstartups.ts, which uses the same picker to decide whether to
   // publish a logo URL at all — see lib/logoPick.ts.
@@ -165,7 +194,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function fetchSignedUrl(
   source: PhotoSource,
   recordId: string,
-  fieldIndex?: number
+  fieldIndex?: number,
+  attachmentId?: string
 ): Promise<string | null> {
   const token = process.env.AIRTABLE_TOKEN;
   const base = process.env.AIRTABLE_BASE_ID;
@@ -209,6 +239,15 @@ async function fetchSignedUrl(
   const rec = data.records[0];
   if (!rec) return null;
 
+  // Two passes when an attachment is named: find the cell that actually holds it before falling back
+  // to the priority order, or a record whose FIRST photo field lacks that id would answer with the
+  // wrong picture.
+  if (attachmentId) {
+    for (const f of fields) {
+      const url = attachmentUrl(rec.fields[f], source.pickLogo, attachmentId);
+      if (url) return url;
+    }
+  }
   for (const f of fields) {
     const url = attachmentUrl(rec.fields[f], source.pickLogo);
     if (url) return url;
@@ -250,7 +289,7 @@ export async function resolveSignedUrl(
   if (fieldIndex !== undefined && !source.fields[fieldIndex]) return null;
   return cached(
     cacheKey(feed, recordId, fieldIndex, version),
-    () => fetchSignedUrl(source, recordId, fieldIndex),
+    () => fetchSignedUrl(source, recordId, fieldIndex, version),
     SIGNED_URL_TTL_MS
   );
 }

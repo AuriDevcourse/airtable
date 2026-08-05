@@ -27,7 +27,7 @@ type Session = {
 // and the bare `/api/program` still serve both, so nothing that already fetches them broke.
 //
 // heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "niss" | "fintech";
+type EventKey = "niss" | "fintech" | "policy";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -36,6 +36,7 @@ const EVENTS: {
   theme?: "orange" | "blue";
   icons?: boolean;
   bigOpening?: boolean;
+  people?: boolean;
 }[] = [
   {
     key: "niss",
@@ -46,6 +47,15 @@ const EVENTS: {
   // Fintech's design (Auri's mock): blue palette on #111827, no title icons, and
   // every title the same size (no oversized Opening).
   { key: "fintech", label: "Future of Fintech", theme: "blue", icons: false, bigOpening: false },
+  // THE POLICY STAGE is the first programme that names its people. It came from a PDF, so the
+  // Sessions table carries "Speaker Details" and "Moderator Details" as text plus a photo cell, and
+  // `people` turns those into a moderator-then-speakers list with faces under each session.
+  {
+    key: "policy",
+    label: "The Policy Stage",
+    heading: "August 26th",
+    people: true,
+  },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -57,6 +67,7 @@ function CopyAgendaEmbed({
   theme,
   icons,
   bigOpening,
+  people,
 }: {
   path: string;
   heading?: string;
@@ -64,12 +75,13 @@ function CopyAgendaEmbed({
   theme?: "orange" | "blue";
   icons?: boolean;
   bigOpening?: boolean;
+  people?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, window.location.origin);
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -157,6 +169,7 @@ export default function ProgramPage() {
               theme={EVENTS.find((e) => e.key === event)?.theme}
               icons={EVENTS.find((e) => e.key === event)?.icons}
               bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}
+              people={EVENTS.find((e) => e.key === event)?.people}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
