@@ -29,16 +29,53 @@ Three things not to undo:
    already existed between two of the room sources, which is why the tab reads 109 after 14 additions
    rather than 111.
 
-## KEN VILLUM KLAUSEN IS STILL NOT ON THAT TAB, and the reason matters
+## RESOLVED · Ken is published, and both keynotes sit at the end
 
-The fintech feed reads the SUBMISSIONS table (`tbleh7Lqv1zMQaUKx`). Ken was only ever added to the CRM,
-so he shows on the Speakers tab via the Speaker Hub but not as a fintech speaker, and
-`/fintech-speakers` will not show him either.
+**A CRM row publishes nobody** — that is the durable lesson. The fintech feed reads the SUBMISSIONS
+table (`tbleh7Lqv1zMQaUKx`), whose publish rule is name + photo + a non-empty `Hierarchy ` cell
+(`lib/fintechspeakers.ts`). Ken had a CRM row only, so he was invisible as a fintech speaker.
 
-**A CRM row does not publish anybody.** To put him on the site he needs a row in the submissions table
-with a `Hierarchy` value — the publish rule there is name + photo + non-empty hierarchy
-(`lib/fintechspeakers.ts`). His job title, company, photo and LinkedIn can be copied from
-`rec3AeWQ2VXV2XpuI`. Waiting on Auri for the hierarchy number and confirmation that Speaker is right.
+Auri: "Ken and Sander are both keynotes, so it doesn't matter — just put them at the end or the
+beginning." Done:
+
+- Ken added to the submissions table as `rec9KkI87535yR66J`, details copied from his CRM row
+  `rec3AeWQ2VXV2XpuI`. His `Hierarchy ` is the TEXT "Keynote Speaker", **mirroring Sander's existing
+  cell rather than inventing a number**: that text parses to null and the lib sorts nulls LAST, so both
+  keynotes land together at the end. Verified — `?role=all` returns 15, Ken 14th and Sander 15th.
+- **Consent columns left blank** (GDPR Consent, Code of Conduct, Accuracy). He did not submit the form
+  and ticking them for him would fabricate a consent record. Never do this.
+- Auri added a **"Keynote" option to the CRM Role select** and had already set Sander to it. The write
+  script only filled Role when empty, so it did not downgrade him to "Speaker" — keep that guard in
+  any future backfill.
+
+## DONE · Policy Stage, 31 rows into the CRM
+
+Source: Partnership Success `tbllvkwLhB4Omdphd` / view `viw8pHmY9hNN8z7Zn`, the "Add Event Room
+Speakers" overflow form. 37 rows all submitted by Danish Entrepreneurs (partner 1526), ONE ROW PER
+SESSION, so people repeat (Peter Kofler ×4) → **31 distinct people**. Script:
+`scratchpad/policy-import.mjs`, dry run then `--write`.
+
+Filed as `Project Name = "Event Room 5,6,7"` (the option Auri added, since the stage spans rooms 5-7)
+with `Session Name = "Policy Stage"`. All 31 complete on job title, photo and LinkedIn. No duplicates.
+
+Data calls made, worth not re-litigating:
+
+- `Presenters Company` is each person's OWN organisation, not the partner's — checked across all 31.
+  Two values had stray spaces, trimmed.
+- Martin Lidegaard's company is the placeholder `"-"`, left EMPTY rather than imported as a dash.
+- **No Role copied: that form never asks.** All 31 land with a blank Role, which is the gap the
+  role-coverage reference below measures.
+- The per-panel `Session Title`s ("Panel: The $112 Billion Gap…") are finer-grained than this column's
+  convention and were not carried.
+
+**Auri edited the Project Name select** — added "Event Room 5,6,7", removed "Future of Fintech" and
+"Event Room 6". Checked afterwards: **zero rows lost their Project Name**, because nothing was filed
+under either removed option. (Deleting a select option DOES clear its cells, so check this every time.)
+
+## OPEN · the Policy Stage people are not on the website's Event Room tab
+
+Same cause as Ken: `lib/eventrooms.ts` publishes the overflow rows it reads itself, but the CRM copy is
+not what any feed renders. Asked Auri whether to fold them in; unanswered.
 
 ---
 
