@@ -6,10 +6,29 @@ reaching the browser.
 
 ---
 
+# WHERE THINGS STAND (2026-08-05, end of session)
+
+**Everything is pushed EXCEPT the partner publish rules.** Those four files plus
+`scripts/check-logo-tone.mjs` are still local, because pushing them removes five logos from
+techbbq.dk until their "Put on web" boxes are ticked, and that was Auri's call to make. Full detail
+in session 05b below.
+
+Pushed today, newest first: `4f3a026` LP Forum hidden · `c6182c4` one person, one card ·
+`55615c4` breathwork legend dropped · `db0eb00` breathwork visible + the front page is a hub.
+
+Two things reach the live site with no re-paste, because the embeds fetch the feeds at page load:
+the Yoram merge and the hidden LP Forum track. Everything about the breathwork CARDS does need the
+Elementor paste on post 58341 redone from `/api/embed?kind=brella&section=all`, and that paste is
+still outstanding from before this session.
+
+---
+
 # SESSION 2026-08-05d · one person, one card
 
-**LOCAL AND UNCOMMITTED**: `lib/investors.ts`, `lib/eventrooms.ts`, `app/api/all-speakers/route.ts`,
-`app/investors/page.tsx`, `app/all-speakers-2026/page.tsx`. `tsc --noEmit` clean.
+**PUSHED to main as `c6182c4`** — `lib/investors.ts`, `lib/eventrooms.ts`,
+`app/api/all-speakers/route.ts`, `app/investors/page.tsx`, `app/all-speakers-2026/page.tsx`.
+`tsc --noEmit` clean. It reaches techbbq.dk on its own: the pasted embeds fetch these feeds live, so
+no re-paste is needed for Yoram to become one card there.
 
 Auri spotted **Yoram Wijngaarde** (Dealroom) twice on the investor roster, once per event, with a
 different upload of the same face each time. The rule he asked for: somebody speaking in two places
@@ -45,8 +64,9 @@ these forms do constantly. At 97 presenters and 37 investors it has not happened
 
 # SESSION 2026-08-05c · the LP Forum track is hidden, on request
 
-**LOCAL AND UNCOMMITTED**, one file: `lib/brellaprogram.ts`. `tsc --noEmit` clean, the Brella feed
-goes 193 → 192 sessions and `/brella-program`, `/program`, `/partner-events`, `/investors` all 200.
+**PUSHED to main as `4f3a026`**, one file: `lib/brellaprogram.ts`. `tsc --noEmit` clean, the Brella
+feed goes 193 → 192 sessions and `/brella-program`, `/program`, `/partner-events`, `/investors` all
+200. Live on techbbq.dk without a re-paste, for the same reason as above.
 
 Auri is building an **LP Forum** track inside the 2026 programme and asked for it to be ignored until
 he says otherwise. One row exists in Brella today: track "LP Forum 2026", session "LP Forum", all day
