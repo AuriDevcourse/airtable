@@ -13,7 +13,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { cached, invalidate } from "@/lib/rate-limit";
-import { logoUrl, pickLogo } from "@/lib/logoPick";
+import { logoUrl, pickLogo, type LogoAttachment } from "@/lib/logoPick";
 
 const API = "https://api.airtable.com/v0";
 
@@ -136,11 +136,17 @@ function attachmentUrl(v: unknown, usePicker?: boolean, attachmentId?: string): 
   // wearing another panelist's photo. Caught by hashing the bytes of all five faces on one panel and
   // finding four distinct images (2026-08-05). The caller runs a second pass with no id, which is
   // where the priority-order fallback belongs.
+  //
+  // AND IT GOES THROUGH logoUrl(), which is not a detail. Airtable RASTERISES the thumbnail of an
+  // SVG: Ada Ventures' vector logo has a `thumbnails.large` of 297x171 image/png. Returning the
+  // thumbnail here — as the first version of this branch did — served every partner logo as a small
+  // PNG blown up to fill its tile, which is exactly the blurriness Auri reported (2026-08-05).
+  //
+  // logoUrl() already owns the rule and the reason: vector keeps its original URL, raster takes the
+  // large thumbnail because a print-resolution headshot is far bigger than a card needs.
   if (attachmentId) {
-    const hit = (v as { id?: string; url?: string; thumbnails?: { large?: { url: string } } }[]).find(
-      (a) => a?.id === attachmentId
-    );
-    return hit ? hit.thumbnails?.large?.url || hit.url || null : null;
+    const hit = (v as LogoAttachment[]).find((a) => a?.id === attachmentId);
+    return hit ? logoUrl(hit) : null;
   }
   // Cells holding several variants of one logo choose by what the file IS, not by position.
   // Must stay in step with lib/lsstartups.ts, which uses the same picker to decide whether to
