@@ -6,6 +6,101 @@ reaching the browser.
 
 ---
 
+# SESSION 2026-08-05 (late) · The Policy Stage, the daily check, and four logo bugs
+
+**Everything below is PUSHED. Working tree clean, `tsc --noEmit` clean.** Fourteen commits, newest
+first: `65a1a5c` `ba8f37e` `3db09fe` `1783af0` `3f8b955` `e0b3943` `2ab9eb2` `fe444c0` `0fd8d69`
+`2499b8a` `0dcd460` `5d13c27` `7773b5f` `bc35c9e`.
+
+## NEW PROJECT · The Policy Stage (`/policy-stage`, `/api/policy-stage`)
+
+The Policy Stage runs across Event Rooms 5, 6 and 7. Two separate things feed it:
+
+- **The roster** · `lib/policystage.ts` reads Marketing Project Overview rows filed under
+  `Project Name = "Event Room 5,6,7"` — 28 speakers, 3 moderators. Speaker/Moderator tabs, random order
+  per load, one embed snippet carrying both roles behind its own pill switcher.
+- **The programme** · `lib/program.ts` gained a `policy` source reading the purpose-built **Sessions**
+  table `tblSlpTzDi2oVYwqv` (view `viwrTVxvTBucbJW7S`), 15 sessions transcribed from the PDF. It is the
+  first programme that names its people: `Speaker Details` / `Moderator Details` are text, the photo
+  cells hold the matching faces, and `parsePeople()` pairs them BY INDEX — photos are dropped when the
+  counts disagree, because the wrong face beside the wrong minister is worse than no face.
+  Rendered by `lib/agendaSnippet.ts` with `people: true`, and previewed on `/program`'s third tab.
+
+**It was briefly called The Policy Lounge.** Renamed everywhere in `0fd8d69`; nothing answers to the
+old name.
+
+## FOUR BUGS WORTH REMEMBERING
+
+1. **A feed missing from `middleware.ts` reports as a CORS error.** `/api/policy-stage` 401'd on
+   techbbq.dk with "No 'Access-Control-Allow-Origin' header", which points at the CORS code and not at
+   the list that actually decides it. **It cannot reproduce locally** — `isDashboardRequest()` allows
+   everything when no `DASHBOARD_PASSWORD` is set. Add every new public feed to that list.
+2. **An SVG's Airtable thumbnail is a rasterised PNG.** Making `?v=` select an attachment returned
+   `thumbnails.large.url` and served all 121 partner logos as small bitmaps. `logoUrl()` owns the rule —
+   vector keeps its original URL, raster takes the thumbnail — and any new branch must route through it.
+3. **A named-attachment lookup must be STRICT.** The first version fell through to "first attachment"
+   on a miss, so scanning `Speaker Photo` for a moderator's id served a panelist's face. Caught by
+   sha1-ing all 34 faces.
+4. **The photo proxy costs one Airtable call per cold photo.** 120 logos at once exceeded the 5/s limit
+   and the excess 429'd into missing images. Lookups now queue three at a time and retry on 429.
+
+## LOGO PICKING, which is now three rules deep
+
+`lib/logoPick.ts` scores on what a file IS. Two additions today, both because two files TIED and upload
+order was deciding:
+
+- `PRINT_HINT` demotes high-res/print/CMYK/original — Embankment's black print SVG was beating its web
+  export.
+- `DEMOTED_FILES` names individual duds: `white-Microsoft White.svg` (white but 8% ink, so it rendered
+  tiny) and `Virksomhedsguiden_Logo.svg` (luminance 69, near-black).
+
+`AIRTABLE_LOGO_REJECT` is now **empty** and should stay that way. Demoting a FILE keeps the feed and the
+photo proxy agreeing on which attachment a record means; rejecting a COMPANY forks the artwork to a
+local copy nobody updates.
+
+**Current state: 117 of 121 serve vector SVG.** The 4 PNGs are Auri's decision and correct — Clarma
+Capital, Creative Business Network, Innovation District Copenhagen have no SVG in Airtable, and
+Erhvervshus Sjælland is the EU frieze, three logos in one image, held by `LOGO_FILE_OVERRIDES`.
+
+## THE PARTNERSHIP TYPE NO LONGER GATES THE WALL
+
+"We are following the partnership tier by price." `Partnership Type 2026` used to exclude Investor,
+Academic and Tailored; the tier comes from Deal 2026, so that contradicted itself. Rockstart exposed it —
+type Investor, tier Challenger, five logos, invisible. **The wall went 105 → 121.** The other two rules
+still gate everything. `NO_CONTRACT_TIERS` covers partners with no deal at all (Crescita Partners →
+Community) and fills a MISSING tier only; it never overrides a computed one.
+
+## THE HUB HAS A DAILY CHECK (`1783af0`)
+
+Six live areas at the top of `/`, each with the number techbbq.dk would render and a status: green when
+it answers, amber when a person has to do something, red when a feed is down **or a count is zero**.
+A zero is treated as an alarm because it is the failure that is hardest to notice.
+
+## AIRTABLE WORK (no code)
+
+- **195 TechBBQ Summit rows** got a `Session Name` from Brella's stage, and **173** got a `Role`.
+  8 speakers on two stages carry both, comma-separated ON PURPOSE: converting the column to a
+  multiple-select SPLITS on commas, so they become two selected options. 20 people Brella does not know
+  read "Not on Brella".
+- **Policy Stage: 31 people** imported from the overflow form, **15 sessions** from the PDF.
+- **Vanta** was invisible because its form submission had no `Company Link` — a form CANNOT fill a link
+  field, so every future partner signup lands the same way. The daily check catches these.
+
+## STILL OPEN
+
+1. **Re-paste two Elementor snippets**: the Brella program (post 58341, breathwork cards) and the NISS
+   agenda (gradient). Copy from the DEPLOYED dashboard.
+2. **Paste the Policy Stage embeds** — roster and programme, never pasted.
+3. **Two Airtable UI clicks**: convert `Session Name` and `Role` to multiple-select. The API cannot
+   change a field type. Checked safe: 12 distinct values, none containing a comma.
+4. **Repodo, 26 August** — its file is a white BOX, not a knockout, so it draws a rectangle the day the
+   embargo lifts.
+5. **Optional tidy**: delete `Virksomhedsguiden_Logo.svg` and `white-Microsoft White.svg` in Airtable and
+   the `DEMOTED_FILES` entries become redundant; delete the `"World Fund "` row whose name has a
+   trailing space.
+
+---
+
 # PUSHED `fee811d` · a multi-room label broke every Policy Stage room assignment
 
 `fetchRoomAssignments()` in `lib/eventrooms.ts` matched `/^Event Room [1-6]$/` — a SINGLE DIGIT. The
