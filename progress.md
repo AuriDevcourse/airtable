@@ -6,6 +6,37 @@ reaching the browser.
 
 ---
 
+# REFERENCE · where "Speaker vs Moderator" actually exists (measured 2026-08-05, read-only)
+
+Auri asked whether we can tell speakers from moderators for the other projects and event rooms. **No,
+not today**, and the reason is that most of the forms never ask. Measured, so nobody has to guess again:
+
+**The CRM's new `Role` column is filled for 13 rows out of 313** — only the Future of Fintech import.
+Event Room 3 is 13/14 (Sander blank); TechBBQ Summit 0/196, Event Room 2 0/47, LP Forum 0/18, Pension
+Summit 0/18, Event Rooms 5/1/4/6 0/17, Investor Day 0/3.
+
+Which SOURCE tables know a role at all:
+
+- **Event room presenters** · `tbllvkwLhB4Omdphd` / `viwcC25ENg2ELGszH`, 27 rows — **no role field.**
+  It has "Type of Event" (Event Room at TechBBQ vs Side Event), which is a different question.
+- **Event room overflow** ("Add Event Room Speakers") · `viw8pHmY9hNN8z7Zn`, 37 rows — **no role field.**
+- **NASS 2026** · `tbl3dTaHrIFrHF6Mo` / `viw9pkLpUOThgHfGB`, 33 rows — **no role field.**
+- **NISS 2026** · `tblfIPjV4t1c1628h` / `viwRMZMX5NeN68XX7`, 33 rows — HAS one, 33/33 filled:
+  Speaker 21, Moderator 6, Brand Ambassadors 3, canceled 3. `lib/niss.ts` already uses it.
+- **Future of Fintech** · `tbleh7Lqv1zMQaUKx` — HAS one, 14/14.
+- **BRELLA is the real role source**, via speaker-assignments: 274 assignments across 217 distinct
+  people — Speaker 121, Moderator 69, Panelist 46, Keynote speaker 8, Facilitator 8, 22 blank. This is
+  what `lib/brellaprogram.ts` reads and what the program cards use.
+
+**But Brella cannot backfill the event rooms.** Of the 78 Event Room rows in the CRM it knows a role
+for FOUR (Tim Bruun Madsen, Tobias Bengtsdahl, Sander Janca-Jensen, Geet Khosla). The two tables hold
+different populations: partner-room presenters mostly are not in Brella at all.
+
+**The fix is a form change, not code:** add a Role question to the event room speaker form, so future
+submissions carry it. Nothing to copy from until then. Recommended, awaiting Auri.
+
+---
+
 # DONE · the Future of Fintech speakers are in the CRM (Airtable write, no code changed)
 
 **13 records created in Marketing Project Overview on 2026-08-05**, then refiled to
