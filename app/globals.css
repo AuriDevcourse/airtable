@@ -1846,3 +1846,26 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .hub__count { display: none; }
   .hub__title { font-size: 18px; }
 }
+
+/* A partner the publish rules turned away, shown ONLY on the dashboard wall (app/partners) as the
+   worklist of what still needs doing. Never in the embed: that fetches the feed without
+   ?pending=1, so these rows are not in its data at all. */
+.lw-tile[data-pending] {
+  border: 1px dashed color-mix(in srgb, var(--row, var(--color-border)) 55%, var(--color-border));
+  position: relative;
+}
+/* The logo is READY and only the box is unticked, so it is shown rather than hidden — dimmed, so a
+   glance still separates the live wall from the waiting one. */
+.lw-tile[data-pending="not-on-web"] .lw-logo { opacity: 0.45; }
+.lw-tile__wait {
+  position: absolute; left: 8px; right: 8px; bottom: 6px;
+  font-family: var(--font-heading);
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  text-align: center;
+  color: var(--row, var(--color-muted));
+  opacity: 0.95;
+}
+/* The name tile already centres its text, so the waiting line needs room under it rather than
+   over it. */
+.lw-tile--text { position: relative; padding-bottom: 20px; }

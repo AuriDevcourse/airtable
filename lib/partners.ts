@@ -19,6 +19,42 @@
 // including EY, HSBC, Microsoft and the investor partners — a content decision, not a
 // consequence of fixing tiers.
 //
+// ─── THE TWO PUBLISH RULES (Auri, 2026-08-05) ───────────────────────────────────────────
+// Both must hold, or the partner is not on the website at all. They are gates, not warnings:
+// half a rule produces a wall with holes in it, which is what this replaced.
+//
+//   1. "Put on web" MUST BE TICKED. The column was already being read here and then ignored,
+//      so the checkbox marketing maintains had no effect on techbbq.dk while looking as though
+//      it did — seven published partners were unticked. It is the record of what is live, so it
+//      now decides what is live.
+//
+//   2. THE LOGO MUST BE ONE A NEAR-BLACK WALL CAN DRAW: a white SVG, or at worst a white PNG.
+//      No logo, or a logo in another format, means no place on the wall rather than an empty
+//      tile beside 103 filled ones.
+//
+// ─── THE DASHBOARD SEES THE ONES THAT FAILED; techbbq.dk DOES NOT ───────────────────────
+// A rule that silently removes a partner is a rule nobody can act on: the only trace was a line
+// in the Vercel log. So `fetchPartners({ includePending: true })` also returns the rows the two
+// rules turned away, each carrying `pending` with the reason, and /partners draws them as named
+// placeholder tiles — the worklist of what still needs a logo or a tick (Auri, 2026-08-05).
+//
+// It is OPT-IN, and that direction matters. The default is the strict list, so the snippet pasted
+// into techbbq.dk keeps getting exactly what it gets today even if someone forgets a parameter.
+// The route also requires the dashboard password for it: an unannounced partnership is not
+// something to publish on a public endpoint.
+//
+// An EMBARGOED partner is never pending and never returned either way — see HIDDEN_UNTIL.
+//
+//      WHAT THIS FILE CAN AND CANNOT CHECK. Format is structural, so it is enforced here
+//      (PUBLISHABLE_LOGO below). WHITENESS is a property of the pixels, and this feed cannot
+//      fetch and rasterise 104 logos per request to find out. Filenames are no substitute: this
+//      dataset's worst offender, a near-black SVG at luminance 69, is called
+//      "Virksomhedsguiden_Logo.svg", so a name rule would have shipped it and did.
+//      So whiteness is MEASURED OUT OF BAND by `node scripts/check-logo-tone.mjs`, which
+//      rasterises every published logo and reports the ink luminance. Its failures are fixed in
+//      Airtable, or listed in AIRTABLE_LOGO_REJECT below when a curated copy has to stand in.
+//      Run it after any bulk upload.
+//
 // ─── WHERE THE LOGOS COME FROM ──────────────────────────────────────────────────────
 // AIRTABLE, as of 2026-08-04 (Auri). This reversed the previous decision, and the reason is
 // simply that the data changed: the `Logo` column used to hold colour originals only (69 PNG,
@@ -59,11 +95,18 @@ const SAFE_FIELDS = [
   "Partnership Type 2026",
   // The tier, looked up from Partners 2026 where a formula derives it from Deal 2026.
   "Partnership Tier (from Tier)",
+  // Publish rule 1. Read AND enforced since 2026-08-05 — see the header.
   "Put on web",
   "Link to your website",
   // The wall's artwork. Several variants per cell; lib/logoPick.ts chooses.
   "Logo",
 ];
+
+// Publish rule 2, the part that can be checked from the record alone. The wall is #0d0d0d, so
+// the artwork has to be a knockout: a white SVG, or a white PNG when that is all there is.
+// pickLogo() is deliberately more permissive than this (it also allows JPEG, GIF and WEBP, which
+// the startup walls need), so the narrowing happens here rather than there.
+const PUBLISHABLE_LOGO = /^image\/(svg\+xml|png)$/i;
 
 // Auri's call: drop these. Academic is really Community, Investor is a different thing, and
 // Tailored was cut as not worth its own band.
@@ -126,11 +169,24 @@ function tierOf(v: unknown): string {
   return str(v);
 }
 
+/**
+ * Why a partner is NOT on the wall yet, and therefore what somebody has to do about it.
+ *
+ *   "no-logo"     the Logo cell holds nothing this wall can draw. Upload a white SVG.
+ *   "not-on-web"  the logo is fine, the "Put on web" box is not ticked. Tick it.
+ *
+ * Only ever set when the caller asked for pending rows. A strict read has none.
+ */
+export type PendingReason = "no-logo" | "not-on-web";
+
 export type Partner = {
   id: string;
   company: string;
   tier: string;
   logo: string | null; // absolute URL, or null when the sync has not matched one
+  // Set ONLY on a dashboard read. Its presence means "not live", so anything rendering for the
+  // public must drop these rather than style them.
+  pending?: PendingReason;
   website: string | null; // the partner's own site, or null when they never filled it in
   // A logo that is a STRIP of several marks rather than one. It spans the whole row and sits
   // at the top of its tier, because at 13:1 it would be unreadable in a normal 5:3 tile.
@@ -271,7 +327,9 @@ function safeUrl(v: unknown): string | null {
   return null;
 }
 
-export async function fetchPartners(): Promise<Partner[]> {
+export async function fetchPartners({
+  includePending = false,
+}: { includePending?: boolean } = {}): Promise<Partner[]> {
   if (!TOKEN || !BASE_ID) {
     throw new PartnersError("Airtable env vars are not set on the server.", 503);
   }
@@ -303,7 +361,12 @@ export async function fetchPartners(): Promise<Partner[]> {
   } while (offset);
 
   const partners: Partner[] = [];
+  // Everyone the two publish rules turned away, so the reason is in the log instead of being a
+  // mystery. Summarised after the loop rather than a line per row: at 126 rows a per-row log
+  // buries the ones that matter.
   const noLogo: string[] = [];
+  const notOnWeb: string[] = [];
+  const wrongFormat: string[] = [];
   const seen = new Set<string>();
 
   for (const rec of records) {
@@ -323,6 +386,18 @@ export async function fetchPartners(): Promise<Partner[]> {
     // investor partnership has a deal size and would otherwise be handed a tier and a place on
     // the wall.
     if (EXCLUDED_TIERS.has(str(f["Partnership Type 2026"]))) continue;
+
+    // PUBLISH RULE 1. The checkbox is the record of what is live, so it decides what is live.
+    // Named in the log rather than dropped quietly: an unticked box is usually an oversight, and
+    // "our logo is missing" is the complaint this line answers before it is made.
+    //
+    // On a dashboard read this does not `continue`: the row carries on through the tier and
+    // dedupe gates so the page can draw it as a placeholder in the right band.
+    const notTicked = f["Put on web"] !== true;
+    if (notTicked) {
+      notOnWeb.push(company);
+      if (!includePending) continue;
+    }
 
     // The tier as derived from the deal, not as typed by a human.
     const tier = tierOf(f["Partnership Tier (from Tier)"]);
@@ -350,7 +425,13 @@ export async function fetchPartners(): Promise<Partner[]> {
     // library copy as a fallback. `ident` is whatever the choice resolves to, and it exists so
     // the duplicate check below can compare two rows regardless of which source each came from.
     const override = LOGO_FILE_OVERRIDES[company];
-    const att = AIRTABLE_LOGO_REJECT.has(company) ? null : pickLogo(f["Logo"]);
+    const picked = AIRTABLE_LOGO_REJECT.has(company) ? null : pickLogo(f["Logo"]);
+    // PUBLISH RULE 2, the format half. A cell holding only a JPEG has no transparency, so on this
+    // wall it draws a white box around the mark; it counts as no logo rather than as a bad one.
+    const att = picked && PUBLISHABLE_LOGO.test(picked.type ?? "") ? picked : null;
+    if (picked && !att) {
+      wrongFormat.push(`${company} (${picked.type ?? "unknown type"})`);
+    }
     const local = LOGOS[rec.id];
 
     let logo: string | null = null;
@@ -373,8 +454,21 @@ export async function fetchPartners(): Promise<Partner[]> {
       // shipped once and produced a wall of empty tiles on the live partners page.
       logo = `${baseUrl()}/partner-logos/${encodeURIComponent(local.file)}`;
     } else {
+      // PUBLISH RULE 2, the other half: no white SVG, no white PNG, no curated stand-in, so no
+      // place on the wall. On the public feed it is dropped — an empty tile in a grid of filled
+      // ones reads as a broken page rather than as missing artwork. On the dashboard it stays, as
+      // a named tile, which is the whole point: that is the list of logos to go and get.
       noLogo.push(company);
+      if (!includePending) continue;
     }
+
+    // The logo is the actionable half when a row fails both, so it wins the label: somebody has
+    // to find artwork either way, and ticking a box for a partner with no logo publishes nothing.
+    const pending: PendingReason | undefined = !logo
+      ? "no-logo"
+      : notTicked
+        ? "not-on-web"
+        : undefined;
 
     // The same organisation sometimes appears under two DIFFERENT names that resolve to one
     // mark: "AISTART Incubator - Business Helsinki" and "Business Helsinki", or "Beta Health"
@@ -401,15 +495,28 @@ export async function fetchPartners(): Promise<Partner[]> {
         company in WEBSITE_OVERRIDES
           ? WEBSITE_OVERRIDES[company]
           : safeUrl(f["Link to your website"]),
+      ...(pending ? { pending } : {}),
       ...(override?.wide ? { wide: true } : {}),
       ...(LOGO_SCALE[company] ? { scale: LOGO_SCALE[company] } : {}),
     });
   }
 
+  if (notOnWeb.length) {
+    console.info(
+      `[partners] ${notOnWeb.length} partner(s) are NOT on the wall because "Put on web" is not ` +
+        `ticked in Partner Deliverables 2026: ${notOnWeb.join(", ")}`
+    );
+  }
+  if (wrongFormat.length) {
+    console.info(
+      `[partners] ${wrongFormat.length} partner(s) have a logo the wall cannot use — it needs a ` +
+        `white SVG, or a white PNG at worst: ${wrongFormat.join(", ")}`
+    );
+  }
   if (noLogo.length) {
     console.info(
-      `[partners] ${noLogo.length} partner(s) have no drawable logo in Airtable and none in ` +
-        `lib/partnerLogoManifest.json either: ${noLogo.join(", ")}`
+      `[partners] ${noLogo.length} partner(s) are NOT on the wall because they have no usable ` +
+        `logo in Airtable and none in lib/partnerLogoManifest.json either: ${noLogo.join(", ")}`
     );
   }
 
