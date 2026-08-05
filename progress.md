@@ -33,6 +33,22 @@ Both pre-existing rows have no Role and no Session Name; they need filling by ha
 
 **Count rows against the TABLE, not a view, before concluding anything is missing.**
 
+## AND THE NEW ROWS DO NOT SHOW IN THAT TAB, correctly
+
+Auri looked for the 13 in `viwLptcHWF3Wce6Im` and saw nothing. Measured: that view contains ONLY
+rows whose Project Name is an Event Room — Event Room 2 (47), 5 (10), 1 (4), 4 (2), 3 (1), 6 (1) = 65.
+Everything else in the table sits outside it: TechBBQ Summit 196, LP Forum 18, Pension & Insurance
+Summit 18, Future of Fintech 15, Investor Day 3. So no project other than the event rooms is in that
+tab, LP Forum and the Pension Summit included.
+
+To see them grouped, duplicate that view and filter `Project Name` = `Future of Fintech`. The API
+cannot create a view, so it is a UI job.
+
+**Open decision:** leave them as their own project (recommended — consistent with LP Forum, Pension
+Summit and Investor Day) or repoint all 13 to an Event Room so they appear in that tab. Moving them
+publishes nothing new on the site either way: `lib/eventrooms.ts` reads this table only for room
+ASSIGNMENTS, and the presenters themselves come from the partner submissions table.
+
 ## Left undone on purpose
 
 1. **Erika Eliasson Ekberger and Sara Sjølin have no Hierarchy.** Theirs are 1.1 and 1.2 and the
