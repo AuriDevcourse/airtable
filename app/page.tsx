@@ -161,6 +161,11 @@ const SECTIONS: Section[] = [
         note: "Future of Fintech · the speaker submissions for that day.",
       },
       {
+        href: "/policy-lounge",
+        label: "The Policy Lounge",
+        note: "The Policy Stage roster · ministers, MEPs and ecosystem leaders, across Event Rooms 5, 6 and 7.",
+      },
+      {
         href: "/investors",
         label: "Investor speakers",
         note: "LP Forum, Investor Day and the Pension & Insurance Summit, filtered per event.",
