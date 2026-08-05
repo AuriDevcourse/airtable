@@ -6,6 +6,50 @@ reaching the browser.
 
 ---
 
+# PENDING · consolidate the Future of Fintech speakers into the CRM (no code involved)
+
+Auri asked whether the 14 Future of Fintech people can be added to Marketing Project Overview,
+where the "Future of Fintech" session currently has almost nobody. **Investigated read-only, nothing
+written, no code changed.** Waiting on three answers before any write runs.
+
+**FIRST, THE THING THAT REFRAMES IT: the website is not missing these people.**
+`/api/fintech-speakers` already serves all 14 (11 Speaker, 2 Moderator, 1 Keynote) from the Future
+of Fintech table `tbleh7Lqv1zMQaUKx` via `lib/fintechspeakers.ts`, and `/fintech-speakers` renders
+them. Nothing in this repo reads Marketing Project Overview for fintech. So this is CRM tidying, and
+it changes nothing on techbbq.dk.
+
+What the two views hold:
+
+- `tblTecOBecLQCNIeD` / `viwLptcHWF3Wce6Im` — 65 people, all event-room presenters. Exactly ONE has
+  Session Name "Future of Fintech": Sander Janca-Jensen, filed under `Project Name = Event Room 3`.
+- `tbleh7Lqv1zMQaUKx` / `viwsqDRAVlgJh3STT` — the 14 fintech people, all with a photo and a LinkedIn.
+
+**`Project Name` is a singleSelect that ALREADY has a "Future of Fintech" choice** (with NISS, NASS,
+LP Forum, TechBBQ Summit, Nordic Family Office, Event Room 1-6). That is the right home for these
+rows; an Event Room number is not.
+
+Agreed mapping, if it goes ahead: `Name → Full Name`, `Job title → Job Title`,
+`Company Name → Company`, `LinkedIn → LinkedIn Handle`, `Attachments → Profile Picture` (copied by
+URL — the source URLs are signed and expire in ~2h, so the write has to run in one go),
+`Hierarchy → Hierarchy`, plus `Project Name` and `Session Name` = "Future of Fintech".
+**Deliberately NOT copied:** Email, Phone Number, GDPR Consent, Code of Conduct, Accuracy. That is
+form PII and a second copy of it does not belong in a 112-field marketing table.
+
+## Open questions (asked, unanswered)
+
+1. **Sander.** Add a second row under Future of Fintech, or repoint his existing Event Room 3 row?
+   Recommended: add the row, leave his alone — Event Room 3 with Flatpay reads as a real separate
+   booking.
+2. **Roles have nowhere to go.** The destination has no role field, so Erika Eliasson Ekberger and
+   Sara Sjølin (both moderators) and Sander (keynote) would look like plain speakers. Append to
+   Session Name ("Future of Fintech · Moderator"), or drop the role?
+3. **Explicit go-ahead to write 13 records** into a live CRM. Not run.
+
+Gotcha found on the way: Sander's `Hierarchy` in the source table is the TEXT "Keynote Speaker" while
+the destination `Hierarchy` is numeric, so that one cell arrives empty whatever we decide.
+
+---
+
 # WHERE THINGS STAND (2026-08-05, end of session)
 
 **Everything is pushed EXCEPT the partner publish rules.** Those four files plus
