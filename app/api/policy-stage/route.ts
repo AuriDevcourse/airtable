@@ -48,7 +48,18 @@ export async function GET(req: NextRequest) {
       POLICY_ROLES.map((r) => [r, all.filter((p) => p.role === r).length])
     );
 
-    return feedResponse({ count: people.length, role, counts, people }, gate);
+    // `groups` carries BOTH roles whatever ?role= says, because the tabbed Elementor snippet fetches
+    // this URL once and switches between the keys client-side — that is the contract the tabs mode in
+    // lib/embedSnippet.ts expects (`{ groups: { [key]: Person[] } }`).
+    //
+    // Always included rather than hidden behind another parameter: a snippet that forgets the flag
+    // would render an empty switcher, and 31 people is nothing to send twice. `people` stays filtered
+    // by ?role= so everything already reading it is unaffected.
+    const groups = Object.fromEntries(
+      POLICY_ROLES.map((r) => [r, all.filter((p) => p.role === r)])
+    );
+
+    return feedResponse({ count: people.length, role, counts, people, groups }, gate);
   } catch (err) {
     console.error("[/api/policy-stage]", err);
     return errorResponse(err, "Something went wrong loading the Policy Stage.", gate);

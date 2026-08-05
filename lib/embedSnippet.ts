@@ -225,6 +225,10 @@ export function buildEmbedSnippet({
 <style>
   .tbbq-speakers{--bg:${transparent ? "transparent" : "#0d0d0d"};--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:${transparent ? "0" : "clamp(24px,4vw,48px)"};border-radius:${transparent ? "0" : "20px"}}
   .tbbq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:20px}
+  /* A SHORT GROUP (the Policy Stage has three moderators) gets its own centred row instead of
+     hanging off the left edge under empty columns, which reads as a half-loaded grid. Set by the
+     renderer, which is the only thing that knows how many cards a tab holds. */
+  @media(min-width:901px){.tbbq-grid[data-few]{grid-template-columns:repeat(3,minmax(0,240px));justify-content:center}}
   .tbbq-speakers__loading{grid-column:1/-1;color:var(--muted);margin:0}
   .tbbq-more{display:block;margin:24px auto 0;padding:12px 28px;border:1px solid #2a2a2a;border-radius:9999px;background:#131313;color:#f2f2f2;font-family:"Onest",sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:background .18s}
   .tbbq-more:hover{background:#1b1b1b}
@@ -366,6 +370,9 @@ export function buildEmbedSnippet({
       more.style.display="none";
       if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}
       grid.innerHTML="";
+      /* Three or fewer: centre them on one row. Re-evaluated on every tab switch, so the Speakers
+         tab goes back to the full-width grid. */
+      if(list.length<=3){grid.setAttribute("data-few","1");}else{grid.removeAttribute("data-few");}
       fill();
     }
     var tabBtns=root.querySelectorAll(".tbbq-tabs button");
@@ -390,7 +397,8 @@ export function buildEmbedSnippet({
     list=tbbqRanked.concat(tbbqShuffle(tbbqRest));`
         : ""
     }
-    grid.innerHTML="";${modalSetup}
+    grid.innerHTML="";
+    if(list.length<=3){grid.setAttribute("data-few","1");}${modalSetup}
     var shown=0;
     var more=document.createElement("button");
     more.type="button";more.className="tbbq-more";more.textContent="Load more";

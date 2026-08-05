@@ -357,6 +357,18 @@ a { color: inherit; }
 @media (max-width: 1000px) and (min-width: 641px) {
   .grid-cards { grid-template-columns: repeat(3, 1fr); }
 }
+/* A SHORT GROUP gets its own centred row rather than trailing off the left of a 5-column grid.
+   The Policy Stage has exactly three moderators, and three cards hanging under two empty columns
+   reads as a loading failure (Auri, 2026-08-05). Card width is capped at what a 5-column row gives
+   inside .wrap, so a moderator card is the same size as a speaker card.
+   Desktop only: the tablet and mobile rules above already pack 3 and 2 across, and a fixed 224px
+   track would overflow a phone. */
+@media (min-width: 1001px) {
+  .grid-cards--few {
+    grid-template-columns: repeat(3, minmax(0, 224px));
+    justify-content: center;
+  }
+}
 /* Main-page feed opts into 4 per row on wide screens (tablet/mobile rules above still win). */
 @media (min-width: 1001px) {
   .grid-cards--4 { grid-template-columns: repeat(4, 1fr); }

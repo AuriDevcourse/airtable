@@ -54,6 +54,18 @@ const ROLES: { value: string; label: string }[] = [
   { value: "Moderator", label: "Moderators" },
 ];
 
+// The SAME switcher, inside the copied snippet. Auri asked for the tab pills on the live page too,
+// "just like Speakers 2026" — that embed renders its own pill switcher and swaps groups client-side
+// without refetching, and this is that mode. Keys must match the `groups` keys the feed returns, which
+// are Airtable's own role values.
+//
+// One snippet now covers both roles, so there is no per-role copy button: pasting one HTML widget gets
+// a visitor the whole roster with the switch. Shuffled per tab, for the same reason the page shuffles.
+const EMBED_TABS = [
+  { key: "Speaker", label: "Speakers", shuffle: true },
+  { key: "Moderator", label: "Moderators", shuffle: true },
+];
+
 export default function PolicyStagePage() {
   const [role, setRole] = useState("Speaker");
 
@@ -118,22 +130,18 @@ export default function PolicyStagePage() {
           </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {/* `key` so the button's internal "Copied" state cannot survive a role switch and claim
-                the previous snippet was copied (same fix as /fintech-speakers and /life-science). */}
+            {/* ONE snippet for both roles: it fetches /api/policy-stage once, draws its own Speakers /
+                Moderators pill switcher and swaps groups client-side. No `key` per role needed any
+                more, because the button no longer depends on which tab this page is showing. */}
             <CopyEmbed
-              key={role}
-              path={base}
+              path="/api/policy-stage"
               listKey="people"
               loadMore={false}
               transparent
-              // The snippet shuffles client-side on every visit, for the same reason this page does:
-              // the feed is cached for an hour, so a server-side order would be the SAME order for
-              // every visitor in that hour.
-              shuffle
-              label={role === "Speaker" ? "Copy embed code" : `Copy embed (${label})`}
+              tabs={EMBED_TABS}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copies an Elementor snippet with the {label.toLowerCase()}. Copy from the deployed
+              One snippet with the Speakers / Moderators switch built in. Copy from the deployed
               dashboard, not localhost.
             </span>
           </div>
@@ -176,7 +184,10 @@ export default function PolicyStagePage() {
                 <strong>{role}</strong> on the Event Room 5,6,7 rows in Airtable and press Refresh.
               </p>
             ) : (
-              <div className="grid-cards">
+              // Three moderators centred on their own row instead of trailing off the left of a
+              // five-wide grid. Keyed on the COUNT, not the role, so it holds if a fourth moderator
+              // arrives (the rule stops applying) or a role ends up with two.
+              <div className={"grid-cards" + (people.length <= 3 ? " grid-cards--few" : "")}>
                 {people.map((p) => {
                   const meta = p.title + (p.company ? ` · ${p.company}` : "");
                   const card = (
