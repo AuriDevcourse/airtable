@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 
@@ -59,6 +59,13 @@ function IconCalendar() {
       <rect width="18" height="18" x="3" y="4" rx="2" />
       <path d="M3 10h18" />
     </>
+  );
+}
+
+// Lucide "activity": the daily check is a heartbeat on the data, not a settings screen.
+function IconPulse() {
+  return (
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
   );
 }
 
@@ -221,6 +228,225 @@ const INTERNAL: Item[] = [
   },
 ];
 
+// ─── THE DAILY CHECK ────────────────────────────────────────────────────────────────────
+// What to look at each morning to know the site is showing current information (Auri, 2026-08-05).
+//
+// It reads the LIVE feeds rather than listing links, because a list of links cannot tell you that
+// Brella emptied out overnight or that four partners are waiting on a logo. Every number here is the
+// number techbbq.dk would render, so a zero on this page is a hole on the live site.
+//
+// Six requests, all server-cached for an hour and shared with the pages themselves, so this is
+// usually warm. They run in parallel and each one fails on its own — a dead feed shows as a red row
+// instead of blanking the panel.
+type Check = {
+  label: string;
+  href: string;
+  // What you are actually checking for, in one line.
+  look: string;
+  // The headline number, or null while loading and on failure.
+  value: number | null;
+  // The breakdown under it, e.g. "197 summit · 110 event room".
+  detail?: string;
+  // Something a human has to DO. Its presence turns the row amber.
+  todo?: string;
+  failed?: boolean;
+};
+
+function StatusDot({ state }: { state: "ok" | "todo" | "down" | "loading" }) {
+  const color =
+    state === "down"
+      ? "var(--color-red, #ce0f2e)"
+      : state === "todo"
+        ? "#fd9d04"
+        : state === "ok"
+          ? "#10c8a7"
+          : "var(--color-border)";
+  // A loading dot reads as "not answered yet" rather than as a healthy green.
+  return <span aria-hidden="true" className="check__dot" style={{ background: color, opacity: state === "loading" ? 0.5 : 1 }} />;
+}
+
+// Rendered while the feeds answer, so the panel has its real height immediately and nothing jumps
+// when six requests land.
+const PLACEHOLDER_CHECKS: Check[] = [
+  { label: "Program 2026", href: "/brella-program", look: "Sessions, times and rooms, live from Brella.", value: null },
+  { label: "Speakers", href: "/all-speakers-2026", look: "Everyone on stage.", value: null },
+  { label: "Partner wall", href: "/partners", look: "Logos live on techbbq.dk.", value: null },
+  { label: "The Policy Stage", href: "/policy-stage", look: "The roster behind the Policy Stage page.", value: null },
+  { label: "Policy Stage programme", href: "/program", look: "The agenda itself.", value: null },
+  { label: "Side Events & Event Rooms", href: "/partner-events", look: "What partners are running.", value: null },
+];
+
+const PENDING_REASON: Record<string, string> = {
+  "no-logo": "needing a logo",
+  "not-on-web": "needing a tick",
+  "no-tier": "needing a Company Link",
+};
+
+function DailyCheck() {
+  const [checks, setChecks] = useState<Check[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const get = async (url: string) => {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    };
+    // Each area settles on its own: one dead feed must not blank the other five.
+    const settle = (u: string) =>
+      get(u).then((v) => ({ ok: true, v })).catch(() => ({ ok: false, v: null }));
+
+    Promise.all([
+      settle("/api/program?event=brella"),
+      settle("/api/all-speakers"),
+      // ?pending=1 needs the dashboard password, which this same-origin request carries because the
+      // page is already behind it.
+      settle("/api/partners?pending=1"),
+      settle("/api/policy-stage?role=all"),
+      settle("/api/program?event=policy"),
+      settle("/api/partner-events"),
+    ]).then(([brella, speakers, partners, policy, policyProgram, sideEvents]) => {
+      if (!alive) return;
+
+      // Partners is the one feed that reports its own worklist, so this todo is exact rather than a
+      // guess from a count.
+      const all: { pending?: string }[] = partners.ok ? partners.v.partners ?? [] : [];
+      const waiting = all.filter((p) => p.pending);
+      const byReason = waiting.reduce<Record<string, number>>((m, p) => {
+        const k = p.pending as string;
+        m[k] = (m[k] ?? 0) + 1;
+        return m;
+      }, {});
+
+      setChecks([
+        {
+          label: "Program 2026",
+          href: "/brella-program",
+          look: "Sessions, times and rooms, live from Brella. This is the one on techbbq.dk.",
+          value: brella.ok ? brella.v.sessions.length : null,
+          detail: brella.ok ? "sessions" : undefined,
+          failed: !brella.ok,
+        },
+        {
+          label: "Speakers",
+          href: "/all-speakers-2026",
+          look: "Everyone on stage, across the Summit, the event rooms and the investor events.",
+          value: speakers.ok
+            ? speakers.v.counts.speakers + speakers.v.counts.eventRoom + speakers.v.counts.investors
+            : null,
+          detail: speakers.ok
+            ? `${speakers.v.counts.speakers} summit · ${speakers.v.counts.eventRoom} event room · ${speakers.v.counts.investors} investor`
+            : undefined,
+          failed: !speakers.ok,
+        },
+        {
+          label: "Partner wall",
+          href: "/partners",
+          look: "Logos live on techbbq.dk, and the ones still waiting on something.",
+          value: partners.ok ? all.length - waiting.length : null,
+          detail: partners.ok ? "live" : undefined,
+          todo:
+            waiting.length > 0
+              ? `${waiting.length} waiting · ${Object.entries(byReason)
+                  .map(([k, n]) => `${n} ${PENDING_REASON[k] ?? k}`)
+                  .join(", ")}`
+              : undefined,
+          failed: !partners.ok,
+        },
+        {
+          label: "The Policy Stage",
+          href: "/policy-stage",
+          look: "The roster behind the Policy Stage page.",
+          value: policy.ok ? policy.v.count : null,
+          detail: policy.ok
+            ? `${policy.v.counts.Speaker} speakers · ${policy.v.counts.Moderator} moderators`
+            : undefined,
+          failed: !policy.ok,
+        },
+        {
+          label: "Policy Stage programme",
+          href: "/program",
+          look: "The agenda itself, with who speaks and who moderates each session.",
+          value: policyProgram.ok ? policyProgram.v.sessions.length : null,
+          detail: policyProgram.ok ? "sessions" : undefined,
+          failed: !policyProgram.ok,
+        },
+        {
+          label: "Side Events & Event Rooms",
+          href: "/partner-events",
+          look: "What partners are running around the Summit, and where.",
+          value: sideEvents.ok ? sideEvents.v.count : null,
+          detail: sideEvents.ok ? "events" : undefined,
+          failed: !sideEvents.ok,
+        },
+      ]);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const attention = checks?.filter((c) => c.failed || c.value === 0 || c.todo).length ?? 0;
+
+  return (
+    <section className="check">
+      <div className="check__head">
+        <p className="check__title">
+          <Icon size={15}>
+            <IconPulse />
+          </Icon>
+          Daily check
+        </p>
+        <p className="check__sub">
+          {checks === null
+            ? "Reading the live feeds…"
+            : attention === 0
+              ? "Everything is answering and nothing is waiting."
+              : `${attention} thing${attention === 1 ? "" : "s"} to look at.`}
+        </p>
+      </div>
+
+      <ul className="check__list">
+        {(checks ?? PLACEHOLDER_CHECKS).map((c) => {
+          const state =
+            checks === null ? "loading" : c.failed || c.value === 0 ? "down" : c.todo ? "todo" : "ok";
+          return (
+            <li key={c.label}>
+              <Link href={c.href} className="check__row">
+                <StatusDot state={state} />
+                <span className="check__rowText">
+                  <span className="check__label">{c.label}</span>
+                  <span className="check__look">{c.look}</span>
+                  {c.todo && <span className="check__todo">{c.todo}</span>}
+                  {c.failed && (
+                    <span className="check__todo">Could not load · the feed is down, or Airtable is slow</span>
+                  )}
+                  {!c.failed && c.value === 0 && (
+                    <span className="check__todo">Empty · nothing would render on the site</span>
+                  )}
+                </span>
+                <span className="check__value">
+                  {c.value === null ? "—" : c.value}
+                  {c.detail && <span className="check__detail">{c.detail}</span>}
+                </span>
+                <ChevronRight />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* The one check a browser cannot make: whiteness lives in the pixels, and this page cannot
+          rasterise 120 logos. Named here so it is not forgotten rather than buried in a README. */}
+      <p className="check__note">
+        After uploading logos, run <code>node scripts/check-logo-tone.mjs</code> · a dark or boxed
+        logo passes every check above and still disappears on the wall.
+      </p>
+    </section>
+  );
+}
+
 export default function Home() {
   // Which section is open. null is step one, where all three are closed.
   const [open, setOpen] = useState<SectionKey | null>(null);
@@ -242,6 +468,8 @@ export default function Home() {
       </section>
 
       <div className="wrap" style={{ paddingBottom: 80 }}>
+        <DailyCheck />
+
         <ol className="hub">
           {SECTIONS.map((s) => {
             const isOpen = open === s.key;

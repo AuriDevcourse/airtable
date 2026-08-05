@@ -1881,3 +1881,75 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* The name tile already centres its text, so the waiting line needs room under it rather than
    over it. */
 .lw-tile--text { position: relative; padding-bottom: 20px; }
+
+/* ─── THE DAILY CHECK (app/page.tsx) ───────────────────────────────────────────────────────
+   The panel at the top of the hub: one row per area, each showing the number techbbq.dk would
+   render right now. It sits above the navigation on purpose — it is the reason to open this page in
+   the morning, and the links are what you do afterwards. */
+.check {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  padding: 20px 22px;
+  margin-bottom: 28px;
+}
+.check__head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.check__title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-foreground);
+}
+.check__title svg { color: var(--color-orange, #fa7000); }
+.check__sub { margin: 0; color: var(--color-muted); font-size: 13px; }
+
+.check__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.check__row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: inherit; text-decoration: none;
+  transition: background 0.15s;
+}
+.check__row:hover { background: var(--color-card-2); }
+.check__row:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
+.check__dot { width: 8px; height: 8px; border-radius: 9999px; }
+.check__rowText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.check__label { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; }
+.check__look { color: var(--color-muted); font-size: 12.5px; line-height: 1.4; }
+/* The line that names an ACTION. Amber rather than red: nothing is broken, something is waiting. */
+.check__todo { color: #fd9d04; font-size: 12.5px; line-height: 1.4; }
+
+/* The number reads first, so it is aligned right and set in the heading face. */
+.check__value {
+  flex: none; text-align: right;
+  display: flex; flex-direction: column; gap: 1px;
+  font-family: var(--font-heading); font-size: 18px; font-weight: 700;
+  line-height: 1.1;
+}
+.check__detail {
+  font-family: var(--font-sans, inherit);
+  font-size: 11px; font-weight: 400; letter-spacing: 0;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.check__row > svg { flex: none; color: var(--color-muted); }
+.check__row:hover > svg { color: var(--color-orange, #fa7000); }
+
+.check__note {
+  margin: 14px 2px 0;
+  color: var(--color-muted);
+  font-size: 12.5px; line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  /* The breakdown is the first thing to go: the headline number and the action line carry it. */
+  .check__detail { display: none; }
+  .check__row { gap: 10px; padding: 10px 8px; }
+  .check__value { font-size: 16px; }
+}
