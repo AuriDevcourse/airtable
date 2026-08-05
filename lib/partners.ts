@@ -13,11 +13,10 @@
 // a computed field is two sources of truth, and it was already drifting (its Dealroom entry said
 // Challenger while the deal says Community).
 //
-// WHICH COMPANIES APPEAR is a separate question from which tier they land in, and it has NOT
-// changed: Investor, Academic and Tailored partnerships are still excluded, read from
-// `Partnership Type 2026`. Switching that too would have put 19 more logos on the wall,
-// including EY, HSBC, Microsoft and the investor partners — a content decision, not a
-// consequence of fixing tiers.
+// WHICH COMPANIES APPEAR used to be a separate question, with Investor, Academic and Tailored
+// partnerships excluded by `Partnership Type 2026`. **That exclusion is gone as of 2026-08-05** — the
+// tier follows the deal price now, and Auri's call is that the price places everyone. See the section
+// below for the reasoning and what it added.
 //
 // ─── THE TWO PUBLISH RULES (Auri, 2026-08-05) ───────────────────────────────────────────
 // Both must hold, or the partner is not on the website at all. They are gates, not warnings:
@@ -91,7 +90,7 @@ const VIEW = "viw7FVbsTb9IRaWF0"; // Partner Deliverables 2026
 
 const SAFE_FIELDS = [
   "Company",
-  // Still read, but only to decide who is EXCLUDED — never for the tier itself.
+  // Read for the logs only. It no longer gates anything and it never set the tier — the deal does.
   "Partnership Type 2026",
   // The tier, looked up from Partners 2026 where a formula derives it from Deal 2026.
   "Partnership Tier (from Tier)",
@@ -108,9 +107,44 @@ const SAFE_FIELDS = [
 // the startup walls need), so the narrowing happens here rather than there.
 const PUBLISHABLE_LOGO = /^image\/(svg\+xml|png)$/i;
 
-// Auri's call: drop these. Academic is really Community, Investor is a different thing, and
-// Tailored was cut as not worth its own band.
-const EXCLUDED_TIERS = new Set(["Investor", "Academic", "Tailored"]);
+// ─── THE PARTNERSHIP TYPE NO LONGER DECIDES ANYTHING (Auri, 2026-08-05) ──────────────────
+// "We are following the partnership tier by price. This should be followed and all the logos should
+// be added based on that."
+//
+// `Partnership Type 2026` used to exclude Investor, Academic and Tailored partnerships from the wall.
+// That made sense while the tier was a typed label, but the tier is now DERIVED FROM THE DEAL: the
+// price decides the band. Rockstart is the case that exposed the contradiction — type "Investor",
+// tier "Challenger", five logos uploaded, and invisible. Auri went looking for it and found nothing.
+//
+// So the type gate is gone and the deal is the only classifier. The other two rules still apply, so
+// nothing publishes itself: "Put on web" must be ticked and the logo must be a white SVG or PNG. An
+// unticked investor partner shows on the DASHBOARD as a pending tile and not on techbbq.dk.
+//
+// For the record, in case the decision ever reverses: the excluded types were "Investor", "Academic"
+// and "Tailored", read from `Partnership Type 2026`. No constant is kept for them — a dangling
+// unused one is worse than a sentence.
+
+// ─── PARTNERS WITH NO CONTRACT, AND THEREFORE NO DEAL TO DERIVE A TIER FROM ─────────────
+// Read the header before adding to this. The old hand-written tier CORRECTIONS were deleted on
+// purpose and must not come back: a table of overrides beside a computed field is two sources of
+// truth, and it had already drifted.
+//
+// This is not that. These are partners where the formula has NOTHING to work from — no contract, so
+// no Deal 2026, so no tier, ever. Computing cannot help; the only alternatives are naming them here
+// or leaving them off the wall.
+//
+// It therefore fills a MISSING tier and never replaces a resolved one, which is what keeps the deal
+// the single source of truth for every partner that has one. If a deal appears later, that deal wins
+// and the entry here becomes dead weight — delete it then.
+//
+//   Crescita Partners — no contract, but Community by Auri's call (2026-08-05).
+const NO_CONTRACT_TIERS: Record<string, string> = {
+  "crescita partners": "Community",
+};
+
+function noContractTier(company: string): string | null {
+  return NO_CONTRACT_TIERS[company.toLowerCase().replace(/\s+/g, " ").trim()] ?? null;
+}
 
 // Tier order, highest commitment first. Colour runs hot at the top and cools down it, so the
 // ranking is legible without reading the labels. Every value clears 4.5:1 on #0d0d0d.
@@ -384,10 +418,8 @@ export async function fetchPartners({
       continue;
     }
 
-    // Excluded on the PARTNERSHIP TYPE, which is a different question from the tier: an
-    // investor partnership has a deal size and would otherwise be handed a tier and a place on
-    // the wall.
-    if (EXCLUDED_TIERS.has(str(f["Partnership Type 2026"]))) continue;
+    // NO TYPE GATE. The tier comes from the deal price and that is what places a partner now — see
+    // the note at the top of this file for what the type gate used to drop and why it stopped.
 
     // PUBLISH RULE 1. The checkbox is the record of what is live, so it decides what is live.
     // Named in the log rather than dropped quietly: an unticked box is usually an oversight, and
@@ -401,8 +433,9 @@ export async function fetchPartners({
       if (!includePending) continue;
     }
 
-    // The tier as derived from the deal, not as typed by a human.
-    const tier = tierOf(f["Partnership Tier (from Tier)"]);
+    // The tier as derived from the deal, not as typed by a human — with the no-contract fallback
+    // applied ONLY when the deal produced nothing. See NO_CONTRACT_TIERS.
+    const tier = tierOf(f["Partnership Tier (from Tier)"]) || noContractTier(company) || "";
     // No tier means no BAND, so the public wall cannot place them at all.
     //
     // It used to end here for every reader, and that made a partner INVISIBLE IN BOTH DIRECTIONS:
