@@ -55,9 +55,13 @@ function ChangeReport({ changes, source }: { changes: ChangeSummary; source: str
 
       {changes.items.map((c, i) => (
         <div key={`${c.kind}-${c.label}-${i}`} style={{ marginTop: 8 }}>
-          <span style={{ color: TONE[c.kind].color, fontWeight: 600 }}>{TONE[c.kind].word}</span>
+          {/* THE NAME READS FIRST. It used to be "Edited · <record id>", which put a colour-coded
+              verb where the subject belongs and an id where the name belongs — unreadable at a
+              glance (Auri, 2026-08-05). The verb is still there, just after the thing it happened
+              to, and quieter. */}
+          <span style={{ fontWeight: 600 }}>{c.label}</span>
           <span style={{ opacity: 0.5 }}> · </span>
-          <span>{c.label}</span>
+          <span style={{ color: TONE[c.kind].color, fontSize: 12 }}>{TONE[c.kind].word.toLowerCase()}</span>
           {c.fields?.map((f) => (
             <div
               key={f.field}

@@ -37,6 +37,12 @@ const MAX_VALUE = 70;
 // new field added to a feed still reads sensibly without touching this list.
 const FIELD_LABELS: Record<string, string> = {
   timeSlot: "Time Slot",
+  // The partner wall's keys. `pending` is an internal slug, so it also gets VALUE_LABELS below —
+  // "Pending: not-on-web" told a reader nothing (Auri, 2026-08-05).
+  tier: "Tier",
+  pending: "Still waiting on",
+  logo: "Logo",
+  website: "Website",
   name: "Name",
   day: "Day",
   type: "Type",
@@ -51,6 +57,22 @@ const FIELD_LABELS: Record<string, string> = {
   hierarchy: "Order",
   tag: "Tag",
   tagColor: "Tag colour",
+};
+
+// Some fields carry a SLUG rather than something a human wrote. A report is meant to be read at a
+// glance, and "not-on-web" is only meaningful to the code that emits it.
+const VALUE_LABELS: Record<string, Record<string, string>> = {
+  pending: {
+    "no-logo": "a white logo",
+    "not-on-web": "the “Put on web” tick",
+    "no-tier": "a Company Link",
+  },
+};
+
+// `pending` absent means the row is LIVE, which is the whole point of the edit — so it must not read
+// as "(empty)". Any other field keeps the plain empty marker.
+const ABSENT_LABELS: Record<string, string> = {
+  pending: "nothing · it is live now",
 };
 
 function fieldLabel(key: string): string {
@@ -77,22 +99,31 @@ function keyOf(x: unknown, index: number): string {
   return typeof id === "string" && id ? id : `@${index}`;
 }
 
-// Best-effort human name for a row. Speaker feeds use `name`, sessions use `name`, and
-// anything else falls back to the id so a change is never reported as a blank line.
+// Best-effort human name for a row.
+//
+// `company` is in this list because the PARTNER WALL has no `name` field — a partner row is a company
+// and a logo — so every partner change was reported as a bare record id, which is unreadable. Ordered
+// so a person still wins over their employer: a speaker row has both, and "Vanta" is the wrong label
+// for Josh Downs.
+//
+// The id remains the last resort, so a change is never reported as a blank line.
 function labelOf(x: unknown, fallback: string): string {
   const o = rec(x);
-  for (const k of ["name", "title", "fullName", "session", "day"]) {
+  for (const k of ["name", "fullName", "title", "company", "session", "day"]) {
     const v = o[k];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return fallback;
 }
 
-function show(v: unknown): string {
-  if (v === null || v === undefined) return "(empty)";
-  const s = typeof v === "string" ? v : JSON.stringify(v);
-  if (!s) return "(empty)";
-  return s.length > MAX_VALUE ? `${s.slice(0, MAX_VALUE)}…` : s;
+function show(v: unknown, field?: string): string {
+  if (v === null || v === undefined || v === "") {
+    return (field && ABSENT_LABELS[field]) || "(empty)";
+  }
+  const raw = typeof v === "string" ? v : JSON.stringify(v);
+  if (!raw) return (field && ABSENT_LABELS[field]) || "(empty)";
+  const translated = (field && VALUE_LABELS[field]?.[raw]) || raw;
+  return translated.length > MAX_VALUE ? `${translated.slice(0, MAX_VALUE)}…` : translated;
 }
 
 function fieldDiff(before: unknown, after: unknown): FieldChange[] {
@@ -102,7 +133,11 @@ function fieldDiff(before: unknown, after: unknown): FieldChange[] {
   for (const field of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (field === "id") continue;
     if (JSON.stringify(a[field]) === JSON.stringify(b[field])) continue;
-    out.push({ field: fieldLabel(field), from: show(a[field]), to: show(b[field]) });
+    out.push({
+      field: fieldLabel(field),
+      from: show(a[field], field),
+      to: show(b[field], field),
+    });
   }
   return out;
 }
