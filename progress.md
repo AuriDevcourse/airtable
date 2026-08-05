@@ -6,11 +6,48 @@ reaching the browser.
 
 ---
 
-# PENDING · consolidate the Future of Fintech speakers into the CRM (no code involved)
+# DONE · the Future of Fintech speakers are in the CRM (Airtable write, no code changed)
 
-Auri asked whether the 14 Future of Fintech people can be added to Marketing Project Overview,
-where the "Future of Fintech" session currently has almost nobody. **Investigated read-only, nothing
-written, no code changed.** Waiting on three answers before any write runs.
+**13 records created in Marketing Project Overview on 2026-08-05**, Project Name and Session Name
+both "Future of Fintech", after a dry run and with Auri's go-ahead. Read back and verified: 15 rows
+now carry that Project Name, no duplicate names, all 15 photos processed, all 15 with a LinkedIn URL.
+11 Speakers, 2 Moderators. **No code changed and the website is unaffected** — `/fintech-speakers`
+reads the Future of Fintech table directly (`lib/fintechspeakers.ts`), never this one.
+
+Script kept at `scratchpad/fintech-import.mjs` (dry run by default, `--write` to commit; it re-reads
+the target first, so a second run cannot create a second copy of anybody).
+
+## TWO THINGS THE VIEW WAS HIDING, worth knowing before trusting a view again
+
+`viwLptcHWF3Wce6Im` showed ONE Future of Fintech person. The TABLE already held two, which that view
+does not include:
+
+- `recIO5xXLa1QcjWLL` Sander Janca-Jensen (Flatpay) — so he was already filed under BOTH
+  "Future of Fintech" and "Event Room 3", on separate rows. That answered the open question about
+  him: one row per appearance is already the convention, so he was skipped and nothing duplicated.
+- `recKWpN5pxjB9fkEX` Ken Villum Klausen (Lunar) — under Future of Fintech in the CRM but **not in
+  the Future of Fintech submissions table at all**, so he does not appear on the website's fintech
+  page. Worth someone checking.
+
+Both pre-existing rows have no Role and no Session Name; they need filling by hand.
+
+**Count rows against the TABLE, not a view, before concluding anything is missing.**
+
+## Left undone on purpose
+
+1. **Erika Eliasson Ekberger and Sara Sjølin have no Hierarchy.** Theirs are 1.1 and 1.2 and the
+   destination field has `precision: 0`, so both would round to 1 and collide with Rico Andersen's 1.
+   Blank beats a silently wrong order, and Role separates the moderators anyway. Give the field one
+   decimal place and the two values can be filled in.
+2. **Sander's Role.** His source role is "Keynote Speaker ", and the target's new `Role` select
+   offers only Speaker and Moderator. Add the option, or leave him as he is.
+3. **PII was NOT copied** — Email, Phone Number, GDPR Consent, Code of Conduct, Accuracy stay in the
+   submissions table. Do not "complete" the import by bringing them over.
+
+Ran without `typecast` deliberately: every select value written already existed as an option, and
+typecast would silently CREATE options, which is a schema change nobody asked for.
+
+## How it was investigated (kept, because the next question like this starts here)
 
 **FIRST, THE THING THAT REFRAMES IT: the website is not missing these people.**
 `/api/fintech-speakers` already serves all 14 (11 Speaker, 2 Moderator, 1 Keynote) from the Future
@@ -28,22 +65,14 @@ What the two views hold:
 LP Forum, TechBBQ Summit, Nordic Family Office, Event Room 1-6). That is the right home for these
 rows; an Event Room number is not.
 
-Agreed mapping, if it goes ahead: `Name → Full Name`, `Job title → Job Title`,
-`Company Name → Company`, `LinkedIn → LinkedIn Handle`, `Attachments → Profile Picture` (copied by
-URL — the source URLs are signed and expire in ~2h, so the write has to run in one go),
-`Hierarchy → Hierarchy`, plus `Project Name` and `Session Name` = "Future of Fintech".
-**Deliberately NOT copied:** Email, Phone Number, GDPR Consent, Code of Conduct, Accuracy. That is
-form PII and a second copy of it does not belong in a 112-field marketing table.
+The mapping used: `Name → Full Name`, `Job title → Job Title`, `Company Name → Company`,
+`LinkedIn → LinkedIn Handle`, `Attachments → Profile Picture` (copied by URL — the source URLs are
+signed and expire in ~2h, so the write has to run in one go), `Hierarchy → Hierarchy` (whole numbers
+only), `Role ` → the new `Role` select after trimming its trailing space, plus `Project Name` and
+`Session Name` = "Future of Fintech".
 
-## Open questions (asked, unanswered)
-
-1. **Sander.** Add a second row under Future of Fintech, or repoint his existing Event Room 3 row?
-   Recommended: add the row, leave his alone — Event Room 3 with Flatpay reads as a real separate
-   booking.
-2. **Roles have nowhere to go.** The destination has no role field, so Erika Eliasson Ekberger and
-   Sara Sjølin (both moderators) and Sander (keynote) would look like plain speakers. Append to
-   Session Name ("Future of Fintech · Moderator"), or drop the role?
-3. **Explicit go-ahead to write 13 records** into a live CRM. Not run.
+Auri added the `Role` singleSelect (Speaker / Moderator) to the target mid-task, which is what made
+the roles carryable — before that there was nowhere to put "Moderator".
 
 Gotcha found on the way: Sander's `Hierarchy` in the source table is the TEXT "Keynote Speaker" while
 the destination `Hierarchy` is numeric, so that one cell arrives empty whatever we decide.
