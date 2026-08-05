@@ -83,11 +83,20 @@ export async function GET(req: NextRequest) {
     ...val(nassR)
       .filter((p) => p.role === "Speaker")
       .map((p) => ({ ...p, tag: "Event Room 2" })),
-    ...val(roomsR).map((p) => ({ ...p, tag: p.room ?? p.host })),
+    // The tag is where a presenter booked by two partners shows BOTH: the feeds merge them into
+    // one person (lib/eventrooms.ts), and this is the line that says where they speak. Rooms are
+    // preferred over hosts, since a room number is what a visitor navigates by, but a presenter
+    // with only one room assigned of two falls back to naming the partners.
+    ...val(roomsR).map((p) => ({
+      ...p,
+      tag: p.rooms.length === p.hosts.length ? p.rooms.join(" · ") : p.hosts.join(" · "),
+    })),
   ].sort((a, b) => a.name.localeCompare(b.name));
+  // Same for an investor speaking at two of the three events (Yoram Wijngaarde, LP Forum and the
+  // Pension & Insurance Summit): one card, both events named.
   const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({
     ...p,
-    tag: INVESTOR_TAGS[p.event] ?? p.event,
+    tag: p.events.map((e) => INVESTOR_TAGS[e] ?? e).join(" · ") || p.event,
   }));
 
   if ([hubR, nissR, nassR, roomsR, invR].every((r) => r.status === "rejected")) {

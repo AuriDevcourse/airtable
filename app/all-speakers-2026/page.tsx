@@ -60,6 +60,12 @@ type FeedPerson = {
   // and the assigned room label ("Event Room 1".."6") once marketing sets it.
   host?: string;
   room?: string | null;
+  // ONE PERSON, ONE CARD. Somebody speaking in two places is merged by the feed, and these carry
+  // everywhere they speak — two partners' event rooms, or two investor events. The singular fields
+  // above stay as the primary. Optional because an older cached payload will not have them.
+  hosts?: string[];
+  rooms?: string[];
+  events?: string[];
 };
 
 // What a card renders: a feed person plus which source it came from.
@@ -257,15 +263,30 @@ export default function AllSpeakers2026Page() {
       const fromNass: Card[] = (nass.data ?? [])
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "Event Room 2" }));
-      // Room label ("Event Room 1".."6") once known; the hosting partner until then.
-      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.room ?? p.host }));
+      // Room label ("Event Room 1".."6") once known; the hosting partner until then. A presenter
+      // booked by two partners is ONE card (the feed merges them) and names both places here,
+      // preferring rooms and falling back to partners when only some rooms are assigned.
+      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({
+        ...p,
+        tag:
+          p.rooms?.length && p.hosts?.length && p.rooms.length === p.hosts.length
+            ? p.rooms.join(" · ")
+            : p.hosts?.length
+              ? p.hosts.join(" · ")
+              : (p.room ?? p.host),
+      }));
       // Random order per page load (Auri's rule); nobody here is ranked.
       return shuffle([...fromNiss, ...fromNass, ...fromRooms]);
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
+    // One card per person here too: an investor at two of the three events names both.
     return (investors.data ?? []).map((p) => ({
       ...p,
-      tag: p.event ? INVESTOR_EVENT_LABELS[p.event] ?? p.event : undefined,
+      tag: p.events?.length
+        ? p.events.map((e) => INVESTOR_EVENT_LABELS[e] ?? e).join(" · ")
+        : p.event
+          ? INVESTOR_EVENT_LABELS[p.event] ?? p.event
+          : undefined,
     }));
   }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data, seed]);
 

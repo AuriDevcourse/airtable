@@ -36,6 +36,10 @@ type InvestorSpeaker = {
   photo: string | null;
   linkedin: string | null;
   event: string;
+  // Every event this person speaks at. One card per person, however many events they appear at —
+  // Yoram Wijngaarde is at both the LP Forum and the Pension & Insurance Summit and used to be two
+  // cards with two uploads of the same face. Optional so an older cached payload still renders.
+  events?: string[];
   // The API's Infinity (unranked) serializes to null in JSON.
   hierarchy: number | null;
 };
@@ -183,9 +187,13 @@ function InvestorsView() {
                       </div>
                     )}
                     <div className="s-card__overlay">
-                      {/* Show which event the person belongs to when viewing both. */}
-                      {event === "all" && p.event && (
-                        <span className="s-card__role">{eventLabel(p.event)}</span>
+                      {/* Which event, or events, the person speaks at — shown when the view is not
+                          already filtered to one. Someone at two of them gets both names on the one
+                          card rather than a second card. */}
+                      {event === "all" && (p.events?.length || p.event) && (
+                        <span className="s-card__role">
+                          {(p.events?.length ? p.events : [p.event]).map(eventLabel).join(" · ")}
+                        </span>
                       )}
                       <h3 className="s-card__name">{p.name}</h3>
                       <p className="s-card__meta">{meta}</p>
