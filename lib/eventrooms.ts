@@ -186,7 +186,18 @@ function roomFromHost(host: string): string | null {
   return null;
 }
 
-// Normalized person name → "Event Room N", from the marketing rows. A failure here
+// Which `Project Name` values count as a room assignment.
+//
+// This used to be `/^Event Room [1-6]$/`, a single digit, and the Policy Stage broke it: it runs
+// across rooms 5, 6 and 7, so marketing added an "Event Room 5,6,7" option and filed 31 people under
+// it (2026-08-05). Every one of them was silently dropped here and their cards fell back to reading
+// "Danish Entrepreneurs" — the partner's name where a room should be.
+//
+// A comma list is therefore first-class. Written loosely on the digits on purpose: the numbers are a
+// venue's business and a "7" or an "8" appearing next year must not need a code change to be seen.
+const ROOM_PROJECT = /^Event Room \d+(\s*,\s*\d+)*$/;
+
+// Normalized person name → the room label, from the marketing rows. A failure here
 // only loses the room labels (cards fall back to the host name), never the people.
 async function fetchRoomAssignments(): Promise<Map<string, string>> {
   const rooms = new Map<string, string>();
@@ -218,7 +229,7 @@ async function fetchRoomAssignments(): Promise<Map<string, string>> {
     for (const rec of data.records) {
       const name = str(rec.fields["Full Name"]).toLowerCase().replace(/\s+/g, " ");
       const project = str(rec.fields["Project Name"]);
-      if (name && /^Event Room [1-6]$/.test(project)) rooms.set(name, project);
+      if (name && ROOM_PROJECT.test(project)) rooms.set(name, project);
     }
     offset = data.offset;
   } while (offset);
