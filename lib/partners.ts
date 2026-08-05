@@ -260,6 +260,11 @@ const LOGO_SCALE: Record<string, number> = {
   IDA: 1.8,
   Nordea: 1.71, // "Nordea Startup & Growth" — lots of internal whitespace in the file
   "Terkko Health Hub": 1.44,
+  // Zero internal margin, so the area rule shrinks it to 0.83 while padded neighbours get grown —
+  // the honest file ends up the smallest on the row (Auri: "slightly bit" too small). 1.19 brings the
+  // final scale to 0.99, which is still inside `contain`, so no pixel crops; the ceiling here is
+  // 1/0.83 = 1.20, past which it would.
+  "Business region Gothenburg AKA Gothenburg": 1.19,
   Copenhagen: 1.38,
   "Gothenburg Tech Week": 1.31,
   "Adeo Web": 1.29,

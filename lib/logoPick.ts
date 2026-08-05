@@ -45,8 +45,25 @@ const DARK_HINT = /(^|[^a-z])(black|nero|noir|negro|schwarz|sort|dark)([^a-z]|$)
 // purpose: "logo white high res.svg" should still win on its "white", so this only decides ties.
 const PRINT_HINT = /(^|[^a-z])(high[\s_-]?res|hi[\s_-]?res|print|cmyk|original)([^a-z]|$)/i;
 
+// MEASURED DUDS: files that win on their name and lose on their content.
+//
+// Microsoft Danmark's cell holds four files. `white-Microsoft White.svg` takes the white hint and wins,
+// and it is white — but its artwork covers 8% of its own canvas, so the mark renders tiny inside a
+// mostly empty box. `Micro.svg` beside it is equally white with 43% ink, five times the drawing, and
+// scored lower purely because nobody put "white" in its name (measured 2026-08-05, Auri: "Microsoft's
+// logo is too small, I uploaded a new one").
+//
+// Keyed on the FILENAME rather than the company, and that is deliberate: lib/photo.ts serves the bytes
+// and calls this function with no idea which company it is looking at. A preference the feed knew and
+// the proxy did not would point ?v= at one file while serving another — the exact trap in the header
+// above. A filename is all both callers have in common.
+//
+// Deleting the file in Airtable is the better fix, and then the entry here harmlessly matches nothing.
+const DEMOTED_FILES = new Set(["white-Microsoft White.svg"]);
+
 function score(a: LogoAttachment): number {
   const name = a.filename ?? "";
+  if (DEMOTED_FILES.has(name)) return -100;
   let s = 0;
   // SVG outranks a raster even one named "white", because in this dataset the SVGs ARE the
   // white set: Auri exported them specifically for this wall and every one is fill:#fff.
