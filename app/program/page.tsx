@@ -15,7 +15,102 @@ type Session = {
   type: string;
   description: string;
   room: string;
+  // WHO IS ON STAGE, for a hand-typed programme. Only the Policy Stage feed carries this today.
+  // The dashboard renders it because a preview that omits what the embed shows is not a preview —
+  // Auri looked at this tab, saw no faces, and reasonably reported the pictures as broken.
+  onStage?: {
+    speakers: { name: string; meta: string; photo: string | null }[];
+    moderators: { name: string; meta: string; photo: string | null }[];
+  };
 };
+
+/** One name on a hand-typed programme, as the feed serves it. */
+type OnStagePersonData = { name: string; meta: string; photo: string | null };
+
+/** One person under a session: face, name, then title in the muted colour. Mirrors the embed. */
+function OnStagePerson({ p }: { p: OnStagePersonData }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {p.photo ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={p.photo}
+          alt=""
+          loading="lazy"
+          style={{
+            flex: "none",
+            width: 34,
+            height: 34,
+            borderRadius: 9999,
+            objectFit: "cover",
+            // Headshots crop badly at 50% 50% — the same 30% the rest of the repo uses.
+            objectPosition: "50% 30%",
+            background: "var(--color-card-2)",
+          }}
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          style={{
+            flex: "none",
+            width: 34,
+            height: 34,
+            borderRadius: 9999,
+            display: "grid",
+            placeItems: "center",
+            background: "var(--color-card-2)",
+            fontFamily: "var(--font-heading)",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "var(--color-orange, #fa7000)",
+          }}
+        >
+          {p.name.trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span style={{ minWidth: 0, fontSize: 14, lineHeight: 1.35 }}>
+        <strong style={{ fontWeight: 600 }}>{p.name}</strong>
+        {p.meta && <span style={{ color: "var(--color-muted)" }}>, {p.meta}</span>}
+      </span>
+    </div>
+  );
+}
+
+/** Moderator first, then speakers — the order a reader wants on a panel of four. */
+function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
+  const groups: [string, OnStagePersonData[]][] = [
+    [st.moderators.length > 1 ? "Moderators" : "Moderator", st.moderators],
+    [st.speakers.length > 1 ? "Speakers" : "Speaker", st.speakers],
+  ];
+  return (
+    <>
+      {groups.map(([label, list]) =>
+        list.length === 0 ? null : (
+          <div key={label}>
+            <p
+              style={{
+                margin: "14px 0 6px",
+                fontFamily: "var(--font-heading)",
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--color-muted)",
+              }}
+            >
+              {label}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {list.map((p) => (
+                <OnStagePerson key={p.name} p={p} />
+              ))}
+            </div>
+          </div>
+        )
+      )}
+    </>
+  );
+}
 
 // This page is the PROJECT programs: NISS and Future of Fintech, each read from the program
 // view its own team fills inside its own Airtable table.
@@ -235,6 +330,7 @@ export default function ProgramPage() {
                           {s.description}
                         </p>
                       )}
+                      {s.onStage && <OnStage st={s.onStage} />}
                     </div>
                   </article>
                 ))}

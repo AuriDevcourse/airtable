@@ -31,23 +31,33 @@ export type AgendaOptions = {
 
 // Everything that differs between the two looks lives here.
 const THEMES = {
+  // THE TECHBBQ FIRE GRADIENT, not a flat orange (Auri, 2026-08-05). Same three stops as
+  // .text-tbbq-gradient in app/globals.css — orange to red — so the embed on techbbq.dk matches the
+  // brand rather than approximating it with #ff6a2b.
+  //
+  // `acc` stays a SOLID for the things a gradient cannot paint: an SVG stroke and the note's dot.
+  // #ff2600 is the gradient's middle stop, so those sit inside the same range instead of beside it.
   orange: {
     ink: "#f2f2f2",
     muted: "#9a9a9c",
-    acc: "#ff6a2b",
-    tagInk: "#ff6a2b",
-    tagBorder: "rgba(255,106,43,.5)",
-    border: "rgba(255,106,43,.45)",
-    glow: "rgba(255,106,43,.08)",
+    acc: "#ff2600",
+    grad: "linear-gradient(120deg,#fa7000 0%,#ff2600 45%,#ce0f2e 100%)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(255,38,0,.45)",
+    glow: "rgba(255,38,0,.10)",
     bg: "transparent",
     rowBorder: "rgba(255,255,255,.09)",
     time: "#d8d0c7",
     noteInk: "#cfc6bd",
   },
+  // Fintech keeps its flat blue. `grad` is a single-stop "gradient" so the shared CSS below can use
+  // one variable unconditionally — background-clip:text over a solid paints exactly the solid.
   blue: {
     ink: "#F1F5F9",
     muted: "#94A3B8",
     acc: "#2563EB",
+    grad: "linear-gradient(120deg,#2563EB,#2563EB)",
     tagInk: "#93C5FD",
     tagBorder: "rgba(37,99,235,.55)",
     border: "rgba(37,99,235,.45)",
@@ -92,16 +102,22 @@ export function buildAgendaSnippet({
 <section id="${id}" class="tbbq-agenda"><p class="tbbq-agenda__loading">Loading…</p></section>
 
 <style>
-  #${id}.tbbq-agenda{--fg:${t.ink};--muted:${t.muted};--acc:${t.acc};font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid ${t.border};border-radius:24px;padding:clamp(20px,4vw,44px);background:${t.bg};box-shadow:0 0 45px ${t.glow},inset 0 0 60px rgba(0,0,0,.3);color:var(--fg)}
+  #${id}.tbbq-agenda{--fg:${t.ink};--muted:${t.muted};--acc:${t.acc};--grad:${t.grad};font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid ${t.border};border-radius:24px;padding:clamp(20px,4vw,44px);background:${t.bg};box-shadow:0 0 45px ${t.glow},inset 0 0 60px rgba(0,0,0,.3);color:var(--fg)}
   #${id} .tbbq-agenda__loading{color:var(--muted);margin:0}
-  #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;color:var(--acc);text-shadow:0 0 26px ${t.glow};margin:2px 6px 16px}
+  /* The date heading is PAINTED with the gradient, not coloured. background-clip:text needs a
+     transparent fill, and the -webkit- prefix stays for Safari. text-shadow cannot apply to clipped
+     text (it would draw behind the glyphs and show through), so the glow moves to a drop-shadow. */
+  #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 26px ${t.glow});margin:2px 6px 16px}
   #${id} .tbbq-agenda__date:not(:first-child){margin-top:34px}
   #${id} .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:${t.noteInk};border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
-  #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background:var(--acc)}
+  #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background-image:var(--grad)}
   #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
   #${id} .tbbq-agenda__row:last-child{border-bottom:0}
   #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
-  #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
+  /* The type pill is FILLED with the gradient. An outlined gradient pill needs a solid padding-box to
+     sit on, and this panel is deliberately transparent so it inherits whatever the WordPress page puts
+     behind it — a filled pill needs no such assumption. */
+  #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};background-image:var(--grad);border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
   #${id} .tbbq-agenda__title{font-family:"Onest",sans-serif;font-weight:600;font-size:19px;line-height:1.3;color:var(--fg)}
   #${id} .tbbq-agenda__title--big{font-size:26px;font-weight:700;letter-spacing:-.01em}
   #${id} .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
