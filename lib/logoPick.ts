@@ -34,6 +34,17 @@ const WHITE_HINT =
 // ...and for the dark variant, so a black file that happens to sort last never wins.
 const DARK_HINT = /(^|[^a-z])(black|nero|noir|negro|schwarz|sort|dark)([^a-z]|$)/i;
 
+// THE PRINT ORIGINAL, which is nobody's web export.
+//
+// Embankment's cell holds `embankment-logo high res.svg` (measured luminance 19, near-black) and
+// `Embankment.svg` (255, perfect). Both are SVG, neither names its colour, so they scored the same and
+// the tie fell to upload order — putting a black mark on a #0d0d0d wall (2026-08-05).
+//
+// A file announcing itself as high-res, print or CMYK is the artwork sent to a printer, and in this
+// dataset that is reliably the colour or black one. It is a WEAKER signal than the colour words, on
+// purpose: "logo white high res.svg" should still win on its "white", so this only decides ties.
+const PRINT_HINT = /(^|[^a-z])(high[\s_-]?res|hi[\s_-]?res|print|cmyk|original)([^a-z]|$)/i;
+
 function score(a: LogoAttachment): number {
   const name = a.filename ?? "";
   let s = 0;
@@ -46,6 +57,9 @@ function score(a: LogoAttachment): number {
   if (WHITE_HINT.test(name)) s += 4;
   // ...and demotes the dark twin, so Rilemo's logotipo_nero.svg never beats logotipo_bianco.
   if (DARK_HINT.test(name)) s -= 4;
+  // Weaker than the colour words by design: it breaks a tie between two files that look identical to
+  // the scorer, and never overrides an explicit "white".
+  if (PRINT_HINT.test(name)) s -= 2;
   return s;
 }
 
