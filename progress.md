@@ -72,6 +72,21 @@ Data calls made, worth not re-litigating:
 "Event Room 6". Checked afterwards: **zero rows lost their Project Name**, because nothing was filed
 under either removed option. (Deleting a select option DOES clear its cells, so check this every time.)
 
+### 37 rows → 31 people, and one real duplicate
+
+Asked why not 37. Four people submitted more than once, six extra rows: **Peter Kofler ×4** (Opening
+Remarks, the Engel-Schmidt fireside, the 28th Regime panel, the CLOUD Act panel), **Stina Lantz ×2**,
+**Peter van Sabben ×2**, **Steffen Helledie ×2**.
+
+**Steffen Helledie's two rows are the SAME panel** ("Entrepreneurship Package 2.0"), submitted twice
+with slightly different job titles — a genuine duplicate in the form data, not a second appearance.
+Worth cleaning at the source.
+
+**OPEN DECISION.** The 31 rows all carry `Session Name = "Policy Stage"`, so per-panel detail is not in
+the CRM. The alternative is one row per PANEL — 36 rows, `Session Name` = the panel title — which would
+put the programme in the CRM at the cost of four Peter Kofler rows. Would mean deleting the 31 and
+re-importing. Auri has not chosen; option 1 (leave at 31) is the current state.
+
 ## OPEN · the Policy Stage people are not on the website's Event Room tab
 
 Same cause as Ken: `lib/eventrooms.ts` publishes the overflow rows it reads itself, but the CRM copy is
