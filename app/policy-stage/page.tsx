@@ -7,7 +7,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
-// THE POLICY LOUNGE — the Policy Stage roster, which runs across Event Rooms 5, 6 and 7.
+// THE POLICY STAGE — the Policy Stage roster, which runs across Event Rooms 5, 6 and 7.
 //
 // Built on the same three parts every project page here has: a role tab switcher, a copy-embed button
 // for the Elementor widget, and a refresh that forces a live Airtable read. Modelled on
@@ -15,7 +15,7 @@ import { CopyEmbed } from "@/components/CopyEmbed";
 //
 // Roles are CURATED, not submitted: the overflow form the people arrive through never asks, so Auri
 // filled the Role column by hand. A row with no role is not published and is named in the server log
-// — see lib/policylounge.ts.
+// — see lib/policystage.ts.
 
 // Same per-image shimmer loader as the other feed pages: state lives here so parent re-renders
 // (SWR revalidation) cannot reset it back to shimmering.
@@ -54,15 +54,15 @@ const ROLES: { value: string; label: string }[] = [
   { value: "Moderator", label: "Moderators" },
 ];
 
-export default function PolicyLoungePage() {
+export default function PolicyStagePage() {
   const [role, setRole] = useState("Speaker");
 
   // `base` is the public URL a snippet may carry; `url` is what this page fetches and what the
   // refresh button turns into an authenticated live read. Never put ?fresh= in a snippet.
-  const base = `/api/policy-lounge?role=${encodeURIComponent(role)}`;
+  const base = `/api/policy-stage?role=${encodeURIComponent(role)}`;
   const { url, refresh } = useFreshUrl(base);
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
-    useCachedList<PolicyPerson>(`policy-lounge:${role}`, url, "people");
+    useCachedList<PolicyPerson>(`policy-stage:${role}`, url, "people");
   const people = data ?? [];
 
   const label = ROLES.find((r) => r.value === role)?.label ?? role;
@@ -74,11 +74,11 @@ export default function PolicyLoungePage() {
         <div className="wrap hero__inner">
           <p className="eyebrow">Policy Stage · Event Rooms 5, 6 &amp; 7</p>
           <h1>
-            The Policy <span className="text-tbbq-gradient">Lounge</span>
+            The Policy <span className="text-tbbq-gradient">Stage</span>
           </h1>
           <p className="lede">
             Live from Airtable · the Policy Stage roster, ministers, MEPs and ecosystem leaders ·
-            served as JSON at <code>/api/policy-lounge</code> (add <code>?role=Moderator</code>, or{" "}
+            served as JSON at <code>/api/policy-stage</code> (add <code>?role=Moderator</code>, or{" "}
             <code>?role=all</code> for everyone).
           </p>
 
@@ -117,7 +117,7 @@ export default function PolicyLoungePage() {
               onRefresh={refresh}
               changes={changes}
               error={revalidateError}
-              resetKey={`policy-lounge:${role}`}
+              resetKey={`policy-stage:${role}`}
             />
           </div>
         </div>

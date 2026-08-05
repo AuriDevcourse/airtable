@@ -1,17 +1,17 @@
 import { NextRequest } from "next/server";
-import { fetchPolicyLounge, POLICY_ROLES, PolicyRole } from "@/lib/policylounge";
+import { fetchPolicyStage, POLICY_ROLES, PolicyRole } from "@/lib/policystage";
 import { cached, invalidate } from "@/lib/rate-limit";
 import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
 import { feedTtlMs } from "@/lib/cachePolicy";
 
-// THE POLICY LOUNGE feed: the Policy Stage roster, from the Marketing Project Overview rows filed
-// under Project Name "Event Room 5,6,7". See lib/policylounge.ts for where the people come from.
+// THE POLICY STAGE feed: the Policy Stage roster, from the Marketing Project Overview rows filed
+// under Project Name "Event Room 5,6,7". See lib/policystage.ts for where the people come from.
 
 export const dynamic = "force-dynamic";
 
 export const OPTIONS = corsPreflight;
 
-const KEY = "policy-lounge";
+const KEY = "policy-stage";
 
 // ?role=Speaker | Moderator | all
 //
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // One Airtable read serves every variant: the lib returns both roles and the filter happens
     // after the cache, the same way ?tier=, ?kind= and ?stage= work elsewhere.
-    const all = await cached(KEY, fetchPolicyLounge, feedTtlMs());
+    const all = await cached(KEY, fetchPolicyStage, feedTtlMs());
     const people = role === "all" ? all : all.filter((p) => p.role === role);
 
     // `counts` lets the dashboard label its tabs without a request per tab.
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
     return feedResponse({ count: people.length, role, counts, people }, gate);
   } catch (err) {
-    console.error("[/api/policy-lounge]", err);
-    return errorResponse(err, "Something went wrong loading the Policy Lounge.", gate);
+    console.error("[/api/policy-stage]", err);
+    return errorResponse(err, "Something went wrong loading the Policy Stage.", gate);
   }
 }

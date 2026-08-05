@@ -1,4 +1,4 @@
-// Server-only access to THE POLICY LOUNGE roster.
+// Server-only access to THE POLICY STAGE roster.
 //
 // Source: Marketing Project Overview (`tblTecOBecLQCNIeD`), the rows whose `Project Name` is
 // "Event Room 5,6,7" — the Policy Stage runs across rooms 5, 6 and 7, which is why that option
@@ -31,7 +31,7 @@ const TABLE = "tblTecOBecLQCNIeD"; // Marketing Project Overview
 // The `Project Name` single-select option. Written out rather than pattern-matched: the Policy Stage
 // is this one value, and a looser match would sweep in Event Room 5 (a different room with its own
 // sessions, Scaling Europe and Creative Business Cup).
-export const POLICY_LOUNGE_PROJECT = "Event Room 5,6,7";
+export const POLICY_STAGE_PROJECT = "Event Room 5,6,7";
 
 // The wide Marketing table can be slow to scan, like the investor and main-page fetches.
 const TIMEOUT_MS = 10_000;
@@ -52,7 +52,7 @@ const SAFE_FIELDS = [
 export const POLICY_ROLES = ["Speaker", "Moderator"] as const;
 export type PolicyRole = (typeof POLICY_ROLES)[number];
 
-export type PolicyLoungePerson = {
+export type PolicyStagePerson = {
   id: string;
   name: string;
   title: string;
@@ -69,7 +69,7 @@ export type PolicyLoungePerson = {
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
 
-export class PolicyLoungeError extends Error {
+export class PolicyStageError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -77,9 +77,9 @@ export class PolicyLoungeError extends Error {
   }
 }
 
-export async function fetchPolicyLounge(): Promise<PolicyLoungePerson[]> {
+export async function fetchPolicyStage(): Promise<PolicyStagePerson[]> {
   if (!TOKEN || !BASE_ID) {
-    throw new PolicyLoungeError("Airtable env vars are not set on the server.", 503);
+    throw new PolicyStageError("Airtable env vars are not set on the server.", 503);
   }
 
   const records: AirtableRecord[] = [];
@@ -88,7 +88,7 @@ export async function fetchPolicyLounge(): Promise<PolicyLoungePerson[]> {
   do {
     const params = new URLSearchParams();
     // Filtered server-side on the project, so a 3k-row table never lands in memory here.
-    params.set("filterByFormula", `{Project Name}="${POLICY_LOUNGE_PROJECT}"`);
+    params.set("filterByFormula", `{Project Name}="${POLICY_STAGE_PROJECT}"`);
     params.set("pageSize", "100");
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
@@ -101,8 +101,8 @@ export async function fetchPolicyLounge(): Promise<PolicyLoungePerson[]> {
 
     if (!res.ok) {
       const detail = await res.text();
-      console.error("[policy-lounge] fetch failed", res.status, detail);
-      throw new PolicyLoungeError("Could not reach the Policy Lounge source.", 502);
+      console.error("[policy-stage] fetch failed", res.status, detail);
+      throw new PolicyStageError("Could not reach the Policy Stage source.", 502);
     }
 
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
@@ -110,7 +110,7 @@ export async function fetchPolicyLounge(): Promise<PolicyLoungePerson[]> {
     offset = data.offset;
   } while (offset);
 
-  const people: PolicyLoungePerson[] = [];
+  const people: PolicyStagePerson[] = [];
   const unknownRole: string[] = [];
   const incomplete: string[] = [];
 
@@ -148,12 +148,12 @@ export async function fetchPolicyLounge(): Promise<PolicyLoungePerson[]> {
 
   if (incomplete.length) {
     console.info(
-      `[policy-lounge] ${incomplete.length} row(s) have no photo and are not published: ${incomplete.join(", ")}`
+      `[policy-stage] ${incomplete.length} row(s) have no photo and are not published: ${incomplete.join(", ")}`
     );
   }
   if (unknownRole.length) {
     console.info(
-      `[policy-lounge] ${unknownRole.length} row(s) are not published because their Role is not ` +
+      `[policy-stage] ${unknownRole.length} row(s) are not published because their Role is not ` +
         `Speaker or Moderator: ${unknownRole.join(", ")}`
     );
   }

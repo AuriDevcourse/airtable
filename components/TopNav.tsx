@@ -39,7 +39,7 @@ const MENU: MenuGroup[] = [
       { href: "/niss", label: "NISS 2026" },
       { href: "/nass", label: "NASS 2026" },
       { href: "/fintech-speakers", label: "Fintech Speakers" },
-      { href: "/policy-lounge", label: "The Policy Lounge" },
+      { href: "/policy-stage", label: "The Policy Stage" },
       { href: "/niss-2025", label: "NISS 2025" },
     ],
   },
