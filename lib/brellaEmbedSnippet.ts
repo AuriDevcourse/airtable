@@ -28,6 +28,11 @@ import {
   type BrellaSection,
 } from "@/lib/brellaSections";
 import {
+  BREATHWORK_COLOR,
+  BREATHWORK_ICON_PATHS,
+  BREATHWORK_LABEL,
+  BREATHWORK_NOTE,
+  BREATHWORK_RE,
   DEFAULT_TRACK_COLOR,
   HOST_ICON_PATHS,
   SECTION_COLORS,
@@ -62,6 +67,16 @@ export type BrellaEmbedOptions = {
 const PX_PER_MIN = 3;
 const SLOT_MIN = 30;
 const MIN_CARD_PX = 26;
+// Breathwork gets its own floor and always wins the overlap. A break is three minutes, which is
+// 9px of axis: too small for a label, and under the 24px target size WCAG 2.2 asks of anything you
+// can press. So it is floored to 24 and drawn IN FRONT of its neighbours, because a break that is
+// behind one card and in front of the next is worse than a small one (Auri, 2026-08-05). Drawing
+// on top would hide the following talk's heading — the talk starts the same minute the break ends
+// — so the overlap is measured and that card's text is pushed down past it (see `clearances`
+// below). Kept identical to the dashboard's BREATH_MIN_PX / BREATH_CLEARANCE_PX in
+// app/brella-program/page.tsx: the preview and the pasted embed have to agree.
+const BREATH_MIN_PX = 24;
+const BREATH_CLEARANCE_PX = 3;
 
 export function buildBrellaEmbedSnippet({
   section,
@@ -226,6 +241,24 @@ export function buildBrellaEmbedSnippet({
   /* Short but not tiny: keep the title and the time, drop the faces. */
   #${id} .tbbq-bp__ev[data-tight] .tbbq-bp__evWho{display:none!important}
 
+  /* ── BREATHWORK ── A break is 3 minutes, so its card is the 26px floor: the smallest thing on
+     the board. --track is already violet by the time it lands here (sessionVars), so these rules
+     only add WEIGHT — a stronger fill and a full violet edge instead of the 3px top rule every
+     other card carries — so the eye finds it despite the size. */
+  #${id} .tbbq-bp__ev[data-breathwork]{border:1px solid color-mix(in srgb,var(--track) 55%,transparent)!important;border-top:3px solid var(--track)!important;background:color-mix(in srgb,var(--track) 26%,var(--card))!important;box-shadow:0 2px 10px rgba(0,0,0,.55)!important}
+  #${id} button.tbbq-bp__ev[data-breathwork]:hover{background:color-mix(in srgb,var(--track) 40%,var(--card))!important}
+  /* A 24px card would otherwise keep the 6px top padding and clip its own single line. */
+  #${id} .tbbq-bp__ev[data-breathwork][data-compact]{padding-top:2px!important;padding-bottom:2px!important}
+  #${id} .tbbq-bp__evTitle .tbbq-bp__bicon{display:inline-block!important;vertical-align:-2px!important;margin-right:4px!important;color:var(--track)!important}
+  /* The pill on a list card and in the dialog: a label, not a button somebody forgot to wire up. */
+  #${id} .tbbq-bp__breath{display:inline-flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:3px 9px!important;border-radius:9999px!important;background:color-mix(in srgb,${BREATHWORK_COLOR} 20%,transparent)!important;color:${BREATHWORK_COLOR}!important;font-family:var(--head)!important;font-size:10.5px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.4!important}
+  /* Said once above the sessions. Not a warning box: nothing is wrong, this is a signpost. */
+  #${id} .tbbq-bp__bnote{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 16px!important;padding:10px 14px!important;border:0!important;border-left:3px solid ${BREATHWORK_COLOR}!important;border-radius:0 8px 8px 0!important;background:color-mix(in srgb,${BREATHWORK_COLOR} 10%,var(--card))!important;color:var(--fg)!important;font-family:var(--sans)!important;font-size:13px!important;font-weight:400!important;line-height:1.45!important;text-transform:none!important}
+  #${id} .tbbq-bp__bnote .tbbq-bp__bicon{flex:0 0 auto!important;color:${BREATHWORK_COLOR}!important}
+  #${id} .tbbq-bp__bdim{color:var(--muted)!important}
+  /* Shows the colour it is talking about, so the sentence is not asking to be taken on trust. */
+  #${id} .tbbq-bp__bswatch{display:inline-block!important;padding:0 6px!important;border-radius:3px!important;background:${BREATHWORK_COLOR}!important;color:#16121f!important;font-weight:700!important}
+
   /* ── CARD LIST (event rooms, side events) ── */
   #${id} .tbbq-bp__daylabel{margin:26px 0 12px!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
   #${id} .tbbq-bp__grid{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:14px!important}
@@ -372,9 +405,18 @@ export function buildBrellaEmbedSnippet({
   var SECTION_COLORS=${JSON.stringify(SECTION_COLORS)};
   var ICONS=${JSON.stringify(STAGE_ICON_PATHS)};
   var HOST_ICON=${JSON.stringify(HOST_ICON_PATHS)};
+  /* Breathwork breaks: violet, badged, and explained once above the board. They are the
+     shortest sessions on the programme and so the smallest cards, which is the opposite of
+     how important they are — see lib/brellaTheme.ts. */
+  var BREATH_RX=new RegExp(${JSON.stringify(BREATHWORK_RE)},"i");
+  var BREATH_COLOR=${JSON.stringify(BREATHWORK_COLOR)};
+  var BREATH_LABEL=${JSON.stringify(BREATHWORK_LABEL)};
+  var BREATH_NOTE=${JSON.stringify(BREATHWORK_NOTE)};
+  var BREATH_ICON=${JSON.stringify(BREATHWORK_ICON_PATHS)};
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
   var EVENT_YEAR=${EVENT_YEAR};
   var PX=${PX_PER_MIN},SLOT=${SLOT_MIN},MINCARD=${MIN_CARD_PX};
+  var BREATH_MIN=${BREATH_MIN_PX},BREATH_CLEAR=${BREATH_CLEARANCE_PX};
 
   /* Rebuilt here because a RegExp cannot survive JSON. */
   function compile(defs){return (defs||[]).map(function(c){return {label:c.label,rx:new RegExp(c.re,"i")};});}
@@ -393,8 +435,43 @@ export function buildBrellaEmbedSnippet({
      ("Rockstart", "Google"), which matches no track rule and would take the orange default
      instead of the red these are supposed to be. */
   function sessionVars(s){
+    /* Breathwork wins over both: the whole point of the violet is that it is NOT the colour of
+       whichever stage happens to host the break. */
+    if(isBreath(s))return "--track:"+BREATH_COLOR;
     var sc=s&&s.section?SECTION_COLORS[s.section]:null;
     return sc?("--track:"+sc):trackVars(s&&s.room);
+  }
+  /* Matched on the NAME: Brella leaves these sessions' type blank, and their track is a stage. */
+  function isBreath(s){return BREATH_RX.test(s&&s.name||"");}
+  function breathIcon(px){
+    return '<svg class="tbbq-bp__bicon" viewBox="0 0 24 24" width="'+px+'" height="'+px+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      +BREATH_ICON.map(function(d){return '<path d="'+d+'"/>';}).join("")+'</svg>';
+  }
+  /* The word as well as the mark. A colour on its own is a code the visitor has to learn, and a
+     colour-blind visitor never learns it. */
+  function breathBadge(){return '<span class="tbbq-bp__breath">'+breathIcon(12)+esc(BREATH_LABEL)+'</span>';}
+  /* Said once above the sessions rather than on all fourteen cards, and only when the view
+     actually holds one — otherwise it explains a mark nobody can see.
+     On the TIMELINE it does the real work: a three-minute break is drawn too small to hold a
+     label or to be a fair click target, so this line is the only place the board says what the
+     violet bands are, how many there are today, and who runs them. The facilitator is read off
+     the sessions, never typed here, so it cannot go stale when Brella changes. */
+  function breathNote(list,timeline){
+    var breaks=(list||[]).filter(isBreath);
+    if(!breaks.length)return "";
+    if(!timeline)return '<p class="tbbq-bp__bnote">'+breathIcon(14)+'<span>'+esc(BREATH_NOTE)+'</span></p>';
+    var who=[];
+    breaks.forEach(function(s){
+      (s.speakers||[]).forEach(function(p){
+        var n=p.company?(p.name+" ("+p.company+")"):p.name;
+        if(n&&who.indexOf(n)<0)who.push(n);
+      });
+    });
+    return '<p class="tbbq-bp__bnote">'+breathIcon(14)+'<span>'
+      +'<strong class="tbbq-bp__bswatch">Breathwork</strong> is the violet card \\u00b7 '
+      +esc(BREATH_NOTE.replace(/^Breathwork Break \\u00b7 /,""))
+      +' <span class="tbbq-bp__bdim">'+breaks.length+' today'+(who.length?esc(", led by "+who.join(" and ")):"")+'.</span>'
+      +'</span></p>';
   }
   function hostIcon(){
     return '<svg class="tbbq-bp__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
@@ -554,7 +631,8 @@ export function buildBrellaEmbedSnippet({
 
     var ticks=[];for(var t=from;t<=to;t+=SLOT)ticks.push(t);
 
-    var html="";
+    /* Above the board, not below it: it explains a mark the visitor is about to meet. */
+    var html=breathNote(mine,true);
     if(allday.length){
       html+='<div class="tbbq-bp__allday"><span class="tbbq-bp__alldayLabel">All day</span><div class="tbbq-bp__alldayList">'
         +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+sessionVars(s)+'">'+esc(s.name)+'</button>';}).join("")
@@ -623,28 +701,71 @@ export function buildBrellaEmbedSnippet({
         cluster.push({x:x,lane:lane,lanes:1});
       });
       flush();
-      placed.forEach(function(p){
-        var s=p.x.s;
-        var h=Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4);
-        var compact=h<46;
+
+      /* GEOMETRY FIRST, MARKUP SECOND, because the cards have to know about each other. A
+         breathwork break is floored to 24px over a 9px slot and drawn in front, so it lands on
+         the heading of the talk that starts the minute it ends. Measure that overlap here and the
+         covered card can start its text below the break instead of behind it.
+         Only a break covering another card's TOP is cleared: padding cannot clear a card's
+         middle, and no break in the schedule sits anywhere but between two sessions. */
+      var geo=placed.map(function(p){
+        var s=p.x.s,breath=isBreath(s);
+        return {
+          p:p,s:s,breath:breath,
+          top:(p.x.start-from)*PXN,
+          h:breath?Math.max(BREATH_MIN,(p.x.end-p.x.start)*PXN)
+                  :Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4),
+          pad:0
+        };
+      });
+      geo.forEach(function(band){
+        if(!band.breath)return;
+        var bl=band.p.lane/band.p.lanes,br=(band.p.lane+1)/band.p.lanes,bBot=band.top+band.h;
+        geo.forEach(function(o){
+          if(o===band||o.breath)return;
+          var ol=o.p.lane/o.p.lanes,or=(o.p.lane+1)/o.p.lanes;
+          if(bl>=or||ol>=br)return;               /* side by side, never touching */
+          if(band.top>o.top||bBot<=o.top)return;  /* does not cover its top edge */
+          o.pad=Math.max(o.pad,bBot-o.top+BREATH_CLEAR);
+        });
+      });
+
+      geo.forEach(function(g){
+        var s=g.s,p=g.p,h=g.h,breath=g.breath;
+        /* The padding costs the card room, so it counts against what the card can show:
+           otherwise a cleared card claims space for a time it has no room to print. */
+        var usable=h-g.pad;
+        var compact=usable<46;
         /* Between the two: enough room for the title and the time, not for a row of faces.
            78px is measured, not guessed: two lines of title (32) + the time (14) + the faces
            (16) + padding (12) is what a full card needs. */
-        var tight=!compact&&h<78;
+        var tight=!compact&&usable<78;
         /* Breathing room either side of every card, so one column's card does not run up
            against its neighbour (Auri, 2026-08-04). These columns are adjacent boxes with no
            channel of their own, so 12px a side gives the ~24px between cards that the dashboard
            gets from 8px plus its 8px grid gap — the preview and the pasted embed have to match.
            Tighter on a phone, where there is one column and the width is all text. */
         var INSET=narrow?6:12;
-        var st="position:absolute;top:"+((p.x.start-from)*PXN)+"px;height:"+h+"px;left:calc("+((p.lane*100)/p.lanes)+"% + "+INSET+"px);width:calc("+(100/p.lanes)+"% - "+(INSET*2)+"px);"+sessionVars(s);
+        var st="position:absolute;top:"+g.top+"px;height:"+h+"px;left:calc("+((p.lane*100)/p.lanes)+"% + "+INSET+"px);width:calc("+(100/p.lanes)+"% - "+(INSET*2)+"px);"+sessionVars(s)
+          /* ALWAYS in front: every card around a break is drawn taller than its own slot, so
+             without this the break is behind one and in front of the next. */
+          +(breath?";z-index:3":"")
+          /* !important on an INLINE style, which looks wrong and is not: this snippet's own
+             stylesheet sets "padding:6px 8px!important" on every card (and 3px on a compact one)
+             to survive an arbitrary WordPress theme, and a plain inline value loses to an
+             important declaration. Without this the clearance is silently dropped and the
+             heading goes back under the break. */
+          +(g.pad?";padding-top:"+g.pad+"px!important":"");
         var who=names(s.speakers,2);
-        var inner='<span class="tbbq-bp__evTitle">'+esc(firstWords(s.name,5))+'</span>'
+        /* The mark goes INSIDE the title rather than on a row of its own: a break's card is 24px
+           and a second row would push the title out of the box it has. */
+        var bAttr=breath?' data-breathwork="1"':'';
+        var inner='<span class="tbbq-bp__evTitle">'+(breath?breathIcon(12):'')+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
           +(who?'<span class="tbbq-bp__evWho">'+faces(s.speakers,2)+'<span class="tbbq-bp__evNames">'+esc(who)+'</span></span>':'');
         html+=hasDetail(s)
-          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
-          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
+          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
+          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
       });
       html+='</div>';
     });
@@ -661,12 +782,15 @@ export function buildBrellaEmbedSnippet({
     var byDay={},order=[];
     list.forEach(function(s){if(!byDay[s.day]){byDay[s.day]=[];order.push(s.day);}byDay[s.day].push(s);});
     order.sort(function(a,b){return dayNum(a)-dayNum(b);});
-    outEl.innerHTML=order.map(function(d){
+    outEl.innerHTML=breathNote(list)+order.map(function(d){
       var rows=byDay[d].slice().sort(function(a,b){return mins(a.timeSlot)-mins(b.timeSlot)||String(a.name).localeCompare(String(b.name));});
       return '<h3 class="tbbq-bp__daylabel">'+esc(dayLabel(d))+'</h3><div class="tbbq-bp__grid">'
         +rows.map(function(s){
           var sum=summary(s.speakers);
+          /* Above the title, where a kicker goes: it says what KIND of thing this is, which is
+             the question the violet is asking the visitor to notice. */
           var inner='<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
+            +(isBreath(s)?breathBadge():'')
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
             +venueLine(s)
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
@@ -748,6 +872,7 @@ export function buildBrellaEmbedSnippet({
     modal.innerHTML='<button type="button" class="tbbq-bp__close" aria-label="Close">'
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
       +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
+      +(isBreath(s)?breathBadge():'')
       +'<h2>'+esc(s.name)+'</h2>'
       +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?[("Hosted by "+s.room),s.location].filter(Boolean).join(" · "):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')

@@ -46,6 +46,40 @@ export const SECTION_COLORS: Record<string, string> = {
   side: "#CE0F2E",
 };
 
+// ─── BREATHWORK BREAKS ──────────────────────────────────────────────────────────────────
+// Fourteen guided breathing breaks run across the stages on 26 and 27 August, facilitated by
+// QuietSpace. Every one of them is 3 to 10 minutes long, and on a timeline where height means
+// duration that makes them the SMALLEST cards on the board — so by default the program reads
+// them as filler between the talks, which is backwards. They are one of the few things on the
+// schedule a visitor is meant to stop for.
+//
+// So they get their own accent instead of their stage's, plus a badge and a legend line. The
+// rule is the NAME, because Brella leaves their Session Type blank and their track is whichever
+// stage hosts them.
+//
+// Violet because nothing else in the palette is violet: orange, blue, yellow and green are all
+// spoken for by stages, and a fifth warm tint would just read as a sixth stage.
+export const BREATHWORK_RE = "breathwork";
+export const BREATHWORK_COLOR = "#B49BFF";
+export const BREATHWORK_LABEL = "Breathwork";
+// One line, shown once above the sessions rather than on every card.
+export const BREATHWORK_NOTE =
+  "Breathwork Break · a short guided reset on stage, open to everyone. Just stay in your seat and join in.";
+
+const BREATHWORK_RX = new RegExp(BREATHWORK_RE, "i");
+
+/** Whether a session is one of the breathwork breaks. Matched on the name — see above. */
+export function isBreathwork(s: { name?: string } | null | undefined): boolean {
+  return BREATHWORK_RX.test(s?.name || "");
+}
+
+// Lucide "wind". Reads as breath at 12px, where lungs and a heart both turn to mush.
+export const BREATHWORK_ICON_PATHS: string[] = [
+  "M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2",
+  "M9.6 4.6A2 2 0 1 1 11 8H2",
+  "M12.6 19.4A2 2 0 1 0 14 16H2",
+];
+
 // Lucide building-2, for the "Hosted by <partner>" line on a side event. Shared here rather
 // than written twice, for the same reason the stage icons are: the embed emits raw SVG strings
 // and cannot render the page's React component.
@@ -99,12 +133,20 @@ export function trackColor2(room: string): string | undefined {
   return COMPILED.find((t) => t.rx.test(room || ""))?.color2;
 }
 
-/** A session's accent: its section's colour when it declares one, else its track's. */
-export function sessionColor(s: { room: string; section?: string }): string {
+/**
+ * A session's accent: violet for a breathwork break, else its section's colour when it declares
+ * one, else its track's. Breathwork wins outright — the point of the violet is that it is not
+ * the colour of the stage it happens to be on.
+ */
+export function sessionColor(s: { room: string; section?: string; name?: string }): string {
+  if (isBreathwork(s)) return BREATHWORK_COLOR;
   return (s.section && SECTION_COLORS[s.section]) || trackColor(s.room);
 }
 
-/** Gradient second stop. A section colour is always flat, so this is track-only. */
-export function sessionColor2(s: { room: string; section?: string }): string | undefined {
+/** Gradient second stop. Breathwork and section colours are flat, so this is track-only. */
+export function sessionColor2(
+  s: { room: string; section?: string; name?: string }
+): string | undefined {
+  if (isBreathwork(s)) return undefined;
   return s.section && SECTION_COLORS[s.section] ? undefined : trackColor2(s.room);
 }

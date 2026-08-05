@@ -6,8 +6,12 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
 import {
+  BREATHWORK_ICON_PATHS,
+  BREATHWORK_LABEL,
+  BREATHWORK_NOTE,
   HOST_ICON_PATHS,
   STAGE_ICON_PATHS,
+  isBreathwork,
   sessionColor,
   sessionColor2,
   trackColor,
@@ -127,6 +131,19 @@ const PX_PER_MIN = 3;
 const SLOT_MIN = 30; // gridline interval
 // Floor for a card's height, so a three-minute session is still readable.
 const MIN_CARD_PX = 26;
+// BREATHWORK GETS ITS OWN FLOOR, AND IT ALWAYS WINS THE OVERLAP.
+//
+// A break runs 11:26-11:29, which is nine pixels of axis: too small to carry a label, and under
+// the 24px target size WCAG 2.2 asks of anything you can press. So it is floored to 24 and drawn
+// ON TOP of its neighbours — a break that is sometimes behind the card next to it and sometimes
+// in front of it is the one thing worse than a small break (Auri, 2026-08-05).
+//
+// Drawing on top would normally hide the next talk's heading, since that talk starts the same
+// minute the break ends. It does not, because layOutColumn() below measures the overlap and
+// pushes the covered card's text down past it. Nothing ends up underneath anything.
+const BREATH_MIN_PX = 24;
+// Clear of the band, plus a little air so the heading is not touching it.
+const BREATH_CLEARANCE_PX = 3;
 // Breathing room either side of every card, so one column's card does not run up against its
 // neighbour (Auri, 2026-08-04). With the grid's own 8px channel that makes ~24px between two
 // cards. It also separates overlapping sessions sharing a column, which used to touch.
@@ -282,6 +299,53 @@ function withLanes<T extends { start: number; end: number }>(items: T[]) {
 }
 
 type Placed = Session & { start: number; end: number };
+type Lane = Placed & { lane: number; lanes: number };
+
+/** A card's final geometry, once it knows about the cards around it. */
+type Laid = { s: Lane; top: number; h: number; breath: boolean; padTop: number };
+
+/**
+ * Geometry for one stage column, in one pass over the cards.
+ *
+ * It has to be one pass, because a breathwork break and the talk after it are the same minute of
+ * the clock: the break is floored to a height its slot does not pay for, is drawn on top, and so
+ * lands on the next card's heading. Rather than let it cover the heading, or lose the fight and
+ * hide behind the card, the covered card gets padding equal to the overlap and starts its text
+ * below the band.
+ *
+ * Only the TOP edge is handled. A band that fell in the middle of a card could not be cleared by
+ * padding, and no break in the schedule does that: every one of them sits between two sessions.
+ */
+function layOutColumn(placed: Lane[], from: number): Laid[] {
+  const laid: Laid[] = placed.map((s) => ({
+    s,
+    top: (s.start - from) * PX_PER_MIN,
+    h: isBreathwork(s)
+      ? Math.max(BREATH_MIN_PX, (s.end - s.start) * PX_PER_MIN)
+      : Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4),
+    breath: isBreathwork(s),
+    padTop: 0,
+  }));
+
+  // Horizontal extent as a fraction of the column, which is how the cards are positioned. Two
+  // cards in different lanes of the same cluster never touch, so they cannot need clearance.
+  const span = (x: Laid): [number, number] => [x.s.lane / x.s.lanes, (x.s.lane + 1) / x.s.lanes];
+
+  for (const band of laid) {
+    if (!band.breath) continue;
+    const [bandLeft, bandRight] = span(band);
+    const bandBottom = band.top + band.h;
+    for (const other of laid) {
+      if (other === band || other.breath) continue;
+      const [left, right] = span(other);
+      if (bandLeft >= right || left >= bandRight) continue; // side by side, never touching
+      const coversTop = band.top <= other.top && bandBottom > other.top;
+      if (!coversTop) continue;
+      other.padTop = Math.max(other.padTop, bandBottom - other.top + BREATH_CLEARANCE_PX);
+    }
+  }
+  return laid;
+}
 
 function StageTimeline({
   columns,
@@ -374,38 +438,53 @@ function StageTimeline({
           const mine = timed
             .filter((s) => (stageOf(s.room) ?? s.room) === col)
             .sort((a, b) => a.start - b.start || a.name.localeCompare(b.name));
-          const placed = withLanes(mine);
+          const laid = layOutColumn(withLanes(mine), from);
           return (
             <div key={col} className="bp-tl__col">
-              {placed.length === 0 && (
+              {laid.length === 0 && (
                 <p className="bp-tl__empty">
                   {/campfire/i.test(col) ? "Program coming soon" : "Nothing scheduled"}
                 </p>
               )}
-              {placed.map((s) => {
+              {laid.map(({ s, top, h, breath, padTop }) => {
                 const detail = hasDetail(s);
-                const h = Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4);
                 // Below ~46px there is only room for one line, so the card drops the time
-                // and the speaker count rather than showing three clipped half-lines.
-                const compact = h < 46;
+                // and the speaker count rather than showing three clipped half-lines. A card
+                // cleared past a breathwork band has that much less room, so the padding counts
+                // against it: otherwise the card claims space for a time it cannot show.
+                const usable = h - padTop;
+                const compact = usable < 46;
                 // Between the two: room for the title and time, not for a row of faces.
                 // 78px measured: 2 lines of title (32) + time (14) + faces (16) + padding (12).
-                const tight = !compact && h < 78;
+                const tight = !compact && usable < 78;
                 const style = {
                   ...sessionVars(s),
-                  top: (s.start - from) * PX_PER_MIN,
+                  top,
                   height: h,
                   // Inset on the CARD, not as padding on the column: padding cannot move an
                   // absolutely positioned child, which resolves against the padding box.
                   left: `calc(${(s.lane * 100) / s.lanes}% + ${CARD_INSET_PX}px)`,
                   width: `calc(${100 / s.lanes}% - ${CARD_INSET_PX * 2}px)`,
+                  // ALWAYS in front. A break is three minutes long and its neighbours are drawn
+                  // taller than their slots, so without this it is behind one card and in front
+                  // of the next depending on the order they happen to be in the DOM.
+                  ...(breath ? { zIndex: 3 } : {}),
+                  // Cleared past the band above it. Only the top is set, so the stylesheet keeps
+                  // the other three sides (including the tighter padding on a compact card).
+                  ...(padTop ? { paddingTop: padTop } : {}),
                 } as React.CSSProperties;
                 const names = shortNames(s.speakers);
                 const inner = (
                   <>
                     {/* Five words then an ellipsis. The full title is the element's title
                         attribute and the whole session is one click away. */}
-                    <span className="bp-tl__cardTitle">{firstWords(s.name)}</span>
+                    <span className="bp-tl__cardTitle">
+                      {/* Inside the title, not on a line of its own: a break's card is 24px tall
+                          because the session is three minutes long, and a second row would push
+                          the title out of the box it has. */}
+                      {breath && <BreathIcon />}
+                      {firstWords(s.name)}
+                    </span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
                     {names && (
                       <span className="bp-tl__cardMeta">
@@ -423,6 +502,7 @@ function StageTimeline({
                     style={style}
                     data-compact={compact ? "1" : undefined}
                     data-tight={tight ? "1" : undefined}
+                    data-breathwork={breath ? "1" : undefined}
                     title={s.name}
                     onClick={() => onOpen(s)}
                     aria-label={`${s.name} — show details`}
@@ -436,6 +516,7 @@ function StageTimeline({
                     style={style}
                     data-compact={compact ? "1" : undefined}
                     data-tight={tight ? "1" : undefined}
+                    data-breathwork={breath ? "1" : undefined}
                     title={s.name}
                   >
                     {inner}
@@ -494,6 +575,85 @@ function HostIcon() {
   );
 }
 
+/** Lucide wind, the breathwork mark. Paths shared with the embed via brellaTheme. */
+function BreathIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      className="bp-breath__icon"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {BREATHWORK_ICON_PATHS.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * The violet pill on a breathwork card. It carries the word as well as the icon: the colour
+ * alone is a code the visitor has to learn, and a colour-blind visitor never learns it.
+ */
+function BreathBadge() {
+  return (
+    <span className="bp-breath">
+      <BreathIcon />
+      {BREATHWORK_LABEL}
+    </span>
+  );
+}
+
+/**
+ * Said once, above the sessions, instead of on all fourteen cards. Rendered only when the
+ * current view actually contains a breathwork break, so it never explains a mark nobody can see.
+ */
+function BreathLegend({ sessions }: { sessions: Session[] }) {
+  if (!sessions.some(isBreathwork)) return null;
+  return (
+    <p className="bp-breathNote">
+      <BreathIcon size={14} />
+      <span>{BREATHWORK_NOTE}</span>
+    </p>
+  );
+}
+
+/**
+ * The timeline's version. A break's card is 24px, which fits the label and nothing else, so this
+ * line is where the board says how many breaks there are today and who runs them. The facilitator
+ * is read off the sessions rather than typed in here, so it cannot go stale when Brella changes.
+ */
+function BreathTimelineLegend({ sessions }: { sessions: Session[] }) {
+  const breaks = sessions.filter(isBreathwork);
+  if (!breaks.length) return null;
+  const who = [
+    ...new Set(
+      breaks.flatMap((s) =>
+        (s.speakers ?? []).map((p) => (p.company ? `${p.name} (${p.company})` : p.name))
+      )
+    ),
+  ];
+  return (
+    <p className="bp-breathNote">
+      <BreathIcon size={14} />
+      <span>
+        <strong className="bp-breathNote__swatch">Breathwork</strong> is the violet card ·{" "}
+        {BREATHWORK_NOTE.replace(/^Breathwork Break · /, "")}{" "}
+        <span className="bp-breathNote__dim">
+          {breaks.length} today
+          {who.length > 0 && `, led by ${who.join(" and ")}`}.
+        </span>
+      </span>
+    </p>
+  );
+}
+
 // A session is worth opening only if the dialog would show something the card does not:
 // the speaker list, a description long enough that the card's 3-line clamp hides part of it,
 // or a sign-up page. Making every card clickable would promise detail that half of them do
@@ -546,9 +706,13 @@ function VenueLine({ s }: { s: Session }) {
 
 function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }) {
   const detail = hasDetail(s);
+  const breath = isBreathwork(s);
   const body = (
     <>
       <p className="bp-card__time">{timeLabel(s)}</p>
+      {/* Above the title, where a kicker goes: it says what KIND of thing this is, which is
+          the question the violet is answering. */}
+      {breath && <BreathBadge />}
       <h3 className="bp-card__title">{s.name}</h3>
       <VenueLine s={s} />
       {s.description && <p className="bp-card__desc">{s.description}</p>}
@@ -565,7 +729,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
   // a div with onClick. That is what makes it keyboard-reachable and announced as pressable.
   if (!detail) {
     return (
-      <article className="bp-card" style={style}>
+      <article className="bp-card" style={style} data-breathwork={breath ? "1" : undefined}>
         {body}
       </article>
     );
@@ -575,6 +739,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
       type="button"
       className="bp-card bp-card--open"
       style={style}
+      data-breathwork={breath ? "1" : undefined}
       onClick={() => onOpen(s)}
       aria-label={`${s.name} — show details`}
     >
@@ -692,6 +857,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
         </button>
 
         <p className="bp-modal__time">{timeLabel(s)}</p>
+        {isBreathwork(s) && <BreathBadge />}
         <h2 className="bp-modal__title" id="bp-dialog-title">
           {s.name}
         </h2>
@@ -1026,6 +1192,8 @@ export default function BrellaProgramPage() {
                   {updated && <span className="reval"> · updated</span>}
                 </p>
 
+                <BreathTimelineLegend sessions={timelineSessions} />
+
                 <StageTimeline
                   columns={timelineColumns}
                   sessions={timelineSessions}
@@ -1085,6 +1253,8 @@ export default function BrellaProgramPage() {
                   {revalidating && <span className="reval"> · checking for updates…</span>}
                   {updated && <span className="reval"> · updated</span>}
                 </p>
+
+                <BreathLegend sessions={days.flatMap((d) => d.sessions)} />
 
                 {days.length === 0 ? (
                   <p className="count-line">Nothing scheduled here yet.</p>

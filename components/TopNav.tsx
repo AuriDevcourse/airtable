@@ -26,7 +26,9 @@ const MENU: MenuGroup[] = [
       { href: "/all-speakers-2026", label: "All Speakers 2026" },
       { href: "/speakers-2026", label: "Speakers 2026" },
       { href: "/main-speakers", label: "Main Page 12" },
-      { href: "/", label: "Speakers (all)" },
+      // Moved off "/" on 2026-08-05: the front page is now the hub that groups every page in
+      // here (app/page.tsx). The feed and the embed snippet are unchanged.
+      { href: "/speakers", label: "Speakers (all)" },
     ],
   },
   {
@@ -140,7 +142,9 @@ function TopNavShell({ search }: { search: string }) {
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            {current?.label ?? "Projects"}
+            {/* "All pages" rather than a guess: the only page with no entry of its own is the
+                hub at "/", where nothing is selected yet. */}
+            {current?.label ?? "All pages"}
             <svg
               width="16"
               height="16"

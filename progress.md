@@ -6,6 +6,71 @@ reaching the browser.
 
 ---
 
+# SESSION 2026-08-05 · Breathwork Breaks made visible + the front page is now a hub
+
+**Both changes are LOCAL AND UNCOMMITTED.** `tsc --noEmit` clean, every touched route returns
+200, and the pasted embed was verified by capturing the real snippet out of the copy button and
+loading it in a browser (6 bands at 9px, 2 labelled breaks, legend with the count and the
+facilitator). Nothing is pushed, so techbbq.dk is unchanged until the Elementor paste is redone.
+
+## 1. Breathwork Breaks are now findable on the program
+
+Fourteen guided breathing breaks run across the stages on 26 and 27 August, facilitated by Maria
+Therese Jessen-Petersen (QuietSpace.dk), and they were effectively invisible: three minutes long,
+no Session Type, hosted on whichever stage, so they drew in the stage's own colour as the smallest
+cards on the board.
+
+- `lib/brellaTheme.ts` owns the rule: `isBreathwork()` matches on the NAME (the type is blank in
+  Brella), `BREATHWORK_COLOR` is violet `#B49BFF` because nothing else in the palette is violet,
+  plus the label, the one-line note and the Lucide wind paths. `sessionColor()` returns violet
+  before it considers the section or the track, so every render path inherits it at once.
+- **THE LAYOUT PROBLEM, AND THE FIX THAT SETTLED IT.** `MIN_CARD_PX = 26` floors every card, and a
+  break's slot is 9px. A break runs 11:26-11:29 and the next talk starts at 11:29, so the two
+  fight over the same pixels, and which one won came down to DOM order: behind one card, in front
+  of the next. First attempt drew breaks at true scale as unlabelled 9px bands, which fixed the
+  covering but left them silent. The version that shipped:
+  - `BREATH_MIN_PX = 24` so a break carries its label and meets the 24px target size WCAG 2.2 asks
+    of anything pressable.
+  - `zIndex: 3` on breathwork only. It is ALWAYS in front, so there is no order-dependent flicker.
+  - `layOutColumn()` (page) / the `geo` pass (snippet) then measures how far the break reaches into
+    the card below and gives that card `padding-top` equal to the overlap plus
+    `BREATH_CLEARANCE_PX = 3`. The heading starts under the break instead of behind it. Verified:
+    6 covered cards, 18px padding each, title clears the band by 6px, and it holds at 390px too.
+  - The padding is subtracted before deciding `compact` / `tight`, or a cleared card claims room
+    for a time it cannot print.
+  - **In the embed the inline `padding-top` MUST carry `!important`.** That snippet sets
+    `padding:6px 8px!important` on every card to survive an arbitrary WordPress theme, and an
+    important stylesheet declaration beats a plain inline one. Drop the flag and the clearance
+    silently disappears on the live site while still looking right locally.
+- The list cards and the dialog get a violet "Breathwork" pill (the word as well as the colour, so
+  it does not depend on a code the visitor has to learn).
+- All of it is mirrored in `lib/brellaEmbedSnippet.ts`, which is what actually ships to techbbq.dk.
+  The two surfaces share `BREATH_MIN_PX` / `BREATH_CLEARANCE_PX` by hand — keep them equal.
+
+## 2. `/` is a hub, and the old speaker grid moved to `/speakers`
+
+"/" used to be one specific speaker feed, which left the other twenty pages reachable only from
+the dropdown, by someone who already knew that "Main Page 12" is a speaker roster. The front page
+now sorts everything into **Speakers / Projects / Program** (Auri's three groups), each heading
+opening its pages with a one-line description of what the page actually is. Team and Ticket lookup
+sit under a quieter "For the team" row. Every entry is a real `<Link>`, so the two-step is only
+about how much is on screen.
+
+- `app/page.tsx` is the hub. `app/speakers/page.tsx` is the old front page, unchanged apart from
+  the component name. The FEED did not move: still `/api/speakers`, same embed snippet.
+- `components/TopNav.tsx`: the "Speakers (all)" entry points at `/speakers`, and the trigger says
+  "All pages" on the hub, which is the one page with no entry of its own.
+- Styles are at the end of `app/globals.css` under "THE FRONT-PAGE HUB".
+
+## Next steps
+
+1. Review the diff and commit (branch first · main auto-deploys).
+2. Re-do the Elementor paste on techbbq.dk (post 58341) from `/api/embed?kind=brella&section=all`.
+   That is the only way the breathwork cards reach the live site, and it also clears the older
+   Side Events paste that has been outstanding since 04i.
+
+---
+
 # HANDOFF · read this first (2026-08-04)
 
 **State: everything is pushed and deployed, and the Brella program is LIVE on techbbq.dk.**

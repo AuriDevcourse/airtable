@@ -1292,6 +1292,76 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* Short but not tiny: keep the title and the time, drop the faces. */
 .bp-tl__card[data-tight] .bp-tl__cardMeta { display: none; }
 
+/* ── BREATHWORK ────────────────────────────────────────────────────────────────────────
+   A breathwork break is 3 minutes, which is 9px of this timeline's axis, floored to 24 so it can
+   carry its label and be pressed. --track is already violet by the time it gets here (see
+   sessionColor in lib/brellaTheme.ts), so what these rules add is WEIGHT — a stronger fill and a
+   full violet outline rather than the 3px top rule every other card has.
+   It is also drawn IN FRONT of its neighbours (z-index, set on the card in the page), because
+   every card around it is taller than its own slot and it would otherwise be behind one and in
+   front of the next. The shadow is what makes that read as "on top of" rather than "part of".
+   Nothing ends up hidden: the card it lands on is cleared with padding-top, measured in
+   layOutColumn(). */
+.bp-tl__card[data-breathwork] {
+  border: 1px solid color-mix(in srgb, var(--track) 55%, transparent);
+  border-top: 3px solid var(--track);
+  background: color-mix(in srgb, var(--track) 26%, var(--color-card));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+.bp-tl__card--open[data-breathwork]:hover {
+  background: color-mix(in srgb, var(--track) 40%, var(--color-card));
+}
+.bp-tl__card[data-breathwork] .bp-tl__cardTitle { color: #fff; }
+/* A 24px card would otherwise keep the 6px top padding and clip its own single line. */
+.bp-tl__card[data-breathwork][data-compact] { padding-top: 2px; padding-bottom: 2px; }
+/* The icon sits in the title's text flow, so it needs the baseline nudge a floated row of its
+   own would not. */
+.bp-tl__cardTitle .bp-breath__icon {
+  display: inline-block; vertical-align: -2px; margin-right: 4px; color: var(--track);
+}
+
+/* The pill on a list card and in the dialog. Violet on violet-tinted, so it reads as a label
+   rather than a button somebody forgot to make clickable. */
+.bp-breath {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 0 0 6px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--track, #B49BFF) 20%, transparent);
+  color: var(--track, #B49BFF);
+  font-family: var(--font-heading);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  line-height: 1.4;
+}
+/* On a card list, the whole tile also carries the violet edge, so a breathwork break does not
+   have to be read to be spotted. */
+.bp-card[data-breathwork] { border-color: color-mix(in srgb, var(--track) 45%, var(--color-border)); }
+.bp-card[data-breathwork]:hover { border-color: var(--track); }
+
+/* Said once above the sessions. Not a "notice": nothing has gone wrong, this is a signpost. */
+.bp-breathNote {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 14px; padding: 10px 14px;
+  border-left: 3px solid #B49BFF;
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, #B49BFF 10%, var(--color-card));
+  color: var(--color-foreground);
+  font-size: 13px; line-height: 1.45;
+}
+.bp-breathNote .bp-breath__icon { flex: 0 0 auto; color: #B49BFF; }
+/* Shows the colour it is talking about, so the sentence does not have to be believed on trust. */
+.bp-breathNote__dim { color: var(--color-muted); }
+.bp-breathNote__swatch {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: #B49BFF;
+  color: #16121f;
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the
      gutter pinned. Each column keeps a usable minimum instead of being squeezed to nothing. */
@@ -1707,4 +1777,94 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .lw-grid--fixed { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lw-tile, .lw-soon { padding: 12px; }
   .lw-soon { font-size: 10px; }
+}
+
+/* ─── THE FRONT-PAGE HUB (app/page.tsx) ────────────────────────────────────────────────────
+   Three section headings, each opening the pages inside it. Two steps rather than one long
+   list: twenty-one entries on one screen is the dropdown's problem again, printed larger. */
+.hub { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+
+.hub__section {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  overflow: hidden;
+}
+.hub__section[data-open] { border-color: #3a3a3a; background: var(--color-card-2); }
+
+.hub__head {
+  width: 100%;
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 22px;
+  border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.18s;
+}
+.hub__head:hover { background: var(--color-card-2); }
+.hub__head:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
+
+.hub__icon {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-orange, #fa7000) 14%, transparent);
+  color: var(--color-orange, #fa7000);
+}
+.hub__headText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hub__title { font-family: var(--font-heading); font-size: 21px; font-weight: 700; line-height: 1.15; }
+.hub__blurb { color: var(--color-muted); font-size: 13.5px; line-height: 1.45; }
+.hub__count {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+/* Points right when closed, down when open: the same chevron doing the same job as in the nav. */
+.hub__chev { flex: 0 0 auto; color: var(--color-muted); display: grid; transition: transform 0.18s; }
+.hub__chev[data-open] { transform: rotate(90deg); color: var(--color-foreground); }
+
+.hub__list {
+  list-style: none; margin: 0;
+  padding: 0 14px 14px;
+  display: grid; gap: 8px;
+}
+.hub__list--flat { padding: 0; }
+
+.hub__item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: var(--color-card);
+  color: inherit; text-decoration: none;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+.hub__item:hover {
+  border-color: var(--color-orange, #fa7000);
+  background: var(--color-card-2);
+}
+.hub__item:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
+.hub__item > svg { flex: 0 0 auto; color: var(--color-muted); }
+.hub__item:hover > svg { color: var(--color-orange, #fa7000); }
+.hub__itemText { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
+.hub__itemLabel { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
+.hub__itemNote { color: var(--color-muted); font-size: 12.5px; line-height: 1.45; }
+
+.hub__internal { margin-top: 34px; }
+.hub__internalHead {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .hub__head { padding: 16px; gap: 12px; flex-wrap: wrap; }
+  /* The count is the first thing to go: the title and the blurb both say more. */
+  .hub__count { display: none; }
+  .hub__title { font-size: 18px; }
 }
