@@ -62,9 +62,6 @@ export const SECTION_COLORS: Record<string, string> = {
 export const BREATHWORK_RE = "breathwork";
 export const BREATHWORK_COLOR = "#B49BFF";
 export const BREATHWORK_LABEL = "Breathwork";
-// One line, shown once above the sessions rather than on every card.
-export const BREATHWORK_NOTE =
-  "Breathwork Break · a short guided reset on stage, open to everyone. Just stay in your seat and join in.";
 
 const BREATHWORK_RX = new RegExp(BREATHWORK_RE, "i");
 

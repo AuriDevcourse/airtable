@@ -31,7 +31,6 @@ import {
   BREATHWORK_COLOR,
   BREATHWORK_ICON_PATHS,
   BREATHWORK_LABEL,
-  BREATHWORK_NOTE,
   BREATHWORK_RE,
   DEFAULT_TRACK_COLOR,
   HOST_ICON_PATHS,
@@ -252,12 +251,6 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__evTitle .tbbq-bp__bicon{display:inline-block!important;vertical-align:-2px!important;margin-right:4px!important;color:var(--track)!important}
   /* The pill on a list card and in the dialog: a label, not a button somebody forgot to wire up. */
   #${id} .tbbq-bp__breath{display:inline-flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:3px 9px!important;border-radius:9999px!important;background:color-mix(in srgb,${BREATHWORK_COLOR} 20%,transparent)!important;color:${BREATHWORK_COLOR}!important;font-family:var(--head)!important;font-size:10.5px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.4!important}
-  /* Said once above the sessions. Not a warning box: nothing is wrong, this is a signpost. */
-  #${id} .tbbq-bp__bnote{display:flex!important;align-items:center!important;gap:9px!important;margin:0 0 16px!important;padding:10px 14px!important;border:0!important;border-left:3px solid ${BREATHWORK_COLOR}!important;border-radius:0 8px 8px 0!important;background:color-mix(in srgb,${BREATHWORK_COLOR} 10%,var(--card))!important;color:var(--fg)!important;font-family:var(--sans)!important;font-size:13px!important;font-weight:400!important;line-height:1.45!important;text-transform:none!important}
-  #${id} .tbbq-bp__bnote .tbbq-bp__bicon{flex:0 0 auto!important;color:${BREATHWORK_COLOR}!important}
-  #${id} .tbbq-bp__bdim{color:var(--muted)!important}
-  /* Shows the colour it is talking about, so the sentence is not asking to be taken on trust. */
-  #${id} .tbbq-bp__bswatch{display:inline-block!important;padding:0 6px!important;border-radius:3px!important;background:${BREATHWORK_COLOR}!important;color:#16121f!important;font-weight:700!important}
 
   /* ── CARD LIST (event rooms, side events) ── */
   #${id} .tbbq-bp__daylabel{margin:26px 0 12px!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -411,7 +404,6 @@ export function buildBrellaEmbedSnippet({
   var BREATH_RX=new RegExp(${JSON.stringify(BREATHWORK_RE)},"i");
   var BREATH_COLOR=${JSON.stringify(BREATHWORK_COLOR)};
   var BREATH_LABEL=${JSON.stringify(BREATHWORK_LABEL)};
-  var BREATH_NOTE=${JSON.stringify(BREATHWORK_NOTE)};
   var BREATH_ICON=${JSON.stringify(BREATHWORK_ICON_PATHS)};
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
   var EVENT_YEAR=${EVENT_YEAR};
@@ -450,29 +442,9 @@ export function buildBrellaEmbedSnippet({
   /* The word as well as the mark. A colour on its own is a code the visitor has to learn, and a
      colour-blind visitor never learns it. */
   function breathBadge(){return '<span class="tbbq-bp__breath">'+breathIcon(12)+esc(BREATH_LABEL)+'</span>';}
-  /* Said once above the sessions rather than on all fourteen cards, and only when the view
-     actually holds one — otherwise it explains a mark nobody can see.
-     On the TIMELINE it does the real work: a three-minute break is drawn too small to hold a
-     label or to be a fair click target, so this line is the only place the board says what the
-     violet bands are, how many there are today, and who runs them. The facilitator is read off
-     the sessions, never typed here, so it cannot go stale when Brella changes. */
-  function breathNote(list,timeline){
-    var breaks=(list||[]).filter(isBreath);
-    if(!breaks.length)return "";
-    if(!timeline)return '<p class="tbbq-bp__bnote">'+breathIcon(14)+'<span>'+esc(BREATH_NOTE)+'</span></p>';
-    var who=[];
-    breaks.forEach(function(s){
-      (s.speakers||[]).forEach(function(p){
-        var n=p.company?(p.name+" ("+p.company+")"):p.name;
-        if(n&&who.indexOf(n)<0)who.push(n);
-      });
-    });
-    return '<p class="tbbq-bp__bnote">'+breathIcon(14)+'<span>'
-      +'<strong class="tbbq-bp__bswatch">Breathwork</strong> is the violet card \\u00b7 '
-      +esc(BREATH_NOTE.replace(/^Breathwork Break \\u00b7 /,""))
-      +' <span class="tbbq-bp__bdim">'+breaks.length+' today'+(who.length?esc(", led by "+who.join(" and ")):"")+'.</span>'
-      +'</span></p>';
-  }
+  /* NO LEGEND ABOVE THE BOARD. There was one, naming the violet and counting the breaks; Auri cut
+     it on 2026-08-05. The card says "Breathwork Break" on itself, which is what the legend stood
+     in for while the card was too small to hold a word. */
   function hostIcon(){
     return '<svg class="tbbq-bp__icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
       +HOST_ICON.map(function(d){return '<path d="'+d+'"/>';}).join("")+'</svg>';
@@ -631,8 +603,7 @@ export function buildBrellaEmbedSnippet({
 
     var ticks=[];for(var t=from;t<=to;t+=SLOT)ticks.push(t);
 
-    /* Above the board, not below it: it explains a mark the visitor is about to meet. */
-    var html=breathNote(mine,true);
+    var html="";
     if(allday.length){
       html+='<div class="tbbq-bp__allday"><span class="tbbq-bp__alldayLabel">All day</span><div class="tbbq-bp__alldayList">'
         +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+sessionVars(s)+'">'+esc(s.name)+'</button>';}).join("")
@@ -782,7 +753,7 @@ export function buildBrellaEmbedSnippet({
     var byDay={},order=[];
     list.forEach(function(s){if(!byDay[s.day]){byDay[s.day]=[];order.push(s.day);}byDay[s.day].push(s);});
     order.sort(function(a,b){return dayNum(a)-dayNum(b);});
-    outEl.innerHTML=breathNote(list)+order.map(function(d){
+    outEl.innerHTML=order.map(function(d){
       var rows=byDay[d].slice().sort(function(a,b){return mins(a.timeSlot)-mins(b.timeSlot)||String(a.name).localeCompare(String(b.name));});
       return '<h3 class="tbbq-bp__daylabel">'+esc(dayLabel(d))+'</h3><div class="tbbq-bp__grid">'
         +rows.map(function(s){

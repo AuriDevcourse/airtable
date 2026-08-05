@@ -8,7 +8,6 @@ import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
 import {
   BREATHWORK_ICON_PATHS,
   BREATHWORK_LABEL,
-  BREATHWORK_NOTE,
   HOST_ICON_PATHS,
   STAGE_ICON_PATHS,
   isBreathwork,
@@ -610,49 +609,10 @@ function BreathBadge() {
   );
 }
 
-/**
- * Said once, above the sessions, instead of on all fourteen cards. Rendered only when the
- * current view actually contains a breathwork break, so it never explains a mark nobody can see.
- */
-function BreathLegend({ sessions }: { sessions: Session[] }) {
-  if (!sessions.some(isBreathwork)) return null;
-  return (
-    <p className="bp-breathNote">
-      <BreathIcon size={14} />
-      <span>{BREATHWORK_NOTE}</span>
-    </p>
-  );
-}
-
-/**
- * The timeline's version. A break's card is 24px, which fits the label and nothing else, so this
- * line is where the board says how many breaks there are today and who runs them. The facilitator
- * is read off the sessions rather than typed in here, so it cannot go stale when Brella changes.
- */
-function BreathTimelineLegend({ sessions }: { sessions: Session[] }) {
-  const breaks = sessions.filter(isBreathwork);
-  if (!breaks.length) return null;
-  const who = [
-    ...new Set(
-      breaks.flatMap((s) =>
-        (s.speakers ?? []).map((p) => (p.company ? `${p.name} (${p.company})` : p.name))
-      )
-    ),
-  ];
-  return (
-    <p className="bp-breathNote">
-      <BreathIcon size={14} />
-      <span>
-        <strong className="bp-breathNote__swatch">Breathwork</strong> is the violet card ·{" "}
-        {BREATHWORK_NOTE.replace(/^Breathwork Break · /, "")}{" "}
-        <span className="bp-breathNote__dim">
-          {breaks.length} today
-          {who.length > 0 && `, led by ${who.join(" and ")}`}.
-        </span>
-      </span>
-    </p>
-  );
-}
+// NO LEGEND ABOVE THE BOARD. There was one, naming the violet and counting the breaks; Auri cut
+// it on 2026-08-05. The card says "Breathwork Break" on itself now, which is what the legend was
+// standing in for while the card was too small to hold a word. The dialog still has the
+// facilitator, so nothing is lost that a visitor cannot reach.
 
 // A session is worth opening only if the dialog would show something the card does not:
 // the speaker list, a description long enough that the card's 3-line clamp hides part of it,
@@ -1192,8 +1152,6 @@ export default function BrellaProgramPage() {
                   {updated && <span className="reval"> · updated</span>}
                 </p>
 
-                <BreathTimelineLegend sessions={timelineSessions} />
-
                 <StageTimeline
                   columns={timelineColumns}
                   sessions={timelineSessions}
@@ -1253,8 +1211,6 @@ export default function BrellaProgramPage() {
                   {revalidating && <span className="reval"> · checking for updates…</span>}
                   {updated && <span className="reval"> · updated</span>}
                 </p>
-
-                <BreathLegend sessions={days.flatMap((d) => d.sessions)} />
 
                 {days.length === 0 ? (
                   <p className="count-line">Nothing scheduled here yet.</p>

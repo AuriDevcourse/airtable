@@ -8,10 +8,11 @@ reaching the browser.
 
 # SESSION 2026-08-05 · Breathwork Breaks made visible + the front page is now a hub
 
-**Both changes are LOCAL AND UNCOMMITTED.** `tsc --noEmit` clean, every touched route returns
-200, and the pasted embed was verified by capturing the real snippet out of the copy button and
-loading it in a browser (6 bands at 9px, 2 labelled breaks, legend with the count and the
-facilitator). Nothing is pushed, so techbbq.dk is unchanged until the Elementor paste is redone.
+**Both changes are PUSHED to main (`db0eb00`), so Vercel has them.** `tsc --noEmit` clean, every
+touched route 200, and the pasted embed verified by capturing the real snippet out of the copy
+button and loading it in a browser (8 breaks, all z-index 3, 6 covered cards padded, titles
+clearing by 6px, holds at 390px). techbbq.dk itself is unchanged until the Elementor paste is
+redone. A follow-up commit removed the legend line — see the end of this section.
 
 ## 1. Breathwork Breaks are now findable on the program
 
@@ -22,8 +23,8 @@ cards on the board.
 
 - `lib/brellaTheme.ts` owns the rule: `isBreathwork()` matches on the NAME (the type is blank in
   Brella), `BREATHWORK_COLOR` is violet `#B49BFF` because nothing else in the palette is violet,
-  plus the label, the one-line note and the Lucide wind paths. `sessionColor()` returns violet
-  before it considers the section or the track, so every render path inherits it at once.
+  plus the label and the Lucide wind paths. `sessionColor()` returns violet before it considers
+  the section or the track, so every render path inherits it at once.
 - **THE LAYOUT PROBLEM, AND THE FIX THAT SETTLED IT.** `MIN_CARD_PX = 26` floors every card, and a
   break's slot is 9px. A break runs 11:26-11:29 and the next talk starts at 11:29, so the two
   fight over the same pixels, and which one won came down to DOM order: behind one card, in front
@@ -46,6 +47,12 @@ cards on the board.
   it does not depend on a code the visitor has to learn).
 - All of it is mirrored in `lib/brellaEmbedSnippet.ts`, which is what actually ships to techbbq.dk.
   The two surfaces share `BREATH_MIN_PX` / `BREATH_CLEARANCE_PX` by hand — keep them equal.
+- **NO LEGEND ABOVE THE BOARD (Auri cut it, 2026-08-05).** There was a violet line naming the
+  colour, counting the day's breaks and crediting the facilitator. It existed because the first
+  attempt drew breaks too small to hold a word; once the card says "Breathwork Break" on itself the
+  line was repeating it, so it is gone from both surfaces along with `BREATHWORK_NOTE` and the
+  `bp-breathNote` / `tbbq-bp__bnote` styles. Don't reintroduce it without a reason the card cannot
+  carry. The facilitator is still one press away in the dialog.
 
 ## 2. `/` is a hub, and the old speaker grid moved to `/speakers`
 

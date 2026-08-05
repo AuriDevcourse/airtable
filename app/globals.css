@@ -1340,28 +1340,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-card[data-breathwork] { border-color: color-mix(in srgb, var(--track) 45%, var(--color-border)); }
 .bp-card[data-breathwork]:hover { border-color: var(--track); }
 
-/* Said once above the sessions. Not a "notice": nothing has gone wrong, this is a signpost. */
-.bp-breathNote {
-  display: flex; align-items: center; gap: 9px;
-  margin: 0 0 14px; padding: 10px 14px;
-  border-left: 3px solid #B49BFF;
-  border-radius: 0 8px 8px 0;
-  background: color-mix(in srgb, #B49BFF 10%, var(--color-card));
-  color: var(--color-foreground);
-  font-size: 13px; line-height: 1.45;
-}
-.bp-breathNote .bp-breath__icon { flex: 0 0 auto; color: #B49BFF; }
-/* Shows the colour it is talking about, so the sentence does not have to be believed on trust. */
-.bp-breathNote__dim { color: var(--color-muted); }
-.bp-breathNote__swatch {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 3px;
-  background: #B49BFF;
-  color: #16121f;
-  font-weight: 700;
-}
-
 @media (max-width: 900px) {
   /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the
      gutter pinned. Each column keeps a usable minimum instead of being squeezed to nothing. */
