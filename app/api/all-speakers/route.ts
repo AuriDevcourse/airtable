@@ -3,6 +3,7 @@ import { fetchHubSpeakers, HubSpeaker } from "@/lib/hub";
 import { fetchNiss, NissPerson } from "@/lib/niss";
 import { fetchNass, NassPerson } from "@/lib/nass";
 import { fetchEventRoomPresenters, EventRoomPresenter } from "@/lib/eventrooms";
+import { fetchFintechSpeakers, FintechSpeaker } from "@/lib/fintechspeakers";
 import { fetchInvestors, InvestorSpeaker } from "@/lib/investors";
 import { cached, invalidate } from "@/lib/rate-limit";
 import { corsPreflight, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
@@ -11,7 +12,7 @@ import { feedTtlMs } from "@/lib/cachePolicy";
 // Combined feed for the tabbed "All Speakers 2026" embed: one fetch returns all three
 // groups so the embed's tab switcher works without extra round-trips.
 //   speakers  = the Speaker Hub grid (same as /api/speakers-2026)
-//   eventRoom = NISS 2026 + NASS 2026 merged (Team Members excluded), tagged per event
+//   eventRoom = NISS 2026 + NASS 2026 + Future of Fintech + the partner presenters, tagged per room
 //   investors = Pension & Insurance Summit + LP Forum + Investor Day, tagged per event
 // Cache keys are shared with the individual routes, so this route serves from the same
 // server cache the standalone feeds fill (and vice versa).
@@ -26,6 +27,11 @@ type Tagged<T> = T & { tag?: string };
 
 // Display names for the investor event tags — same short labels the /investors page
 // uses, not the long Airtable select strings.
+// Where the Future of Fintech session runs. Auri corrected this from Event Room 3 on 2026-08-05, and
+// it matches what the CRM now says. One constant rather than a literal in the map below, because the
+// number is a fact about the event that has already moved once.
+const FINTECH_ROOM = "Event Room 1";
+
 const INVESTOR_TAGS: Record<string, string> = {
   "pension-summit": "Pension & Insurance Summit",
   "lp-forum": "LP Forum",
@@ -36,7 +42,14 @@ const INVESTOR_TAGS: Record<string, string> = {
 // why a live-read here has to drop all five: this route owns no key of its own, so
 // invalidating "all-speakers" would clear nothing and the refresh would return the same
 // list it just showed.
-const SOURCE_KEYS = ["speakers-2026", "niss:all", "nass:all", "eventrooms", "investors:all"];
+const SOURCE_KEYS = [
+  "speakers-2026",
+  "niss:all",
+  "nass:all",
+  "eventrooms",
+  "fintech-speakers",
+  "investors:all",
+];
 
 export async function GET(req: NextRequest) {
   const gate = feedGate(req, "all-speakers");
@@ -48,11 +61,15 @@ export async function GET(req: NextRequest) {
 
   // One failed source shouldn't blank the whole embed: each group degrades to [] on its
   // own (cached() already serves last-good first), and only all-dead is an error.
-  const [hubR, nissR, nassR, roomsR, invR] = await Promise.allSettled([
+  const [hubR, nissR, nassR, roomsR, fintechR, invR] = await Promise.allSettled([
     cached("speakers-2026", fetchHubSpeakers, ttl),
     cached("niss:all", () => fetchNiss(), ttl),
     cached("nass:all", () => fetchNass(), ttl),
     cached("eventrooms", fetchEventRoomPresenters, ttl),
+    // Same cache key the standalone /api/fintech-speakers fills, so this costs no extra
+    // Airtable read. All three roles come back; the route below keeps them all, unlike the
+    // standalone feed which defaults to Speaker for the sake of what is already pasted.
+    cached("fintech-speakers", fetchFintechSpeakers, ttl),
     cached("investors:all", () => fetchInvestors(), ttl),
   ]);
 
@@ -62,6 +79,7 @@ export async function GET(req: NextRequest) {
     ["niss", nissR],
     ["nass", nassR],
     ["eventrooms", roomsR],
+    ["fintech", fintechR],
     ["investors", invR],
   ] as const) {
     if (r.status === "rejected") console.error("[/api/all-speakers] source failed:", name, r.reason);
@@ -76,7 +94,7 @@ export async function GET(req: NextRequest) {
   // /all-speakers-2026 page. The order here is stable alphabetical — the embed and the
   // page shuffle client-side per load (a server-side shuffle would freeze in the 1h
   // cache).
-  const eventRoom: Tagged<NissPerson | NassPerson | EventRoomPresenter>[] = [
+  const eventRoom: Tagged<NissPerson | NassPerson | EventRoomPresenter | FintechSpeaker>[] = [
     ...val(nissR)
       .filter((p) => p.role === "Speaker")
       .map((p) => ({ ...p, tag: "Event Room 2" })),
@@ -91,7 +109,32 @@ export async function GET(req: NextRequest) {
       ...p,
       tag: p.rooms.length === p.hosts.length ? p.rooms.join(" · ") : p.hosts.join(" · "),
     })),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+    // FUTURE OF FINTECH, which is an event room session like any other: Flatpay hosts it in
+    // Event Room 1 on 27 August (their Partnership Success row says so). It was missing from this
+    // tab entirely — 13 of its 15 people appeared nowhere on the page (Auri, 2026-08-05) — because
+    // its speakers submit through their own form and never reach the partner presenter table.
+    //
+    // All three roles are kept here, moderators and the keynote included. This tab is a roster of
+    // who is in the room, and dropping the moderators from it is how they went missing in the
+    // first place.
+    ...val(fintechR).map((p) => ({ ...p, tag: FINTECH_ROOM })),
+  ]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    // ONE PERSON, ONE CARD, the same rule as the investor roster and the presenter merge. Sander
+    // Janca-Jensen arrives twice — once as Flatpay's presenter, once as the fintech keynote — and
+    // two photos of one man in one tab is the bug that rule exists to prevent. The first row wins
+    // the identity (alphabetical, so it is stable) and the tags are unioned, so nothing about
+    // where he speaks is lost.
+    .reduce<Tagged<NissPerson | NassPerson | EventRoomPresenter | FintechSpeaker>[]>((out, p) => {
+      const key = p.name.toLowerCase().replace(/\s+/g, " ").trim();
+      const prev = out.find((x) => x.name.toLowerCase().replace(/\s+/g, " ").trim() === key);
+      if (!prev) return [...out, p];
+      const tags = [...new Set([...(prev.tag ?? "").split(" · "), ...(p.tag ?? "").split(" · ")])]
+        .filter(Boolean)
+        .join(" · ");
+      prev.tag = tags;
+      return out;
+    }, []);
   // Same for an investor speaking at two of the three events (Yoram Wijngaarde, LP Forum and the
   // Pension & Insurance Summit): one card, both events named.
   const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({

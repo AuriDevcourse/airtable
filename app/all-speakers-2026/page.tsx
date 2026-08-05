@@ -80,6 +80,10 @@ const GROUP_LABELS: Record<GroupKey, string> = {
   investors: "Investor Speakers",
 };
 
+// Where the Future of Fintech session runs. Auri corrected this from Event Room 3 on 2026-08-05.
+// Kept in step with the same constant in app/api/all-speakers/route.ts, which the embed uses.
+const FINTECH_ROOM = "Event Room 1";
+
 // Investor event short keys → display names (mirrors /investors).
 const INVESTOR_EVENT_LABELS: Record<string, string> = {
   "pension-summit": "Pension & Insurance Summit",
@@ -207,19 +211,27 @@ export default function AllSpeakers2026Page() {
   // Speakers-group detail pop-up (the only group with bios).
   const [selected, setSelected] = useState<Card | null>(null);
 
-  // One manual-sync counter for all five feeds, rather than useFreshUrl per feed: this page
-  // is assembled from five sources and a button that refreshed only the open tab's slice
+  // One manual-sync counter for all six feeds, rather than useFreshUrl per feed: this page
+  // is assembled from six sources and a button that refreshed only the open tab's slice
   // would leave the other tabs stale behind a control that looked like it covered the page.
   const [fresh, setFresh] = useState(0);
   const live = (base: string) =>
     fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
 
-  // All five sources load on mount so switching groups is instant. Cache keys are
+  // All six sources load on mount so switching groups is instant. Cache keys are
   // shared with the standalone pages, so a warm localStorage entry paints instantly.
   const speakers = useCachedList<FeedPerson>("speakers-2026", live("/api/speakers-2026"), "speakers");
   const niss = useCachedList<FeedPerson>("niss:all", live("/api/niss-speakers"), "people");
   const nass = useCachedList<FeedPerson>("nass:all", live("/api/nass-speakers"), "people");
   const rooms = useCachedList<FeedPerson>("eventrooms", live("/api/event-room-presenters"), "people");
+  // ?role=all, deliberately: the standalone feed defaults to Speaker for the sake of what is
+  // already pasted on techbbq.dk, and taking that default here is how the two moderators and the
+  // keynote would go missing from this roster again.
+  const fintech = useCachedList<FeedPerson>(
+    "fintech:all",
+    live("/api/fintech-speakers?role=all"),
+    "people"
+  );
   const investors = useCachedList<FeedPerson>("investors:all", live("/api/investor-speakers"), "people");
 
   // Mount-fixed seed so revalidation/tab-switching doesn't re-jump the shuffled order;
@@ -275,8 +287,28 @@ export default function AllSpeakers2026Page() {
               ? p.hosts.join(" · ")
               : (p.room ?? p.host),
       }));
+      // FUTURE OF FINTECH, an event room session like any other: Flatpay hosts it in Event Room 1.
+      // It was missing from this tab entirely, so 13 of its 15 people appeared nowhere on the page
+      // (Auri, 2026-08-05). All three roles are kept, moderators and keynote included — filtering
+      // them out is exactly how they went missing.
+      const fromFintech: Card[] = (fintech.data ?? []).map((p) => ({ ...p, tag: FINTECH_ROOM }));
+      // ONE PERSON, ONE CARD. Sander Janca-Jensen arrives twice, as Flatpay's presenter and as the
+      // fintech keynote, and two photos of one man in one tab is what that rule exists to stop.
+      // Tags are unioned so nothing about where he speaks is lost. Same merge as /api/all-speakers.
+      const merged: Card[] = [];
+      for (const p of [...fromNiss, ...fromNass, ...fromRooms, ...fromFintech]) {
+        const key = p.name.toLowerCase().replace(/\s+/g, " ").trim();
+        const prev = merged.find((x) => x.name.toLowerCase().replace(/\s+/g, " ").trim() === key);
+        if (!prev) {
+          merged.push(p);
+          continue;
+        }
+        prev.tag = [...new Set([...(prev.tag ?? "").split(" · "), ...(p.tag ?? "").split(" · ")])]
+          .filter(Boolean)
+          .join(" · ");
+      }
       // Random order per page load (Auri's rule); nobody here is ranked.
-      return shuffle([...fromNiss, ...fromNass, ...fromRooms]);
+      return shuffle(merged);
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
     // One card per person here too: an investor at two of the three events names both.
@@ -288,7 +320,7 @@ export default function AllSpeakers2026Page() {
           ? INVESTOR_EVENT_LABELS[p.event] ?? p.event
           : undefined,
     }));
-  }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data, seed]);
+  }, [group, speakers.data, niss.data, nass.data, rooms.data, fintech.data, investors.data, seed]);
 
   // A source feed down while the others render would silently show a partial roster;
   // surface it instead (completion-auditor finding).
@@ -296,6 +328,7 @@ export default function AllSpeakers2026Page() {
     { label: "NISS 2026", state: niss },
     { label: "NASS 2026", state: nass },
     { label: "Partner event rooms", state: rooms },
+    { label: "Future of Fintech", state: fintech },
   ];
   const failedFeeds = roomFeeds.filter((f) => f.state.error && !f.state.data);
   const partialWarning =
@@ -317,14 +350,19 @@ export default function AllSpeakers2026Page() {
         }
       : group === "event-room"
         ? {
-            loading: niss.loading || nass.loading || rooms.loading,
-            revalidating: niss.revalidating || nass.revalidating || rooms.revalidating,
+            loading: niss.loading || nass.loading || rooms.loading || fintech.loading,
+            revalidating:
+              niss.revalidating || nass.revalidating || rooms.revalidating || fintech.revalidating,
             error: failedFeeds.length === roomFeeds.length ? niss.error : null,
-            empty: !niss.data && !nass.data && !rooms.data,
-            // Any one of the three failing is enough to report: the press did not fully land.
-            revalidateError: niss.revalidateError ?? nass.revalidateError ?? rooms.revalidateError,
-            // Event Room is three feeds in one tab, so its report is the three summed.
-            changes: mergeChanges([niss.changes, nass.changes, rooms.changes]),
+            empty: !niss.data && !nass.data && !rooms.data && !fintech.data,
+            // Any one of the four failing is enough to report: the press did not fully land.
+            revalidateError:
+              niss.revalidateError ??
+              nass.revalidateError ??
+              rooms.revalidateError ??
+              fintech.revalidateError,
+            // Event Room is four feeds in one tab, so its report is the four summed.
+            changes: mergeChanges([niss.changes, nass.changes, rooms.changes, fintech.changes]),
           }
         : {
             loading: investors.loading,
