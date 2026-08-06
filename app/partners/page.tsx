@@ -6,6 +6,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { fitLogosIn } from "@/lib/logoFit";
 import { CopyPartnersEmbed } from "@/components/CopyPartnersEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
 // The TechBBQ 2026 partner logo wall, one row per partnership tier. Same construction as
 // /ls-startups (it reuses the .lw-* styles), just nine rows instead of three.
@@ -180,14 +181,28 @@ export default function PartnersPage() {
             </span>
           </div>
 
-          {/* The same wall with the TechBBQ design taken out, for an outside agency who will
-              style it themselves: semantic markup, class names, absolute logo URLs, a 5-line
-              starter stylesheet and nothing else. 4KB instead of 48KB. */}
+          {/* TWO WAYS TO HAND THE WALL TO AN OUTSIDE AGENCY, and the right one depends on what
+              they are building with, not on how much they want to restyle.
+
+              "Copy API code" is a few lines of fetch — they get the list and render it in their
+              own framework. It is the short one, and it is what was already sent to the external
+              designer for the main speakers.
+
+              "Copy embed (unstyled)" ships finished markup that renders itself, for someone
+              pasting into a CMS box with no build step. It is necessarily longer: fetching,
+              escaping, URL resolution and error handling all have to travel with it. */}
           <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <CopyPartnersEmbed bare label="Copy embed (unstyled, for external use)" />
+            <CopyApiSnippet feed="partners" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Logos and links only, no TechBBQ styling · they can restyle it freely. Same
-              localhost caveat.
+              A few lines of fetch · for an agency building in their own framework. Start here.
+            </span>
+          </div>
+
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <CopyPartnersEmbed bare label="Copy embed (unstyled)" />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Finished markup, no CSS at all · only for pasting into a CMS box. Same localhost
+              caveat.
             </span>
           </div>
 

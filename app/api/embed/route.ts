@@ -14,8 +14,8 @@
 //   /api/embed?kind=partners-bare        → the same wall with no TechBBQ styling, for a third party
 //   /api/embed?kind=ls-startups          → the Life Science wall
 //
-// partners-bare takes two extra switches: &css=0 for zero CSS at all, and &tiers=0 for one flat
-// list with no tier headings.
+// partners-bare takes two extra switches: &css=1 adds a 5-line starter stylesheet (off by
+// default — bare means bare), and &tiers=0 gives one flat list with no tier headings.
 //
 // Add ?download=1 to get it as a file rather than inline text.
 
@@ -77,11 +77,11 @@ export async function GET(req: NextRequest) {
     } else if (kind === "partners") {
       snippet = buildPartnersEmbedSnippet({ uid: uid("tbbq-pw") });
     } else if (kind === "partners-bare") {
-      // Opt-OUT switches, so the default stays the friendly one: a snippet that renders
-      // sensibly the moment it is pasted. Only an explicit "0" turns either off.
+      // css is opt-IN (?css=1) and tiers is opt-OUT (?tiers=0). "Bare" means bare: the whole
+      // point of this variant is that the recipient writes their own CSS.
       snippet = buildPartnersBareEmbedSnippet({
         uid: uid("tbbq-pb"),
-        css: q.get("css") !== "0",
+        css: q.get("css") === "1",
         tiers: q.get("tiers") !== "0",
       });
     } else if (kind === "ls-startups") {

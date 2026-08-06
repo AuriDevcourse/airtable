@@ -22,6 +22,12 @@ export type ApiSnippetSpec = {
   note: string;
   /** Variable name for the result. */
   varName?: string;
+  /**
+   * An optional trailing comment, for the one fact that does not fit in `note` and would
+   * otherwise be lost in an email — the partner wall's tier order, say. Mirrors how the
+   * all-speakers snippet signs off with what `data.counts` holds.
+   */
+  tail?: string;
 };
 
 /** Feeds a front end is likely to want, keyed by the id used on the page. */
@@ -49,6 +55,25 @@ export const API_SNIPPETS: Record<string, ApiSnippetSpec> = {
     accessor: "data.people",
     fields: ["name", "title", "company", "photo", "linkedin", "event"],
     note: "Investor speakers. NOTE the array is `people`, not `speakers`.",
+  },
+  // The wall as DATA, for an agency building in their own framework. The alternative is
+  // /api/embed?kind=partners-bare, which ships finished markup — this is for the ones who
+  // want the list and will render it themselves.
+  partners: {
+    path: "/api/partners",
+    accessor: "data.partners",
+    fields: ["company", "tier", "logo", "website"],
+    varName: "partners",
+    note: "Every partner on the wall. Only ones with a logo are returned, so nothing needs filtering.",
+    // The order trips people up: the feed is ALPHABETICAL, and the sponsorship ranking lives in
+    // `tier`, which is a string. Sorting by it needs the ladder, so the response carries it —
+    // that is what `data.tiers` is for, and saying so here saves a round of email.
+    tail: `// The feed is alphabetical. To rank by sponsorship level, sort on data.tiers, which
+// comes back in the response as [{ name: "Prime" }, { name: "Main" }, …] highest first:
+// const order = data.tiers.map((t) => t.name);
+// partners.sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier));
+//
+// logo is an absolute URL and safe to hotlink. website is null for a couple of them.`,
   },
 };
 
@@ -98,5 +123,5 @@ const data = await res.json();
 
 const ${v} = ${spec.accessor}.map((s) => ({
 ${body}
-}));`;
+}));${spec.tail ? `\n\n${spec.tail}` : ""}`;
 }

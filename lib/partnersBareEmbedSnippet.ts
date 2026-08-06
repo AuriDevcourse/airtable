@@ -22,13 +22,12 @@
 
 export type PartnersBareEmbedOptions = {
   uid?: string;
-  // A 5-line starter stylesheet, clearly fenced so it can be deleted in one selection.
+  // A 5-line starter stylesheet: a logo height and a flex list, no colour and no type.
   //
-  // On by default and this is a deliberate trade against "no styling": with no CSS at all the
-  // images render at intrinsic size, so a 2000px logo file draws 2000px wide and the first thing
-  // the recipient sees is a broken-looking page. The block does nothing but cap the logo and lay
-  // the list out; it sets no colour, no font and no spacing scale. Pass css:false (or ?css=0)
-  // for the genuinely empty version.
+  // OFF by default. It shipped on, on the reasoning that unsized images render at intrinsic size
+  // so a 2000px logo file draws 2000px wide — true, but "no styling" was the actual requirement
+  // and the recipient is a designer who will write their own CSS before they look at it. Pass
+  // css:true (or ?css=1) to get the starter block back.
   css?: boolean;
   // Drop the tier headings and emit one flat list. For a plain "our partners" logo strip that
   // does not want to publish the sponsorship ladder.
@@ -50,7 +49,7 @@ const TIER_ORDER = [
 
 export function buildPartnersBareEmbedSnippet({
   uid,
-  css = true,
+  css = false,
   tiers = true,
 }: PartnersBareEmbedOptions = {}): string {
   const id = uid || "tbbq-partners-bare";
