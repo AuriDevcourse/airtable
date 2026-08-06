@@ -622,6 +622,89 @@ a { color: inherit; }
   text-align: center;
 }
 
+/* ── PREDICTED PEOPLE ──────────────────────────────────────────────────────────────────
+   In FLOW, not absolutely positioned. A dropdown floating over the board would cover the very
+   cards the search is trying to point at, and this list is at most six rows. */
+.bp-sugg {
+  margin: 6px 0 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+}
+.bp-sugg__row {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%;
+  padding: 6px 7px;
+  border: 0; border-radius: 7px;
+  background: none;
+  color: inherit; font: inherit; text-align: left;
+  cursor: pointer;
+}
+.bp-sugg__row:hover,
+.bp-sugg__row:focus-visible { background: rgba(255, 255, 255, 0.06); outline: none; }
+.bp-sugg__row:focus-visible { box-shadow: inset 0 0 0 1px var(--color-orange); }
+.bp-sugg__face {
+  flex: none;
+  width: 26px; height: 26px; border-radius: 9999px; object-fit: cover;
+  background: var(--color-card-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--color-muted);
+}
+.bp-sugg__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.bp-sugg__name {
+  font-size: 13px; font-weight: 600; color: var(--color-foreground);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bp-sugg__role {
+  font-size: 11.5px; color: var(--color-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* The answer to the question, so it is the loud part of the row. */
+.bp-sugg__where {
+  flex: none;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-family: var(--font-heading);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--color-orange);
+}
+.bp-sugg__stage {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: none;
+  color: var(--color-muted);
+  max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── "THEY ARE OVER HERE" ──────────────────────────────────────────────────────────────
+   A search dims only the day and section on screen, so without these a speaker on the other
+   day is indistinguishable from a speaker who does not exist. */
+.bp-days button[data-hasmatch] {
+  position: relative;
+  border-color: var(--color-orange);
+  box-shadow: inset 0 0 0 1px var(--color-orange);
+}
+.bp-days__badge,
+.bp-tl__colBadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px;
+  margin-left: 6px; padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--color-orange);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0;
+  line-height: 1;
+}
+.bp-days__badge { position: absolute; top: -6px; right: -6px; margin: 0; }
+
+/* The heading row is always on screen; the matching card may be far down its column, or off to
+   the side once the timeline scrolls horizontally. */
+.bp-tl__colHead[data-hasmatch] {
+  color: var(--track);
+  box-shadow: inset 0 -2px 0 var(--track);
+}
+.bp-tl__colHead[data-dim] { opacity: 0.3; transition: opacity 0.18s ease; }
+
 /* THE DIM ITSELF. Opacity only — no display:none, no visibility:hidden: the card must keep its
    box or the timeline's columns collapse and the clock stops lining up across stages, which is
    the entire reason this is a spotlight and not a filter.
@@ -1344,16 +1427,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   overflow-wrap: anywhere;
 }
 .bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
-.bp-tl__cardMeta {
-  flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted);
-  display: flex; align-items: center; gap: 5px; min-width: 0;
-}
-/* Two names plus a "+N" on one line; the dialog has the full list. */
-.bp-tl__cardNames { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bp-tl__faces { flex: none; display: inline-flex; }
-/* Pinned to the card's right edge and vertically centred, so it survives the compact and tight
-   rules that hide .bp-tl__cardMeta. Mirrors .tbbq-bp__evFaces in the embed builder — the
-   dashboard is the preview of that snippet, so the two have to agree. */
+/* Pinned to the card's right edge and vertically centred, so every card carries the faces
+   however short its slot is. Cards show FACES ONLY — no speaker names anywhere on the board
+   (Auri, 2026-08-06); the names, roles, titles and companies live in the dialog.
+   Mirrors .tbbq-bp__evFaces in the embed builder — the dashboard is the preview of that
+   snippet, so the two have to agree. */
 .bp-tl__cardFaces {
   position: absolute;
   top: 50%;
@@ -1376,15 +1455,19 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 8px; font-weight: 700; color: var(--color-muted); line-height: 1;
 }
+/* "+3" for the speakers the stack has no room for — the count the removed names used to carry.
+   Auto width so a two-digit panel is not clipped; the pill keeps the circle's height. */
+.bp-tl__face--more {
+  width: auto; min-width: 16px; padding: 0 4px; border-radius: 9999px;
+  background: var(--color-card-2); color: var(--color-foreground);
+  font-size: 8.5px; letter-spacing: -0.02em;
+}
 
 /* A slot too short to hold more than one line: show the title alone. The time is in the
    dialog, and half a clipped title plus half a clipped timestamp reads as broken. */
 .bp-tl__card[data-compact] { padding: 3px 8px; }
 .bp-tl__card[data-compact] .bp-tl__cardTitle { -webkit-line-clamp: 1; font-size: 11.5px; }
-.bp-tl__card[data-compact] .bp-tl__cardTime,
-.bp-tl__card[data-compact] .bp-tl__cardMeta { display: none; }
-/* Short but not tiny: keep the title and the time, drop the faces. */
-.bp-tl__card[data-tight] .bp-tl__cardMeta { display: none; }
+.bp-tl__card[data-compact] .bp-tl__cardTime { display: none; }
 
 /* ── BREATHWORK, AND STAGE OPENINGS ────────────────────────────────────────────────────
    The two share every rule below, and differ ONLY in what --track holds by the time it gets

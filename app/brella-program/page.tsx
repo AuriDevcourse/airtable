@@ -25,6 +25,7 @@ import {
   DAY_START_MIN,
   TIMELINE_COLUMNS,
   columnOf,
+  type ColumnDef,
   weekdayLabel,
   EVENT_DAYS,
   brellaDayLabel as dayLabel,
@@ -145,6 +146,71 @@ function searchTerms(q: string): string[] {
   return normalise(q).split(/\s+/).filter(Boolean);
 }
 
+/**
+ * One person, and everywhere they appear.
+ *
+ * The search box predicts PEOPLE, not sessions: "Maria" should offer the three Marias to choose
+ * between, not thirty cards to read. Each suggestion carries where that person is, because the
+ * answer to "when is Maria on" is a day and a stage, and making the visitor pick a name and
+ * THEN hunt the board for the highlight is two steps where one will do.
+ */
+type SpeakerHit = {
+  name: string;
+  role: string; // "CTO, Nordea" — whatever of title/company exists
+  photo: string | null;
+  days: string[]; // the raw Brella day strings they appear on
+  stages: string[]; // the timeline columns they appear in
+  count: number; // sessions, which is not days x stages
+};
+
+/** Suggestions, best first. Capped — this is a hint, not a directory. */
+const MAX_SUGGESTIONS = 6;
+
+function speakerHits(
+  all: Session[],
+  terms: string[],
+  columnSet: ColumnDef[] | undefined
+): SpeakerHit[] {
+  if (!terms.length) return [];
+  const by = new Map<string, SpeakerHit>();
+  for (const s of all) {
+    for (const p of s.speakers ?? []) {
+      if (!p.name) continue;
+      const hay = normalise(`${p.name} ${p.company ?? ""} ${p.title ?? ""}`);
+      if (!terms.every((t) => hay.includes(t))) continue;
+      // Keyed on the NAME, not the id: Brella issues a fresh speaker id per session, so the
+      // same person appearing on three panels arrives as three records and would otherwise
+      // suggest three identical rows.
+      let hit = by.get(p.name);
+      if (!hit) {
+        hit = {
+          name: p.name,
+          role: [p.title, p.company].filter(Boolean).join(", "),
+          photo: p.photo,
+          days: [],
+          stages: [],
+          count: 0,
+        };
+        by.set(p.name, hit);
+      }
+      hit.count++;
+      if (!hit.days.includes(s.day)) hit.days.push(s.day);
+      const col = columnSet ? columnOf(s.room, columnSet) ?? s.room : s.room;
+      if (col && !hit.stages.includes(col)) hit.stages.push(col);
+      if (!hit.photo && p.photo) hit.photo = p.photo;
+      if (!hit.role) hit.role = [p.title, p.company].filter(Boolean).join(", ");
+    }
+  }
+  return [...by.values()]
+    .sort((a, b) => {
+      // A name that STARTS with what was typed comes first — typing "and" should offer Anders
+      // before it offers someone whose company happens to contain "and".
+      const pre = (h: SpeakerHit) => (normalise(h.name).startsWith(terms[0]) ? 0 : 1);
+      return pre(a) - pre(b) || a.name.localeCompare(b.name);
+    })
+    .slice(0, MAX_SUGGESTIONS);
+}
+
 // Brella's own day number, used ONLY to order the day groups — it is chronological by
 // construction. It is never displayed; brellaDayLabel() supplies the TechBBQ numbering.
 function dayNumber(day: string): number {
@@ -255,14 +321,6 @@ function orderedSpeakers(speakers: Speaker[] | undefined): Speaker[] {
   return [...speakers].sort((a, b) => Number(isModerator(a)) - Number(isModerator(b)));
 }
 
-function shortNames(speakers: Speaker[] | undefined, n = 2): string {
-  const ordered = orderedSpeakers(speakers);
-  if (!ordered.length) return "";
-  const shown = ordered.slice(0, n).map((p) => p.name);
-  const rest = ordered.length - shown.length;
-  return shown.join(", ") + (rest > 0 ? ` +${rest}` : "");
-}
-
 /** The little stack of faces on a card. Initials when Brella has no photo. */
 function Avatars({
   speakers,
@@ -274,10 +332,16 @@ function Avatars({
   /** Extra class, so a timeline card can pin the stack to its right edge. */
   className?: string;
 }) {
-  const people = orderedSpeakers(speakers).slice(0, n);
+  const all = orderedSpeakers(speakers);
+  const people = all.slice(0, n);
   if (!people.length) return null;
+  // The card used to end with ", +3" after the names. The names are gone, so the count moves
+  // onto the stack — without it a six-person panel and a two-person fireside are the same two
+  // circles, which is a worse lie than showing nothing.
+  const rest = all.length - people.length;
   return (
     <span className={className ? `bp-tl__faces ${className}` : "bp-tl__faces"} aria-hidden="true">
+      {rest > 0 && <span className="bp-tl__face bp-tl__face--more">+{rest}</span>}
       {people.map((p) =>
         p.photo ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -425,12 +489,15 @@ function StageTimeline({
   sessions,
   onOpen,
   terms,
+  stageMatches,
 }: {
   columns: string[];
   sessions: Session[];
   onOpen: (s: Session) => void;
   /** Speaker-search terms. Empty means no search is running and nothing dims. */
   terms: string[];
+  /** Column → matching sessions, for the marker on the heading. Empty when no search is on. */
+  stageMatches: Map<string, number>;
 }) {
   // Everything with a real clock time goes on the grid; "All day" entries cannot be placed
   // against a time axis and get a strip of their own above it.
@@ -478,12 +545,28 @@ function StageTimeline({
 
       <div className="bp-tl__head">
         <span className="bp-tl__gutterHead" />
-        {columns.map((c) => (
-          <span key={c} className="bp-tl__colHead" title={c} style={trackVars(c)}>
-            <StageIcon stage={c} />
-            <span>{c}</span>
-          </span>
-        ))}
+        {columns.map((c) => {
+          // The heading row is the one part of the board that is always on screen: the timeline
+          // is tall and, on a narrow viewport, scrolls sideways. A match twenty minutes further
+          // down a column you are not looking at is invisible without this.
+          const n = stageMatches.get(c) ?? 0;
+          return (
+            <span
+              key={c}
+              className="bp-tl__colHead"
+              title={n > 0 ? `${c} — ${n} match${n === 1 ? "" : "es"}` : c}
+              style={trackVars(c)}
+              data-hasmatch={n > 0 ? "1" : undefined}
+              // Dimmed in step with its cards, so a column with nothing in it recedes instead
+              // of competing with the one that has the answer.
+              data-dim={terms.length > 0 && n === 0 ? "1" : undefined}
+            >
+              <StageIcon stage={c} />
+              <span>{c}</span>
+              {n > 0 && <span className="bp-tl__colBadge">{n}</span>}
+            </span>
+          );
+        })}
       </div>
 
       <div className="bp-tl__body" style={{ height }}>
@@ -536,7 +619,10 @@ function StageTimeline({
                 const compact = usable < 46;
                 // Between the two: room for the title and time, not for a row of faces.
                 // 78px measured: 2 lines of title (32) + time (14) + faces (16) + padding (12).
-                const tight = !compact && usable < 78;
+                // `tight` used to mean "room for the title and time but not the faces". The
+                // faces are pinned to the card's edge now and the names are gone entirely, so
+                // there is nothing left for it to hide.
+
                 const style = {
                   ...sessionVars(s),
                   top,
@@ -554,7 +640,6 @@ function StageTimeline({
                   // the other three sides (including the tighter padding on a compact card).
                   ...(padTop ? { paddingTop: padTop } : {}),
                 } as React.CSSProperties;
-                const names = shortNames(s.speakers);
                 const inner = (
                   <>
                     {/* Five words then an ellipsis. The full title is the element's title
@@ -568,19 +653,12 @@ function StageTimeline({
                       {firstWords(s.name)}
                     </span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
-                    {/* The faces are pinned to the card's right edge and rendered on EVERY card
-                        with speakers, outside the meta row — the meta row is hidden on a compact
-                        or tight card, which is most of the board, so the shortest sessions used
-                        to show nobody. The names stay in the row and still drop out when there
-                        is no height for them. */}
+                    {/* FACES ONLY — no names on a card (Auri, 2026-08-06). Pinned to the right
+                        edge so every card carries them, however short. The names, roles, titles
+                        and companies are all in the dialog, which is one click away. */}
                     {s.speakers?.length ? (
                       <Avatars speakers={s.speakers} className="bp-tl__cardFaces" />
                     ) : null}
-                    {names && (
-                      <span className="bp-tl__cardMeta">
-                        <span className="bp-tl__cardNames">{names}</span>
-                      </span>
-                    )}
                   </>
                 );
                 return detail ? (
@@ -590,7 +668,6 @@ function StageTimeline({
                     className="bp-tl__card bp-tl__card--open"
                     style={style}
                     data-compact={compact ? "1" : undefined}
-                    data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
                     data-opening={opening ? "1" : undefined}
                     data-dim={dim ? "1" : undefined}
@@ -607,7 +684,6 @@ function StageTimeline({
                     className="bp-tl__card"
                     style={style}
                     data-compact={compact ? "1" : undefined}
-                    data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
                     data-opening={opening ? "1" : undefined}
                     data-dim={dim ? "1" : undefined}
@@ -702,36 +778,38 @@ function SpeakerSearch({
   q,
   setQ,
   matches,
-  names,
+  hits,
+  onPick,
 }: {
   q: string;
   setQ: (v: string) => void;
   matches: number;
-  names: string[];
+  /** Predicted people for what has been typed so far. */
+  hits: SpeakerHit[];
+  /** Picking a suggestion commits that exact name — see the note on the list. */
+  onPick: (h: SpeakerHit) => void;
 }) {
   const active = q.trim().length > 0;
+  // Hidden once the box holds exactly one suggestion's name: at that point the visitor has
+  // already chosen and a list repeating their choice back is just covering the board.
+  const showList =
+    active && hits.length > 0 && !(hits.length === 1 && hits[0].name.toLowerCase() === q.trim().toLowerCase());
   return (
     <div className="bp-search">
-      <label className="bp-search__box">
+      <div className="bp-search__box">
         <SearchIcon />
         <input
           type="search"
-          // `search` gives iOS the right keyboard and a native clear affordance; the explicit
-          // button below is for everyone else, since Firefox and Safari desktop show none.
+          // `search` gives iOS the right keyboard; the explicit button below is for everyone
+          // else, since Firefox and Safari desktop show no native clear affordance.
           className="bp-search__input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by speaker, company or title…"
           aria-label="Search sessions by speaker"
-          list="bp-speaker-names"
           autoComplete="off"
           spellCheck={false}
         />
-        <datalist id="bp-speaker-names">
-          {names.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
         {active && (
           <button
             type="button"
@@ -744,14 +822,48 @@ function SpeakerSearch({
             </svg>
           </button>
         )}
-      </label>
+      </div>
+
+      {/* A REAL LIST, not a <datalist>. The native one can only show plain strings, and the
+          useful part of a suggestion here is where the person actually IS — "Day 2 · Founders
+          Stage" is the answer to the question being asked, and a bare name is not. */}
+      {showList && (
+        <ul className="bp-sugg">
+          {hits.map((h) => (
+            <li key={h.name}>
+              <button type="button" className="bp-sugg__row" onClick={() => onPick(h)}>
+                {h.photo ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img className="bp-sugg__face" src={h.photo} alt="" loading="lazy" />
+                ) : (
+                  <span className="bp-sugg__face bp-sugg__face--empty">
+                    {h.name.trim().charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="bp-sugg__text">
+                  <span className="bp-sugg__name">{h.name}</span>
+                  {h.role && <span className="bp-sugg__role">{h.role}</span>}
+                </span>
+                <span className="bp-sugg__where">
+                  {h.days.map((d) => dayLabel(d).split(",")[0]).join(" + ")}
+                  {h.stages.length === 1 && <span className="bp-sugg__stage">{h.stages[0]}</span>}
+                  {h.stages.length > 1 && (
+                    <span className="bp-sugg__stage">{h.stages.length} stages</span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* aria-live, so the count reaches a screen reader: the dimming itself is invisible to
           one, and without this the box would silently do nothing. */}
       <p className="bp-search__hint" aria-live="polite">
         {active
           ? matches > 0
-            ? `${matches} session${matches === 1 ? "" : "s"} with this speaker · everything else dimmed`
-            : "No sessions here match — try the other day, or another section"
+            ? `${matches} session${matches === 1 ? "" : "s"} here · everything else dimmed`
+            : "Nothing on this day — the highlighted tab has them"
           : "Type a name to spotlight that speaker's sessions"}
       </p>
     </div>
@@ -1275,14 +1387,53 @@ export default function BrellaProgramPage() {
         : 0,
     [days, terms]
   );
-  // Every speaker in the feed, for the browser's native autocomplete. A <datalist> rather than a
-  // custom dropdown: it is one element, it is keyboard- and screen-reader-native, and the whole
-  // roster is ~500 names, which is well inside what the browser will happily filter itself.
-  const speakerNames = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of all) for (const p of s.speakers ?? []) if (p.name) set.add(p.name);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [all]);
+  const hits = useMemo(() => speakerHits(all, terms, columnSet), [all, terms, columnSet]);
+
+  // WHERE ELSE THE MATCHES ARE. A search only dims the day you are looking at, so a speaker who
+  // is on the other day looks like a speaker who does not exist. These two drive the markers on
+  // the day tabs and the stage headings, which is what turns "nothing here" into "over there".
+  const dayMatches = useMemo(
+    () =>
+      EVENT_DAYS.map((d) =>
+        terms.length
+          ? all.filter(
+              (s) => inBrellaSection(s, section) && s.day.includes(d.date) && matchesSpeaker(s, terms)
+            ).length
+          : 0
+      ),
+    [all, section, terms]
+  );
+
+  // Keyed by COLUMN, so a stage whose matching session is below the fold — or off to the side on
+  // a narrow screen, where the timeline scrolls horizontally — still announces itself in the
+  // header row that is always visible.
+  const stageMatches = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!terms.length || !columnSet) return m;
+    for (const s of timelineSessions) {
+      if (!matchesSpeaker(s, terms)) continue;
+      const col = columnOf(s.room, columnSet) ?? s.room;
+      m.set(col, (m.get(col) ?? 0) + 1);
+    }
+    return m;
+  }, [timelineSessions, terms, columnSet]);
+
+  /**
+   * Picking a suggestion commits the name AND takes you to them: if none of their sessions are
+   * on the day you are looking at, the day switches. Choosing a person and then being shown an
+   * empty board is the one outcome the suggestion list exists to prevent.
+   */
+  const pickSpeaker = useCallback(
+    (h: SpeakerHit) => {
+      setQ(h.name);
+      const here = EVENT_DAYS[dayIdx]?.date;
+      if (here && !h.days.some((d) => d.includes(here))) {
+        const target = EVENT_DAYS.findIndex((d) => h.days.some((hd) => hd.includes(d.date)));
+        if (target >= 0) setDayIdx(target);
+      }
+    },
+    [dayIdx]
+  );
 
   // ── Side Events ──
   // Day chips instead of a track filter: there is only one track ("Side Event Promotion"), so
@@ -1410,15 +1561,28 @@ export default function BrellaProgramPage() {
                       role="tab"
                       aria-selected={dayIdx === i}
                       onClick={() => setDayIdx(i)}
+                      // Marked when the search has matches on this day and you are not on it —
+                      // the whole point is to say "they are over here", so the tab you are
+                      // already looking at never lights up.
+                      data-hasmatch={dayMatches[i] > 0 && dayIdx !== i ? "1" : undefined}
                     >
                       <span className="bp-days__n">{d.label}</span>
                       <span className="bp-days__date">{d.date}</span>
+                      {dayMatches[i] > 0 && dayIdx !== i && (
+                        <span className="bp-days__badge">{dayMatches[i]}</span>
+                      )}
                     </button>
                   ))}
                 </div>
                 </div>
 
-                <SpeakerSearch q={q} setQ={setQ} matches={timelineMatches} names={speakerNames} />
+                <SpeakerSearch
+                  q={q}
+                  setQ={setQ}
+                  matches={timelineMatches}
+                  hits={hits}
+                  onPick={pickSpeaker}
+                />
 
                 <p className="count-line">
                   {timelineSessions.length} session(s).
@@ -1431,6 +1595,7 @@ export default function BrellaProgramPage() {
                   sessions={timelineSessions}
                   onOpen={setOpen}
                   terms={terms}
+                  stageMatches={stageMatches}
                 />
               </>
             ) : (
@@ -1481,7 +1646,7 @@ export default function BrellaProgramPage() {
                   )}
                 </div>
 
-                <SpeakerSearch q={q} setQ={setQ} matches={listMatches} names={speakerNames} />
+                <SpeakerSearch q={q} setQ={setQ} matches={listMatches} hits={hits} onPick={pickSpeaker} />
 
                 <p className="count-line">
                   {shown} session(s).

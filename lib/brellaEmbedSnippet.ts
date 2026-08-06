@@ -236,20 +236,11 @@ export function buildBrellaEmbedSnippet({
      edge. Breaking the word is the only thing that keeps it inside the space it was given. */
   #${id} .tbbq-bp__evTitle{flex:none!important;margin:0!important;font-family:var(--head)!important;font-size:12.5px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere!important}
   #${id} .tbbq-bp__evTime{flex:none!important;margin:0!important;font-size:11px!important;color:var(--muted)!important}
-  #${id} .tbbq-bp__evWho{flex:none!important;margin-top:auto!important;display:flex!important;align-items:center!important;gap:5px!important;min-width:0!important;font-size:10.5px!important;color:var(--muted)!important}
-  /* SPEAKER NAMES, FORCED HARDER. 10.5px was already !important on the parent and the names
-     still came out oversized on techbbq.dk: the theme's own rule was more SPECIFIC, and
-     !important only breaks ties at equal specificity. So the size is declared on the element
-     itself rather than inherited, at #id .a .b (0,2,1 plus the id) — above anything a theme
-     writes for a generic tag or a single class. line-height and font-family are pinned for the
-     same reason: a theme that sets 1.8 on descendants of its content wrapper made these two
-     lines tall enough to push the faces out of a short card. */
-  #${id} .tbbq-bp__evWho .tbbq-bp__evNames{min-width:0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;font-family:var(--sans)!important;font-size:10.5px!important;font-weight:400!important;line-height:1.3!important;letter-spacing:0!important;text-transform:none!important;color:var(--muted)!important}
   #${id} .tbbq-bp__faces{flex:none!important;display:inline-flex!important}
   /* THE AVATARS, ON EVERY CARD THAT HAS SPEAKERS.
-     They used to live inside .tbbq-bp__evWho, which is hidden on a compact or tight card — so
-     the shortest sessions, which are most of the board, showed no faces at all. Pinned to the
-     card's right edge instead, in their own element, so they survive both.
+     A timeline card shows FACES ONLY — no speaker names anywhere on the board (Auri,
+     2026-08-06). The names, roles, titles and companies are all in the dialog, one click away.
+     Pinned to the card's right edge so every card carries them however short its slot is.
      Vertically centred rather than top-aligned: a 5-minute card is one line tall and a top-
      aligned stack sat above its own title. */
   #${id} .tbbq-bp__evFaces{position:absolute!important;top:50%!important;right:7px!important;transform:translateY(-50%)!important;display:inline-flex!important;flex-direction:row-reverse!important;pointer-events:none!important;z-index:1!important}
@@ -260,15 +251,14 @@ export function buildBrellaEmbedSnippet({
      6px is 26px, plus the 7px inset and a little air. */
   #${id} .tbbq-bp__ev[data-faces] .tbbq-bp__evTitle,
   #${id} .tbbq-bp__ev[data-faces] .tbbq-bp__evTime{padding-right:40px!important}
-  /* Inside .tbbq-bp__evWho the faces are now redundant — the pinned stack is already showing
-     them — so that copy is dropped and only the names remain on a card tall enough for them. */
+  /* The "+3" for the speakers the stack has no room for: the count the removed names used to
+     carry. Auto width so a two-digit panel is not clipped. */
+  #${id} .tbbq-bp__face--more{width:auto!important;min-width:16px!important;padding:0 4px!important;background:var(--card2)!important;color:var(--fg)!important;font-size:8.5px!important;letter-spacing:-.02em!important}
   #${id} .tbbq-bp__face+.tbbq-bp__face{margin-left:-6px!important}
   #${id} .tbbq-bp__face{width:16px!important;height:16px!important;border-radius:9999px!important;object-fit:cover!important;box-shadow:0 0 0 1.5px var(--card)!important;background:var(--card2)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:8px!important;font-weight:700!important;color:var(--muted)!important;line-height:1!important;margin:0!important}
   #${id} .tbbq-bp__ev[data-compact]{padding:3px 8px!important}
   #${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evTitle{-webkit-line-clamp:1;font-size:11.5px!important}
-  #${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evTime,#${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evWho{display:none!important}
-  /* Short but not tiny: keep the title and the time, drop the faces. */
-  #${id} .tbbq-bp__ev[data-tight] .tbbq-bp__evWho{display:none!important}
+  #${id} .tbbq-bp__ev[data-compact] .tbbq-bp__evTime{display:none!important}
 
   /* ── BREATHWORK ── A break is 3 minutes, so its card is the 26px floor: the smallest thing on
      the board. --track is already violet by the time it lands here (sessionVars), so these rules
@@ -534,17 +524,16 @@ export function buildBrellaEmbedSnippet({
   }
   function isMod(p){return /moderator/i.test(p&&p.role||"");}
   function ordered(sp){return (sp||[]).slice().sort(function(a,b){return (isMod(a)?1:0)-(isMod(b)?1:0);});}
-  function names(sp,n){
-    var o=ordered(sp);if(!o.length)return "";
-    var s=o.slice(0,n).map(function(p){return p.name;});
-    var rest=o.length-s.length;
-    return s.join(", ")+(rest>0?" +"+rest:"");
-  }
   /* cls lets the same builder emit the inline row (list cards, dialog) and the pinned stack on
      a timeline card, which needs its own class to be positioned. */
   function faces(sp,n,cls){
-    var o=ordered(sp).slice(0,n);if(!o.length)return "";
-    return '<span class="tbbq-bp__faces'+(cls?' '+cls:'')+'">'+o.map(function(p){
+    var all=ordered(sp),o=all.slice(0,n);if(!o.length)return "";
+    var rest=all.length-o.length;
+    /* The chip is emitted FIRST because the stack is drawn row-reverse, which puts it at the
+       far right — after the faces, reading left to right. */
+    return '<span class="tbbq-bp__faces'+(cls?' '+cls:'')+'">'
+      +(rest>0?'<span class="tbbq-bp__face tbbq-bp__face--more">+'+rest+'</span>':'')
+      +o.map(function(p){
       var ph=safeUrl(p.photo);
       return ph?'<img class="tbbq-bp__face" src="'+esc(ph)+'" alt="" loading="lazy">'
         :'<span class="tbbq-bp__face">'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
@@ -760,10 +749,9 @@ export function buildBrellaEmbedSnippet({
            otherwise a cleared card claims space for a time it has no room to print. */
         var usable=h-g.pad;
         var compact=usable<46;
-        /* Between the two: enough room for the title and the time, not for a row of faces.
-           78px is measured, not guessed: two lines of title (32) + the time (14) + the faces
-           (16) + padding (12) is what a full card needs. */
-        var tight=!compact&&usable<78;
+        /* The old data-tight tier meant "room for the title and time but not the faces". The
+           faces are pinned to the card's edge now and the names are gone entirely, so it had
+           nothing left to hide and was removed. (No backticks in this file — template literal.) */
         /* Breathing room either side of every card, so one column's card does not run up
            against its neighbour (Auri, 2026-08-04). These columns are adjacent boxes with no
            channel of their own, so 12px a side gives the ~24px between cards that the dashboard
@@ -780,7 +768,6 @@ export function buildBrellaEmbedSnippet({
              important declaration. Without this the clearance is silently dropped and the
              heading goes back under the break. */
           +(g.pad?";padding-top:"+g.pad+"px!important":"");
-        var who=names(s.speakers,2);
         /* The mark goes INSIDE the title rather than on a row of its own: a break's card is 24px
            and a second row would push the title out of the box it has. */
         var bAttr=(breath?' data-breathwork="1"':'')+(opening?' data-opening="1"':'');
@@ -791,11 +778,10 @@ export function buildBrellaEmbedSnippet({
         if(stack)bAttr+=' data-faces="1"';
         var inner='<span class="tbbq-bp__evTitle">'+(breath?breathIcon(12):'')+(opening?openIcon(12):'')+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
-          +stack
-          +(who?'<span class="tbbq-bp__evWho"><span class="tbbq-bp__evNames">'+esc(who)+'</span></span>':'');
+          +stack;
         html+=hasDetail(s)
-          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
-          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+(tight?' data-tight="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
+          ? '<button type="button" class="tbbq-bp__ev" data-id="'+esc(s.id)+'"'+(compact?' data-compact="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</button>'
+          : '<div class="tbbq-bp__ev"'+(compact?' data-compact="1"':'')+bAttr+' title="'+esc(s.name)+'" style="'+st+'">'+inner+'</div>';
       });
       html+='</div>';
     });
