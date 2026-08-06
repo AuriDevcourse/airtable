@@ -146,6 +146,31 @@ function noContractTier(company: string): string | null {
   return NO_CONTRACT_TIERS[company.toLowerCase().replace(/\s+/g, " ").trim()] ?? null;
 }
 
+// ─── ONE TIER EXCEPTION, AND IT IS NOT THE OLD CORRECTIONS TABLE ────────────────────────
+// Read the header first. The ten hand-written tier corrections were deleted on purpose and must
+// not come back — they were a second source of truth beside a computed field and had already
+// drifted. This is deliberately NOT that, and the difference is worth stating so nobody deletes
+// it as a relic or, worse, starts adding to it:
+//
+//   NO_CONTRACT_TIERS fills a tier the formula could not produce.
+//   This REPLACES one the formula did produce, which is a stronger claim and needs a reason.
+//
+// Skytek Nordics ApS — Core, by Auri's explicit call (2026-08-06). Its Deal 2026 is 0 across all
+// three of its Partners 2026 records, so the deal-size formula can only ever say Community; the
+// partnership is real but is not priced in that column. The view's own `Partnership Type 2026`
+// has said "Core" all along, which is the same judgement recorded somewhere the wall stopped
+// reading on 2026-08-05.
+//
+// THE BAR FOR ADDING HERE: the deal cannot express the tier, not the deal disagrees with someone.
+// If Skytek's deal is ever priced, delete this entry — the deal wins.
+const TIER_EXCEPTIONS: Record<string, string> = {
+  "skytek nordics aps": "Core",
+};
+
+function tierException(company: string): string | null {
+  return TIER_EXCEPTIONS[company.toLowerCase().replace(/\s+/g, " ").trim()] ?? null;
+}
+
 // Tier order, highest commitment first. Colour runs hot at the top and cools down it, so the
 // ranking is legible without reading the labels. Every value clears 4.5:1 on #0d0d0d.
 //
@@ -441,7 +466,10 @@ export async function fetchPartners({
 
     // The tier as derived from the deal, not as typed by a human — with the no-contract fallback
     // applied ONLY when the deal produced nothing. See NO_CONTRACT_TIERS.
-    const tier = tierOf(f["Partnership Tier (from Tier)"]) || noContractTier(company) || "";
+    // Order matters. The exception comes FIRST because it exists precisely to beat a resolved
+    // deal tier; the no-contract fallback comes last because it only fills a gap.
+    const tier =
+      tierException(company) || tierOf(f["Partnership Tier (from Tier)"]) || noContractTier(company) || "";
     // No tier means no BAND, so the public wall cannot place them at all.
     //
     // It used to end here for every reader, and that made a partner INVISIBLE IN BOTH DIRECTIONS:
