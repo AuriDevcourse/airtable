@@ -40,8 +40,26 @@ const FAST_CACHE_CONTROL = "public, s-maxage=1800, stale-while-revalidate=3600";
 const CALM_CACHE_CONTROL = "public, s-maxage=3600, stale-while-revalidate=86400";
 const CALM_DAILY_CACHE_CONTROL = "public, s-maxage=86400, stale-while-revalidate=86400";
 
-/** In-memory TTL for an ordinary feed. */
-export function feedTtlMs(): number {
+// ─── PER-FEED OVERRIDE: HOURLY ──────────────────────────────────────────────────────────
+// A feed that opts out of the 30-minute event cadence and stays on one hour, event window or
+// not. Asked for on /api/fintech-speakers (Auri, 2026-08-06): the Future Of Fintech table is
+// filled by a submission form at roughly one entry every two days, so checking it twice an
+// hour spends requests to find nothing.
+//
+// STANDING UNTIL AURI SAYS OTHERWISE — that is the whole reason it is a named constant with a
+// list rather than an if-statement buried in the route. To put a feed back on the normal
+// cadence, take it out of HOURLY_FEEDS; to add one, put it in. Nothing else needs touching,
+// including the label the refresh button prints.
+export const HOURLY_FEEDS = ["fintech-speakers"] as const;
+export type HourlyFeed = (typeof HOURLY_FEEDS)[number];
+
+export function isHourlyFeed(key?: string): boolean {
+  return !!key && (HOURLY_FEEDS as readonly string[]).includes(key);
+}
+
+/** In-memory TTL for an ordinary feed. `key` opts a feed into the hourly override. */
+export function feedTtlMs(key?: string): number {
+  if (isHourlyFeed(key)) return CALM_TTL_MS;
   return inFastWindow() ? FAST_TTL_MS : CALM_TTL_MS;
 }
 
@@ -54,8 +72,9 @@ export function dailyTtlMs(): number {
   return inFastWindow() ? FAST_TTL_MS : CALM_DAILY_TTL_MS;
 }
 
-/** CDN Cache-Control for an ordinary feed. */
-export function feedCacheControl(): string {
+/** CDN Cache-Control for an ordinary feed. `key` opts a feed into the hourly override. */
+export function feedCacheControl(key?: string): string {
+  if (isHourlyFeed(key)) return CALM_CACHE_CONTROL;
   return inFastWindow() ? FAST_CACHE_CONTROL : CALM_CACHE_CONTROL;
 }
 
@@ -69,6 +88,7 @@ export function dailyCacheControl(): string {
  * prints it, so the dashboard never promises a cadence that is no longer in force.
  * Client-safe: it reads the clock and the constant above, no env, no server state.
  */
-export function cadenceLabel(): string {
+export function cadenceLabel(key?: string): string {
+  if (isHourlyFeed(key)) return "within the hour";
   return inFastWindow() ? "within 30 minutes" : "within the hour";
 }

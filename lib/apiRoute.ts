@@ -161,14 +161,20 @@ export function feedGate(req: NextRequest, bucket: string): FeedGate {
 export function feedResponse(
   body: unknown,
   gate: { fresh: boolean; origin?: string | null },
-  opts?: { daily?: boolean }
+  // `key` is the feed's cache key. It exists so a feed on the hourly override (see
+  // HOURLY_FEEDS in lib/cachePolicy.ts) sends the matching s-maxage — otherwise the in-memory
+  // TTL and the CDN would disagree and the CDN would win, which is the one that visitors see.
+  opts?: { daily?: boolean; key?: string }
 ): NextResponse {
   const res = NextResponse.json(body, { status: 200 });
   if (gate.fresh) {
     res.headers.set("Cache-Control", "no-store");
     return res;
   }
-  res.headers.set("Cache-Control", opts?.daily ? dailyCacheControl() : feedCacheControl());
+  res.headers.set(
+    "Cache-Control",
+    opts?.daily ? dailyCacheControl() : feedCacheControl(opts?.key)
+  );
   return withCors(res, gate.origin);
 }
 

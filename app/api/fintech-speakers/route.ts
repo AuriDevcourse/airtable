@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
 
     // One Airtable read for every variant: the lib returns all three roles and the filter
     // happens after the cache, the same way ?tier=, ?kind= and ?stage= work elsewhere.
-    const all = await cached(KEY, fetchFintechSpeakers, feedTtlMs());
+    // KEY opts this feed into the HOURLY override in lib/cachePolicy.ts — one hour, event
+    // window or not, standing until Auri says otherwise. Passed to feedResponse below as well,
+    // so the CDN's s-maxage agrees with this in-memory TTL.
+    const all = await cached(KEY, fetchFintechSpeakers, feedTtlMs(KEY));
     const people = role === "all" ? all : all.filter((p) => p.role === role);
 
     // `counts` lets the dashboard label its tabs without three extra requests.
@@ -40,7 +43,7 @@ export async function GET(req: NextRequest) {
       FINTECH_ROLES.map((r) => [r, all.filter((p) => p.role === r).length])
     );
 
-    return feedResponse({ count: people.length, role, counts, people }, gate);
+    return feedResponse({ count: people.length, role, counts, people }, gate, { key: KEY });
   } catch (err) {
     console.error("[/api/fintech-speakers]", err);
     return errorResponse(err, "Something went wrong loading fintech speakers.", gate);

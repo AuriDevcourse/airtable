@@ -107,6 +107,7 @@ export default function FintechSpeakersPage() {
 
           <div style={{ marginTop: 14 }}>
             <RefreshButton
+              feedKey="fintech-speakers"
               onRefresh={refresh}
               changes={changes}
               error={revalidateError}

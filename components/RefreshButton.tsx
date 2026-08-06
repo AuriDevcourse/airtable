@@ -34,7 +34,15 @@ function headline(c: ChangeSummary): string {
   return parts.join(", ");
 }
 
-function ChangeReport({ changes, source }: { changes: ChangeSummary; source: string }) {
+function ChangeReport({
+  changes,
+  source,
+  feedKey,
+}: {
+  changes: ChangeSummary;
+  source: string;
+  feedKey?: string;
+}) {
   const empty = changes.total === 0;
   return (
     <div
@@ -86,7 +94,8 @@ function ChangeReport({ changes, source }: { changes: ChangeSummary; source: str
         // cachePolicy, so this line stays true when the event window ends and the cadence
         // goes back to hourly.
         <div style={{ marginTop: 10, color: "var(--color-muted)", fontSize: 12 }}>
-          This page is now live with {source}. techbbq.dk picks the change up {cadenceLabel()}.
+          This page is now live with {source}. techbbq.dk picks the change up{" "}
+          {cadenceLabel(feedKey)}.
         </div>
       )}
     </div>
@@ -99,7 +108,14 @@ export function RefreshButton({
   error,
   resetKey,
   source,
+  feedKey,
 }: {
+  /**
+   * The feed's cache key, when it is one of the HOURLY_FEEDS in lib/cachePolicy.ts. Without it
+   * this button would promise the event cadence ("within 30 minutes") on a feed deliberately
+   * held at an hour — a smaller number than the truth, which is the wrong way to be wrong.
+   */
+  feedKey?: string;
   // Bump the page's `fresh` counter. The refetch is the page's job, not this component's.
   onRefresh: () => void;
   changes?: ChangeSummary | null;
@@ -153,7 +169,7 @@ export function RefreshButton({
           </span>
         )}
       </span>
-      {pressed && !error && changes != null && <ChangeReport changes={changes} source={from} />}
+      {pressed && !error && changes != null && <ChangeReport changes={changes} source={from} feedKey={feedKey} />}
     </div>
   );
 }

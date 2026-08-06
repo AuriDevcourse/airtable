@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { HOURLY_FEEDS, inFastWindow } from "@/lib/cachePolicy";
 
 // THE FRONT DOOR. Two steps: pick what you are looking for, then pick the page.
 //
@@ -282,6 +283,75 @@ const PENDING_REASON: Record<string, string> = {
   "no-tier": "needing a Company Link",
 };
 
+
+/**
+ * HOW OFTEN THE FEEDS UPDATE, on the front page.
+ *
+ * The question that kept getting asked in chat ("how often does X refresh?"), answered where
+ * anyone lands first rather than in a README nobody opens.
+ *
+ * Everything here is READ FROM lib/cachePolicy.ts, never retyped. A hard-coded "30 minutes"
+ * would be a lie from the 28th of August onwards, and a lie the moment a feed joins
+ * HOURLY_FEEDS — the two things this box exists to explain are exactly the two that change.
+ */
+function RefreshCadence() {
+  // Read at render, not at module scope: a value captured once at first render is wrong for
+  // anyone who leaves the tab open across the cutover, and on a static build it would freeze
+  // at BUILD time. Same rule as defaultEventDay().
+  const fast = inFastWindow();
+  const hourly = [...HOURLY_FEEDS];
+
+  return (
+    <section className="check" style={{ marginBottom: 18 }}>
+      <div className="check__head">
+        <p className="check__title">How often this updates</p>
+      </div>
+      <p className="check__sub" style={{ marginTop: 8, lineHeight: 1.55 }}>
+        Nothing here is live-read on every visit — each feed is cached twice over, once in the
+        server&rsquo;s memory and once on the CDN that actually answers techbbq.dk. So an edit in
+        Airtable reaches the public site{" "}
+        <strong style={{ color: "var(--color-foreground)" }}>
+          {fast ? "within 30 minutes" : "within the hour"}
+        </strong>
+        {fast
+          ? " — the event cadence, in force until the end of 27 August."
+          : " — the normal cadence outside the event."}
+      </p>
+      <ul
+        className="check__sub"
+        style={{ margin: "10px 0 0", paddingLeft: 18, lineHeight: 1.7 }}
+      >
+        <li>
+          <strong style={{ color: "var(--color-foreground)" }}>Most feeds</strong> ·{" "}
+          {fast ? "30 minutes now, 1 hour from 28 August" : "1 hour"}. The switch is a clock
+          comparison, not a deploy — nobody has to undo it.
+        </li>
+        <li>
+          <strong style={{ color: "var(--color-foreground)" }}>The team list</strong> ·{" "}
+          {fast ? "30 minutes now, once a day from 28 August" : "once a day"}. Staff change a few
+          times a year.
+        </li>
+        {hourly.length > 0 && (
+          <li>
+            <strong style={{ color: "var(--color-foreground)" }}>
+              {hourly.map((k) => `/api/${k}`).join(", ")}
+            </strong>{" "}
+            · held at <strong style={{ color: "var(--color-foreground)" }}>1 hour</strong>, event
+            window or not, by request. That table is filled by a submission form at roughly one
+            entry every two days, so checking twice an hour mostly finds nothing.
+          </li>
+        )}
+        <li>
+          <strong style={{ color: "var(--color-foreground)" }}>In a hurry?</strong> Every page has
+          a <em>Refresh from Airtable</em> button. It reads live, past both caches, and reports
+          what changed — but it cannot purge the copy techbbq.dk is already serving, so the public
+          site still waits out the cadence above.
+        </li>
+      </ul>
+    </section>
+  );
+}
+
 function DailyCheck() {
   const [checks, setChecks] = useState<Check[] | null>(null);
 
@@ -469,6 +539,7 @@ export default function Home() {
 
       <div className="wrap" style={{ paddingBottom: 80 }}>
         <DailyCheck />
+        <RefreshCadence />
 
         <ol className="hub">
           {SECTIONS.map((s) => {
