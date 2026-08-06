@@ -32,6 +32,9 @@ import {
   BREATHWORK_ICON_PATHS,
   BREATHWORK_LABEL,
   BREATHWORK_RE,
+  OPENING_ICON_PATHS,
+  OPENING_LABEL,
+  OPENING_RE,
   DEFAULT_TRACK_COLOR,
   HOST_ICON_PATHS,
   SECTION_COLORS,
@@ -244,13 +247,17 @@ export function buildBrellaEmbedSnippet({
      the board. --track is already violet by the time it lands here (sessionVars), so these rules
      only add WEIGHT — a stronger fill and a full violet edge instead of the 3px top rule every
      other card carries — so the eye finds it despite the size. */
-  #${id} .tbbq-bp__ev[data-breathwork]{border:1px solid color-mix(in srgb,var(--track) 55%,transparent)!important;border-top:3px solid var(--track)!important;background:color-mix(in srgb,var(--track) 26%,var(--card))!important;box-shadow:0 2px 10px rgba(0,0,0,.55)!important}
-  #${id} button.tbbq-bp__ev[data-breathwork]:hover{background:color-mix(in srgb,var(--track) 40%,var(--card))!important}
+  #${id} .tbbq-bp__ev[data-breathwork],
+  #${id} .tbbq-bp__ev[data-opening]{border:1px solid color-mix(in srgb,var(--track) 55%,transparent)!important;border-top:3px solid var(--track)!important;background:color-mix(in srgb,var(--track) 26%,var(--card))!important;box-shadow:0 2px 10px rgba(0,0,0,.55)!important}
+  #${id} button.tbbq-bp__ev[data-breathwork]:hover,
+  #${id} button.tbbq-bp__ev[data-opening]:hover{background:color-mix(in srgb,var(--track) 40%,var(--card))!important}
   /* A 24px card would otherwise keep the 6px top padding and clip its own single line. */
-  #${id} .tbbq-bp__ev[data-breathwork][data-compact]{padding-top:2px!important;padding-bottom:2px!important}
+  #${id} .tbbq-bp__ev[data-breathwork][data-compact],
+  #${id} .tbbq-bp__ev[data-opening][data-compact]{padding-top:2px!important;padding-bottom:2px!important}
   #${id} .tbbq-bp__evTitle .tbbq-bp__bicon{display:inline-block!important;vertical-align:-2px!important;margin-right:4px!important;color:var(--track)!important}
   /* The pill on a list card and in the dialog: a label, not a button somebody forgot to wire up. */
   #${id} .tbbq-bp__breath{display:inline-flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:3px 9px!important;border-radius:9999px!important;background:color-mix(in srgb,${BREATHWORK_COLOR} 20%,transparent)!important;color:${BREATHWORK_COLOR}!important;font-family:var(--head)!important;font-size:10.5px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.4!important}
+  #${id} .tbbq-bp__open{display:inline-flex!important;align-items:center!important;gap:5px!important;margin:10px 0 0!important;padding:3px 9px!important;border-radius:9999px!important;background:color-mix(in srgb,var(--track) 20%,transparent)!important;color:var(--track)!important;font-family:var(--head)!important;font-size:10.5px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.4!important}
 
   /* ── CARD LIST (event rooms, side events) ── */
   #${id} .tbbq-bp__daylabel{margin:26px 0 12px!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
@@ -405,6 +412,9 @@ export function buildBrellaEmbedSnippet({
   var BREATH_COLOR=${JSON.stringify(BREATHWORK_COLOR)};
   var BREATH_LABEL=${JSON.stringify(BREATHWORK_LABEL)};
   var BREATH_ICON=${JSON.stringify(BREATHWORK_ICON_PATHS)};
+  var OPEN_RX=new RegExp(${JSON.stringify(OPENING_RE)},"i");
+  var OPEN_LABEL=${JSON.stringify(OPENING_LABEL)};
+  var OPEN_ICON=${JSON.stringify(OPENING_ICON_PATHS)};
   var EVENT_DAYS=${JSON.stringify(EVENT_DAYS)};
   var EVENT_YEAR=${EVENT_YEAR};
   var PX=${PX_PER_MIN},SLOT=${SLOT_MIN},MINCARD=${MIN_CARD_PX};
@@ -442,6 +452,17 @@ export function buildBrellaEmbedSnippet({
   /* The word as well as the mark. A colour on its own is a code the visitor has to learn, and a
      colour-blind visitor never learns it. */
   function breathBadge(){return '<span class="tbbq-bp__breath">'+breathIcon(12)+esc(BREATH_LABEL)+'</span>';}
+  /* An opening keeps its STAGE's colour, so unlike isBreath() there is no sessionVars branch
+     for it — the absence of an override is the feature. Breathwork is excluded so a session can
+     never carry both marks. */
+  function isOpen(s){var n=s&&s.name||"";return OPEN_RX.test(n)&&!BREATH_RX.test(n);}
+  function openIcon(px){
+    return '<svg class="tbbq-bp__breathIcon" viewBox="0 0 24 24" width="'+px+'" height="'+px+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      +OPEN_ICON.map(function(d){return '<path d="'+d+'"/>';}).join("")+'</svg>';
+  }
+  /* Its own class, because .tbbq-bp__breath hard-codes the violet. This one reads var(--track),
+     which is the stage's colour on an opening card. */
+  function openBadge(){return '<span class="tbbq-bp__open">'+openIcon(12)+esc(OPEN_LABEL)+'</span>';}
   /* NO LEGEND ABOVE THE BOARD. There was one, naming the violet and counting the breaks; Auri cut
      it on 2026-08-05. The card says "Breathwork Break" on itself, which is what the legend stood
      in for while the card was too small to hold a word. */
@@ -680,20 +701,23 @@ export function buildBrellaEmbedSnippet({
          Only a break covering another card's TOP is cleared: padding cannot clear a card's
          middle, and no break in the schedule sits anywhere but between two sessions. */
       var geo=placed.map(function(p){
-        var s=p.x.s,breath=isBreath(s);
+        var s=p.x.s,breath=isBreath(s),opening=isOpen(s),band=breath||opening;
+        /* band drives the GEOMETRY, breath/opening only the look: a 5-minute opening is
+           floored over a slot that does not pay for it, exactly like a 3-minute break.
+           (No backticks anywhere in this file — it is all one JS template literal.) */
         return {
-          p:p,s:s,breath:breath,
+          p:p,s:s,breath:breath,opening:opening,band:band,
           top:(p.x.start-from)*PXN,
-          h:breath?Math.max(BREATH_MIN,(p.x.end-p.x.start)*PXN)
-                  :Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4),
+          h:band?Math.max(BREATH_MIN,(p.x.end-p.x.start)*PXN)
+                :Math.max(MINCARD,(p.x.end-p.x.start)*PXN-4),
           pad:0
         };
       });
       geo.forEach(function(band){
-        if(!band.breath)return;
+        if(!band.band)return;
         var bl=band.p.lane/band.p.lanes,br=(band.p.lane+1)/band.p.lanes,bBot=band.top+band.h;
         geo.forEach(function(o){
-          if(o===band||o.breath)return;
+          if(o===band||o.band)return;
           var ol=o.p.lane/o.p.lanes,or=(o.p.lane+1)/o.p.lanes;
           if(bl>=or||ol>=br)return;               /* side by side, never touching */
           if(band.top>o.top||bBot<=o.top)return;  /* does not cover its top edge */
@@ -702,7 +726,7 @@ export function buildBrellaEmbedSnippet({
       });
 
       geo.forEach(function(g){
-        var s=g.s,p=g.p,h=g.h,breath=g.breath;
+        var s=g.s,p=g.p,h=g.h,breath=g.breath,opening=g.opening;
         /* The padding costs the card room, so it counts against what the card can show:
            otherwise a cleared card claims space for a time it has no room to print. */
         var usable=h-g.pad;
@@ -720,7 +744,7 @@ export function buildBrellaEmbedSnippet({
         var st="position:absolute;top:"+g.top+"px;height:"+h+"px;left:calc("+((p.lane*100)/p.lanes)+"% + "+INSET+"px);width:calc("+(100/p.lanes)+"% - "+(INSET*2)+"px);"+sessionVars(s)
           /* ALWAYS in front: every card around a break is drawn taller than its own slot, so
              without this the break is behind one and in front of the next. */
-          +(breath?";z-index:3":"")
+          +(g.band?";z-index:3":"")
           /* !important on an INLINE style, which looks wrong and is not: this snippet's own
              stylesheet sets "padding:6px 8px!important" on every card (and 3px on a compact one)
              to survive an arbitrary WordPress theme, and a plain inline value loses to an
@@ -730,8 +754,8 @@ export function buildBrellaEmbedSnippet({
         var who=names(s.speakers,2);
         /* The mark goes INSIDE the title rather than on a row of its own: a break's card is 24px
            and a second row would push the title out of the box it has. */
-        var bAttr=breath?' data-breathwork="1"':'';
-        var inner='<span class="tbbq-bp__evTitle">'+(breath?breathIcon(12):'')+esc(firstWords(s.name,5))+'</span>'
+        var bAttr=(breath?' data-breathwork="1"':'')+(opening?' data-opening="1"':'');
+        var inner='<span class="tbbq-bp__evTitle">'+(breath?breathIcon(12):'')+(opening?openIcon(12):'')+esc(firstWords(s.name,5))+'</span>'
           +'<span class="tbbq-bp__evTime">'+esc(s.timeSlot||"")+'</span>'
           +(who?'<span class="tbbq-bp__evWho">'+faces(s.speakers,2)+'<span class="tbbq-bp__evNames">'+esc(who)+'</span></span>':'');
         html+=hasDetail(s)
@@ -762,6 +786,7 @@ export function buildBrellaEmbedSnippet({
              the question the violet is asking the visitor to notice. */
           var inner='<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
             +(isBreath(s)?breathBadge():'')
+      +(isOpen(s)?openBadge():'')
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
             +venueLine(s)
             +(s.description?'<p class="tbbq-bp__desc">'+esc(s.description)+'</p>':'')
@@ -844,6 +869,7 @@ export function buildBrellaEmbedSnippet({
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
       +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
       +(isBreath(s)?breathBadge():'')
+      +(isOpen(s)?openBadge():'')
       +'<h2>'+esc(s.name)+'</h2>'
       +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?[("Hosted by "+s.room),s.location].filter(Boolean).join(" · "):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')

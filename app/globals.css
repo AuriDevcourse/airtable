@@ -1304,7 +1304,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* Short but not tiny: keep the title and the time, drop the faces. */
 .bp-tl__card[data-tight] .bp-tl__cardMeta { display: none; }
 
-/* ── BREATHWORK ────────────────────────────────────────────────────────────────────────
+/* ── BREATHWORK, AND STAGE OPENINGS ────────────────────────────────────────────────────
+   The two share every rule below, and differ ONLY in what --track holds by the time it gets
+   here. sessionColor() overrides it to violet for a breathwork break, and deliberately does
+   NOT override it for an opening — so the BBQ Stage opening comes out orange, the Founders
+   Stage opening green, and so on, off the same declarations. Nothing here names a colour.
    A breathwork break is 3 minutes, which is 9px of this timeline's axis, floored to 24 so it can
    carry its label and be pressed. --track is already violet by the time it gets here (see
    sessionColor in lib/brellaTheme.ts), so what these rules add is WEIGHT — a stronger fill and a
@@ -1314,18 +1318,22 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    front of the next. The shadow is what makes that read as "on top of" rather than "part of".
    Nothing ends up hidden: the card it lands on is cleared with padding-top, measured in
    layOutColumn(). */
-.bp-tl__card[data-breathwork] {
+.bp-tl__card[data-breathwork],
+.bp-tl__card[data-opening] {
   border: 1px solid color-mix(in srgb, var(--track) 55%, transparent);
   border-top: 3px solid var(--track);
   background: color-mix(in srgb, var(--track) 26%, var(--color-card));
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
 }
-.bp-tl__card--open[data-breathwork]:hover {
+.bp-tl__card--open[data-breathwork]:hover,
+.bp-tl__card--open[data-opening]:hover {
   background: color-mix(in srgb, var(--track) 40%, var(--color-card));
 }
-.bp-tl__card[data-breathwork] .bp-tl__cardTitle { color: #fff; }
+.bp-tl__card[data-breathwork] .bp-tl__cardTitle,
+.bp-tl__card[data-opening] .bp-tl__cardTitle { color: #fff; }
 /* A 24px card would otherwise keep the 6px top padding and clip its own single line. */
-.bp-tl__card[data-breathwork][data-compact] { padding-top: 2px; padding-bottom: 2px; }
+.bp-tl__card[data-breathwork][data-compact],
+.bp-tl__card[data-opening][data-compact] { padding-top: 2px; padding-bottom: 2px; }
 /* The icon sits in the title's text flow, so it needs the baseline nudge a floated row of its
    own would not. */
 .bp-tl__cardTitle .bp-breath__icon {
@@ -1349,8 +1357,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 /* On a card list, the whole tile also carries the violet edge, so a breathwork break does not
    have to be read to be spotted. */
-.bp-card[data-breathwork] { border-color: color-mix(in srgb, var(--track) 45%, var(--color-border)); }
-.bp-card[data-breathwork]:hover { border-color: var(--track); }
+.bp-card[data-breathwork],
+.bp-card[data-opening] { border-color: color-mix(in srgb, var(--track) 45%, var(--color-border)); }
+.bp-card[data-breathwork]:hover,
+.bp-card[data-opening]:hover { border-color: var(--track); }
 
 @media (max-width: 900px) {
   /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the

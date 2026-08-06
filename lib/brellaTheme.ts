@@ -77,6 +77,52 @@ export const BREATHWORK_ICON_PATHS: string[] = [
   "M12.6 19.4A2 2 0 1 0 14 16H2",
 ];
 
+// ─── STAGE OPENINGS ─────────────────────────────────────────────────────────────────────
+// Every stage opens its day with a 5-to-10 minute welcome, and those are the cards a visitor
+// most needs to find — they are where you go to start the day. Same problem as breathwork: on
+// a timeline where height means duration, a 5-minute opening is 15px and reads as filler.
+//
+// So they get breathwork's WEIGHT (a filled card, a full outline, a badge) but NOT its colour.
+// An opening belongs to its stage — the BBQ Stage opening is orange, the Founders Stage opening
+// is green — because unlike a breathwork break, an opening is not a thing running across the
+// stages, it is the stage starting. That is the whole distinction between the two treatments,
+// and it is why sessionColor() below is deliberately NOT given an opening branch: no override
+// means the card keeps its track colour, which is exactly what is wanted.
+//
+// MATCHED ON THE NAME, and the names are not consistent — Brella has "Stage Opening" (5 of
+// them), "Welcome to TechBBQ 2026!", "Welcome to Day 2 of TechBBQ 2026!", "Opening of Day 2"
+// and, on Life Science's first day, plain "Introduction".
+//
+//   \bopening\b   the word, not the substring. "Copenhagen" contains "open" and this schedule
+//                 has two side events with Copenhagen in the title; \bopening\b misses both,
+//                 but a looser /open/i would paint them as stage openings.
+//   ^welcome\b    anchored, so a talk called "A warm welcome to quantum" is not an opening.
+//   ^introduction$  EXACT, and it exists for one card: Life Science's 26 Aug opening, the
+//                 counterpart to its "Opening of Day 2" the next day. Unanchored it would
+//                 catch any session with "introduction" in the title.
+export const OPENING_RE = "\\bopening\\b|^\\s*welcome\\b|^\\s*introduction\\s*$";
+export const OPENING_LABEL = "Opening";
+
+const OPENING_RX = new RegExp(OPENING_RE, "i");
+
+/**
+ * Whether a session is a stage opening.
+ *
+ * Breathwork is excluded rather than merely ordered after: the two treatments differ only in
+ * colour, so a session matching both would get the violet override AND the opening badge, which
+ * reads as a breathwork break that is somehow also an opening. Nothing in the 2026 schedule
+ * matches both; this keeps a future "Opening Breathwork" from rendering as a contradiction.
+ */
+export function isOpening(s: { name?: string } | null | undefined): boolean {
+  const n = s?.name || "";
+  return OPENING_RX.test(n) && !BREATHWORK_RX.test(n);
+}
+
+// Lucide "play". A right-pointing triangle is the one shape that still reads as "start here" at
+// 12px — a sunrise or a flag turns to mush at that size, which is the same test the breathwork
+// wind glyph had to pass.
+export const OPENING_ICON_PATHS: string[] = ["M6 3l14 9-14 9z"];
+
 // Lucide building-2, for the "Hosted by <partner>" line on a side event. Shared here rather
 // than written twice, for the same reason the stage icons are: the embed emits raw SVG strings
 // and cannot render the page's React component.

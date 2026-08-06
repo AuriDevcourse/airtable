@@ -9,8 +9,11 @@ import {
   BREATHWORK_ICON_PATHS,
   BREATHWORK_LABEL,
   HOST_ICON_PATHS,
+  OPENING_ICON_PATHS,
+  OPENING_LABEL,
   STAGE_ICON_PATHS,
   isBreathwork,
+  isOpening,
   sessionColor,
   sessionColor2,
   trackColor,
@@ -300,8 +303,23 @@ function withLanes<T extends { start: number; end: number }>(items: T[]) {
 type Placed = Session & { start: number; end: number };
 type Lane = Placed & { lane: number; lanes: number };
 
-/** A card's final geometry, once it knows about the cards around it. */
-type Laid = { s: Lane; top: number; h: number; breath: boolean; padTop: number };
+/**
+ * A card's final geometry, once it knows about the cards around it.
+ *
+ * `breath` and `opening` drive the LOOK and are mutually exclusive (see isOpening). `band` is
+ * the union and drives the GEOMETRY — the height floor, the z-index and the clearance below —
+ * because a 5-minute opening has exactly the breathwork problem: floored to a height its slot
+ * does not pay for, so it lands on the card after it.
+ */
+type Laid = {
+  s: Lane;
+  top: number;
+  h: number;
+  breath: boolean;
+  opening: boolean;
+  band: boolean;
+  padTop: number;
+};
 
 /**
  * Geometry for one stage column, in one pass over the cards.
@@ -316,26 +334,35 @@ type Laid = { s: Lane; top: number; h: number; breath: boolean; padTop: number }
  * padding, and no break in the schedule does that: every one of them sits between two sessions.
  */
 function layOutColumn(placed: Lane[], from: number): Laid[] {
-  const laid: Laid[] = placed.map((s) => ({
-    s,
-    top: (s.start - from) * PX_PER_MIN,
-    h: isBreathwork(s)
-      ? Math.max(BREATH_MIN_PX, (s.end - s.start) * PX_PER_MIN)
-      : Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4),
-    breath: isBreathwork(s),
-    padTop: 0,
-  }));
+  const laid: Laid[] = placed.map((s) => {
+    const breath = isBreathwork(s);
+    const opening = isOpening(s);
+    const band = breath || opening;
+    return {
+      s,
+      top: (s.start - from) * PX_PER_MIN,
+      // A band keeps the full floor. Every other card gives back 4px, which is the gap that
+      // separates it from the card below — a band has no gap because it is drawn on top.
+      h: band
+        ? Math.max(BREATH_MIN_PX, (s.end - s.start) * PX_PER_MIN)
+        : Math.max(MIN_CARD_PX, (s.end - s.start) * PX_PER_MIN - 4),
+      breath,
+      opening,
+      band,
+      padTop: 0,
+    };
+  });
 
   // Horizontal extent as a fraction of the column, which is how the cards are positioned. Two
   // cards in different lanes of the same cluster never touch, so they cannot need clearance.
   const span = (x: Laid): [number, number] => [x.s.lane / x.s.lanes, (x.s.lane + 1) / x.s.lanes];
 
   for (const band of laid) {
-    if (!band.breath) continue;
+    if (!band.band) continue;
     const [bandLeft, bandRight] = span(band);
     const bandBottom = band.top + band.h;
     for (const other of laid) {
-      if (other === band || other.breath) continue;
+      if (other === band || other.band) continue;
       const [left, right] = span(other);
       if (bandLeft >= right || left >= bandRight) continue; // side by side, never touching
       const coversTop = band.top <= other.top && bandBottom > other.top;
@@ -445,7 +472,7 @@ function StageTimeline({
                   {/campfire/i.test(col) ? "Program coming soon" : "Nothing scheduled"}
                 </p>
               )}
-              {laid.map(({ s, top, h, breath, padTop }) => {
+              {laid.map(({ s, top, h, breath, opening, band, padTop }) => {
                 const detail = hasDetail(s);
                 // Below ~46px there is only room for one line, so the card drops the time
                 // and the speaker count rather than showing three clipped half-lines. A card
@@ -466,8 +493,9 @@ function StageTimeline({
                   width: `calc(${100 / s.lanes}% - ${CARD_INSET_PX * 2}px)`,
                   // ALWAYS in front. A break is three minutes long and its neighbours are drawn
                   // taller than their slots, so without this it is behind one card and in front
-                  // of the next depending on the order they happen to be in the DOM.
-                  ...(breath ? { zIndex: 3 } : {}),
+                  // of the next depending on the order they happen to be in the DOM. An opening
+                  // is 5 minutes and has the same problem.
+                  ...(band ? { zIndex: 3 } : {}),
                   // Cleared past the band above it. Only the top is set, so the stylesheet keeps
                   // the other three sides (including the tighter padding on a compact card).
                   ...(padTop ? { paddingTop: padTop } : {}),
@@ -482,6 +510,7 @@ function StageTimeline({
                           because the session is three minutes long, and a second row would push
                           the title out of the box it has. */}
                       {breath && <BreathIcon />}
+                      {opening && <OpeningIcon />}
                       {firstWords(s.name)}
                     </span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
@@ -502,6 +531,7 @@ function StageTimeline({
                     data-compact={compact ? "1" : undefined}
                     data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
+                    data-opening={opening ? "1" : undefined}
                     title={s.name}
                     onClick={() => onOpen(s)}
                     aria-label={`${s.name} — show details`}
@@ -516,6 +546,7 @@ function StageTimeline({
                     data-compact={compact ? "1" : undefined}
                     data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
+                    data-opening={opening ? "1" : undefined}
                     title={s.name}
                   >
                     {inner}
@@ -596,6 +627,28 @@ function BreathIcon({ size = 12 }: { size?: number }) {
   );
 }
 
+/** Lucide play, the opening mark. Paths shared with the embed via brellaTheme. */
+function OpeningIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      className="bp-breath__icon"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {OPENING_ICON_PATHS.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 /**
  * The violet pill on a breathwork card. It carries the word as well as the icon: the colour
  * alone is a code the visitor has to learn, and a colour-blind visitor never learns it.
@@ -605,6 +658,20 @@ function BreathBadge() {
     <span className="bp-breath">
       <BreathIcon />
       {BREATHWORK_LABEL}
+    </span>
+  );
+}
+
+/**
+ * The same pill for an opening, in the STAGE's colour rather than a colour of its own — the
+ * .bp-breath rules are all written against var(--track), which is already the stage's accent by
+ * the time it reaches an opening card. Same reason it carries the word and not just the icon.
+ */
+function OpeningBadge() {
+  return (
+    <span className="bp-breath">
+      <OpeningIcon />
+      {OPENING_LABEL}
     </span>
   );
 }
@@ -667,12 +734,14 @@ function VenueLine({ s }: { s: Session }) {
 function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }) {
   const detail = hasDetail(s);
   const breath = isBreathwork(s);
+  const opening = isOpening(s);
   const body = (
     <>
       <p className="bp-card__time">{timeLabel(s)}</p>
       {/* Above the title, where a kicker goes: it says what KIND of thing this is, which is
           the question the violet is answering. */}
       {breath && <BreathBadge />}
+      {opening && <OpeningBadge />}
       <h3 className="bp-card__title">{s.name}</h3>
       <VenueLine s={s} />
       {s.description && <p className="bp-card__desc">{s.description}</p>}
@@ -689,7 +758,12 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
   // a div with onClick. That is what makes it keyboard-reachable and announced as pressable.
   if (!detail) {
     return (
-      <article className="bp-card" style={style} data-breathwork={breath ? "1" : undefined}>
+      <article
+        className="bp-card"
+        style={style}
+        data-breathwork={breath ? "1" : undefined}
+        data-opening={opening ? "1" : undefined}
+      >
         {body}
       </article>
     );
@@ -700,6 +774,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
       className="bp-card bp-card--open"
       style={style}
       data-breathwork={breath ? "1" : undefined}
+      data-opening={opening ? "1" : undefined}
       onClick={() => onOpen(s)}
       aria-label={`${s.name} — show details`}
     >
@@ -818,6 +893,7 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
 
         <p className="bp-modal__time">{timeLabel(s)}</p>
         {isBreathwork(s) && <BreathBadge />}
+        {isOpening(s) && <OpeningBadge />}
         <h2 className="bp-modal__title" id="bp-dialog-title">
           {s.name}
         </h2>
