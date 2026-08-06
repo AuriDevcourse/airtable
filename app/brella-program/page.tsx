@@ -536,6 +536,7 @@ function StageTimeline({
   tags,
   stageMatches,
   columnSet,
+  openAt,
 }: {
   columns: string[];
   sessions: Session[];
@@ -554,6 +555,12 @@ function StageTimeline({
   tags: string[];
   /** Column → matching sessions, for the marker on the heading. Empty when no search is on. */
   stageMatches: Map<string, number>;
+  /**
+   * Pin the board to open no later than this minute-of-day. Set for Event Rooms so the
+   * whole-day band has room to announce itself above the first session. Omitted elsewhere,
+   * where the board still starts at whatever is on first.
+   */
+  openAt?: number;
 }) {
   // "One column" is the FILTERED state — a room was chosen — not a count of what happens to
   // have sessions today. It gates the programme sub-labels in the headings.
@@ -572,7 +579,18 @@ function StageTimeline({
   // 10:45 and the old floor drew an hour and three quarters of empty grid above it, which reads
   // as a broken embed rather than as a morning off. DAY_START_MIN is only the fallback for a
   // column with nothing timed in it at all, so it still has a sane height.
-  const start = timed.length ? Math.min(...timed.map((s) => s.start)) : DAY_START_MIN;
+  //
+  // EVENT ROOMS OPEN AT 09:00 REGARDLESS (`openAt`, Auri 2026-08-06). Their first session is
+  // 09:25-09:30, so the board began flush against it and the whole-day band's own label sat
+  // behind the first card — the band read as a tint rather than as "this room is booked all
+  // day". Half an hour of grid above the first session gives the label somewhere to be, and
+  // shows the 09:00 gridline so the day has a visible beginning.
+  //
+  // This does NOT undo the 2026-08-04 decision: it is a floor of half an hour on rooms that
+  // already start at 09:25, not an hour and three quarters of emptiness on a stage that starts
+  // at 10:45. Min, not a replacement, so a room that ever starts at 08:30 still shows 08:30.
+  const firstStart = timed.length ? Math.min(...timed.map((s) => s.start)) : DAY_START_MIN;
+  const start = openAt != null ? Math.min(firstStart, openAt) : firstStart;
   const end = Math.max(start + 60, ...timed.map((s) => s.end));
   const from = Math.floor(start / SLOT_MIN) * SLOT_MIN;
   const to = Math.ceil(end / SLOT_MIN) * SLOT_MIN;
@@ -1820,6 +1838,7 @@ export default function BrellaProgramPage() {
                   tags={tags}
                   stageMatches={stageMatches}
                   columnSet={columnSet ?? []}
+                  openAt={section === "rooms" ? DAY_START_MIN : undefined}
                 />
               </>
             ) : (

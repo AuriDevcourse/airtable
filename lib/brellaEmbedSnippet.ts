@@ -820,6 +820,12 @@ export function buildBrellaEmbedSnippet({
       if(end===null||x.end>end)end=x.end;
     });
     if(start===null){start=9*60;end=start+60;}
+    /* EVENT ROOMS OPEN AT 09:00 REGARDLESS. Their first session is 09:25-09:30, so the board
+       began flush against it and the whole-day band's label sat behind the first card. Half an
+       hour of grid above gives the label somewhere to be and shows the 09:00 gridline. Min, not
+       a replacement, so a room that ever starts at 08:30 still shows 08:30 — and stages keep
+       starting at whatever is on first, which is the 2026-08-04 rule. */
+    if(SECTION==="rooms"&&start>9*60)start=9*60;
     if(end-start<60)end=start+60;
     var from=Math.floor(start/SLOT)*SLOT,to=Math.ceil(end/SLOT)*SLOT;
     var height=(to-from)*PXN;
