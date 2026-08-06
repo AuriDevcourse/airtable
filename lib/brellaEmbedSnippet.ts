@@ -136,6 +136,15 @@ export function buildBrellaEmbedSnippet({
     </label>
     <div class="tbbq-bp__days" role="tablist" aria-label="Day"></div>
   </div>
+  <div class="tbbq-bp__search">
+    <div class="tbbq-bp__searchBox">
+      <svg class="tbbq-bp__searchIcon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" class="tbbq-bp__searchInput" placeholder="Search by speaker, company or title…" aria-label="Search sessions by speaker" autocomplete="off" spellcheck="false">
+      <button type="button" class="tbbq-bp__searchClear" aria-label="Clear search" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <ul class="tbbq-bp__sugg" hidden></ul>
+    <p class="tbbq-bp__searchHint" aria-live="polite"></p>
+  </div>
   <div class="tbbq-bp__out"><p class="tbbq-bp__empty">Loading…</p></div>
   <div class="tbbq-bp__overlay" hidden>
     <div class="tbbq-bp__modal" role="dialog" aria-modal="true" aria-label="Session details"></div>
@@ -207,6 +216,51 @@ export function buildBrellaEmbedSnippet({
      columns are ABSOLUTELY POSITIONED instead, with their geometry written inline by the
      script: an absolutely positioned box ignores the parent's display entirely, so there is
      nothing left for a theme to override. */
+  /* ── SPEAKER SEARCH ── Mirrors .bp-search on the dashboard. It DIMS rather than filters:
+     removing the other cards collapses the columns and the clock stops lining up across
+     stages, which is the only thing a timeline is for. */
+  #${id} .tbbq-bp__search{margin:14px auto 0!important;max-width:460px!important;width:100%!important;padding:0!important}
+  #${id} .tbbq-bp__searchBox{display:flex!important;align-items:center!important;gap:8px!important;margin:0!important;padding:0 10px!important;border:1px solid var(--border)!important;border-radius:10px!important;background:var(--card)!important;box-shadow:none!important}
+  #${id} .tbbq-bp__searchBox:focus-within{border-color:#fa7000!important}
+  #${id} .tbbq-bp__searchIcon{flex:none!important;color:var(--muted)!important}
+  /* font-size 16px is NOT a style choice: iOS Safari zooms the whole page when a focused input
+     is under 16px, and on a pasted embed that zoom is the visitor's problem to undo. */
+  #${id} .tbbq-bp__searchInput{flex:1 1 auto!important;min-width:0!important;width:auto!important;margin:0!important;padding:10px 0!important;border:0!important;border-radius:0!important;outline:none!important;background:none!important;box-shadow:none!important;color:var(--fg)!important;font-family:var(--sans)!important;font-size:16px!important;font-weight:400!important;line-height:1.3!important;letter-spacing:0!important;text-transform:none!important;height:auto!important}
+  #${id} .tbbq-bp__searchInput::placeholder{color:var(--muted)!important;opacity:1!important}
+  #${id} .tbbq-bp__searchInput::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+  #${id} .tbbq-bp__searchClear{flex:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;width:22px!important;height:22px!important;margin:0!important;padding:0!important;border:0!important;border-radius:9999px!important;background:none!important;color:var(--muted)!important;cursor:pointer!important;box-shadow:none!important}
+  #${id} .tbbq-bp__searchClear:hover{background:rgba(255,255,255,.08)!important;color:var(--fg)!important}
+  #${id} .tbbq-bp__searchHint{margin:6px 0 0!important;padding:0!important;font-family:var(--sans)!important;font-size:12.5px!important;font-weight:400!important;line-height:1.4!important;color:var(--muted)!important;text-align:center!important;text-transform:none!important;letter-spacing:0!important}
+
+  /* Predicted PEOPLE, in flow rather than floating: a dropdown would cover the very cards the
+     search is pointing at, and this is six rows at most. */
+  #${id} .tbbq-bp__sugg{margin:6px 0 0!important;padding:4px!important;list-style:none!important;border:1px solid var(--border)!important;border-radius:10px!important;background:var(--card)!important}
+  #${id} .tbbq-bp__sugg li{margin:0!important;padding:0!important;list-style:none!important}
+  #${id} .tbbq-bp__sugg li::marker{content:""}
+  #${id} .tbbq-bp__suggRow{display:flex!important;align-items:center!important;gap:9px!important;width:100%!important;margin:0!important;padding:6px 7px!important;border:0!important;border-radius:7px!important;background:none!important;box-shadow:none!important;color:inherit!important;font:inherit!important;text-align:left!important;cursor:pointer!important}
+  #${id} .tbbq-bp__suggRow:hover{background:rgba(255,255,255,.06)!important}
+  #${id} .tbbq-bp__suggRow:focus-visible{outline:none!important;box-shadow:inset 0 0 0 1px #fa7000!important}
+  #${id} .tbbq-bp__suggFace{flex:none!important;width:26px!important;height:26px!important;border-radius:9999px!important;object-fit:cover!important;margin:0!important;background:var(--card2)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-family:var(--head)!important;font-size:11px!important;font-weight:700!important;color:var(--muted)!important;line-height:1!important}
+  #${id} .tbbq-bp__suggText{flex:1 1 auto!important;min-width:0!important;display:flex!important;flex-direction:column!important}
+  #${id} .tbbq-bp__suggName{font-family:var(--sans)!important;font-size:13px!important;font-weight:600!important;line-height:1.3!important;color:var(--fg)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  #${id} .tbbq-bp__suggRole{font-family:var(--sans)!important;font-size:11.5px!important;font-weight:400!important;line-height:1.3!important;color:var(--muted)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  #${id} .tbbq-bp__suggWhere{flex:none!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:2px!important;font-family:var(--head)!important;font-size:10px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.3!important;color:#fa7000!important}
+  #${id} .tbbq-bp__suggStage{font-size:9.5px!important;font-weight:600!important;letter-spacing:.04em!important;text-transform:none!important;color:var(--muted)!important;max-width:130px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+  /* THE DIM. Opacity only — the card keeps its box, or the columns collapse. */
+  #${id} .tbbq-bp__ev[data-dim]{opacity:.16!important;filter:saturate(.4)!important;transition:opacity .18s ease,filter .18s ease}
+  #${id} .tbbq-bp__ev[data-dim]:hover{opacity:.55!important;filter:none!important}
+  #${id} .tbbq-bp__card[data-dim]{opacity:.16!important;filter:saturate(.4)!important}
+  #${id} .tbbq-bp__card[data-dim]:hover{opacity:.55!important;filter:none!important}
+
+  /* "THEY ARE OVER HERE": the day you are not on, and the stage whose match is below the fold. */
+  #${id} .tbbq-bp__days button[data-hasmatch]{position:relative!important;box-shadow:inset 0 0 0 1px #fa7000!important}
+  #${id} .tbbq-bp__badge{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-width:16px!important;height:16px!important;padding:0 4px!important;border-radius:9999px!important;background:#fa7000!important;color:#fff!important;font-family:var(--head)!important;font-size:9.5px!important;font-weight:700!important;letter-spacing:0!important;line-height:1!important}
+  #${id} .tbbq-bp__days button .tbbq-bp__badge{position:absolute!important;top:-6px!important;right:-6px!important}
+  #${id} .tbbq-bp__colhead .tbbq-bp__badge{margin-left:6px!important}
+  #${id} .tbbq-bp__colhead[data-hasmatch]{color:var(--track)!important;box-shadow:inset 0 -2px 0 var(--track)!important}
+  #${id} .tbbq-bp__colhead[data-dim]{opacity:.3!important;transition:opacity .18s ease}
+
   #${id} .tbbq-bp__head,#${id} .tbbq-bp__body{display:block!important;position:relative!important;margin:0!important;padding:0!important}
   #${id} .tbbq-bp__colhead{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
   #${id} .tbbq-bp__gutterhead{border:0!important}
@@ -403,6 +457,14 @@ export function buildBrellaEmbedSnippet({
   var outEl=root.querySelector(".tbbq-bp__out");
   var pillsEl=root.querySelector(".tbbq-bp__tracks");
   var daysEl=root.querySelector(".tbbq-bp__days");
+  var searchEl=root.querySelector(".tbbq-bp__searchInput");
+  var suggEl=root.querySelector(".tbbq-bp__sugg");
+  var hintEl=root.querySelector(".tbbq-bp__searchHint");
+  var clearEl=root.querySelector(".tbbq-bp__searchClear");
+  /* The live query, split into terms. Held OUTSIDE the render, because render() replaces the
+     whole board with innerHTML and the search box is a sibling of it — the input keeps focus
+     and the caret while you type. */
+  var TERMS=[];
   var pickWrap=root.querySelector(".tbbq-bp__pickWrap");
   var pickEl=root.querySelector(".tbbq-bp__pick");
   var overlay=root.querySelector(".tbbq-bp__overlay");
@@ -522,6 +584,61 @@ export function buildBrellaEmbedSnippet({
     var w=String(t||"").trim().split(/\\s+/);
     return w.length<=n?String(t||"").trim():w.slice(0,n).join(" ")+"\\u2026";
   }
+  /* ── SPEAKER SEARCH ── Same rules as the dashboard, in plain ES5 for a pasted snippet.
+     Accents stripped so "Jose" finds "Jose\u0301"; every term must hit, so adding a word
+     narrows; the session NAME is not searched, or "opening" lights ten unrelated cards. */
+  function norm(v){
+    return String(v==null?"":v).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+  }
+  function toTerms(q){var t=norm(q).split(/\s+/),o=[],i;for(i=0;i<t.length;i++)if(t[i])o.push(t[i]);return o;}
+  function hayOf(s){
+    var sp=s&&s.speakers||[],i,out=[];
+    for(i=0;i<sp.length;i++)out.push((sp[i].name||"")+" "+(sp[i].company||"")+" "+(sp[i].title||""));
+    return norm(out.join(" "));
+  }
+  function matchesQ(s){
+    if(!TERMS.length)return true;
+    var h=hayOf(s),i;
+    for(i=0;i<TERMS.length;i++)if(h.indexOf(TERMS[i])<0)return false;
+    return true;
+  }
+  /* Predicted PEOPLE. Keyed on the NAME: Brella issues a fresh speaker id per session, so one
+     person on three panels arrives as three records and would suggest three identical rows. */
+  function speakerHits(){
+    if(!TERMS.length)return [];
+    var by={},order=[],i,j;
+    for(i=0;i<ALL.length;i++){
+      var s=ALL[i],sp=s.speakers||[];
+      for(j=0;j<sp.length;j++){
+        var p=sp[j];if(!p.name)continue;
+        var h=norm((p.name||"")+" "+(p.company||"")+" "+(p.title||"")),k,ok=true;
+        for(k=0;k<TERMS.length;k++)if(h.indexOf(TERMS[k])<0){ok=false;break;}
+        if(!ok)continue;
+        var hit=by[p.name];
+        if(!hit){hit=by[p.name]={name:p.name,role:[p.title,p.company].filter(Boolean).join(", "),photo:safeUrl(p.photo),days:[],stages:[],count:0};order.push(p.name);}
+        hit.count++;
+        if(hit.days.indexOf(s.day)<0)hit.days.push(s.day);
+        var col=colLabel(s.room);
+        if(col&&hit.stages.indexOf(col)<0)hit.stages.push(col);
+        if(!hit.photo&&p.photo)hit.photo=safeUrl(p.photo);
+      }
+    }
+    var out=order.map(function(n){return by[n];});
+    /* A name STARTING with what was typed first: "and" should offer Anders before someone
+       whose company merely contains it. */
+    out.sort(function(a,b){
+      var pa=norm(a.name).indexOf(TERMS[0])===0?0:1,pb=norm(b.name).indexOf(TERMS[0])===0?0:1;
+      return pa-pb||String(a.name).localeCompare(String(b.name));
+    });
+    return out.slice(0,6);
+  }
+  /* The timeline column a session sits in, or its room when the section is not a timeline. */
+  function colLabel(room){
+    if(!IS_TL||!COLS.length)return room||"";
+    for(var i=0;i<COLS.length;i++)if(COLS[i].rx.test(room||""))return COLS[i].label;
+    return room||"";
+  }
+
   function isMod(p){return /moderator/i.test(p&&p.role||"");}
   function ordered(sp){return (sp||[]).slice().sort(function(a,b){return (isMod(a)?1:0)-(isMod(b)?1:0);});}
   /* cls lets the same builder emit the inline row (list cards, dialog) and the pinned stack on
@@ -670,7 +787,14 @@ export function buildBrellaEmbedSnippet({
         var inner=SPLIT
           ? '<span>'+esc(c)+'</span><span style="opacity:.62;font-weight:500;font-size:12px;margin-left:7px">'+esc((EVENT_DAYS[i]||{}).date||"")+'</span>'
           : iconFor(c)+'<span>'+esc(c)+'</span>';
-        return '<span class="tbbq-bp__colhead" style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner+'</span>';
+        /* The heading row is the one part of the board always on screen — the timeline is tall
+           and scrolls sideways on a phone — so a match far down a column you are not looking at
+           is otherwise invisible. */
+        var hits=0;
+        if(TERMS.length)for(var hi=0;hi<timed.length;hi++)if(colKey(timed[hi].s)===c&&matchesQ(timed[hi].s))hits++;
+        var hAttr=(hits>0?' data-hasmatch="1"':(TERMS.length?' data-dim="1"':''));
+        return '<span class="tbbq-bp__colhead"'+hAttr+' style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner
+          +(hits>0?'<span class="tbbq-bp__badge">'+hits+'</span>':'')+'</span>';
       }).join("")
       +'</div>'
       +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
@@ -770,7 +894,11 @@ export function buildBrellaEmbedSnippet({
           +(g.pad?";padding-top:"+g.pad+"px!important":"");
         /* The mark goes INSIDE the title rather than on a row of its own: a break's card is 24px
            and a second row would push the title out of the box it has. */
-        var bAttr=(breath?' data-breathwork="1"':'')+(opening?' data-opening="1"':'');
+        var bAttr=(breath?' data-breathwork="1"':'')+(opening?' data-opening="1"':'')
+          /* Dimmed, never removed: pulling the card would collapse the column and the clock
+             would stop lining up across stages. tabindex -1 so keyboard focus skips the faded
+             ones instead of walking through forty of them. */
+          +(TERMS.length&&!matchesQ(s)?' data-dim="1" tabindex="-1"':'');
         /* The face stack is OUTSIDE the who-row and always rendered, so a compact or tight card
            still shows who is on it — those two hide the who-row, and they cover most of the
            board. data-faces tells the title to leave room for it. */
@@ -814,7 +942,7 @@ export function buildBrellaEmbedSnippet({
             +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'')
             /* Last line on the card: it is a caveat, not a headline. */
             +(s.access==="private-invite"?'<p class="tbbq-bp__note">'+esc(PRIVATE_NOTE)+'</p>':'');
-          var st=' style="'+sessionVars(s)+'"';
+          var st=' style="'+sessionVars(s)+'"'+(TERMS.length&&!matchesQ(s)?' data-dim="1"':'');
           /* No Register button on the preview (Auri, 2026-08-04): a pill on every card turned
              this section into a wall of buttons, and someone should read what an event is
              before signing up. The sign-up page lives in the dialog, and hasDetail() counts a
@@ -839,7 +967,114 @@ export function buildBrellaEmbedSnippet({
     if(total>floor)floor=Math.ceil(total);
     if(floor)outEl.style.minHeight=floor+"px";
   }
-  function render(){ if(IS_TL)renderTimeline(); else renderList(); applyFloor(); }
+  /* Day tabs are rebuilt only when the SECTION changes, so the badges are painted onto the
+     existing buttons rather than by re-rendering them — re-rendering would drop the badge the
+     moment anything else re-rendered. */
+  function paintDayBadges(){
+    var btns=daysEl.querySelectorAll("button[data-d]"),i;
+    for(i=0;i<btns.length;i++){
+      var b=btns[i],di=Number(b.getAttribute("data-d"));
+      var old=b.querySelector(".tbbq-bp__badge");
+      if(old)old.parentNode.removeChild(old);
+      b.removeAttribute("data-hasmatch");
+      if(!TERMS.length||di===dayIdx)continue;
+      var date=(EVENT_DAYS[di]||{}).date||"",n=0,k;
+      for(k=0;k<ALL.length;k++){
+        var s=ALL[k];
+        /* ALL already holds only the active section, so there is nothing more to narrow by. */
+        if(String(s.day).indexOf(date)>=0&&matchesQ(s))n++;
+      }
+      /* Only the tab you are NOT on lights up — the whole point is "they are over here". */
+      if(n>0){
+        b.setAttribute("data-hasmatch","1");
+        var sp=document.createElement("span");
+        sp.className="tbbq-bp__badge";sp.textContent=String(n);
+        b.appendChild(sp);
+      }
+    }
+  }
+
+  function renderSuggestions(){
+    var hits=speakerHits(),q=(searchEl.value||"").trim();
+    /* Hidden once the box holds exactly the one suggestion's name: the visitor has chosen, and
+       a list repeating that back just covers the board. */
+    var only1=hits.length===1&&hits[0].name.toLowerCase()===q.toLowerCase();
+    if(!q||!hits.length||only1){suggEl.hidden=true;suggEl.innerHTML="";return;}
+    suggEl.hidden=false;
+    suggEl.innerHTML=hits.map(function(h){
+      var face=h.photo
+        ? '<img class="tbbq-bp__suggFace" src="'+esc(h.photo)+'" alt="" loading="lazy">'
+        : '<span class="tbbq-bp__suggFace">'+esc(String(h.name).trim().charAt(0).toUpperCase())+'</span>';
+      var where=h.days.map(function(d){return String(dayLabel(d)).split(",")[0];}).join(" + ");
+      var stage=h.stages.length===1?h.stages[0]:(h.stages.length>1?h.stages.length+" stages":"");
+      return '<li><button type="button" class="tbbq-bp__suggRow" data-name="'+esc(h.name)+'" data-days="'+esc(h.days.join("|"))+'">'
+        +face
+        +'<span class="tbbq-bp__suggText"><span class="tbbq-bp__suggName">'+esc(h.name)+'</span>'
+        +(h.role?'<span class="tbbq-bp__suggRole">'+esc(h.role)+'</span>':'')+'</span>'
+        +'<span class="tbbq-bp__suggWhere">'+esc(where)
+        +(stage?'<span class="tbbq-bp__suggStage">'+esc(stage)+'</span>':'')+'</span>'
+        +'</button></li>';
+    }).join("");
+  }
+
+  function paintHint(){
+    var q=(searchEl.value||"").trim();
+    clearEl.hidden=!q;
+    if(!q){hintEl.textContent="Type a name to spotlight that speaker's sessions";return;}
+    var n=0,i;
+    for(i=0;i<ALL.length;i++){
+      var s=ALL[i];
+      if(!matchesQ(s))continue;
+      if(IS_TL&&!SPLIT_DAYS){var date=(EVENT_DAYS[dayIdx]||{}).date||"";if(String(s.day).indexOf(date)<0)continue;}
+      n++;
+    }
+    hintEl.textContent=n>0
+      ? n+" session"+(n===1?"":"s")+" here \u00b7 everything else dimmed"
+      : "Nothing on this day \u2014 the highlighted tab has them";
+  }
+
+  function onSearch(){
+    TERMS=toTerms(searchEl.value);
+    renderSuggestions();
+    render();
+    paintDayBadges();
+    paintHint();
+  }
+
+  if(searchEl){
+    searchEl.addEventListener("input",onSearch);
+    clearEl.addEventListener("click",function(){searchEl.value="";onSearch();searchEl.focus();});
+    /* Delegated, because the rows are rebuilt on every keystroke. Picking a person SWITCHES THE
+       DAY when none of their sessions are on the one showing: choosing a name and being handed
+       an empty board is the outcome this list exists to prevent. */
+    suggEl.addEventListener("click",function(e){
+      var row=e.target&&e.target.closest?e.target.closest(".tbbq-bp__suggRow"):null;
+      if(!row)return;
+      searchEl.value=row.getAttribute("data-name")||"";
+      var days=(row.getAttribute("data-days")||"").split("|");
+      if(IS_TL&&!(SPLIT_DAYS&&!narrow)){
+        var here=(EVENT_DAYS[dayIdx]||{}).date||"",onThisDay=false,i;
+        for(i=0;i<days.length;i++)if(here&&days[i].indexOf(here)>=0)onThisDay=true;
+        if(!onThisDay){
+          for(i=0;i<EVENT_DAYS.length;i++){
+            var d=EVENT_DAYS[i].date,found=false,j;
+            for(j=0;j<days.length;j++)if(days[j].indexOf(d)>=0)found=true;
+            if(found){
+              dayIdx=i;
+              /* Same bookkeeping the day-pill click handler does, so the tab visibly follows. */
+              Array.prototype.forEach.call(daysEl.children,function(x){
+                x.setAttribute("aria-selected",String(Number(x.getAttribute("data-d"))===dayIdx));
+              });
+              break;
+            }
+          }
+        }
+      }
+      onSearch();
+    });
+  }
+
+  function render(){ if(IS_TL)renderTimeline(); else renderList(); applyFloor(); paintDayBadges(); }
 
   /* Switch section without refetching: "all" mode already holds every group. The masthead is
      the anchor — its distance from the top of the viewport is measured before the swap and
@@ -1081,6 +1316,9 @@ export function buildBrellaEmbedSnippet({
     wireControls();
     syncNarrow();
     render();
+    /* The resting hint. Without this the line is blank until the first keystroke, so the box
+       looks like it might not do anything. */
+    paintHint();
     var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(syncNarrow,150);});
   }).catch(function(err){
     outEl.innerHTML='<p class="tbbq-bp__empty">Could not load the program.</p>';
