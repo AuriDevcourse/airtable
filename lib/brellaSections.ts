@@ -55,13 +55,19 @@ export const BRELLA_STAGES: ColumnDef[] = [
 // The Policy Stage is a room despite its name — it IS Rooms 5, 6 and 7 knocked together — so it
 // gets a column here rather than on the stages board, where it matched no stage regex and was
 // being dropped from the timeline entirely.
+/** Rooms 5, 6 and 7 are booked as one space and signed as one. Named once, used twice. */
+export const ROOM_567 = "Event Room 5,6,7";
+
 export const BRELLA_ROOMS: ColumnDef[] = [
   { label: "Event Room 1", match: /^event room 1\b/i },
   { label: "Event Room 2", match: /^event room 2\b/i },
   { label: "Event Room 3", match: /^event room 3\b/i },
   { label: "Event Room 4", match: /^event room 4\b/i },
-  { label: "Event Room 5", match: /^event room 5\b/i },
-  { label: "Policy Stage", match: /policy stage|rooms?\s*5\s*,?\s*6\s*,?\s*7/i },
+  // The lookahead matters: without it this also swallows "Event Room 5,6,7", which columnOf
+  // resolves first-match-wins — so the combined space would land in the Room 5 column and its
+  // own column would sit permanently empty.
+  { label: "Event Room 5", match: /^event room 5\b(?!\s*,)/i },
+  { label: ROOM_567, match: /policy stage|rooms?\s*5\s*,?\s*6\s*,?\s*7|^event room 5\s*,/i },
 ];
 
 // The Grill Sessions, in signage order rather than alphabetical. They run on a clock in
@@ -176,15 +182,39 @@ export function weekdayLabel(day: string): string {
 // Nordic Africa has no track of its own in Brella yet — its sessions already sit on the "Event
 // Room 2" track — so its rule is future-proofing: the day someone gives it a named track, it
 // lands in the right room instead of defaulting to Stages.
-const ROOM_ALIASES: [RegExp, string][] = [
-  [/future of fintech/i, "Event Room 1"],
-  [/nordic\s+india|india\s+summit/i, "Event Room 2"],
-  [/nordic\s+africa|africa\s+summit/i, "Event Room 2"],
+// ONE TABLE, TWO JOBS. It decides which room a named programme runs in AND supplies the
+// programme labels printed under that room's column heading.
+//
+// Folding the programme into the room was right — the tab lists PLACES, and "Future of
+// Fintech" is not a place — but on its own it threw away the more interesting half of the
+// fact. A visitor looking at Event Room 2 wants to know it is NISS and NASS in there; the
+// room number alone tells them nothing (Auri, 2026-08-06). So the label survives the fold.
+//
+// Keeping both in one table is the point: a programme cannot move room without its label
+// moving with it, which is exactly the drift that put Future of Fintech in Event Room 1.
+const ROOM_ALIASES: { re: RegExp; room: string; programme: string }[] = [
+  // Event Room 3, corrected 2026-08-06 — it was filed under Event Room 1, which is wrong.
+  { re: /future of fintech/i, room: "Event Room 3", programme: "Future of Fintech" },
+  { re: /nordic\s+india|india\s+summit|\bniss\b/i, room: "Event Room 2", programme: "NISS" },
+  { re: /nordic\s+africa|africa\s+summit|\bnass\b/i, room: "Event Room 2", programme: "NASS" },
+  // Rooms 5, 6 and 7 opened up are ONE space with one name, not three rooms — so the column
+  // is called after the space and the Policy Stage is the programme running in it.
+  { re: /policy stage/i, room: ROOM_567, programme: "Policy Stage" },
 ];
 
 export function roomAlias(room: string): string {
-  for (const [re, name] of ROOM_ALIASES) if (re.test(room)) return name;
+  for (const a of ROOM_ALIASES) if (a.re.test(room)) return a.room;
   return room;
+}
+
+/**
+ * The named programmes running in a room, for the sub-label under its column heading.
+ *
+ * Derived from ROOM_ALIASES rather than listed a second time, so a programme that moves room
+ * takes its label with it and the heading cannot go stale.
+ */
+export function roomProgrammes(roomLabel: string): string[] {
+  return ROOM_ALIASES.filter((a) => a.room === roomLabel).map((a) => a.programme);
 }
 
 const ROOM_SUMMITS = /nordic\s+(india|africa)|(india|africa)\s+summit/i;

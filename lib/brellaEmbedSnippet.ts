@@ -21,6 +21,7 @@
 
 import {
   BRELLA_SECTIONS,
+  roomProgrammes,
   findTimelineColumn,
   EVENT_DAYS,
   EVENT_YEAR,
@@ -113,6 +114,15 @@ export function buildBrellaEmbedSnippet({
     (defs ?? []).map((c) => ({ label: c.label, re: c.match.source }));
   const columnsBySection: Record<string, { label: string; re: string }[]> = {};
   for (const { key } of BRELLA_SECTIONS) columnsBySection[key] = serialiseCols(TIMELINE_COLUMNS[key]);
+  // What runs in each room, for the sub-label under its column heading. Built from the same
+  // ROOM_ALIASES table the page reads, so the two cannot disagree about where a programme is.
+  const programmesByColumn: Record<string, string[]> = {};
+  for (const defs of Object.values(TIMELINE_COLUMNS)) {
+    for (const c of defs ?? []) {
+      const ps = roomProgrammes(c.label);
+      if (ps.length) programmesByColumn[c.label] = ps;
+    }
+  }
   const columnDefs = single
     ? [single.column]
     : isAll
@@ -267,7 +277,8 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__colhead[data-dim]{opacity:.3!important;transition:opacity .18s ease}
 
   #${id} .tbbq-bp__head,#${id} .tbbq-bp__body{display:block!important;position:relative!important;margin:0!important;padding:0!important}
-  #${id} .tbbq-bp__colhead{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
+  /* flex-wrap so the programme sub-label drops onto its own line under the room number. */
+  #${id} .tbbq-bp__colhead{display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:46px!important;padding:8px 6px!important;margin:0!important;border-left:1px solid var(--border)!important;text-align:center!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:var(--fg)!important;overflow-wrap:anywhere!important}
   #${id} .tbbq-bp__gutterhead{border:0!important}
   #${id} .tbbq-bp__icon{flex:none!important;color:var(--track,currentColor)!important}
 
@@ -312,6 +323,9 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__ev[data-faces] .tbbq-bp__evTime{padding-right:40px!important}
   /* The "+3" for the speakers the stack has no room for: the count the removed names used to
      carry. Auto width so a two-digit panel is not clipped. */
+  /* MODERATOR, not speaker. A ring is enough at 16px, where a glyph would be mush. */
+  #${id} .tbbq-bp__face[data-mod]{box-shadow:0 0 0 1.5px var(--card),0 0 0 3px var(--track)!important}
+  #${id} .tbbq-bp__colprog{flex-basis:100%!important;margin-top:2px!important;font-family:var(--head)!important;font-size:10px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--muted)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
   #${id} .tbbq-bp__face--more{width:auto!important;min-width:16px!important;padding:0 4px!important;background:var(--card2)!important;color:var(--fg)!important;font-size:8.5px!important;letter-spacing:-.02em!important}
   #${id} .tbbq-bp__face+.tbbq-bp__face{margin-left:-6px!important}
   #${id} .tbbq-bp__face{width:16px!important;height:16px!important;border-radius:9999px!important;object-fit:cover!important;box-shadow:0 0 0 1.5px var(--card)!important;background:var(--card2)!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:8px!important;font-weight:700!important;color:var(--muted)!important;line-height:1!important;margin:0!important}
@@ -478,6 +492,7 @@ export function buildBrellaEmbedSnippet({
   var IS_ALL=${isAll ? "true" : "false"};
   var SECTIONS=${JSON.stringify(BRELLA_SECTIONS)};
   var COLS_BY_SECTION=${JSON.stringify(columnsBySection)};
+  var PROGRAMMES=${JSON.stringify(programmesByColumn)};
   var GROUPS={};              /* section -> sessions, only used in "all" mode */
   var SECTION=${JSON.stringify(isAll ? "stages" : effectiveSection)};
   var IS_TL=${isAll ? "true" : isTimeline ? "true" : "false"};
@@ -650,6 +665,13 @@ export function buildBrellaEmbedSnippet({
      a timeline card, which needs its own class to be positioned. */
   function faces(sp,n,cls){
     var all=ordered(sp),o=all.slice(0,n);if(!o.length)return "";
+    /* SHOW THE MODERATOR. ordered() puts them last, so on a two-face stack the chair was
+       invisible on most panels and the ring below marked nothing. One speaker plus the chair is
+       what the card is trying to say; the +N chip still carries everyone who did not fit. */
+    var mods=all.filter(isMod);
+    if(mods.length&&n>1&&!o.some(isMod)){
+      o=all.filter(function(p){return !isMod(p);}).slice(0,n-1).concat([mods[0]]);
+    }
     var rest=all.length-o.length;
     /* The chip is emitted FIRST because the stack is drawn row-reverse, which puts it at the
        far right — after the faces, reading left to right. */
@@ -657,8 +679,10 @@ export function buildBrellaEmbedSnippet({
       +(rest>0?'<span class="tbbq-bp__face tbbq-bp__face--more">+'+rest+'</span>':'')
       +o.map(function(p){
       var ph=safeUrl(p.photo);
-      return ph?'<img class="tbbq-bp__face" src="'+esc(ph)+'" alt="" loading="lazy">'
-        :'<span class="tbbq-bp__face">'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
+      /* data-mod rings the chair; the title says it in words for anyone who cannot see a ring. */
+      var md=isMod(p)?' data-mod="1" title="'+esc(p.name||"")+' \u2014 moderator"':' title="'+esc(p.name||"")+'"';
+      return ph?'<img class="tbbq-bp__face"'+md+' src="'+esc(ph)+'" alt="" loading="lazy">'
+        :'<span class="tbbq-bp__face"'+md+'>'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
     }).join("")+'</span>';
   }
   function summary(sp){
@@ -802,8 +826,13 @@ export function buildBrellaEmbedSnippet({
         var hits=0;
         if(TERMS.length)for(var hi=0;hi<timed.length;hi++)if(colKey(timed[hi].s)===c&&matchesQ(timed[hi].s))hits++;
         var hAttr=(hits>0?' data-hasmatch="1"':(TERMS.length?' data-dim="1"':''));
+        /* "Event Room 2" is a place and says nothing on its own; "NISS · NASS" is what a
+           visitor is looking for. Empty on the stages, which are named after their programme. */
+        var prog=PROGRAMMES[c];
         return '<span class="tbbq-bp__colhead"'+hAttr+' style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner
-          +(hits>0?'<span class="tbbq-bp__badge">'+hits+'</span>':'')+'</span>';
+          +(hits>0?'<span class="tbbq-bp__badge">'+hits+'</span>':'')
+          +(prog?'<span class="tbbq-bp__colprog">'+esc(prog.join(" \u00b7 "))+'</span>':'')
+          +'</span>';
       }).join("")
       +'</div>'
       +'<div class="tbbq-bp__body" style="position:relative;display:block;height:'+height+'px">'
@@ -1235,10 +1264,10 @@ export function buildBrellaEmbedSnippet({
          pills stay: a single stage still runs on two days. */
       if(COLS.length>1){
         pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
-          +(SECTION==="grills"?"All grills":"All stages")+'</button>'
+          +(SECTION==="grills"?"All grills":SECTION==="rooms"?"All rooms":"All stages")+'</button>'
           +COLS.map(function(c){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(c.label)+'">'+esc(c.label)+'</button>';}).join("");
-        fillPicker(SECTION==="grills"?"Grill":"Stage",
-                   SECTION==="grills"?"All grills":"All stages",
+        fillPicker(SECTION==="grills"?"Grill":SECTION==="rooms"?"Room":"Stage",
+                   SECTION==="grills"?"All grills":SECTION==="rooms"?"All rooms":"All stages",
                    COLS.map(function(c){return c.label;}));
       } else {
         fillPicker("Stage","",[]);

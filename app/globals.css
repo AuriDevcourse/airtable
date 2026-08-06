@@ -684,6 +684,26 @@ a { color: inherit; }
   box-shadow: inset 0 0 0 1px var(--color-orange);
 }
 .bp-days__badge,
+/* What runs in this room, under its number. The room is the place; this is the programme, and
+   the programme is what anyone is actually looking for. */
+.bp-tl__colProg {
+  flex-basis: 100%;
+  margin-top: 2px;
+  font-family: var(--font-heading);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  color: var(--color-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* MODERATOR, not speaker. The stack is ordered speakers-first, but two identical circles could
+   be one of each and read as two speakers. A ring in the accent colour is enough at 16px, where
+   a glyph would be mush — and every face carries the distinction in its title attribute too. */
+.bp-tl__face[data-mod] { box-shadow: 0 0 0 1.5px var(--color-card), 0 0 0 3px var(--track); }
+.bp-person__tag[data-mod] {
+  border-color: var(--track, var(--color-orange));
+  color: var(--track, var(--color-orange));
+}
+
 .bp-tl__colBadge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 16px; height: 16px;
@@ -1357,6 +1377,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* No underline beneath the stage name: with a border on every column it read as five
    separate underlined words rather than one header row. The vertical separators already
    delimit the columns. */
+.bp-tl__colHead { flex-wrap: wrap; }
 .bp-tl__colHead {
   border-left: 1px solid var(--color-border);
   padding: 8px 6px;

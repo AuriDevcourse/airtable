@@ -25,6 +25,7 @@ import {
   DAY_START_MIN,
   TIMELINE_COLUMNS,
   columnOf,
+  roomProgrammes,
   type ColumnDef,
   weekdayLabel,
   EVENT_DAYS,
@@ -333,7 +334,21 @@ function Avatars({
   className?: string;
 }) {
   const all = orderedSpeakers(speakers);
-  const people = all.slice(0, n);
+  // SHOW THE MODERATOR, not just the first two speakers.
+  //
+  // orderedSpeakers puts moderators last, which was right when the card printed two NAMES and
+  // should spend them on who is talking. With faces only, it meant the chair was invisible on
+  // 45 of the 73 sessions that have one — so the ring below marked nothing. A panel now reads
+  // as one speaker plus the chair, which is what the card is trying to say, and the +N chip
+  // still carries everyone who did not fit.
+  const mods = all.filter(isModerator);
+  let people = all.slice(0, n);
+  if (mods.length && !people.some(isModerator) && n > 1) {
+    people = [...all.filter((p) => !isModerator(p)).slice(0, n - 1), mods[0]];
+  }
+  // Moderators are ordered last by orderedSpeakers but looked identical to the speakers, so a
+  // two-face stack could be showing one of each and read as two speakers. The ring says which
+  // is which; the title attribute says it in words, for anyone who cannot see the ring.
   if (!people.length) return null;
   // The card used to end with ", +3" after the names. The names are gone, so the count moves
   // onto the stack — without it a six-person panel and a two-person fireside are the same two
@@ -345,9 +360,22 @@ function Avatars({
       {people.map((p) =>
         p.photo ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img key={p.id} className="bp-tl__face" src={p.photo} alt="" loading="lazy" />
+          <img
+            key={p.id}
+            className="bp-tl__face"
+            data-mod={isModerator(p) ? "1" : undefined}
+            title={isModerator(p) ? `${p.name} — moderator` : p.name}
+            src={p.photo}
+            alt=""
+            loading="lazy"
+          />
         ) : (
-          <span key={p.id} className="bp-tl__face bp-tl__face--empty">
+          <span
+            key={p.id}
+            className="bp-tl__face bp-tl__face--empty"
+            data-mod={isModerator(p) ? "1" : undefined}
+            title={isModerator(p) ? `${p.name} — moderator` : p.name}
+          >
             {p.name.trim().charAt(0).toUpperCase()}
           </span>
         )
@@ -554,6 +582,12 @@ function StageTimeline({
               <StageIcon stage={c} />
               <span>{c}</span>
               {n > 0 && <span className="bp-tl__colBadge">{n}</span>}
+              {/* WHAT RUNS IN THIS ROOM. "Event Room 2" is a place and says nothing; "NISS ·
+                  NASS" is what a visitor is actually looking for. Empty for the stages, which
+                  are already named after their programme. */}
+              {roomProgrammes(c).length > 0 && (
+                <span className="bp-tl__colProg">{roomProgrammes(c).join(" · ")}</span>
+              )}
             </span>
           );
         })}
@@ -1094,7 +1128,11 @@ function PersonRow({ p }: { p: Speaker }) {
         <div>
           <p className="bp-person__name">
             {p.name}
-            {p.role && <span className="bp-person__tag">{p.role}</span>}
+            {p.role && (
+              <span className="bp-person__tag" data-mod={isModerator(p) ? "1" : undefined}>
+                {p.role}
+              </span>
+            )}
           </p>
           {meta && <p className="bp-person__role">{meta}</p>}
         </div>
@@ -1114,7 +1152,11 @@ function PersonRow({ p }: { p: Speaker }) {
         >
           <span className="bp-person__name">
             {p.name}
-            {p.role && <span className="bp-person__tag">{p.role}</span>}
+            {p.role && (
+              <span className="bp-person__tag" data-mod={isModerator(p) ? "1" : undefined}>
+                {p.role}
+              </span>
+            )}
           </span>
           {meta && <span className="bp-person__role">{meta}</span>}
           <span className="bp-person__more">
@@ -1551,7 +1593,11 @@ export default function BrellaProgramPage() {
                 <div className="bp-controls">
                 <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by column">
                   <button role="tab" aria-selected={stage === ""} onClick={() => setStage("")}>
-                    {section === "grills" ? "All grills" : "All stages"}
+                    {section === "grills"
+                      ? "All grills"
+                      : section === "rooms"
+                        ? "All rooms"
+                        : "All stages"}
                   </button>
                   {(columnSet ?? []).map((c) => (
                     <button
