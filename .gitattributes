@@ -1,0 +1,9 @@
+# SOPS-encrypted secrets must keep LF line endings.
+#
+# core.autocrlf=true on Windows rewrites LF to CRLF on checkout, and SOPS then
+# fails to parse its own sops_lastmodified field:
+#
+#   parsing time "...Z\x0d": extra text: "\x0d"
+#
+# Without this line a fresh clone on Windows cannot decrypt its own secrets.
+*.enc.env -text

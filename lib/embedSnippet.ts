@@ -48,6 +48,13 @@ export type EmbedOptions = {
   // department with nobody in it is dropped. Different from `tabs` below: that mode needs a
   // multi-group endpoint, this filters a single flat list client-side after the fetch.
   deptTabs?: string[];
+  // Same centered pills, but filtering ONE list by its `tag` field instead of `department` —
+  // the Life Science embed, where `tag` carries which stage a person speaks on ("Life Science
+  // x Deep Tech Stage" / "Deep Tech Event Day"). Pass the stages in display order. Nobody with
+  // a blank tag reaches this snippet any more — lib/lifescience.ts gates them out server-side —
+  // so every person here matches exactly one pill.
+  // Mutually exclusive with deptTabs; deptTabs wins if both are somehow set.
+  tagTabs?: string[];
   // Render each person's email as a mailto link under the title. Only useful on a feed that
   // returns `email` — today that is /api/team, where staff contact addresses are public by
   // product decision. Default false so no other feed can start printing addresses by accident.
@@ -84,9 +91,17 @@ export function buildEmbedSnippet({
   transparent = false,
   email = false,
   deptTabs,
+  tagTabs,
   tabs,
 }: EmbedOptions): string {
   const id = uid || "tbbq-speakers";
+  // The two single-list pill filters are the same widget over a different field, so they share
+  // one implementation and only differ in which key is compared and what the tablist is called.
+  const pillFilter = deptTabs?.length
+    ? { field: "department", values: deptTabs, label: "Filter by department" }
+    : tagTabs?.length
+      ? { field: "tag", values: tagTabs, label: "Filter by stage" }
+      : null;
   const rowsClass = mobileLayout === "rows" ? " tbbq-rows" : "";
   const hoverGradient = GRADIENTS[gradient];
   // Tab mode renders its own multi-group script; the single-list extras don't apply
@@ -173,8 +188,8 @@ export function buildEmbedSnippet({
         )
         .join("")}</div></div>`
     : "";
-  // The department filter renders the same centered pills, so both modes share the styles.
-  const wantsPills = Boolean(tabs?.length) || Boolean(deptTabs?.length);
+  // The department/stage filter renders the same centered pills, so all modes share the styles.
+  const wantsPills = Boolean(tabs?.length) || Boolean(pillFilter);
   const tabsStyles = wantsPills
     ? `
   /* Forced + #id-scoped: WordPress themes restyle every <button> globally (their own
@@ -210,6 +225,10 @@ export function buildEmbedSnippet({
 <style>
   .tbbq-speakers{--bg:${transparent ? "transparent" : "#0d0d0d"};--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:${transparent ? "0" : "clamp(24px,4vw,48px)"};border-radius:${transparent ? "0" : "20px"}}
   .tbbq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:20px}
+  /* A SHORT GROUP (the Policy Stage has three moderators) gets its own centred row instead of
+     hanging off the left edge under empty columns, which reads as a half-loaded grid. Set by the
+     renderer, which is the only thing that knows how many cards a tab holds. */
+  @media(min-width:901px){.tbbq-grid[data-few]{grid-template-columns:repeat(3,minmax(0,240px));justify-content:center}}
   .tbbq-speakers__loading{grid-column:1/-1;color:var(--muted);margin:0}
   .tbbq-more{display:block;margin:24px auto 0;padding:12px 28px;border:1px solid #2a2a2a;border-radius:9999px;background:#131313;color:#f2f2f2;font-family:"Onest",sans-serif;font-weight:500;font-size:14px;cursor:pointer;transition:background .18s}
   .tbbq-more:hover{background:#1b1b1b}
@@ -351,6 +370,9 @@ export function buildEmbedSnippet({
       more.style.display="none";
       if(!list.length){grid.innerHTML='<p class="tbbq-speakers__loading">Nobody to show yet.</p>';return;}
       grid.innerHTML="";
+      /* Three or fewer: centre them on one row. Re-evaluated on every tab switch, so the Speakers
+         tab goes back to the full-width grid. */
+      if(list.length<=3){grid.setAttribute("data-few","1");}else{grid.removeAttribute("data-few");}
       fill();
     }
     var tabBtns=root.querySelectorAll(".tbbq-tabs button");
@@ -375,7 +397,8 @@ export function buildEmbedSnippet({
     list=tbbqRanked.concat(tbbqShuffle(tbbqRest));`
         : ""
     }
-    grid.innerHTML="";${modalSetup}
+    grid.innerHTML="";
+    if(list.length<=3){grid.setAttribute("data-few","1");}${modalSetup}
     var shown=0;
     var more=document.createElement("button");
     more.type="button";more.className="tbbq-more";more.textContent="Load more";
@@ -391,27 +414,29 @@ export function buildEmbedSnippet({
     }
     more.onclick=fill;
     if(LOADMORE)root.appendChild(more);${
-      deptTabs?.length
+      pillFilter
         ? `
-    // Department filter pills. Built from the data so a department with nobody in it never
-    // gets a pill, and ordered by DEPTS (anything unexpected is appended). Filtering keeps
-    // the already-computed order, so the leadership block stays on top inside each tab.
+    // Filter pills over one flat list, comparing each person's \`${pillFilter.field}\`. Built from
+    // the data so a value with nobody in it never gets a pill, and ordered by DEPTS (anything
+    // unexpected is appended). Filtering keeps the already-computed order, so the leadership
+    // block stays on top inside each tab and a shuffled feed keeps this load's shuffle.
+    // A person whose field is empty matches no pill and is reachable only under "All".
     var ALLPEOPLE=list.slice();
-    var DEPTS=${JSON.stringify(deptTabs)};
+    var DEPTS=${JSON.stringify(pillFilter.values)};
     var present=[];
     for(var di=0;di<DEPTS.length;di++){
       for(var pj=0;pj<ALLPEOPLE.length;pj++){
-        if(ALLPEOPLE[pj].department===DEPTS[di]){present.push(DEPTS[di]);break;}
+        if(ALLPEOPLE[pj].${pillFilter.field}===DEPTS[di]){present.push(DEPTS[di]);break;}
       }
     }
     for(var pk=0;pk<ALLPEOPLE.length;pk++){
-      var dd=ALLPEOPLE[pk].department;
+      var dd=ALLPEOPLE[pk].${pillFilter.field};
       if(dd&&DEPTS.indexOf(dd)===-1&&present.indexOf(dd)===-1)present.push(dd);
     }
     if(present.length>1){
       var tabsWrap=document.createElement("div");
       tabsWrap.className="tbbq-tabs";tabsWrap.setAttribute("role","tablist");
-      tabsWrap.setAttribute("aria-label","Filter by department");
+      tabsWrap.setAttribute("aria-label",${JSON.stringify(pillFilter.label)});
       var pills='<div class="tbbq-tabs__pills"><button type="button" role="tab" data-d="" aria-selected="true">All</button>';
       for(var pi=0;pi<present.length;pi++){
         pills+='<button type="button" role="tab" data-d="'+esc(present[pi])+'" aria-selected="false">'+esc(present[pi])+'</button>';
@@ -423,7 +448,7 @@ export function buildEmbedSnippet({
         dBtns[db].addEventListener("click",function(){
           for(var u=0;u<dBtns.length;u++)dBtns[u].setAttribute("aria-selected",dBtns[u]===this?"true":"false");
           var want=this.getAttribute("data-d");
-          list=want?ALLPEOPLE.filter(function(p){return p.department===want;}):ALLPEOPLE.slice();
+          list=want?ALLPEOPLE.filter(function(p){return p.${pillFilter.field}===want;}):ALLPEOPLE.slice();
           shown=0;grid.innerHTML="";more.style.display="";fill();
         });
       }

@@ -7,7 +7,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, linkedinUrl, num, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, linkedinUrl, num, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -46,8 +46,14 @@ export type InvestorSpeaker = {
   company: string;
   photo: string | null;
   linkedin: string | null;
-  // Which of the two events the row belongs to, as the short key ("pension-summit").
+  // The PRIMARY event, as the short key ("pension-summit"). Kept alongside `events` so anything
+  // that already reads a single event — the pasted embeds included — keeps working unchanged.
   event: string;
+  // EVERY event this person speaks at, in the order INVESTOR_EVENTS declares them. Usually one.
+  // Yoram Wijngaarde (Dealroom) speaks at both the LP Forum and the Pension & Insurance Summit,
+  // and he used to be two cards with two different photos of the same man (Auri, 2026-08-05).
+  // One person is one card; the card names both events.
+  events: string[];
   // Curated importance from the same table (1 = first); blanks sort last.
   hierarchy: number;
 };
@@ -72,29 +78,55 @@ function mapRecord(rec: AirtableRecord): InvestorSpeaker {
     title: str(f["Job Title"]),
     company: str(f["Company"]),
     // Stable proxy URL — raw signed attachment URLs expire in ~2h (lib/photo.ts).
-    photo: firstPhoto(f["Profile Picture"]) ? photoUrl("marketing", rec.id) : null,
+    photo: firstPhoto(f["Profile Picture"])
+      ? photoUrl("marketing", rec.id, undefined, firstAttachmentId(f["Profile Picture"]))
+      : null,
     linkedin: linkedinUrl(f["Link to LinkedIn"], f["LinkedIn Handle"]),
     event: eventKey(str(f["Project Name"])),
+    events: [eventKey(str(f["Project Name"]))].filter(Boolean),
     hierarchy: num(f["Hierarchy"]),
   };
 }
 
-// The view holds real duplicate rows for several people (same person submitted/added
-// more than once, e.g. Thomas Kristensen ×3). Collapse by normalized name per event,
-// preferring the row that has a LinkedIn URL, then the lower (better) hierarchy.
+// Declaration order, so a person at two events always lists them the same way round. Sorting by
+// the label would reorder the moment a label is reworded.
+const EVENT_ORDER = Object.keys(INVESTOR_EVENTS);
+
+/**
+ * ONE PERSON, ONE CARD.
+ *
+ * Two different duplicates live in this view and both end here:
+ *
+ *   1. The same person entered twice for the SAME event (Thomas Kristensen ×3). A straight
+ *      duplicate; one row wins.
+ *   2. The same person speaking at TWO events — Yoram Wijngaarde at the LP Forum and the Pension
+ *      & Insurance Summit. That used to be two cards, each with its own upload of the same face.
+ *      It is one card now, listing both events (Auri, 2026-08-05).
+ *
+ * Keyed on the NAME alone, which is what makes case 2 collapse. The row that wins is the one with
+ * a LinkedIn URL, then the better hierarchy — but the EVENT LIST is unioned across every row, so
+ * choosing an identity never loses the fact that he speaks somewhere else too.
+ */
 function dedupe(people: InvestorSpeaker[]): InvestorSpeaker[] {
   const byKey = new Map<string, InvestorSpeaker>();
   for (const p of people) {
-    const key = p.event + ":" + p.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const key = p.name.toLowerCase().replace(/[^a-z0-9]/g, "");
     const prev = byKey.get(key);
     if (!prev) {
-      byKey.set(key, p);
+      byKey.set(key, { ...p });
       continue;
     }
+    const events = [...new Set([...prev.events, ...p.events])].sort(
+      (a, b) => EVENT_ORDER.indexOf(a) - EVENT_ORDER.indexOf(b)
+    );
     const better =
       (p.linkedin ? 1 : 0) - (prev.linkedin ? 1 : 0) ||
       (p.hierarchy < prev.hierarchy ? 1 : 0);
-    if (better > 0) byKey.set(key, p);
+    // The winning row supplies the identity — photo, title, LinkedIn — and the merged list
+    // supplies the events. `event` follows the list rather than the winner, so the primary is
+    // always the earliest of the two by declaration order and cannot flip with the data.
+    const identity = better > 0 ? p : prev;
+    byKey.set(key, { ...identity, events, event: events[0] ?? identity.event });
   }
   return [...byKey.values()];
 }

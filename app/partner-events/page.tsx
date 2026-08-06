@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEventEmbed } from "@/components/CopyEventEmbed";
 
 // One card per partner-hosted event: Side Events in red, Event Rooms in blue.
@@ -17,6 +18,7 @@ type PartnerEvent = {
   color: string;
   date: string | null;
   dateLabel: string | null;
+  timeSlot: string | null;
   accessKind: "public" | "private-invite" | null;
   accessLabel: string | null;
   description: string | null;
@@ -118,11 +120,20 @@ function EventCard({ ev }: { ev: PartnerEvent }) {
               {ev.accessLabel}
             </span>
           )}
-          {ev.dateLabel ? (
-            <span className="ev-card__date">{ev.dateLabel}</span>
-          ) : (
-            <span className="ev-card__date ev-card__date--none">Date TBC</span>
-          )}
+          {/* Day and time are ONE wrapping unit. Left as two siblings of the badges they
+              broke apart on a three-badge card: the badges filled the line and the time
+              dropped underneath, left-aligned, while every two-badge card kept it inline. */}
+          <span className="ev-card__when">
+            {ev.dateLabel ? (
+              <span className="ev-card__date">{ev.dateLabel}</span>
+            ) : (
+              <span className="ev-card__date ev-card__date--none">Date TBC</span>
+            )}
+            {/* No "Time TBC" counterpart: most of these have no time yet, and a page of
+                italic placeholders reads as missing data rather than as a schedule. The
+                gaps panel above already names it. */}
+            {ev.timeSlot && <span className="ev-card__time">{ev.timeSlot}</span>}
+          </span>
         </div>
 
         <h3 className="ev-card__title">{ev.title}</h3>
@@ -142,11 +153,9 @@ function EventCard({ ev }: { ev: PartnerEvent }) {
 }
 
 export default function PartnerEventsPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<PartnerEvent>(
-    "partnerevents",
-    "/api/partner-events",
-    "events"
-  );
+  const { url, refresh } = useFreshUrl("/api/partner-events");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<PartnerEvent>("partnerevents", url, "events");
   const all = data ?? [];
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
 
@@ -203,6 +212,17 @@ export default function PartnerEventsPage() {
               Copy from the deployed dashboard, not localhost.
             </span>
           </div>
+
+          {/* Side events change late and often, so this is the page most likely to need a
+              read that does not wait for the next cycle. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="partnerevents"
+            />
+          </div>
         </div>
       </section>
 
@@ -214,9 +234,11 @@ export default function PartnerEventsPage() {
           <h2>Still missing in Airtable</h2>
           <ul>
             <li>
-              <strong>Start / end times</strong> — no data. <code>Time slot</code> is filled on
-              11 rows elsewhere in the table (all Grill sessions) but on none of these events,
-              and <code>Start date</code> is empty table-wide.
+              <strong>Start / end times</strong> — filled on the 8 Event Rooms scheduled in the
+              planning sheet&rsquo;s <em>Event Rooms</em> tab, still empty on every Side Event.
+              Type them into <code>Time slot</code> as <code>09:30-17:30</code> and the card
+              picks them up; a value that cannot be read is dropped rather than shown, so check
+              the card after editing.
             </li>
             <li>
               <strong>Venue address</strong> — <em>no such column exists</em> in the table&rsquo;s

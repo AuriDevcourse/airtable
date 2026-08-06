@@ -1,30 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchNiss2025 } from "@/lib/niss2025";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 
 export const OPTIONS = corsPreflight;
 
 export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
-
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+  const gate = feedGate(req, "niss-2025");
+  if (!gate.ok) return gate.res;
 
   // Optional ?role=Speaker | Moderator | Team. Validated against an allow-list.
   const roleParam = req.nextUrl.searchParams.get("role");
   const ALLOWED_ROLES = ["Speaker", "Moderator", "Team"];
   const role = roleParam && ALLOWED_ROLES.includes(roleParam) ? roleParam : undefined;
 
+  const key = `niss2025:${role || "all"}`;
+
   try {
-    const people = await cached(`niss2025:${role || "all"}`, () => fetchNiss2025(role));
-    const res = NextResponse.json({ count: people.length, role: role || "all", people }, { status: 200 });
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    if (gate.fresh) invalidate(key);
+
+    const people = await cached(key, () => fetchNiss2025(role), feedTtlMs());
+    return feedResponse({ count: people.length, role: role || "all", people }, gate);
   } catch (err) {
     console.error("[/api/niss-2025]", err);
-    return errorResponse(err, "Something went wrong loading NISS 2025 people.");
+    return errorResponse(err, "Something went wrong loading NISS 2025 people.", gate);
   }
 }

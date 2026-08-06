@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchPartnerEvents } from "@/lib/partnerevents";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +12,21 @@ export const OPTIONS = corsPreflight;
 // all. Filtering happens after the cache so both variants share one Airtable fetch.
 const KINDS = new Set(["side-event", "event-room"]);
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+const KEY = "partnerevents";
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  const gate = feedGate(req, KEY);
+  if (!gate.ok) return gate.res;
 
   try {
-    const all = await cached("partnerevents", fetchPartnerEvents);
+    if (gate.fresh) invalidate(KEY);
+
+    const all = await cached(KEY, fetchPartnerEvents, feedTtlMs());
     const kind = req.nextUrl.searchParams.get("kind");
     const events = kind && KINDS.has(kind) ? all.filter((e) => e.kind === kind) : all;
-    const res = NextResponse.json({ count: events.length, events }, { status: 200 });
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    return feedResponse({ count: events.length, events }, gate);
   } catch (err) {
     console.error("[/api/partner-events]", err);
-    return errorResponse(err, "Something went wrong loading partner events.");
+    return errorResponse(err, "Something went wrong loading partner events.", gate);
   }
 }

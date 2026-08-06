@@ -26,16 +26,20 @@ const MENU: MenuGroup[] = [
       { href: "/all-speakers-2026", label: "All Speakers 2026" },
       { href: "/speakers-2026", label: "Speakers 2026" },
       { href: "/main-speakers", label: "Main Page 12" },
-      { href: "/", label: "Speakers (all)" },
+      // Moved off "/" on 2026-08-05: the front page is now the hub that groups every page in
+      // here (app/page.tsx). The feed and the embed snippet are unchanged.
+      { href: "/speakers", label: "Speakers (all)" },
     ],
   },
   {
     heading: "Projects",
     items: [
       { href: "/life-science", label: "Life Science 2026" },
+      { href: "/ls-startups", label: "Life Science Startups" },
       { href: "/niss", label: "NISS 2026" },
       { href: "/nass", label: "NASS 2026" },
       { href: "/fintech-speakers", label: "Fintech Speakers" },
+      { href: "/policy-stage", label: "The Policy Stage" },
       { href: "/niss-2025", label: "NISS 2025" },
     ],
   },
@@ -51,8 +55,12 @@ const MENU: MenuGroup[] = [
   {
     heading: "Program & internal",
     items: [
-      { href: "/program", label: "Program 2026" },
+      // /brella-program is THE TechBBQ program (Brella, the one on techbbq.dk). /program is
+      // the other events' agendas, so it no longer competes for the "Program 2026" name.
+      { href: "/brella-program", label: "Program 2026" },
+      { href: "/program", label: "TechBBQ Project Programs" },
       { href: "/partner-events", label: "Side Events & Event Rooms" },
+      { href: "/partners", label: "Partners 2026" },
       { href: "/team", label: "Team" },
       { href: "/lookup", label: "Ticket lookup" },
     ],
@@ -135,7 +143,9 @@ function TopNavShell({ search }: { search: string }) {
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
-            {current?.label ?? "Projects"}
+            {/* "All pages" rather than a guess: the only page with no entry of its own is the
+                hub at "/", where nothing is selected yet. */}
+            {current?.label ?? "All pages"}
             <svg
               width="16"
               height="16"

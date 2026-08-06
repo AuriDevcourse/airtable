@@ -19,6 +19,7 @@ export function CopyEmbed({
   transparent,
   email,
   deptTabs,
+  tagTabs,
   tabs,
   label,
 }: EmbedOptions & { label?: string }) {
@@ -27,7 +28,7 @@ export function CopyEmbed({
   function copy() {
     // Fresh id per copy so this block won't clash with any other embed on the same page.
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildEmbedSnippet({ path, listKey, uid, loadMore, mobileLayout, gradient, modal, shuffle, pageSize, columns, transparent, email, deptTabs, tabs }).replace(
+    const code = buildEmbedSnippet({ path, listKey, uid, loadMore, mobileLayout, gradient, modal, shuffle, pageSize, columns, transparent, email, deptTabs, tagTabs, tabs }).replace(
       /__ORIGIN__/g,
       window.location.origin
     );

@@ -4,8 +4,10 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
 // Same per-image shimmer loader as the NISS/NASS pages: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
@@ -34,6 +36,10 @@ type InvestorSpeaker = {
   photo: string | null;
   linkedin: string | null;
   event: string;
+  // Every event this person speaks at. One card per person, however many events they appear at —
+  // Yoram Wijngaarde is at both the LP Forum and the Pension & Insurance Summit and used to be two
+  // cards with two uploads of the same face. Optional so an older cached payload still renders.
+  events?: string[];
   // The API's Infinity (unranked) serializes to null in JSON.
   hierarchy: number | null;
 };
@@ -78,12 +84,12 @@ function InvestorsView() {
     router.replace(next === "all" ? "/investors" : `/investors?event=${next}`, { scroll: false });
   };
 
-  const url = event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
-  const { data, loading, revalidating, error, updated } = useCachedList<InvestorSpeaker>(
-    `investors:${event}`,
-    url,
-    "people"
-  );
+  // `base` for the embed snippet, `url` for this page's own fetch (see /niss).
+  const base =
+    event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<InvestorSpeaker>(`investors:${event}`, url, "people");
   // Random order, re-rolled on every page load (same approach as Speakers 2026 / NASS).
   // Anyone with a curated numeric Hierarchy keeps that order at the top; only the rest is
   // shuffled (today everyone is unranked, so everything shuffles). The seed is fixed for
@@ -132,10 +138,20 @@ function InvestorsView() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Mobile defaults to the list-rows layout for every filter. */}
-            <CopyEmbed path={url} listKey="people" shuffle />
+            <CopyEmbed path={base} listKey="people" shuffle />
+            <CopyApiSnippet feed="investor-speakers" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{eventLabel(event)}</code>).
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`investors:${event}`}
+            />
           </div>
         </div>
       </section>
@@ -171,9 +187,13 @@ function InvestorsView() {
                       </div>
                     )}
                     <div className="s-card__overlay">
-                      {/* Show which event the person belongs to when viewing both. */}
-                      {event === "all" && p.event && (
-                        <span className="s-card__role">{eventLabel(p.event)}</span>
+                      {/* Which event, or events, the person speaks at — shown when the view is not
+                          already filtered to one. Someone at two of them gets both names on the one
+                          card rather than a second card. */}
+                      {event === "all" && (p.events?.length || p.event) && (
+                        <span className="s-card__role">
+                          {(p.events?.length ? p.events : [p.event]).map(eventLabel).join(" · ")}
+                        </span>
                       )}
                       <h3 className="s-card__name">{p.name}</h3>
                       <p className="s-card__meta">{meta}</p>

@@ -9,9 +9,17 @@
 // for the scheduler. The browser-facing sync lives at /api/admin/sync, which IS gated.
 
 import { NextRequest, NextResponse } from "next/server";
+import { isDashboardRequest } from "@/lib/dashboardAuth";
 
 // Exact pathnames, not prefixes — "/api/speakers" is a prefix of "/api/speakers-2026",
 // so a startsWith() check here would be a footgun the moment someone adds a route.
+//
+// ADDING A FEED? ADD IT HERE, AND KNOW THAT LOCAL DEV WILL NOT TELL YOU.
+// A route missing from this list returns 401 with no CORS headers, and the browser reports it as
+// "No 'Access-Control-Allow-Origin' header is present" — which sends you hunting through the CORS
+// code instead of looking here. It cannot reproduce locally either: isDashboardRequest() allows
+// everything when no DASHBOARD_PASSWORD is set, which is the normal `npm run dev` state.
+// /api/policy-stage shipped without its entry and broke on techbbq.dk exactly this way (2026-08-05).
 const PUBLIC_PATHS = new Set([
   "/api/speakers",
   "/api/speakers-2026",
@@ -24,10 +32,18 @@ const PUBLIC_PATHS = new Set([
   "/api/partner-events",
   "/api/investor-speakers",
   "/api/fintech-speakers",
+  "/api/policy-stage",
   "/api/program",
   "/api/life-science",
+  "/api/ls-startups",
+  "/api/partners",
   "/api/team",
   "/api/sync-speakers", // guarded by CRON_SECRET instead
+  // Returns embed markup, not data. Every byte of it is already public in the source of any
+  // page that has pasted the snippet, it reads no protected feed and it calls no paid API,
+  // so gating it would protect nothing while making the snippet impossible to fetch from the
+  // WordPress editor that needs it.
+  "/api/embed",
 ]);
 
 const REALM = 'Basic realm="TechBBQ Connector", charset="UTF-8"';
@@ -50,27 +66,9 @@ export function middleware(req: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
-  const expected = process.env.DASHBOARD_PASSWORD;
-
-  // No password configured: fine locally, but never let a misconfigured deploy quietly
-  // publish the dashboard. Fails closed in production, the same way /api/sync-speakers does.
-  if (!expected) {
-    if (process.env.NODE_ENV === "development") return NextResponse.next();
-    return unauthorized();
-  }
-
-  const header = req.headers.get("authorization") || "";
-  if (header.startsWith("Basic ")) {
-    let decoded = "";
-    try {
-      decoded = atob(header.slice(6)); // Edge runtime has atob, not Buffer
-    } catch {
-      return unauthorized();
-    }
-    // Username is cosmetic — any name works, the password is the secret.
-    const password = decoded.slice(decoded.indexOf(":") + 1);
-    if (password && password === expected) return NextResponse.next();
-  }
+  // Shared with the feed routes' ?fresh= bypass — see lib/dashboardAuth.ts. It allows local
+  // dev with no password set and fails closed in production when the env var is missing.
+  if (isDashboardRequest(req.headers.get("authorization"))) return NextResponse.next();
 
   return unauthorized();
 }

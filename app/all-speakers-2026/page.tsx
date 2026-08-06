@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
+import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
+import type { ChangeSummary } from "@/lib/diffList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
 // Speakers + Event Room shuffle per page load (fair exposure). The snippet's shuffle
@@ -57,6 +60,12 @@ type FeedPerson = {
   // and the assigned room label ("Event Room 1".."6") once marketing sets it.
   host?: string;
   room?: string | null;
+  // ONE PERSON, ONE CARD. Somebody speaking in two places is merged by the feed, and these carry
+  // everywhere they speak — two partners' event rooms, or two investor events. The singular fields
+  // above stay as the primary. Optional because an older cached payload will not have them.
+  hosts?: string[];
+  rooms?: string[];
+  events?: string[];
 };
 
 // What a card renders: a feed person plus which source it came from.
@@ -70,6 +79,10 @@ const GROUP_LABELS: Record<GroupKey, string> = {
   "event-room": "Event Room Speakers",
   investors: "Investor Speakers",
 };
+
+// Where the Future of Fintech session runs. Auri corrected this from Event Room 3 on 2026-08-05.
+// Kept in step with the same constant in app/api/all-speakers/route.ts, which the embed uses.
+const FINTECH_ROOM = "Event Room 1";
 
 // Investor event short keys → display names (mirrors /investors).
 const INVESTOR_EVENT_LABELS: Record<string, string> = {
@@ -169,18 +182,57 @@ function SpeakerModal({ speaker, onClose }: { speaker: Card; onClose: () => void
   );
 }
 
+// The most changes the report prints before it starts counting the rest as hidden. Matches
+// diffList's own cap, so a merged report reads like a single-feed one.
+const MAX_REPORT_ITEMS = 15;
+
+/**
+ * Sum several feeds' change reports into one, for a tab that renders more than one feed.
+ * Returns null while any of them is still missing: a partial total would claim "1 edited"
+ * when two of the three answers have not arrived, and the button would stop waiting early.
+ */
+function mergeChanges(parts: (ChangeSummary | null)[]): ChangeSummary | null {
+  if (parts.some((c) => c == null)) return null;
+  const present = parts as ChangeSummary[];
+  const items = present.flatMap((c) => c.items);
+  const shown = items.slice(0, MAX_REPORT_ITEMS);
+  return {
+    added: present.reduce((n, c) => n + c.added, 0),
+    removed: present.reduce((n, c) => n + c.removed, 0),
+    changed: present.reduce((n, c) => n + c.changed, 0),
+    total: present.reduce((n, c) => n + c.total, 0),
+    items: shown,
+    hidden: present.reduce((n, c) => n + c.hidden, 0) + (items.length - shown.length),
+  };
+}
+
 export default function AllSpeakers2026Page() {
   const [group, setGroup] = useState<GroupKey>("speakers");
   // Speakers-group detail pop-up (the only group with bios).
   const [selected, setSelected] = useState<Card | null>(null);
 
-  // All four sources load on mount so switching groups is instant. Cache keys are
+  // One manual-sync counter for all six feeds, rather than useFreshUrl per feed: this page
+  // is assembled from six sources and a button that refreshed only the open tab's slice
+  // would leave the other tabs stale behind a control that looked like it covered the page.
+  const [fresh, setFresh] = useState(0);
+  const live = (base: string) =>
+    fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
+
+  // All six sources load on mount so switching groups is instant. Cache keys are
   // shared with the standalone pages, so a warm localStorage entry paints instantly.
-  const speakers = useCachedList<FeedPerson>("speakers-2026", "/api/speakers-2026", "speakers");
-  const niss = useCachedList<FeedPerson>("niss:all", "/api/niss-speakers", "people");
-  const nass = useCachedList<FeedPerson>("nass:all", "/api/nass-speakers", "people");
-  const rooms = useCachedList<FeedPerson>("eventrooms", "/api/event-room-presenters", "people");
-  const investors = useCachedList<FeedPerson>("investors:all", "/api/investor-speakers", "people");
+  const speakers = useCachedList<FeedPerson>("speakers-2026", live("/api/speakers-2026"), "speakers");
+  const niss = useCachedList<FeedPerson>("niss:all", live("/api/niss-speakers"), "people");
+  const nass = useCachedList<FeedPerson>("nass:all", live("/api/nass-speakers"), "people");
+  const rooms = useCachedList<FeedPerson>("eventrooms", live("/api/event-room-presenters"), "people");
+  // ?role=all, deliberately: the standalone feed defaults to Speaker for the sake of what is
+  // already pasted on techbbq.dk, and taking that default here is how the two moderators and the
+  // keynote would go missing from this roster again.
+  const fintech = useCachedList<FeedPerson>(
+    "fintech:all",
+    live("/api/fintech-speakers?role=all"),
+    "people"
+  );
+  const investors = useCachedList<FeedPerson>("investors:all", live("/api/investor-speakers"), "people");
 
   // Mount-fixed seed so revalidation/tab-switching doesn't re-jump the shuffled order;
   // a real refresh remounts → new seed → new order (same pattern as /investors).
@@ -223,17 +275,52 @@ export default function AllSpeakers2026Page() {
       const fromNass: Card[] = (nass.data ?? [])
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "Event Room 2" }));
-      // Room label ("Event Room 1".."6") once known; the hosting partner until then.
-      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({ ...p, tag: p.room ?? p.host }));
+      // Room label ("Event Room 1".."6") once known; the hosting partner until then. A presenter
+      // booked by two partners is ONE card (the feed merges them) and names both places here,
+      // preferring rooms and falling back to partners when only some rooms are assigned.
+      const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({
+        ...p,
+        tag:
+          p.rooms?.length && p.hosts?.length && p.rooms.length === p.hosts.length
+            ? p.rooms.join(" · ")
+            : p.hosts?.length
+              ? p.hosts.join(" · ")
+              : (p.room ?? p.host),
+      }));
+      // FUTURE OF FINTECH, an event room session like any other: Flatpay hosts it in Event Room 1.
+      // It was missing from this tab entirely, so 13 of its 15 people appeared nowhere on the page
+      // (Auri, 2026-08-05). All three roles are kept, moderators and keynote included — filtering
+      // them out is exactly how they went missing.
+      const fromFintech: Card[] = (fintech.data ?? []).map((p) => ({ ...p, tag: FINTECH_ROOM }));
+      // ONE PERSON, ONE CARD. Sander Janca-Jensen arrives twice, as Flatpay's presenter and as the
+      // fintech keynote, and two photos of one man in one tab is what that rule exists to stop.
+      // Tags are unioned so nothing about where he speaks is lost. Same merge as /api/all-speakers.
+      const merged: Card[] = [];
+      for (const p of [...fromNiss, ...fromNass, ...fromRooms, ...fromFintech]) {
+        const key = p.name.toLowerCase().replace(/\s+/g, " ").trim();
+        const prev = merged.find((x) => x.name.toLowerCase().replace(/\s+/g, " ").trim() === key);
+        if (!prev) {
+          merged.push(p);
+          continue;
+        }
+        prev.tag = [...new Set([...(prev.tag ?? "").split(" · "), ...(p.tag ?? "").split(" · ")])]
+          .filter(Boolean)
+          .join(" · ");
+      }
       // Random order per page load (Auri's rule); nobody here is ranked.
-      return shuffle([...fromNiss, ...fromNass, ...fromRooms]);
+      return shuffle(merged);
     }
     // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
+    // One card per person here too: an investor at two of the three events names both.
     return (investors.data ?? []).map((p) => ({
       ...p,
-      tag: p.event ? INVESTOR_EVENT_LABELS[p.event] ?? p.event : undefined,
+      tag: p.events?.length
+        ? p.events.map((e) => INVESTOR_EVENT_LABELS[e] ?? e).join(" · ")
+        : p.event
+          ? INVESTOR_EVENT_LABELS[p.event] ?? p.event
+          : undefined,
     }));
-  }, [group, speakers.data, niss.data, nass.data, rooms.data, investors.data, seed]);
+  }, [group, speakers.data, niss.data, nass.data, rooms.data, fintech.data, investors.data, seed]);
 
   // A source feed down while the others render would silently show a partial roster;
   // surface it instead (completion-auditor finding).
@@ -241,6 +328,7 @@ export default function AllSpeakers2026Page() {
     { label: "NISS 2026", state: niss },
     { label: "NASS 2026", state: nass },
     { label: "Partner event rooms", state: rooms },
+    { label: "Future of Fintech", state: fintech },
   ];
   const failedFeeds = roomFeeds.filter((f) => f.state.error && !f.state.data);
   const partialWarning =
@@ -257,19 +345,32 @@ export default function AllSpeakers2026Page() {
           revalidating: speakers.revalidating,
           error: speakers.error,
           empty: !speakers.data,
+          revalidateError: speakers.revalidateError,
+          changes: speakers.changes,
         }
       : group === "event-room"
         ? {
-            loading: niss.loading || nass.loading || rooms.loading,
-            revalidating: niss.revalidating || nass.revalidating || rooms.revalidating,
+            loading: niss.loading || nass.loading || rooms.loading || fintech.loading,
+            revalidating:
+              niss.revalidating || nass.revalidating || rooms.revalidating || fintech.revalidating,
             error: failedFeeds.length === roomFeeds.length ? niss.error : null,
-            empty: !niss.data && !nass.data && !rooms.data,
+            empty: !niss.data && !nass.data && !rooms.data && !fintech.data,
+            // Any one of the four failing is enough to report: the press did not fully land.
+            revalidateError:
+              niss.revalidateError ??
+              nass.revalidateError ??
+              rooms.revalidateError ??
+              fintech.revalidateError,
+            // Event Room is four feeds in one tab, so its report is the four summed.
+            changes: mergeChanges([niss.changes, nass.changes, rooms.changes, fintech.changes]),
           }
         : {
             loading: investors.loading,
             revalidating: investors.revalidating,
             error: investors.error,
             empty: !investors.data,
+            revalidateError: investors.revalidateError,
+            changes: investors.changes,
           };
 
   return (
@@ -300,9 +401,25 @@ export default function AllSpeakers2026Page() {
                 renders its own centered tab switcher, so the WordPress visitor can flip
                 between Speakers / Event Room / Investors inside the embed. */}
             <CopyEmbed path="/api/all-speakers" listKey="people" tabs={EMBED_TABS} />
+            {/* For a developer building the page themselves rather than pasting a widget:
+                a few lines of fetch that spell out this feed's shape. The array key is not
+                the same on every speaker feed, so each snippet states its own. */}
+            <CopyApiSnippet feed="all-speakers" label="Copy API code (all 3 groups)" />
+            <CopyApiSnippet feed="event-room-presenters" label="Copy API code (event room)" />
+            <CopyApiSnippet feed="investor-speakers" label="Copy API code (investors)" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies one Elementor snippet with the tab switcher built in.
             </span>
+          </div>
+
+          {/* One press reads all five feeds live; the report covers the open tab. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={() => setFresh((n) => n + 1)}
+              changes={active.changes}
+              error={active.revalidateError}
+              resetKey={group}
+            />
           </div>
         </div>
       </section>

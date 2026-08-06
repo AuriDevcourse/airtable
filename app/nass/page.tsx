@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Same per-image shimmer loader as the NISS page: state lives here so parent
@@ -46,12 +47,12 @@ const roleLabel = (r: string) => (r === "all" ? "All" : r === "Speaker" ? "Prese
 export default function NassPage() {
   const [role, setRole] = useState<Role>("Speaker");
 
-  const url = role === "all" ? "/api/nass-speakers" : `/api/nass-speakers?role=${role}`;
-  const { data, loading, revalidating, error, updated } = useCachedList<NassPerson>(
-    `nass:${role}`,
-    url,
-    "people"
-  );
+  // `base` is what the embed snippet carries; `url` is what this page fetches and what the
+  // refresh button turns into an authenticated live read. Never put ?fresh= in a snippet.
+  const base = role === "all" ? "/api/nass-speakers" : `/api/nass-speakers?role=${role}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<NassPerson>(`nass:${role}`, url, "people");
   // Random order, re-rolled on every page load (same approach as Speakers 2026). The
   // seed is fixed for this mount so revalidation or tab-switching doesn't re-jump the
   // order mid-view; a refresh remounts → new seed → new order.
@@ -91,10 +92,19 @@ export default function NassPage() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* Mobile defaults to the list-rows layout for every role. */}
-            <CopyEmbed path={url} listKey="people" shuffle />
+            <CopyEmbed path={base} listKey="people" shuffle />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{roleLabel(role)}</code>).
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`nass:${role}`}
+            />
           </div>
         </div>
       </section>

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchMainPageSpeakers } from "@/lib/mainpage";
-import { rateLimit, cached } from "@/lib/rate-limit";
-import { FEED_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { feedTtlMs } from "@/lib/cachePolicy";
 
 export const dynamic = "force-dynamic";
 // Headroom for the Airtable fetch's 10s timeout + one retry (see lib/mainpage.ts).
@@ -9,22 +10,19 @@ export const maxDuration = 30;
 
 export const OPTIONS = corsPreflight;
 
-export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
+const KEY = "main-speakers";
 
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+export async function GET(req: NextRequest) {
+  const gate = feedGate(req, KEY);
+  if (!gate.ok) return gate.res;
 
   try {
-    const speakers = await cached("main-speakers", fetchMainPageSpeakers);
-    const res = NextResponse.json(
-      { count: speakers.length, speakers },
-      { status: 200 }
-    );
-    res.headers.set("Cache-Control", FEED_CACHE_CONTROL);
-    return withCors(res);
+    if (gate.fresh) invalidate(KEY);
+
+    const speakers = await cached(KEY, fetchMainPageSpeakers, feedTtlMs());
+    return feedResponse({ count: speakers.length, speakers }, gate);
   } catch (err) {
     console.error("[/api/main-speakers]", err);
-    return errorResponse(err, "Something went wrong loading main-page speakers.");
+    return errorResponse(err, "Something went wrong loading main-page speakers.", gate);
   }
 }

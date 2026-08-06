@@ -23,27 +23,41 @@ export type AgendaOptions = {
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
   // Fintech wants every title the same size, so it passes false.
   bigOpening?: boolean;
+  // Show WHO IS ON STAGE under each session: the moderator first, then the speakers, each with their
+  // face when the feed has one. Off by default, because only the Policy Stage feed carries `onStage`
+  // and turning it on for the others would render nothing while changing their markup.
+  people?: boolean;
 };
 
 // Everything that differs between the two looks lives here.
 const THEMES = {
+  // THE TECHBBQ FIRE GRADIENT, not a flat orange (Auri, 2026-08-05). Same three stops as
+  // .text-tbbq-gradient in app/globals.css — orange to red — so the embed on techbbq.dk matches the
+  // brand rather than approximating it with #ff6a2b.
+  //
+  // `acc` stays a SOLID for the things a gradient cannot paint: an SVG stroke and the note's dot.
+  // #ff2600 is the gradient's middle stop, so those sit inside the same range instead of beside it.
   orange: {
     ink: "#f2f2f2",
     muted: "#9a9a9c",
-    acc: "#ff6a2b",
-    tagInk: "#ff6a2b",
-    tagBorder: "rgba(255,106,43,.5)",
-    border: "rgba(255,106,43,.45)",
-    glow: "rgba(255,106,43,.08)",
+    acc: "#ff2600",
+    grad: "linear-gradient(120deg,#fa7000 0%,#ff2600 45%,#ce0f2e 100%)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(255,38,0,.45)",
+    glow: "rgba(255,38,0,.10)",
     bg: "transparent",
     rowBorder: "rgba(255,255,255,.09)",
     time: "#d8d0c7",
     noteInk: "#cfc6bd",
   },
+  // Fintech keeps its flat blue. `grad` is a single-stop "gradient" so the shared CSS below can use
+  // one variable unconditionally — background-clip:text over a solid paints exactly the solid.
   blue: {
     ink: "#F1F5F9",
     muted: "#94A3B8",
     acc: "#2563EB",
+    grad: "linear-gradient(120deg,#2563EB,#2563EB)",
     tagInk: "#93C5FD",
     tagBorder: "rgba(37,99,235,.55)",
     border: "rgba(37,99,235,.45)",
@@ -76,6 +90,7 @@ export function buildAgendaSnippet({
   theme = "orange",
   icons = true,
   bigOpening = true,
+  people = false,
 }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
   const t = THEMES[theme];
@@ -87,20 +102,37 @@ export function buildAgendaSnippet({
 <section id="${id}" class="tbbq-agenda"><p class="tbbq-agenda__loading">Loading…</p></section>
 
 <style>
-  #${id}.tbbq-agenda{--fg:${t.ink};--muted:${t.muted};--acc:${t.acc};font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid ${t.border};border-radius:24px;padding:clamp(20px,4vw,44px);background:${t.bg};box-shadow:0 0 45px ${t.glow},inset 0 0 60px rgba(0,0,0,.3);color:var(--fg)}
+  #${id}.tbbq-agenda{--fg:${t.ink};--muted:${t.muted};--acc:${t.acc};--grad:${t.grad};font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:1200px;margin:0 auto;border:1px solid ${t.border};border-radius:24px;padding:clamp(20px,4vw,44px);background:${t.bg};box-shadow:0 0 45px ${t.glow},inset 0 0 60px rgba(0,0,0,.3);color:var(--fg)}
   #${id} .tbbq-agenda__loading{color:var(--muted);margin:0}
-  #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;color:var(--acc);text-shadow:0 0 26px ${t.glow};margin:2px 6px 16px}
+  /* The date heading is PAINTED with the gradient, not coloured. background-clip:text needs a
+     transparent fill, and the -webkit- prefix stays for Safari. text-shadow cannot apply to clipped
+     text (it would draw behind the glyphs and show through), so the glow moves to a drop-shadow. */
+  #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 26px ${t.glow});margin:2px 6px 16px}
   #${id} .tbbq-agenda__date:not(:first-child){margin-top:34px}
   #${id} .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:${t.noteInk};border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
-  #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background:var(--acc)}
+  #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background-image:var(--grad)}
   #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
   #${id} .tbbq-agenda__row:last-child{border-bottom:0}
   #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
-  #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
+  /* The type pill is FILLED with the gradient. An outlined gradient pill needs a solid padding-box to
+     sit on, and this panel is deliberately transparent so it inherits whatever the WordPress page puts
+     behind it — a filled pill needs no such assumption. */
+  #${id} .tbbq-agenda__tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${t.tagInk};background-image:var(--grad);border:1px solid ${t.tagBorder};border-radius:9999px;padding:3px 12px;margin-bottom:8px}
   #${id} .tbbq-agenda__title{font-family:"Onest",sans-serif;font-weight:600;font-size:19px;line-height:1.3;color:var(--fg)}
   #${id} .tbbq-agenda__title--big{font-size:26px;font-weight:700;letter-spacing:-.01em}
   #${id} .tbbq-agenda__desc{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5;white-space:pre-line}
   #${id} .tbbq-agenda__ic{display:inline-block;width:19px;height:19px;vertical-align:-3px;margin-right:9px;color:var(--acc)}
+  /* WHO IS ON STAGE. One row per person: a face, the name, then the title in the muted colour, so a
+     four-person panel reads as a list of people rather than a paragraph of commas. */
+  #${id} .tbbq-agenda__people{margin:12px 0 0;display:flex;flex-direction:column;gap:8px}
+  #${id} .tbbq-agenda__person{display:flex;align-items:center;gap:10px;min-width:0}
+  #${id} .tbbq-agenda__face{flex:none;width:34px;height:34px;border-radius:9999px;object-fit:cover;object-position:50% 30%;background:rgba(255,255,255,.06)}
+  #${id} .tbbq-agenda__face--empty{display:grid;place-items:center;font-family:"Onest",sans-serif;font-size:13px;font-weight:700;color:var(--acc)}
+  #${id} .tbbq-agenda__who{min-width:0;font-size:14px;line-height:1.35;color:var(--fg)}
+  #${id} .tbbq-agenda__who b{font-weight:600}
+  #${id} .tbbq-agenda__who span{color:var(--muted)}
+  /* The role sits above its group, small and spaced, so "Moderator" is never mistaken for a name. */
+  #${id} .tbbq-agenda__role{margin:14px 0 6px;font-family:"Onest",sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   @media(max-width:640px){#${id} .tbbq-agenda__row{grid-template-columns:1fr;gap:6px;padding:16px 2px}#${id} .tbbq-agenda__time{padding-top:0}#${id} .tbbq-agenda__title--big{font-size:21px}}
 </style>
 
@@ -111,11 +143,36 @@ export function buildAgendaSnippet({
   var NOTE = ${JSON.stringify(note || "")};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var BIG_OPENING = ${bigOpening ? "true" : "false"};
+  var PEOPLE = ${people ? "true" : "false"};
   var root = document.getElementById("${id}");
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
   function icon(type){
     var p=ICONS[String(type||"").toLowerCase()];
     return p?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tbbq-agenda__ic">'+p+'</svg>':'';
+  }
+  // One person: face (or their initial when the row has no photo), name, then title.
+  function person(p){
+    var face = p.photo
+      ? '<img class="tbbq-agenda__face" src="'+esc(p.photo)+'" alt="" loading="lazy">'
+      : '<span class="tbbq-agenda__face tbbq-agenda__face--empty" aria-hidden="true">'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
+    return '<div class="tbbq-agenda__person">'+face
+      +'<div class="tbbq-agenda__who"><b>'+esc(p.name)+'</b>'+(p.meta?'<span>, '+esc(p.meta)+'</span>':'')+'</div></div>';
+  }
+  // Moderator first: they open the session, and on a panel of four the reader wants to know who is
+  // steering before who is talking. Singular or plural label from the count, so one moderator is not
+  // announced as "Moderators".
+  function people(st){
+    if(!PEOPLE||!st)return "";
+    var out="";
+    if(st.moderators&&st.moderators.length){
+      out+='<div class="tbbq-agenda__role">'+(st.moderators.length>1?"Moderators":"Moderator")+'</div>'
+        +'<div class="tbbq-agenda__people">'+st.moderators.map(person).join("")+'</div>';
+    }
+    if(st.speakers&&st.speakers.length){
+      out+='<div class="tbbq-agenda__role">'+(st.speakers.length>1?"Speakers":"Speaker")+'</div>'
+        +'<div class="tbbq-agenda__people">'+st.speakers.map(person).join("")+'</div>';
+    }
+    return out;
   }
   // A 429/502 still returns JSON ({error:...}), so without an r.ok check the page said
   // "Program coming soon." during an outage instead of admitting it could not load.
@@ -140,6 +197,7 @@ export function buildAgendaSnippet({
         +(s.type?'<span class="tbbq-agenda__tag">'+esc(s.type)+'</span>':'')
         +'<div class="tbbq-agenda__title'+big+'">'+icon(s.type)+esc(s.name)+'</div>'
         +(s.description?'<p class="tbbq-agenda__desc">'+esc(s.description)+'</p>':'')
+        +people(s.onStage)
         +'</div></div>';
     }
     root.innerHTML=html;

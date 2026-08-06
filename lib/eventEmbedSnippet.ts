@@ -123,8 +123,14 @@ export function buildEventEmbedSnippet({
      attend); colouring it red/blue too would read as a second type badge. */
   #${id} .tbbq-ev-card__access{padding:3px 9px!important;border-radius:9999px!important;border:1px solid var(--border)!important;background:#191919!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:10px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:.05em!important}
   #${id} .tbbq-ev-card__access--private{color:#fd9d04!important;border-color:rgba(253,157,4,.35)!important}
-  #${id} .tbbq-ev-card__date{margin-left:auto!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;white-space:nowrap}
+  /* Day + time are ONE wrapping unit, so a card with a third badge wraps both onto the
+     next line rather than stranding the time alone under the badges. */
+  #${id} .tbbq-ev-card__when{margin-left:auto!important;display:inline-flex!important;align-items:baseline!important;gap:6px!important}
+  #${id} .tbbq-ev-card__date{text-shadow:0 1px 6px rgba(0,0,0,.5)!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;white-space:nowrap}
   #${id} .tbbq-ev-card__date--tbc{color:var(--muted)!important;font-weight:500!important;font-style:italic!important}
+  /* Follows the date, which keeps the margin-left:auto, so the pair sits at the right edge
+     together. Muted against the date: the day is the coarser fact, scanned first. */
+  #${id} .tbbq-ev-card__time{color:var(--muted)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:500!important;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.5)!important}
 
   #${id} .tbbq-ev-card__title{font-family:var(--head)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;margin:10px 0 0!important;padding:0!important;font-size:16px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;text-transform:none!important;letter-spacing:normal!important}
   #${id} .tbbq-ev-card__company{margin:5px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:var(--muted)!important;font-size:13px!important;line-height:1.4!important}
@@ -147,8 +153,8 @@ export function buildEventEmbedSnippet({
     #${id} .tbbq-ev-grid{grid-template-columns:1fr!important;gap:16px!important}
     #${id} .tbbq-ev-card__media{aspect-ratio:21/9;padding:16px!important}
     #${id} .tbbq-ev-card__title{font-size:15px!important}
-    /* The date drops onto its own line rather than being squeezed against the badges. */
-    #${id} .tbbq-ev-card__date{margin-left:0!important;flex-basis:100%!important}
+    /* Day + time drop onto their own line rather than being squeezed against the badges. */
+    #${id} .tbbq-ev-card__when{margin-left:0!important;flex-basis:100%!important}
   }${columnsCss}${tabsStyles}
 </style>
 
@@ -196,12 +202,14 @@ export function buildEventEmbedSnippet({
     var date=e.dateLabel
       ? '<span class="tbbq-ev-card__date">'+esc(e.dateLabel)+'</span>'
       : '<span class="tbbq-ev-card__date tbbq-ev-card__date--tbc">Date TBC</span>';
+    /* No "Time TBC" twin — an unscheduled card just shows the day. */
+    var time=e.timeSlot?'<span class="tbbq-ev-card__time">'+esc(e.timeSlot)+'</span>':'';
     var reg=safeUrl(e.registerUrl);
     return '<article class="tbbq-ev-card" style="--kind:'+esc(color)+';--soft:'+mixOn(color,.18,"#131313")+';--panel:'+light(color,.1)
       +';--glow-a:'+tint(color,.92)+';--glow-b:'+tint(GLOW2[e.kind]||color,.6)+'">'
       +'<div class="tbbq-ev-card__media">'+media+'</div>'
       +'<div class="tbbq-ev-card__body">'
-      +'<div class="tbbq-ev-card__tags"><span class="tbbq-ev-card__kind">'+esc(e.kindLabel||"")+'</span>'+access+date+'</div>'
+      +'<div class="tbbq-ev-card__tags"><span class="tbbq-ev-card__kind">'+esc(e.kindLabel||"")+'</span>'+access+'<span class="tbbq-ev-card__when">'+date+time+'</span></div>'
       +'<h3 class="tbbq-ev-card__title">'+esc(e.title)+'</h3>'
       +(e.company?'<p class="tbbq-ev-card__company">'+esc(e.company)+'</p>':'')
       +(e.description?'<p class="tbbq-ev-card__desc">'+esc(e.description)+'</p>':'')

@@ -1,43 +1,42 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { fetchTeam, DEPARTMENTS } from "@/lib/team";
-import { rateLimit, cached, DAY_MS } from "@/lib/rate-limit";
-import { DAILY_CACHE_CONTROL, clientIp, corsPreflight, errorResponse, tooManyRequests, withCors } from "@/lib/apiRoute";
+import { cached, invalidate } from "@/lib/rate-limit";
+import { corsPreflight, errorResponse, feedGate, feedResponse } from "@/lib/apiRoute";
+import { dailyTtlMs } from "@/lib/cachePolicy";
 
-// The team list changes a few times a year, so it refreshes ONCE A DAY rather than hourly
-// like the speaker feeds (Auri's rule, 2026-07-30). Two layers, both set to a day:
-// the in-memory cache below and the CDN's s-maxage. Consequence to know about: an Airtable
-// edit can take up to 24h to appear. A deploy resets the in-memory cache instantly, so an
-// empty commit is the way to force it sooner.
+// The team list changes a few times a year, so outside the event window it refreshes ONCE A
+// DAY rather than hourly like the speaker feeds (Auri's rule, 2026-07-30). Two layers, both
+// set from lib/cachePolicy.ts: the in-memory cache and the CDN's s-maxage. Consequence to
+// know about: an Airtable edit can take up to 24h to appear.
+//
+// Until the end of August 27th the policy shortens both to the event cadence, so a late
+// team edit lands within the half hour like everything else; the daily rule comes back on
+// its own on the 28th. Either way the refresh button on /team forces a live read now.
 export const dynamic = "force-dynamic";
 
 export const OPTIONS = corsPreflight;
 
 export async function GET(req: NextRequest) {
-  const ip = clientIp(req);
-
-  const limit = rateLimit(ip);
-  if (!limit.ok) return tooManyRequests(limit.retryAfter);
+  const gate = feedGate(req, "team");
+  if (!gate.ok) return gate.res;
 
   // Optional ?department=Marketing etc. Validated against the known allow-list.
   const deptParam = req.nextUrl.searchParams.get("department");
   const department = deptParam && DEPARTMENTS.includes(deptParam) ? deptParam : undefined;
 
+  const key = `team:${department || "all"}`;
+
   try {
-    const members = await cached(
-      `team:${department || "all"}`,
-      () => fetchTeam(department),
-      DAY_MS
-    );
-    const res = NextResponse.json(
+    if (gate.fresh) invalidate(key);
+
+    const members = await cached(key, () => fetchTeam(department), dailyTtlMs());
+    return feedResponse(
       { count: members.length, department: department || "all", team: members },
-      { status: 200 }
+      gate,
+      { daily: true }
     );
-    // Fresh for a day, then servable stale for another day while it refetches — so the
-    // once-a-day refresh never makes a visitor wait on Airtable.
-    res.headers.set("Cache-Control", DAILY_CACHE_CONTROL);
-    return withCors(res);
   } catch (err) {
     console.error("[/api/team]", err);
-    return errorResponse(err, "Something went wrong loading the team.");
+    return errorResponse(err, "Something went wrong loading the team.", gate);
   }
 }

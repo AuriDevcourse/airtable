@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 import { SyncButton } from "@/components/SyncButton";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 
 // The curated Airtable hierarchy runs 1..30, so the first page is exactly the ranked block.
 const PAGE_SIZE = 30;
@@ -156,11 +158,9 @@ function SpeakerModal({
 }
 
 export default function Speakers2026() {
-  const { data, loading, revalidating, error, updated } = useCachedList<Speaker>(
-    "speakers-2026",
-    "/api/speakers-2026",
-    "speakers"
-  );
+  const { url, refresh } = useFreshUrl("/api/speakers-2026");
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<Speaker>("speakers-2026", url, "speakers");
   const speakers = data ?? [];
   // Speakers ranked in Airtable (hierarchy 1..30) hold that exact order. Everyone else is
   // randomized, re-rolled on every page load. The seed is fixed for this mount so the order
@@ -224,6 +224,7 @@ export default function Speakers2026() {
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyEmbed path="/api/speakers-2026" listKey="speakers" modal shuffle pageSize={PAGE_SIZE} />
+            <CopyApiSnippet feed="speakers-2026" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for this speaker grid.
             </span>
@@ -235,6 +236,19 @@ export default function Speakers2026() {
               Pulls new Speaker Hub profiles into Airtable and reloads the grid. Runs
               automatically every 6 hours.
             </span>
+          </div>
+
+          {/* Two different buttons, worth keeping straight: Sync above moves Speaker Hub
+              profiles INTO Airtable, this one re-reads what Airtable already holds, past
+              both caches, and reports what changed. Use this one after editing a record by
+              hand. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey="speakers-2026"
+            />
           </div>
         </div>
       </section>

@@ -24,15 +24,24 @@ function sweep(now: number): void {
   }
 }
 
-export function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
+// opts lets a route meter an expensive path separately from ordinary reads. `bucket`
+// namespaces the counter so the two limits don't consume each other, and `max` sets a
+// different ceiling. Used by /api/program's ?fresh= bypass, which skips the cache and hits
+// Airtable on EVERY call, so it gets a much smaller allowance than a cached read.
+export function rateLimit(
+  ip: string,
+  opts?: { bucket?: string; max?: number }
+): { ok: boolean; retryAfter: number } {
   const now = Date.now();
   sweep(now);
-  const b = buckets.get(ip);
+  const key = opts?.bucket ? `${opts.bucket}${ip}` : ip;
+  const max = opts?.max ?? MAX_PER_WINDOW;
+  const b = buckets.get(key);
   if (!b || now > b.resetAt) {
-    buckets.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    buckets.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return { ok: true, retryAfter: 0 };
   }
-  if (b.count >= MAX_PER_WINDOW) {
+  if (b.count >= max) {
     return { ok: false, retryAfter: Math.ceil((b.resetAt - now) / 1000) };
   }
   b.count += 1;
@@ -40,15 +49,12 @@ export function rateLimit(ip: string): { ok: boolean; retryAfter: number } {
 }
 
 // TTL cache so we don't hit Airtable on every page view (also dodges Airtable's
-// 5 req/sec limit). Refreshes once an hour by default: a speaker list barely changes, so an
-// Airtable edit can take up to TTL_MS to show. Lower TTL_MS if you need it faster.
+// 5 req/sec limit). How long an entry lives is NOT decided here: the routes pass a TTL from
+// lib/cachePolicy.ts, which shortens every cadence during the event window and reverts
+// afterwards. The hour below is only the fallback for a caller that passes nothing.
 type CacheEntry<T> = { value: T; expiresAt: number };
 const cache = new Map<string, CacheEntry<unknown>>();
 const TTL_MS = 60 * 60_000; // 1 hour
-
-// For feeds that should refresh once a day rather than hourly. Pass as cached()'s third
-// argument — used by /api/team, where the staff list changes a few times a year.
-export const DAY_MS = 24 * 60 * 60_000;
 
 // In-flight loaders, so N concurrent misses on the same key run the loader ONCE and all
 // await the same promise. Without this, a cold cache plus a burst of traffic fired one

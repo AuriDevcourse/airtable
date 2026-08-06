@@ -13,7 +13,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
-import { firstPhoto, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -72,11 +72,20 @@ export type EventRoomPresenter = {
   photo: string | null;
   // The 1st–5th slot fields carry no LinkedIn; the overflow form does (LinkedIn Handle).
   linkedin: string | null;
-  // Which partner's event room the person presents at (the row's Company).
+  // The PRIMARY partner whose event room the person presents at (the row's Company). Kept
+  // alongside `hosts` so anything reading a single host — the pasted embeds included — is
+  // unaffected.
   host: string;
+  // EVERY partner they present for, in the order the rows were read. Usually one. A presenter
+  // booked by two partners used to be two cards with two uploads of the same face; one person is
+  // one card now, and the card names both (Auri, 2026-08-05).
+  hosts: string[];
   // "Event Room 1".."Event Room 6" once marketing assigns the person a room in the
   // Marketing Project Overview table; null until then (cards fall back to `host`).
   room: string | null;
+  // Every room they appear in, same reasoning as `hosts`. Nulls are dropped, so this can be
+  // shorter than `hosts` (or empty) while a room assignment is still missing.
+  rooms: string[];
 };
 
 type AirtableRecord = { id: string; createdTime: string; fields: Record<string, unknown> };
@@ -177,7 +186,18 @@ function roomFromHost(host: string): string | null {
   return null;
 }
 
-// Normalized person name → "Event Room N", from the marketing rows. A failure here
+// Which `Project Name` values count as a room assignment.
+//
+// This used to be `/^Event Room [1-6]$/`, a single digit, and the Policy Stage broke it: it runs
+// across rooms 5, 6 and 7, so marketing added an "Event Room 5,6,7" option and filed 31 people under
+// it (2026-08-05). Every one of them was silently dropped here and their cards fell back to reading
+// "Danish Entrepreneurs" — the partner's name where a room should be.
+//
+// A comma list is therefore first-class. Written loosely on the digits on purpose: the numbers are a
+// venue's business and a "7" or an "8" appearing next year must not need a code change to be seen.
+const ROOM_PROJECT = /^Event Room \d+(\s*,\s*\d+)*$/;
+
+// Normalized person name → the room label, from the marketing rows. A failure here
 // only loses the room labels (cards fall back to the host name), never the people.
 async function fetchRoomAssignments(): Promise<Map<string, string>> {
   const rooms = new Map<string, string>();
@@ -209,7 +229,7 @@ async function fetchRoomAssignments(): Promise<Map<string, string>> {
     for (const rec of data.records) {
       const name = str(rec.fields["Full Name"]).toLowerCase().replace(/\s+/g, " ");
       const project = str(rec.fields["Project Name"]);
-      if (name && /^Event Room [1-6]$/.test(project)) rooms.set(name, project);
+      if (name && ROOM_PROJECT.test(project)) rooms.set(name, project);
     }
     offset = data.offset;
   } while (offset);
@@ -281,10 +301,12 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
         company,
         // Stable proxy URL pinned to this slot's photo field via the index (?f=i) —
         // raw signed attachment URLs expire in ~2h (lib/photo.ts).
-        photo: photoUrl("event-rooms", rec.id, i),
+        photo: photoUrl("event-rooms", rec.id, i, firstAttachmentId(rec.fields[slot.photo])),
         linkedin: null,
         host,
+        hosts: [host],
         room: roomFor(name, host),
+        rooms: [roomFor(name, host)].filter((r): r is string => Boolean(r)),
       });
     });
   }
@@ -304,13 +326,52 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       title: str(f["Presenters Position in the Company"]),
       company: str(f["Presenters Company"]),
       // Overflow rows keep their photo in the 6th registered field (index 5).
-      photo: photoUrl("event-rooms", rec.id, 5),
+      photo: photoUrl("event-rooms", rec.id, 5, firstAttachmentId(f["Presenters Profile Picture"])),
       linkedin: normalizeLinkedInUrl(f["LinkedIn Handle"]),
       host,
+      hosts: [host],
       room: roomFor(name, host),
+      rooms: [roomFor(name, host)].filter((r): r is string => Boolean(r)),
     });
   }
 
   people.sort((a, b) => a.name.localeCompare(b.name));
-  return people;
+  return mergeByPerson(people);
+}
+
+/**
+ * ONE PERSON, ONE CARD, even when two partners booked them.
+ *
+ * The `seen` set above already collapses a presenter who appears in five sessions of the SAME
+ * partner's room. What it cannot collapse is the same presenter under TWO partners, because those
+ * are legitimately different rows with different photo uploads — and the result was two cards
+ * showing the same face (Auri, 2026-08-05).
+ *
+ * Keyed on the NAME alone. The first row wins the identity, since `people` is already sorted and
+ * the main view is read before the overflow, so the choice is stable across requests. The host and
+ * room LISTS are unioned, so nothing about where they speak is lost by picking one row.
+ *
+ * A namesake collision would merge two different people. With 97 presenters that has not happened,
+ * and the alternative — keying on name + company — would fail to merge the real case whenever a
+ * partner types the company differently on the second submission, which these forms do constantly.
+ */
+function mergeByPerson(people: EventRoomPresenter[]): EventRoomPresenter[] {
+  const byName = new Map<string, EventRoomPresenter>();
+  for (const p of people) {
+    const key = p.name.toLowerCase().replace(/\s+/g, " ").trim();
+    const prev = byName.get(key);
+    if (!prev) {
+      byName.set(key, p);
+      continue;
+    }
+    prev.hosts = [...new Set([...prev.hosts, ...p.hosts])];
+    prev.rooms = [...new Set([...prev.rooms, ...p.rooms])];
+    // A LinkedIn URL only ever arrives on an overflow row, so the merge is the only chance the
+    // main-view card has of getting one.
+    prev.linkedin = prev.linkedin ?? p.linkedin;
+    // Same for the room: the primary should name a real room rather than stay null when the other
+    // row has one.
+    prev.room = prev.room ?? p.room;
+  }
+  return [...byName.values()];
 }

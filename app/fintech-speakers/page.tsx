@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
-import { useCachedList } from "@/lib/useCachedList";
+import { RefreshButton } from "@/components/RefreshButton";
+import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 
 // Same per-image shimmer loader as the other feed pages.
@@ -32,15 +33,29 @@ type FintechSpeaker = {
   photo: string | null;
   linkedin: string | null;
   hierarchy: number | null;
+  role: string;
 };
 
+// The three roles the Future of Fintech view holds. The moderators and the keynote were in
+// Airtable all along and filtered out of the feed; these tabs are what "separate them" means
+// (Auri, 2026-08-04). Airtable's own value is the tab's identity, the label is just display.
+const ROLES: { value: string; label: string }[] = [
+  { value: "Speaker", label: "Speakers" },
+  { value: "Moderator", label: "Moderators" },
+  { value: "Keynote Speaker", label: "Keynote" },
+];
+
 export default function FintechSpeakersPage() {
-  const { data, loading, revalidating, error, updated } = useCachedList<FintechSpeaker>(
-    "fintech-speakers",
-    "/api/fintech-speakers",
-    "people"
-  );
-  // Curated hierarchy order comes from the API (1..9); no shuffle on purpose.
+  const [role, setRole] = useState("Speaker");
+
+  // `base` is the public URL a snippet may carry; `url` is what this page fetches and what the
+  // refresh button turns into an authenticated live read. Never put ?fresh= in a snippet.
+  const base = `/api/fintech-speakers?role=${encodeURIComponent(role)}`;
+  const { url, refresh } = useFreshUrl(base);
+  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+    useCachedList<FintechSpeaker>(`fintech-speakers:${role}`, url, "people");
+  // Curated hierarchy order comes from the API (1..9 for speakers, 1.1/1.2 for moderators); no
+  // shuffle on purpose.
   const people = data ?? [];
 
   return (
@@ -53,17 +68,50 @@ export default function FintechSpeakersPage() {
             Fintech <span className="text-tbbq-gradient">speakers</span>
           </h1>
           <p className="lede">
-            Live from Airtable · the Future of Fintech speaker roster in curated
-            Hierarchy order · served as JSON at <code>/api/fintech-speakers</code>.
+            Live from Airtable · the Future of Fintech roster in curated Hierarchy order ·
+            served as JSON at <code>/api/fintech-speakers</code> (add{" "}
+            <code>?role=Moderator</code>, or <code>?role=all</code> for everyone).
           </p>
+
+          <div className="seg" role="tablist" aria-label="Filter by role" style={{ marginTop: 28 }}>
+            {ROLES.map((r) => (
+              <button
+                key={r.value}
+                role="tab"
+                aria-selected={role === r.value}
+                onClick={() => setRole(r.value)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {/* transparent: no dark panel behind the grid — the Fintech page on
-                techbbq.dk brings its own background. */}
-            <CopyEmbed path="/api/fintech-speakers" listKey="people" loadMore={false} transparent />
+                techbbq.dk brings its own background.
+                `key` so the button's internal "Copied" state cannot carry across a role switch
+                and claim the previous snippet was copied (same fix as /life-science). */}
+            <CopyEmbed
+              key={role}
+              path={base}
+              listKey="people"
+              loadMore={false}
+              transparent
+              label={role === "Speaker" ? "Copy embed code" : `Copy embed (${ROLES.find((r) => r.value === role)?.label})`}
+            />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Copies an Elementor snippet with the speakers in Hierarchy order.
+              Copies an Elementor snippet with the{" "}
+              {ROLES.find((r) => r.value === role)?.label.toLowerCase()} in Hierarchy order.
             </span>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={refresh}
+              changes={changes}
+              error={revalidateError}
+              resetKey={`fintech-speakers:${role}`}
+            />
           </div>
         </div>
       </section>

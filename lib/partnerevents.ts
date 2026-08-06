@@ -27,7 +27,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
-import { str } from "@/lib/fields";
+import { firstAttachmentId, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -46,6 +46,7 @@ const FIELDS = {
   typeOfEvent: "fldXs3aNUEHHuiZZY", // Type of Event: Side Event | Event Room at TechBBQ | Bridge Event
   accessType: "fldvM6e7NA8N9RVfX", // Event type: Public Event | Private Event (invite only)
   registerUrl: "fldW7Kf9e7UtOzzgC", // Link to register (url)
+  timeSlot: "fldhN0f81UfgVpseR", // Time slot (singleLineText, free text — see parseTimeSlot)
   logo: "fldh42Bwz9nd1oONo", // Company Logo (attachments)
   company: "fldYCL0PV6YJVupvS", // Company
   // The two populated "Date of Event " twins. Coalesced primary-first.
@@ -89,6 +90,9 @@ export type PartnerEvent = {
   color: string; // red for side events, blue for event rooms
   date: string | null; // ISO "2026-08-26", null when the partner never filled it in
   dateLabel: string | null; // "Tue 25 Aug" — formatted here so consumers don't re-parse
+  // "09:30-11:30", normalized from the free-text `Time slot` cell. null when the cell is
+  // empty OR when what someone typed could not be read (see parseTimeSlot).
+  timeSlot: string | null;
   accessKind: "public" | "private-invite" | null;
   accessLabel: string | null; // null when the partner never picked one (3 rows today)
   // Partner's own blurb. Only the Side Events carry it; two run past 400 chars, so the
@@ -122,8 +126,80 @@ function formatDate(iso: string): string | null {
   }).format(d);
 }
 
+// ─── TIME SLOT PARSING ──────────────────────────────────────────────────────────────
+// `Time slot` is free text typed by hand, and the malformed values are not hypothetical:
+// this base has already shipped `13:30-14-30` (NISS) and `'10:00–10:10\n'` (Future of
+// Fintech) to techbbq.dk, because the only check anywhere was "is the cell non-empty".
+// So this parser is strict about the OUTPUT and forgiving about the INPUT: it accepts the
+// separators and hour formats people actually type (`9.30 - 11.00`, en dash, stray
+// newlines) and always emits one shape, `09:30-11:30`. Anything it cannot read with
+// confidence becomes null and is logged rather than rendered — a card with no time is a
+// gap the team can fill, a card showing `13:30-14-30` is a public defect.
+//
+// The dash stays a plain hyphen on purpose (no en dash): Auri's UI rule bans long dashes,
+// and a mix of both is exactly the inconsistency this normalizes away.
+//
+// It also finds the range inside a longer string rather than demanding the cell hold
+// nothing else, because the planning sheet writes its cells as `Day 1 - 12:30-17:30` and
+// `Day 2 (09:30-13:00)` and someone WILL paste one of those in whole. That tolerance is
+// safe precisely because it insists on finding EXACTLY ONE range: two ranges is a cell
+// holding two sessions, and picking either one would publish a confident wrong answer.
+const TIME_SLOT_RE = /(\d{1,2})[:.](\d{2})\s*(?:-|–|—|to)\s*(\d{1,2})[:.](\d{2})/gi;
+
+export type TimeSlot = { label: string; startMinutes: number };
+
+function parseTimeSlot(raw: string, context: string): TimeSlot | null {
+  // Collapse the newlines and doubled spaces that survive a copy-paste out of a sheet.
+  const cleaned = raw.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+
+  const found = [...cleaned.matchAll(TIME_SLOT_RE)];
+  if (found.length !== 1) {
+    const why = found.length ? `${found.length} time ranges` : "no time range";
+    console.warn(
+      `[partnerevents] ${why} in Time slot ${JSON.stringify(raw)} on ${context} — dropped`
+    );
+    return null;
+  }
+
+  const m = found[0];
+  const [h1, m1, h2, m2] = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])];
+  if (h1 > 23 || h2 > 23 || m1 > 59 || m2 > 59) {
+    console.warn(`[partnerevents] impossible Time slot ${JSON.stringify(raw)} on ${context}`);
+    return null;
+  }
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    label: `${pad(h1)}:${pad(m1)}-${pad(h2)}:${pad(m2)}`,
+    startMinutes: h1 * 60 + m1,
+  };
+}
+
 function firstAttachment(v: unknown): boolean {
   return Array.isArray(v) && v.length > 0;
+}
+
+// `Link to register` is a url field, but Airtable does not enforce that a url field holds a
+// url: the Beyond Unicorns row contains the literal text "No link", and this feed published
+// it as a registration link. Anything that is not an absolute http(s) URL becomes null and is
+// logged, because a Register button that navigates to "No link" is worse than no button.
+// Trailing punctuation gets trimmed — a pasted link often arrives with a full stop attached.
+function cleanUrl(raw: string): string | null {
+  const cleaned = raw.trim().replace(/[.,;)]+$/, "");
+  return cleaned && /^https?:\/\/\S+$/i.test(cleaned) ? cleaned : null;
+}
+
+function registerUrl(raw: string, context: string): string | null {
+  const cleaned = cleanUrl(raw);
+  if (cleaned) return cleaned;
+  if (raw.trim()) {
+    console.warn(
+      `[partnerevents] Link to register is not a URL on ${context}: ${JSON.stringify(raw)} — dropped`
+    );
+    return null;
+  }
+  return cleaned;
 }
 
 // How much a row actually carries, used to pick a winner among resubmissions of the same
@@ -131,7 +207,12 @@ function firstAttachment(v: unknown): boolean {
 function richness(f: Record<string, unknown>): number {
   return (
     (str(f[FIELDS.description]) ? 1 : 0) +
-    (str(f[FIELDS.registerUrl]) ? 1 : 0) +
+    // A real URL only. Scoring "No link" as a filled-in link would let a weaker row beat the
+    // one that actually carries the sign-up page.
+    (cleanUrl(str(f[FIELDS.registerUrl])) ? 1 : 0) +
+    // Duplicate submissions exist (Nordic IPO has two rows for the same day); whichever
+    // copy the time was typed into should be the one that wins.
+    (str(f[FIELDS.timeSlot]) ? 1 : 0) +
     (firstAttachment(f[FIELDS.logo]) ? 1 : 0) +
     (str(f[FIELDS.accessType]) ? 1 : 0)
   );
@@ -206,39 +287,57 @@ export async function fetchPartnerEvents(): Promise<PartnerEvent[]> {
   }
 
   const events: PartnerEvent[] = [];
+  // Kept alongside the events only to sort same-day cards by start time; the minutes are
+  // an implementation detail and never reach the JSON.
+  const startMinutes = new Map<string, number>();
 
   for (const rec of bySession.values()) {
     const f = rec.fields;
     const kindInfo = KINDS[str(f[FIELDS.typeOfEvent]) as keyof typeof KINDS];
     const accessInfo = ACCESS[str(f[FIELDS.accessType]) as keyof typeof ACCESS];
     const date = str(f[FIELDS.datePrimary]) || str(f[FIELDS.dateSecondary]);
+    const title = str(f[FIELDS.title]);
+    const slot = parseTimeSlot(str(f[FIELDS.timeSlot]), `${rec.id} "${title}"`);
+    if (slot) startMinutes.set(rec.id, slot.startMinutes);
 
     events.push({
       id: rec.id,
-      title: str(f[FIELDS.title]),
+      title,
       company: str(f[FIELDS.company]),
       kind: kindInfo.kind,
       kindLabel: kindInfo.label,
       color: kindInfo.color,
       date: date || null,
       dateLabel: date ? formatDate(date) : null,
+      timeSlot: slot?.label ?? null,
       accessKind: accessInfo?.accessKind ?? null,
       accessLabel: accessInfo?.accessLabel ?? null,
       description: str(f[FIELDS.description]) || null,
-      registerUrl: str(f[FIELDS.registerUrl]) || null,
+      registerUrl: registerUrl(str(f[FIELDS.registerUrl]), `${rec.id} "${title}"`),
       // Presence is checked against the attachment cell, but the URL served is the stable
       // proxy — raw signed Airtable URLs 410 after ~2h (lib/photo.ts).
-      logo: firstAttachment(f[FIELDS.logo]) ? photoUrl("partner-events", rec.id) : null,
+      logo: firstAttachment(f[FIELDS.logo])
+        ? photoUrl("partner-events", rec.id, undefined, firstAttachmentId(f[FIELDS.logo]))
+        : null,
     });
   }
 
   // Chronological, undated last (a partner who never set a date shouldn't lead the page),
-  // then alphabetical so same-day events have a stable order.
+  // then by start time within the day, then alphabetical. Events without a time sort after
+  // the timed ones on the same day for the same reason the undated ones sort last: a card
+  // the team has not scheduled yet should not sit above one they have.
   events.sort((a, b) => {
     if (a.date !== b.date) {
       if (!a.date) return 1;
       if (!b.date) return -1;
       return a.date.localeCompare(b.date);
+    }
+    const ta = startMinutes.get(a.id);
+    const tb = startMinutes.get(b.id);
+    if (ta !== tb) {
+      if (ta === undefined) return 1;
+      if (tb === undefined) return -1;
+      return ta - tb;
     }
     return a.title.localeCompare(b.title);
   });

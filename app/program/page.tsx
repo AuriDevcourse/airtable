@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildAgendaSnippet } from "@/lib/agendaSnippet";
 
@@ -13,13 +15,114 @@ type Session = {
   type: string;
   description: string;
   room: string;
+  // WHO IS ON STAGE, for a hand-typed programme. Only the Policy Stage feed carries this today.
+  // The dashboard renders it because a preview that omits what the embed shows is not a preview —
+  // Auri looked at this tab, saw no faces, and reasonably reported the pictures as broken.
+  onStage?: {
+    speakers: { name: string; meta: string; photo: string | null }[];
+    moderators: { name: string; meta: string; photo: string | null }[];
+  };
 };
 
-// One tab per event program. brella reads the live TechBBQ 2026 schedule out of the Brella
-// attendee app (30 sessions, the real one); techbbq reads the purpose-built Program 2026
-// Airtable table; niss/fintech read the program views the teams fill inside their own
-// tables. heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "brella" | "techbbq" | "niss" | "fintech";
+/** One name on a hand-typed programme, as the feed serves it. */
+type OnStagePersonData = { name: string; meta: string; photo: string | null };
+
+/** One person under a session: face, name, then title in the muted colour. Mirrors the embed. */
+function OnStagePerson({ p }: { p: OnStagePersonData }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {p.photo ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={p.photo}
+          alt=""
+          loading="lazy"
+          style={{
+            flex: "none",
+            width: 34,
+            height: 34,
+            borderRadius: 9999,
+            objectFit: "cover",
+            // Headshots crop badly at 50% 50% — the same 30% the rest of the repo uses.
+            objectPosition: "50% 30%",
+            background: "var(--color-card-2)",
+          }}
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          style={{
+            flex: "none",
+            width: 34,
+            height: 34,
+            borderRadius: 9999,
+            display: "grid",
+            placeItems: "center",
+            background: "var(--color-card-2)",
+            fontFamily: "var(--font-heading)",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "var(--color-orange, #fa7000)",
+          }}
+        >
+          {p.name.trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+      <span style={{ minWidth: 0, fontSize: 14, lineHeight: 1.35 }}>
+        <strong style={{ fontWeight: 600 }}>{p.name}</strong>
+        {p.meta && <span style={{ color: "var(--color-muted)" }}>, {p.meta}</span>}
+      </span>
+    </div>
+  );
+}
+
+/** Moderator first, then speakers — the order a reader wants on a panel of four. */
+function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
+  const groups: [string, OnStagePersonData[]][] = [
+    [st.moderators.length > 1 ? "Moderators" : "Moderator", st.moderators],
+    [st.speakers.length > 1 ? "Speakers" : "Speaker", st.speakers],
+  ];
+  return (
+    <>
+      {groups.map(([label, list]) =>
+        list.length === 0 ? null : (
+          <div key={label}>
+            <p
+              style={{
+                margin: "14px 0 6px",
+                fontFamily: "var(--font-heading)",
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--color-muted)",
+              }}
+            >
+              {label}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {list.map((p) => (
+                <OnStagePerson key={p.name} p={p} />
+              ))}
+            </div>
+          </div>
+        )
+      )}
+    </>
+  );
+}
+
+// This page is the PROJECT programs: NISS and Future of Fintech, each read from the program
+// view its own team fills inside its own Airtable table.
+//
+// TechBBQ's own 2026 program is not here. It lives on /brella-program, which reads the live
+// Brella schedule and is the one installed on techbbq.dk. It used to have two tabs here as
+// well — Brella and the purpose-built Program 2026 Airtable table — and two places showing
+// the same agenda is how a stale one ends up on the live site. `/api/program?event=brella`
+// and the bare `/api/program` still serve both, so nothing that already fetches them broke.
+//
+// heading/note bake a fixed date line + ticket notice into that event's embed.
+type EventKey = "niss" | "fintech" | "policy";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -28,9 +131,8 @@ const EVENTS: {
   theme?: "orange" | "blue";
   icons?: boolean;
   bigOpening?: boolean;
+  people?: boolean;
 }[] = [
-  { key: "brella", label: "TechBBQ 2026 (Brella)", heading: "August 26th & 27th" },
-  { key: "techbbq", label: "TechBBQ 2026 (Airtable)" },
   {
     key: "niss",
     label: "NISS 2026",
@@ -40,6 +142,15 @@ const EVENTS: {
   // Fintech's design (Auri's mock): blue palette on #111827, no title icons, and
   // every title the same size (no oversized Opening).
   { key: "fintech", label: "Future of Fintech", theme: "blue", icons: false, bigOpening: false },
+  // THE POLICY STAGE is the first programme that names its people. It came from a PDF, so the
+  // Sessions table carries "Speaker Details" and "Moderator Details" as text plus a photo cell, and
+  // `people` turns those into a moderator-then-speakers list with faces under each session.
+  {
+    key: "policy",
+    label: "The Policy Stage",
+    heading: "August 26th",
+    people: true,
+  },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -51,6 +162,7 @@ function CopyAgendaEmbed({
   theme,
   icons,
   bigOpening,
+  people,
 }: {
   path: string;
   heading?: string;
@@ -58,12 +170,13 @@ function CopyAgendaEmbed({
   theme?: "orange" | "blue";
   icons?: boolean;
   bigOpening?: boolean;
+  people?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, window.location.origin);
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -78,11 +191,19 @@ function CopyAgendaEmbed({
 }
 
 export default function ProgramPage() {
-  // Brella first: it's the schedule that's actually filled in.
-  const [event, setEvent] = useState<EventKey>("brella");
-  const path = event === "techbbq" ? "/api/program" : `/api/program?event=${event}`;
+  const [event, setEvent] = useState<EventKey>("niss");
+  // Bumped by the refresh button. It goes into the URL rather than being a bare re-render
+  // trigger, because the value has to reach the network: `?fresh=<n>` is what makes the
+  // request miss the CDN and skip the server's hour-long cache. Zero means "normal cached
+  // read", which is what an ordinary visit does.
+  const [fresh, setFresh] = useState(0);
 
-  const { data, loading, revalidating, error } = useCachedList<Session>(
+  const base = `/api/program?event=${event}`;
+  const path = fresh ? `${base}${base.includes("?") ? "&" : "?"}fresh=${fresh}` : base;
+
+  // The cache key stays free of `fresh`, so the localStorage baseline survives a refresh and
+  // the change report has something to diff against.
+  const { data, loading, revalidating, error, revalidateError, changes } = useCachedList<Session>(
     `program:${event}`,
     path,
     "sessions"
@@ -103,15 +224,21 @@ export default function ProgramPage() {
       <section className="hero">
         <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Programs · one source per event</p>
+          <p className="eyebrow">Project programs · one Airtable view per event</p>
           <h1>
-            Program <span className="text-tbbq-gradient">2026</span>
+            TechBBQ Project <span className="text-tbbq-gradient">Programs</span>
           </h1>
           <p className="lede">
-            The public agendas. TechBBQ 2026 comes live from Brella, the attendee app, with
-            times converted to Copenhagen; the other events come from their Airtable views.
-            One entry per session: time slot, topic, name, description, stage. Served as
-            JSON at <code>/api/program</code>.
+            The agendas for the events around TechBBQ, live from the program view each team
+            fills in its own Airtable table. One entry per session: time slot, topic, name,
+            description, stage. Served as JSON at <code>/api/program</code>.
+          </p>
+          <p className="lede" style={{ fontSize: 14 }}>
+            TechBBQ&apos;s own agenda is not here. It comes from Brella and lives on{" "}
+            <Link href="/brella-program" style={{ color: "var(--color-orange, #fa7000)" }}>
+              Program 2026
+            </Link>
+            , which is the one installed on techbbq.dk.
           </p>
 
           <div className="seg" role="tablist" aria-label="Program" style={{ marginTop: 28 }}>
@@ -129,16 +256,31 @@ export default function ProgramPage() {
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <CopyAgendaEmbed
-              path={path}
+              // `base`, never `path`: path can carry ?fresh=, and that URL is authenticated.
+              // Baking it into an Elementor snippet would 401 for every public visitor.
+              path={base}
               heading={EVENTS.find((e) => e.key === event)?.heading}
               note={EVENTS.find((e) => e.key === event)?.note}
               theme={EVENTS.find((e) => e.key === event)?.theme}
               icons={EVENTS.find((e) => e.key === event)?.icons}
               bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}
+              people={EVENTS.find((e) => e.key === event)?.people}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
             </span>
+          </div>
+
+          {/* Forces a live Airtable read for the open tab, bypassing the 1h cache, and
+              reports what changed. Works on the deployed dashboard too — the bypass is
+              gated by the dashboard password. */}
+          <div style={{ marginTop: 14 }}>
+            <RefreshButton
+              onRefresh={() => setFresh((n) => n + 1)}
+              changes={changes}
+              error={revalidateError}
+              resetKey={event}
+            />
           </div>
         </div>
       </section>
@@ -188,6 +330,7 @@ export default function ProgramPage() {
                           {s.description}
                         </p>
                       )}
+                      {s.onStage && <OnStage st={s.onStage} />}
                     </div>
                   </article>
                 ))}

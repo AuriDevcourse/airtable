@@ -10,8 +10,9 @@
 // /program page and the agenda embed render it with no changes.
 
 import { fetchWithTimeout } from "@/lib/http";
-import type { ProgramSession } from "@/lib/program";
+import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
+import { roomAlias } from "@/lib/brellaSections";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -27,6 +28,24 @@ const TZ = "Europe/Copenhagen";
 // Brella pads the schedule with one untitled 15-minute row per networking slot — 50 of the
 // 80 timeslots. They belong to this track and are not sessions.
 const NETWORKING_TRACK = "1:1 meetings";
+
+// ─── HIDDEN FOR NOW ─────────────────────────────────────────────────────────────────────
+// The LP Forum track. Auri is building it inside the 2026 programme and asked for it to stay out
+// of every surface until he says otherwise (2026-08-05). One all-day row exists today: "LP Forum",
+// 25 August, Hotel d'Angleterre, no speakers yet.
+//
+// Filtered on the TRACK rather than the session name, so any number of rows added under it stay
+// hidden without anyone touching this file again. Matched as a PREFIX because the track is called
+// "LP Forum 2026" today and a rename to plain "LP Forum" should not un-hide it.
+//
+// Deliberately here, at the source, rather than in the page: /brella-program, the pasted embed and
+// /api/program?event=brella all read this function, and hiding it in one of them would have left it
+// live in the other two.
+//
+// TO REVEAL IT: delete this constant and the one `continue` below. Nothing else references it.
+// The LP Forum entries on /investors are a DIFFERENT thing (investor speakers, from Airtable) and
+// are not affected.
+const HIDDEN_TRACKS: RegExp[] = [/^lp forum/i];
 
 // Anything this long is an all-day thing (side-event promos run 720 minutes), and printing
 // "00:00 - 12:00" for it reads like a bug.
@@ -179,6 +198,43 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
   const nameOf = (type: string, id: string | undefined): string =>
     id ? label(byId.get(`${type}:${id}`)?.attributes?.name) : "";
 
+  // Speakers hang off the timeslot INDIRECTLY: timeslot → speaker-assignment → speaker.
+  // The assignment carries the ordering AND the role, so it is followed rather than skipped.
+  // (An older comment here said Brella always left `role` null. It does not: the 2026 event
+  // has 27 Moderator, 42 Panelist, 26 Speaker, 4 Facilitator and 3 Keynote speaker rows.) Only names are required; a speaker with no name is a
+  // half-created record and is dropped rather than rendered as an empty card.
+  //
+  // photo-url points at brella-assets.brella.io and is a plain public URL, NOT a signed one
+  // like Airtable's attachments, so it is passed through instead of proxied through
+  // /api/photo. If Brella ever starts signing these, they will need the same treatment.
+  const speakersFor = (row: RawTimeslot): ProgramSpeaker[] => {
+    const out: ProgramSpeaker[] = [];
+    for (const ref of many(row.relationships?.["speaker-assignments"])) {
+      const assignment = byId.get(`speaker-assignment:${ref.id}`);
+      const speakerId = one(assignment?.relationships?.speaker)?.id;
+      const speaker = speakerId ? byId.get(`speaker:${speakerId}`) : undefined;
+      if (!speaker) continue;
+
+      const a = speaker.attributes;
+      const name = [str(a["first-name"]), str(a["middle-name"]), str(a["last-name"])]
+        .filter(Boolean)
+        .join(" ");
+      if (!name) continue;
+
+      out.push({
+        id: `brella-speaker-${speaker.id}`,
+        name,
+        title: str(a["job-title"]),
+        company: str(a["company-name"]),
+        photo: str(a["photo-url"]) || null,
+        bio: draftToText(a.bio),
+        role: str(assignment?.attributes?.role),
+      });
+    }
+    // Brella's own display order, which is what the attendee app shows.
+    return out;
+  };
+
   type Prepared = { session: ProgramSession; dateKey: string; startIso: string };
   const prepared: Prepared[] = [];
 
@@ -193,6 +249,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     // them out even if someone later types a title into one.
     if (!title || !startIso) continue;
     if (track === NETWORKING_TRACK) continue;
+    // Held back on request — see HIDDEN_TRACKS. Checked against the RAW track, before roomAlias()
+    // can rewrite it into an event room number.
+    if (HIDDEN_TRACKS.some((rx) => rx.test(track))) continue;
 
     const dateKey = localDateKey(startIso);
     if (!dateKey) continue;
@@ -225,7 +284,11 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         timeSlot,
         type: topic,
         description,
-        room: track,
+        // A named programme that occupies a numbered event room is filed under that room.
+        // See ROOM_ALIASES; done here so page, route and embed cannot disagree.
+        room: roomAlias(track),
+        location: label(a.location),
+        speakers: speakersFor(row),
       },
     });
   }

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
+  ATTACHMENT_ID,
   PHOTO_SOURCES,
   resolveSignedUrl,
   invalidateSignedUrl,
@@ -41,8 +42,16 @@ export async function GET(
     if (!PHOTO_SOURCES[feed].fields[fieldIndex]) return notFound();
   }
 
+  // ?v=<attachment id>, the cache-buster the feeds now attach. Airtable issues a new id
+  // whenever a file is replaced, so a swapped headshot arrives on a URL no cache has seen.
+  // Validated because it reaches an in-memory cache key: an arbitrary value would let anyone
+  // grow that map by requesting ?v=1, ?v=2, … An unrecognised value is ignored rather than
+  // rejected, so an old link with a stale token still serves a picture.
+  const rawV = req.nextUrl.searchParams.get("v");
+  const version = rawV && ATTACHMENT_ID.test(rawV) ? rawV : undefined;
+
   try {
-    let signed = await resolveSignedUrl(feed, id, fieldIndex);
+    let signed = await resolveSignedUrl(feed, id, fieldIndex, version);
     if (!signed) return notFound();
 
     let upstream = await fetchWithTimeout(signed, { cache: "no-store" });
@@ -50,8 +59,8 @@ export async function GET(
     // The cached signed URL can still expire in the 45-min cache window if Airtable
     // rotates early — re-resolve once and retry before giving up.
     if (upstream.status === 410 || upstream.status === 403) {
-      invalidateSignedUrl(feed, id, fieldIndex);
-      signed = await resolveSignedUrl(feed, id, fieldIndex);
+      invalidateSignedUrl(feed, id, fieldIndex, version);
+      signed = await resolveSignedUrl(feed, id, fieldIndex, version);
       if (!signed) return notFound();
       upstream = await fetchWithTimeout(signed, { cache: "no-store" });
     }
@@ -66,8 +75,11 @@ export async function GET(
       "Content-Type",
       upstream.headers.get("content-type") || "image/jpeg"
     );
-    // Headshots almost never change once uploaded. Browser caches a day, CDN a week
-    // (serving stale while it refreshes) — a swapped photo shows up within a day.
+    // Headshots almost never change once uploaded, so this stays long: browser a day, CDN a
+    // week. It is safe to keep it long ONLY because the feeds append ?v=<attachment id> — a
+    // replaced photo arrives on a new URL rather than waiting for this to expire. The old
+    // comment here claimed "a swapped photo shows up within a day", which was never true: the
+    // URL did not change, so nothing invalidated and Kent Damsgaard's new picture sat unseen.
     res.headers.set(
       "Cache-Control",
       "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000"

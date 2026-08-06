@@ -357,6 +357,18 @@ a { color: inherit; }
 @media (max-width: 1000px) and (min-width: 641px) {
   .grid-cards { grid-template-columns: repeat(3, 1fr); }
 }
+/* A SHORT GROUP gets its own centred row rather than trailing off the left of a 5-column grid.
+   The Policy Stage has exactly three moderators, and three cards hanging under two empty columns
+   reads as a loading failure (Auri, 2026-08-05). Card width is capped at what a 5-column row gives
+   inside .wrap, so a moderator card is the same size as a speaker card.
+   Desktop only: the tablet and mobile rules above already pack 3 and 2 across, and a fixed 224px
+   track would overflow a phone. */
+@media (min-width: 1001px) {
+  .grid-cards--few {
+    grid-template-columns: repeat(3, minmax(0, 224px));
+    justify-content: center;
+  }
+}
 /* Main-page feed opts into 4 per row on wide screens (tablet/mobile rules above still win). */
 @media (min-width: 1001px) {
   .grid-cards--4 { grid-template-columns: repeat(4, 1fr); }
@@ -547,6 +559,15 @@ a { color: inherit; }
   transition: opacity 0.18s;
 }
 .copy-embed:hover { opacity: 0.9; }
+/* The API variant is a developer handoff, not the primary action on the page, so it reads as
+   a secondary button rather than competing with the gradient embed button beside it. */
+.copy-embed--api {
+  background: none;
+  background-color: var(--color-card-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+}
+.copy-embed--api:hover { background-color: var(--color-card); opacity: 1; }
 .howto__steps {
   margin: 16px 0 0;
   padding-left: 20px;
@@ -921,13 +942,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .ev-card__access--private { color: var(--color-amber); border-color: rgba(253,157,4,0.35); }
 
-.ev-card__date {
+/* Day + time travel as one unit, so a card with a third badge wraps BOTH onto the next
+   line instead of stranding the time alone under the badges. margin-left:auto lives here
+   now rather than on the date. */
+.ev-card__when {
   margin-left: auto;
+  display: inline-flex; align-items: baseline; gap: 6px;
+}
+.ev-card__date {
   color: var(--color-foreground);
   font-size: 12px; font-weight: 600;
   text-shadow: 0 1px 6px rgba(0,0,0,0.5);
 }
 .ev-card__date--none { color: var(--color-muted); font-weight: 500; font-style: italic; }
+/* Muted and lighter than the date because the day is the
+   coarser fact — you scan for "Wednesday" first and the clock time second. */
+.ev-card__time {
+  color: var(--color-muted);
+  font-size: 12px; font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.5);
+}
 
 /* text-shadow for the same reason .s-card__name/__meta carry one: on hover this text sits
    over the bright part of the glow, and the shadow keeps it legible. */
@@ -1060,4 +1095,861 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   color: var(--color-muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* ── Brella program page (/brella-program) ────────────────────────────────────────────
+   Auri's mock: three oversized section headings, a pill row per track, then day-grouped
+   cards with a coloured spine. */
+
+/* Buttons, not styled text — this is the page's primary control, so it has to be tabbable
+   and announced. The unselected ones read as muted headings, which is the whole look. */
+.bp-sections {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  /* Centred: this is the page's masthead, and left-aligned it read as a stray heading
+     rather than the primary control. */
+  justify-content: center;
+  gap: 8px 28px;
+  margin: 8px 0 24px;
+}
+.bp-sections button {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: clamp(26px, 4.2vw, 40px);
+  font-weight: 600; letter-spacing: -0.02em; line-height: 1.1;
+  color: var(--color-muted);
+  transition: color .18s ease;
+}
+.bp-sections button:hover:not(:disabled) { color: var(--color-foreground); }
+.bp-sections button[aria-selected="true"] { color: var(--color-foreground); }
+/* A section Brella has nothing in stays visible but inert, so the set of sections doesn't
+   shift around as the schedule fills up. */
+.bp-sections button:disabled { opacity: 0.35; cursor: default; }
+.bp-sections button:focus-visible { outline: 2px solid var(--color-red); outline-offset: 4px; }
+
+/* Inherits .seg for the pill look; this only lets a long track list wrap instead of
+   overflowing, which .seg's single row does not do. */
+/* The pickers live in a block of RESERVED height so switching section cannot move anything
+   below it. Stages has two rows (stage + day) and the others have one; without a floor, the
+   count line and the whole schedule jumped up and down on every tab press. */
+/* flex, so the child margins cannot collapse through the block: with plain block layout the
+   stage row and the track row started 10px apart depending on which section was open. */
+/* align-items:center, NOT stretch. .seg is inline-flex and hugs its buttons, but a stretched
+   flex child fills the cross axis, so the pill bar's background ran the full page width with
+   the buttons floating in the middle of it. Centre makes the background end with the content.
+   flex (rather than block) is still what stops the child margins collapsing. */
+.bp-controls { min-height: 92px; display: flex; flex-direction: column; align-items: center; }
+@media (max-width: 720px) { .bp-controls { min-height: 0; } }
+
+.bp-tracks { flex-wrap: wrap; margin-bottom: 8px; }
+/* The stage and day pickers sit under the centred masthead, so they centre too. */
+.bp-tracks--center, .bp-days { justify-content: center; }
+.bp-days { flex-wrap: wrap; margin: 10px 0 4px; }
+/* Two lines: DAY 1 with the date under it, rather than "DAY 1 · 26 Aug" strung out sideways. */
+.bp-days button {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  /* auto height + real vertical padding: .seg's flat 36px row was sized for one line and
+     squeezed the date against the day number. */
+  height: auto; padding: 9px 22px; line-height: 1.2;
+}
+.bp-days__n { font-weight: 700; letter-spacing: .06em; }
+.bp-days__date { font-size: 11px; opacity: .72; font-weight: 500; }
+
+/* ─── STAGE TIMELINE ─────────────────────────────────────────────────────────────────────
+   One column per stage, one day at a time. Vertical distance IS time, so the cards are
+   positioned absolutely against a 09:00 origin rather than stacked in document order. */
+/* padding-bottom: the final time label is centred on the last gridline and hangs half below
+   the body, so without room it reads as cut off. */
+.bp-tl { margin-top: 20px; padding-bottom: 22px; --gutter: 74px; }
+
+.bp-tl__allday {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px; padding: 8px 10px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+}
+.bp-tl__allday > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.bp-tl__alldayLabel {
+  flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--color-muted);
+}
+.bp-tl__chipCard {
+  border: 0; border-left: 3px solid var(--track, var(--color-red));
+  background: var(--color-card); color: var(--color-foreground);
+  padding: 5px 9px; border-radius: 4px; font-size: 12px; cursor: pointer; text-align: left;
+}
+
+/* Head and body share one grid template, or the column headings drift off their columns. */
+.bp-tl__head, .bp-tl__body {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(var(--cols, 5), minmax(0, 1fr));
+  gap: 0 8px;
+}
+.bp-tl__head { position: sticky; top: 0; z-index: 3; background: var(--color-background); }
+/* No underline beneath the stage name: with a border on every column it read as five
+   separate underlined words rather than one header row. The vertical separators already
+   delimit the columns. */
+.bp-tl__colHead {
+  border-left: 1px solid var(--color-border);
+  padding: 8px 6px;
+  /* Centred on both axes: the headings sit in a fixed-height row and left/top alignment left
+     the one-line names floating at the top of a two-line box. */
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 46px; text-align: center;
+  font-family: var(--font-heading); font-size: 17px; font-weight: 600; line-height: 1.25;
+  color: var(--color-foreground);
+  /* Five stage names, one of which is "Life Science x Deep Tech Stage". Wrapping beats
+     truncating: the column heading is the only thing identifying the column. */
+  overflow-wrap: anywhere;
+}
+.bp-tl__gutterHead { }
+/* The icon takes the stage's own accent, so the header colour-codes the column too. */
+.bp-tl__icon { flex: none; color: var(--track, currentColor); }
+.bp-tl__head > .bp-tl__colHead:last-child { border-right: 1px solid var(--color-border); }
+
+.bp-tl__body { position: relative; margin-top: 10px; }
+.bp-tl__gutter { position: relative; }
+.bp-tl__tick {
+  position: absolute; right: 8px; transform: translateY(-50%);
+  font-size: 11px; color: var(--color-muted); white-space: nowrap;
+}
+.bp-tl__tick[data-hour] { color: var(--color-foreground); }
+
+/* Gridlines span every column. Half-hours are fainter than hours so the eye can still find
+   the hour without counting. */
+.bp-tl__line {
+  position: absolute; left: var(--gutter); right: 0; height: 1px;
+  background: var(--color-border); opacity: .45; pointer-events: none;
+}
+.bp-tl__line[data-hour] { opacity: .9; }
+
+.bp-tl__col {
+  position: relative; min-width: 0;
+  /* A separator per stage. On the grid's 8px gap this lands in the channel between columns,
+     so it reads as a divider rather than a border drawn on the cards. */
+  border-left: 1px solid var(--color-border);
+  /* NO PADDING HERE, deliberately. The cards are absolutely positioned, and an abs-positioned
+     child resolves its left/width against the PADDING box — which includes the padding — so
+     padding on this element moves nothing at all. Measured: it left the gap at 9px. The inset
+     lives on the cards instead, as CARD_INSET_PX in the page. */
+}
+.bp-tl__col:last-child { border-right: 1px solid var(--color-border); }
+.bp-tl__empty {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  margin: 0; padding: 8px; text-align: center;
+  font-size: 12px; color: var(--color-muted); opacity: .6;
+}
+
+.bp-tl__card {
+  position: absolute; overflow: hidden;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 8px; margin: 0;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--track, var(--color-red));
+  border-radius: 5px;
+  /* Two stops. --track2 is only set for Life Science x Deep Tech (blue to green, two
+     disciplines in one stage); everywhere else it falls back to --track and the gradient
+     resolves to the flat tint it has always been. */
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--track, #FA7000) 14%, var(--color-card)),
+    color-mix(in srgb, var(--track2, var(--track, #FA7000)) 14%, var(--color-card)));
+  color: var(--color-foreground);
+  text-align: left; font: inherit;
+}
+/* The top rule stays a SOLID --track. A gradient bar would need a pseudo-element over the
+   border area, and the card sets overflow:hidden, which clips to the padding box and would
+   have hidden it entirely. The background gradient already carries the blue-to-green. */
+.bp-tl__card--open { cursor: pointer; }
+.bp-tl__card--open:hover {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--track, #FA7000) 26%, var(--color-card)),
+    color-mix(in srgb, var(--track2, var(--track, #FA7000)) 26%, var(--color-card)));
+}
+.bp-tl__card--open:focus-visible { outline: 2px solid var(--track, var(--color-red)); outline-offset: 1px; }
+/* flex: none on all three. As flexible items they SHRANK, and on a short card the title lost
+   the fight and collapsed to zero height, leaving cards showing a time and nothing else.
+   Fixed-size children plus overflow:hidden means the title always wins and the time is what
+   gets clipped. */
+.bp-tl__cardTitle {
+  flex: none;
+  font-size: 12.5px; font-weight: 600; line-height: 1.25;
+  /* Clamped because the card's height is dictated by the session's LENGTH: a 10-minute slot
+     is 24px tall and cannot show a full title however much it would like to. */
+  /* 2 lines, not 3: the title is cut to five words now, so three lines only ever meant
+     dead space above the time. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
+.bp-tl__cardMeta {
+  flex: none; margin-top: auto; font-size: 10.5px; color: var(--color-muted);
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+}
+/* Two names plus a "+N" on one line; the dialog has the full list. */
+.bp-tl__cardNames { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bp-tl__faces { flex: none; display: inline-flex; }
+/* Overlapped, with a ring in the card's own colour so they read as a stack rather than a blur. */
+.bp-tl__face + .bp-tl__face { margin-left: -6px; }
+.bp-tl__face {
+  width: 16px; height: 16px; border-radius: 9999px; object-fit: cover;
+  box-shadow: 0 0 0 1.5px var(--color-card);
+  background: var(--color-card-2);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: var(--color-muted); line-height: 1;
+}
+
+/* A slot too short to hold more than one line: show the title alone. The time is in the
+   dialog, and half a clipped title plus half a clipped timestamp reads as broken. */
+.bp-tl__card[data-compact] { padding: 3px 8px; }
+.bp-tl__card[data-compact] .bp-tl__cardTitle { -webkit-line-clamp: 1; font-size: 11.5px; }
+.bp-tl__card[data-compact] .bp-tl__cardTime,
+.bp-tl__card[data-compact] .bp-tl__cardMeta { display: none; }
+/* Short but not tiny: keep the title and the time, drop the faces. */
+.bp-tl__card[data-tight] .bp-tl__cardMeta { display: none; }
+
+/* ── BREATHWORK ────────────────────────────────────────────────────────────────────────
+   A breathwork break is 3 minutes, which is 9px of this timeline's axis, floored to 24 so it can
+   carry its label and be pressed. --track is already violet by the time it gets here (see
+   sessionColor in lib/brellaTheme.ts), so what these rules add is WEIGHT — a stronger fill and a
+   full violet outline rather than the 3px top rule every other card has.
+   It is also drawn IN FRONT of its neighbours (z-index, set on the card in the page), because
+   every card around it is taller than its own slot and it would otherwise be behind one and in
+   front of the next. The shadow is what makes that read as "on top of" rather than "part of".
+   Nothing ends up hidden: the card it lands on is cleared with padding-top, measured in
+   layOutColumn(). */
+.bp-tl__card[data-breathwork] {
+  border: 1px solid color-mix(in srgb, var(--track) 55%, transparent);
+  border-top: 3px solid var(--track);
+  background: color-mix(in srgb, var(--track) 26%, var(--color-card));
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+.bp-tl__card--open[data-breathwork]:hover {
+  background: color-mix(in srgb, var(--track) 40%, var(--color-card));
+}
+.bp-tl__card[data-breathwork] .bp-tl__cardTitle { color: #fff; }
+/* A 24px card would otherwise keep the 6px top padding and clip its own single line. */
+.bp-tl__card[data-breathwork][data-compact] { padding-top: 2px; padding-bottom: 2px; }
+/* The icon sits in the title's text flow, so it needs the baseline nudge a floated row of its
+   own would not. */
+.bp-tl__cardTitle .bp-breath__icon {
+  display: inline-block; vertical-align: -2px; margin-right: 4px; color: var(--track);
+}
+
+/* The pill on a list card and in the dialog. Violet on violet-tinted, so it reads as a label
+   rather than a button somebody forgot to make clickable. */
+.bp-breath {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 0 0 6px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--track, #B49BFF) 20%, transparent);
+  color: var(--track, #B49BFF);
+  font-family: var(--font-heading);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  line-height: 1.4;
+}
+/* On a card list, the whole tile also carries the violet edge, so a breathwork break does not
+   have to be read to be spotted. */
+.bp-card[data-breathwork] { border-color: color-mix(in srgb, var(--track) 45%, var(--color-border)); }
+.bp-card[data-breathwork]:hover { border-color: var(--track); }
+
+@media (max-width: 900px) {
+  /* Five columns in a phone width is unreadable, so the timeline scrolls sideways with the
+     gutter pinned. Each column keeps a usable minimum instead of being squeezed to nothing. */
+  .bp-tl { overflow-x: auto; }
+  .bp-tl__head, .bp-tl__body {
+    grid-template-columns: var(--gutter) repeat(var(--cols, 5), minmax(150px, 1fr));
+    min-width: max-content;
+  }
+  .bp-tl { --gutter: 60px; }
+}
+
+.bp-day { margin-top: 28px; }
+.bp-day__label {
+  margin: 0 0 12px;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.bp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.bp-card {
+  position: relative;
+  /* Column flex so a side event's action row can be pinned to the bottom with margin-top:auto
+     and line up across a row of cards of different heights. Harmless for the cards that have
+     no action row: block and column-flex lay these children out identically. */
+  display: flex;
+  flex-direction: column;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 14px 14px 16px;
+  overflow: hidden;
+  transition: border-color .2s ease, background .2s ease;
+}
+/* The spine is the track's colour and the card's only strong colour. Drawn as a pseudo
+   element rather than border-left so the radius stays even on all four corners. */
+.bp-card::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--track);
+}
+.bp-card:hover { border-color: var(--track); background: var(--color-card-2); }
+
+.bp-card__time {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--color-foreground);
+}
+.bp-card__title {
+  margin: 10px 0 0;
+  font-family: var(--font-heading);
+  font-size: 15px; font-weight: 600; line-height: 1.3;
+  color: #fff;
+}
+.bp-card__room {
+  display: flex; align-items: center; gap: 5px;
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-size: 12px; line-height: 1.4;
+}
+.bp-card__pin { flex: 0 0 auto; }
+/* Clamped rather than truncated in the feed, so the full text stays available to any other
+   consumer of the JSON. */
+.bp-card__desc {
+  margin: 8px 0 0;
+  color: rgba(255,255,255,0.72);
+  /* Weight declared, not inherited. The heading font is only used for chrome here, and a bold
+     description turns a card into a block of shouting (Auri, 2026-08-04). */
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 400; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+@media (max-width: 1100px) { .bp-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 820px)  { .bp-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  {
+  .bp-grid { grid-template-columns: 1fr; }
+  .bp-sections { gap: 4px 18px; }
+}
+
+/* Card as a button — reset the UA button look, keep the card look. */
+.bp-card--open {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.bp-card--open:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+.bp-card__speakers {
+  margin: 10px 0 0;
+  color: var(--track);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+}
+
+/* Register lives ONLY in the dialog (Auri, 2026-08-04): a pill on every preview card turned
+   the Side Events section into a wall of buttons, and someone should read what an event is
+   before signing up. A 10px radius rather than a pill, to match the cards and inputs around it
+   rather than the filter chips. */
+/* The private-event caveat. Muted and small on purpose: it is a condition of attending, not a
+   selling point, and it sits last on the card. */
+.bp-card__note {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: 11px; font-weight: 400; line-height: 1.4;
+}
+.bp-modal__note {
+  margin: 10px 0 0;
+  color: var(--color-muted);
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 400; line-height: 1.5;
+}
+
+.bp-modal__cta { margin: 22px 0 0; }
+.bp-modal__cta a {
+  display: inline-flex; align-items: center;
+  padding: 11px 20px;
+  border-radius: 10px;
+  background: var(--track);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: 14px; font-weight: 600;
+  text-decoration: none;
+  transition: filter 0.18s;
+}
+.bp-modal__cta a:hover { filter: brightness(1.12); }
+.bp-modal__cta a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Session dialog. align-items:flex-start + overflow-y on the overlay so a long speaker list
+   scrolls the overlay rather than being clipped by a centred flex item. */
+.bp-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 5vh 16px;
+  background: rgba(0,0,0,0.72);
+  overflow-y: auto;
+}
+.bp-modal {
+  position: relative;
+  width: 100%; max-width: 640px;
+  /* Scrolls itself. With no height cap, a session with six long bios ran past the bottom of a
+     laptop screen and the last speaker could not be reached. */
+  max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--track);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+}
+.bp-modal__close {
+  /* sticky + float, not absolute: the modal is the scroll container now, so an absolutely
+     positioned button scrolls out of reach on a long session. */
+  position: sticky; top: 0; float: right;
+  margin: -8px -8px 0 10px;
+  z-index: 2;
+  display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-card-2);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color .15s;
+}
+.bp-modal__close:hover { color: var(--color-foreground); }
+.bp-modal__close:focus-visible { outline: 2px solid var(--color-red); outline-offset: 2px; }
+.bp-modal__time {
+  margin: 0;
+  /* The stage's colour as a bar on the left, and room on the right so the sticky close button
+     is not sitting on top of the time. */
+  border-left: 3px solid var(--track, var(--color-orange));
+  padding: 2px 52px 2px 10px;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
+  color: var(--color-foreground);
+}
+.bp-modal__title { margin: 8px 0 0; font-size: 22px; font-weight: 600; line-height: 1.25; color: #fff; }
+.bp-modal__meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin: 10px 0 0;
+  color: var(--color-muted); font-size: 13px;
+}
+.bp-modal__topic {
+  padding: 3px 9px;
+  border: 1px solid var(--color-border); border-radius: 9999px;
+  background: var(--color-card-2);
+  font-family: var(--font-heading);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.bp-modal__desc p {
+  margin: 12px 0 0;
+  color: rgba(255,255,255,0.8);
+  /* Body font at regular weight, declared rather than inherited — same reason as the card. */
+  font-family: var(--font-body);
+  font-size: 14px; font-weight: 400; line-height: 1.6;
+}
+.bp-modal__heading {
+  margin: 24px 0 0;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.bp-people { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 14px; }
+.bp-person { display: flex; gap: 12px; }
+.bp-person__photo {
+  flex: 0 0 auto;
+  width: 52px; height: 52px;
+  border-radius: 9999px;
+  object-fit: cover;
+  /* Same 30% as the speaker cards: centre-cropping headshots cuts foreheads and chins. */
+  object-position: 50% 30%;
+  background: var(--color-card-2);
+}
+.bp-person__photo--empty {
+  display: grid; place-items: center;
+  font-family: var(--font-heading); font-weight: 700;
+  color: var(--track);
+}
+.bp-person__name { margin: 0; font-family: var(--font-heading); font-size: 13px; font-weight: 600; color: #fff; }
+.bp-person__role { margin: 3px 0 0; color: var(--color-muted); font-size: 12px; line-height: 1.4; }
+.bp-person__bio { margin: 6px 0 0; color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.5; }
+
+/* The row is a button when there is a bio to reveal: name, role, title and company are always
+   visible, the bio only on press. Several Brella bios are a full screen each, and six of them
+   stacked buried the session's own description. */
+.bp-person__toggle {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; text-align: left; color: inherit;
+}
+.bp-person__toggle:focus-visible { outline: 2px solid var(--color-red); outline-offset: 3px; border-radius: 6px; }
+.bp-person__more {
+  margin-top: 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  color: var(--track, var(--color-orange));
+}
+.bp-person__toggle:hover .bp-person__more { text-decoration: underline; }
+.bp-person__more { display: inline-flex; align-items: center; gap: 3px; }
+.bp-person__chev { transition: transform .18s ease; }
+.bp-person__chev[data-open] { transform: rotate(180deg); }
+/* Role beside the name: "Moderator" must not read as just another speaker. */
+.bp-person__tag {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border: 1px solid var(--color-border); border-radius: 9999px;
+  font-family: var(--font-body); font-size: 10px; font-weight: 600;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--color-muted);
+  vertical-align: middle;
+}
+
+@media (max-width: 560px) { .bp-modal { padding: 22px; } }
+
+/* ── Life Science startups exhibiting (/ls-startups) ──────────────────────────────────
+   A logo wall in three category rows. Logos only: no names, no pitch, no links.
+   The logos are the white-on-transparent versions, so they sit directly on the page's
+   near-black background with no panel behind them. */
+.lw-row { margin-top: 40px; }
+/* Each row carries its own colour (--row, set per section in the page): Planetary green,
+   Human Health teal, Deep Tech blue. A dot plus a coloured label rather than a filled band,
+   so the colour identifies the row without competing with the white logos under it. */
+.lw-row__label {
+  display: flex; align-items: center; gap: 9px;
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-heading);
+  /* 16, not 13. At 13 with this much letter-spacing the tier name read as a caption rather
+     than a heading, and on a full-width WordPress section it disappeared entirely. */
+  font-size: 16px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--row, var(--color-muted));
+}
+.lw-row__label::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 9999px;
+  background: var(--row, var(--color-muted));
+}
+/* The divider picks up a hint of the row colour so the band reads as one unit, kept faint
+   because three full-strength rules would stripe the page. */
+.lw-row__label { border-bottom-color: color-mix(in srgb, var(--row, #2a2a2a) 30%, transparent); }
+
+/* auto-fit rather than a fixed column count: rows hold anywhere from 7 to 15 logos, and a
+   fixed grid would leave a half-empty last line on the short ones. */
+.lw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* TWO ELEMENTS, and the split is load-bearing. The TILE is the box: fixed size, background,
+   rounded corners, hover. The LOGO inside it is the content, and it is the only thing
+   lib/logoFit.ts transforms.
+   They used to be one element — the img WAS the tile — and that worked only while every nudge
+   sat near 1. The moment a measured nudge reached 2.9, `transform: scale()` scaled the tile's
+   background and border-radius with the picture, so hovering Flatpay opened a hover card three
+   times the size of its neighbours. Scaling content inside a fixed box is what was always
+   meant; nothing else can express it in CSS. */
+.lw-tile {
+  display: grid; place-items: center;
+  width: 100%;
+  /* 5:3, not 3:2. A taller tile is what lets a SQUARE mark reach the same rendered area as a
+     wide wordmark — in a 2:1 tile a square logo is height-limited to the middle third no
+     matter what. lib/logoFit.ts then evens out what is left. */
+  aspect-ratio: 5 / 3;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  /* A nudged logo's IMAGE BOX overflows this tile on purpose — the growth is the transparent
+     margin inside the file, and the ink stays inside. Clipped anyway, so a mistyped nudge
+     crops one logo instead of spilling across the row. */
+  overflow: hidden;
+  transition: background .2s ease;
+}
+/* Hover tints with the row colour, so the wall still tells you which section you are in once
+   the labels have scrolled off. Background ONLY: a logo must not change size when the pointer
+   crosses it (Auri, 2026-08-04). The old rule also set transform: translateY(-2px), which never
+   applied — the fitter's inline transform outranked it — and would now fight it. */
+.lw-tile:hover { background: color-mix(in srgb, var(--row, #131313) 12%, #131313); }
+
+/* The picture fills the tile's content box and object-fit does the letterboxing, so the box
+   lib/logoFit.ts measures is this element and it carries no padding of its own. Same
+   arrangement as the embed (.tbbq-pw__tile img in lib/partnersEmbedSnippet.ts) — they have to
+   agree or the local preview stops predicting the live page. */
+.lw-logo {
+  display: block;
+  /* STRETCHED by the grid, not sized with height:100%. The tile centres its content
+     (place-items:center), so a percentage height had nothing definite to resolve against and
+     fell back to auto — the img then took its own intrinsic ratio and came out 209px tall in a
+     111px box, which quietly changed every computed fit. Stretch makes the img box exactly the
+     tile's content box, which is what lib/logoFit.ts measures. */
+  align-self: stretch; justify-self: stretch;
+  min-width: 0; min-height: 0;
+  object-fit: contain;
+  object-position: center center;
+  transform-origin: center center;
+  /* transform is set per-logo by fitLogo(); keep it in the transition so a resize eases. */
+  transition: transform .2s ease;
+}
+
+/* The tile is the link. display:contents so the anchor adds no box of its own — the grid
+   keeps sizing the tile directly, and the hover stays on the tile rather than splitting
+   across two elements. */
+.lw-link { display: contents; text-decoration: none; }
+/* display:contents removes the anchor as a focus target's box too, so the outline has to be
+   drawn on the child. Without this the link is reachable by keyboard but invisible when it
+   is — the one thing a logo-only wall cannot afford. */
+.lw-link:focus-visible .lw-tile {
+  outline: 2px solid var(--row, var(--color-red));
+  outline-offset: 2px;
+  background: var(--color-card);
+}
+
+/* Stand-in for a startup whose upload is an .ai/.cdr and cannot be drawn. Set as a plain
+   wordmark so the company still appears on the wall instead of silently vanishing. */
+.lw-tile--text {
+  font-family: var(--font-heading);
+  font-size: 15px; font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--color-muted);
+  border: 1px dashed var(--color-border);
+}
+
+/* "More soon" placeholder, the last tile of every row. Same box as a logo so it holds the
+   grid rhythm, but hollow and in the row colour: it reads as a slot waiting to be filled
+   rather than as a company. Deliberately quiet at 55% opacity — it should be noticed second,
+   after the real logos. */
+.lw-soon {
+  display: grid; place-items: center;
+  width: 100%;
+  aspect-ratio: 5 / 3; /* must match .lw-tile or the placeholder sits proud of the row */
+  padding: 18px;
+  border: 1px dashed color-mix(in srgb, var(--row, #2a2a2a) 45%, transparent);
+  border-radius: var(--radius-lg);
+  color: var(--row, var(--color-muted));
+  opacity: 0.55;
+  font-family: var(--font-heading);
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: center;
+}
+
+/* Fixed column counts per row, used by the partner wall. Fewer columns means a bigger logo,
+   which is how the tier ranking reads visually: Prime at 4 across, Community at 6.
+   minmax(0,1fr) rather than 1fr so a wide wordmark cannot push the track past its share.
+   The count comes from --cols on the parent row; the media queries below simply override
+   grid-template-columns outright, which they can because --cols lives on the section. */
+.lw-grid--fixed { grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr)); }
+
+/* A frieze of several marks in one file (EU co-funding strip, 13:1). It takes the whole row
+   and sits at the top of the tier. NOTE the span goes on the TILE, not the anchor: .lw-link is
+   display:contents, so the tile is the actual grid item. A much flatter box than the 5:3
+   default, or a full-width 5:3 cell would be a third of the page tall. */
+.lw-tile--wide { grid-column: 1 / -1; aspect-ratio: 9 / 1; }
+@media (max-width: 820px) { .lw-tile--wide { aspect-ratio: 7 / 1; } }
+
+@media (max-width: 1100px) { .lw-grid--fixed { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 820px)  { .lw-grid--fixed { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+@media (max-width: 560px) {
+  .lw-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .lw-grid--fixed { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lw-tile, .lw-soon { padding: 12px; }
+  .lw-soon { font-size: 10px; }
+}
+
+/* ─── THE FRONT-PAGE HUB (app/page.tsx) ────────────────────────────────────────────────────
+   Three section headings, each opening the pages inside it. Two steps rather than one long
+   list: twenty-one entries on one screen is the dropdown's problem again, printed larger. */
+.hub { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+
+.hub__section {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  overflow: hidden;
+}
+.hub__section[data-open] { border-color: #3a3a3a; background: var(--color-card-2); }
+
+.hub__head {
+  width: 100%;
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 22px;
+  border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.18s;
+}
+.hub__head:hover { background: var(--color-card-2); }
+.hub__head:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
+
+.hub__icon {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-orange, #fa7000) 14%, transparent);
+  color: var(--color-orange, #fa7000);
+}
+.hub__headText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hub__title { font-family: var(--font-heading); font-size: 21px; font-weight: 700; line-height: 1.15; }
+.hub__blurb { color: var(--color-muted); font-size: 13.5px; line-height: 1.45; }
+.hub__count {
+  flex: 0 0 auto;
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+/* Points right when closed, down when open: the same chevron doing the same job as in the nav. */
+.hub__chev { flex: 0 0 auto; color: var(--color-muted); display: grid; transition: transform 0.18s; }
+.hub__chev[data-open] { transform: rotate(90deg); color: var(--color-foreground); }
+
+.hub__list {
+  list-style: none; margin: 0;
+  padding: 0 14px 14px;
+  display: grid; gap: 8px;
+}
+.hub__list--flat { padding: 0; }
+
+.hub__item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: var(--color-card);
+  color: inherit; text-decoration: none;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+.hub__item:hover {
+  border-color: var(--color-orange, #fa7000);
+  background: var(--color-card-2);
+}
+.hub__item:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
+.hub__item > svg { flex: 0 0 auto; color: var(--color-muted); }
+.hub__item:hover > svg { color: var(--color-orange, #fa7000); }
+.hub__itemText { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
+.hub__itemLabel { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
+.hub__itemNote { color: var(--color-muted); font-size: 12.5px; line-height: 1.45; }
+
+.hub__internal { margin-top: 34px; }
+.hub__internalHead {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 12px;
+  color: var(--color-muted);
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+@media (max-width: 700px) {
+  .hub__head { padding: 16px; gap: 12px; flex-wrap: wrap; }
+  /* The count is the first thing to go: the title and the blurb both say more. */
+  .hub__count { display: none; }
+  .hub__title { font-size: 18px; }
+}
+
+/* A partner the publish rules turned away, shown ONLY on the dashboard wall (app/partners) as the
+   worklist of what still needs doing. Never in the embed: that fetches the feed without
+   ?pending=1, so these rows are not in its data at all. */
+.lw-tile[data-pending] {
+  border: 1px dashed color-mix(in srgb, var(--row, var(--color-border)) 55%, var(--color-border));
+  position: relative;
+}
+/* The logo is READY and only the box is unticked, so it is shown rather than hidden — dimmed, so a
+   glance still separates the live wall from the waiting one. */
+.lw-tile[data-pending="not-on-web"] .lw-logo { opacity: 0.45; }
+.lw-tile__wait {
+  position: absolute; left: 8px; right: 8px; bottom: 6px;
+  font-family: var(--font-heading);
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  text-align: center;
+  color: var(--row, var(--color-muted));
+  opacity: 0.95;
+}
+/* The name tile already centres its text, so the waiting line needs room under it rather than
+   over it. */
+.lw-tile--text { position: relative; padding-bottom: 20px; }
+
+/* ─── THE DAILY CHECK (app/page.tsx) ───────────────────────────────────────────────────────
+   The panel at the top of the hub: one row per area, each showing the number techbbq.dk would
+   render right now. It sits above the navigation on purpose — it is the reason to open this page in
+   the morning, and the links are what you do afterwards. */
+.check {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  padding: 20px 22px;
+  margin-bottom: 28px;
+}
+.check__head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.check__title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-foreground);
+}
+.check__title svg { color: var(--color-orange, #fa7000); }
+.check__sub { margin: 0; color: var(--color-muted); font-size: 13px; }
+
+.check__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.check__row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: inherit; text-decoration: none;
+  transition: background 0.15s;
+}
+.check__row:hover { background: var(--color-card-2); }
+.check__row:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
+.check__dot { width: 8px; height: 8px; border-radius: 9999px; }
+.check__rowText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.check__label { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; }
+.check__look { color: var(--color-muted); font-size: 12.5px; line-height: 1.4; }
+/* The line that names an ACTION. Amber rather than red: nothing is broken, something is waiting. */
+.check__todo { color: #fd9d04; font-size: 12.5px; line-height: 1.4; }
+
+/* The number reads first, so it is aligned right and set in the heading face. */
+.check__value {
+  flex: none; text-align: right;
+  display: flex; flex-direction: column; gap: 1px;
+  font-family: var(--font-heading); font-size: 18px; font-weight: 700;
+  line-height: 1.1;
+}
+.check__detail {
+  font-family: var(--font-sans, inherit);
+  font-size: 11px; font-weight: 400; letter-spacing: 0;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.check__row > svg { flex: none; color: var(--color-muted); }
+.check__row:hover > svg { color: var(--color-orange, #fa7000); }
+
+.check__note {
+  margin: 14px 2px 0;
+  color: var(--color-muted);
+  font-size: 12.5px; line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  /* The breakdown is the first thing to go: the headline number and the action line carry it. */
+  .check__detail { display: none; }
+  .check__row { gap: 10px; padding: 10px 8px; }
+  .check__value { font-size: 16px; }
 }
