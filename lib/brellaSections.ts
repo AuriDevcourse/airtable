@@ -292,6 +292,22 @@ export function parseSlot(slot: string): { start: number; end: number } | null {
   return { start, end };
 }
 
+// ─── MORNING TO EVENING ─────────────────────────────────────────────────────────────────
+// A booking that opens in the morning and is still going in the evening has taken the room for
+// the day (Auri, 2026-08-06). Both ends, not a duration: Nordic IPO runs 12:30-17:30 to the
+// close but starts after lunch, and calling an afternoon workshop "all day" overstates it.
+//
+// Here rather than in lib/brellaprogram.ts because BOTH sides need it. The feed applies it to a
+// single session to decide its timeSlot; the page applies it to a room's whole day, to decide
+// whether its named programme gets a band. brellaprogram imports these.
+export const MORNING_BY_MIN = 11 * 60;
+export const EVENING_FROM_MIN = 16 * 60;
+
+/** Did this span open in the morning and run into the evening? */
+export function spansMorningToEvening(startMin: number, endMin: number): boolean {
+  return startMin <= MORNING_BY_MIN && endMin >= EVENING_FROM_MIN;
+}
+
 /** The timeline always opens at 09:00, whatever the first session is. Auri's spec. */
 export const DAY_START_MIN = 9 * 60;
 

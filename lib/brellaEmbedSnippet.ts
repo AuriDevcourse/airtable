@@ -22,6 +22,8 @@
 import {
   BRELLA_SECTIONS,
   roomProgrammes,
+  MORNING_BY_MIN,
+  EVENING_FROM_MIN,
   findTimelineColumn,
   EVENT_DAYS,
   EVENT_YEAR,
@@ -225,6 +227,9 @@ export function buildBrellaEmbedSnippet({
      timeline's own height, so it always reaches the last gridline exactly. */
   #${id} .tbbq-bp__allDay{display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important;padding:8px 10px!important;border:1px dashed color-mix(in srgb,var(--track) 45%,transparent)!important;border-radius:8px!important;background:color-mix(in srgb,var(--track) 9%,transparent)!important;color:var(--fg)!important;text-align:left!important;font:inherit!important;cursor:pointer!important;overflow:hidden!important;box-shadow:none!important;appearance:none!important}
   #${id} .tbbq-bp__allDay:hover{background:color-mix(in srgb,var(--track) 16%,transparent)!important}
+  /* The DERIVED band has nothing to open, so it takes no pointer and no hover. */
+  #${id} .tbbq-bp__allDayProg{cursor:default!important;pointer-events:none!important}
+  #${id} .tbbq-bp__allDayProg:hover{background:color-mix(in srgb,var(--track) 9%,transparent)!important}
   #${id} .tbbq-bp__allDay:focus-visible{outline:2px solid var(--track)!important;outline-offset:-2px!important}
   #${id} .tbbq-bp__allDayLabel{font-family:var(--head)!important;font-size:9.5px!important;font-weight:700!important;letter-spacing:.1em!important;text-transform:uppercase!important;line-height:1.3!important;color:var(--track)!important}
   /* Pinned at the TOP of a column that can be 2000px tall — centred it would sit off screen. */
@@ -542,6 +547,9 @@ export function buildBrellaEmbedSnippet({
   var EVENT_YEAR=${EVENT_YEAR};
   var PX=${PX_PER_MIN},SLOT=${SLOT_MIN},MINCARD=${MIN_CARD_PX};
   var BREATH_MIN=${BREATH_MIN_PX},BREATH_CLEAR=${BREATH_CLEARANCE_PX};
+  /* Morning-to-evening, from lib/brellaSections.ts so the feed's own rule and this one cannot
+     drift apart. */
+  var MORNING_BY=${MORNING_BY_MIN},EVENING_FROM=${EVENING_FROM_MIN};
 
   /* Rebuilt here because a RegExp cannot survive JSON. */
   function compile(defs){return (defs||[]).map(function(c){return {label:c.label,rx:new RegExp(c.re,"i")};});}
@@ -885,7 +893,27 @@ export function buildBrellaEmbedSnippet({
       /* Behind the timed cards (z-index 0 against their 1+), because the two are NESTED: a room
          runs its sessions inside its all-day booking. A lane beside them would halve every card
          on the column and say the opposite. */
-      allday.filter(function(x){return colKey(x)===c;}).forEach(function(s){
+      /* A PROGRAMME THAT RUNS THE WHOLE DAY with no umbrella session to say so. NISS occupies
+         Event Room 2 from 09:30 to 17:30 — it has taken the room for the day as surely as Board
+         Summit has taken Room 1 — but Brella has only its eleven sessions. So the band is
+         derived from the programme plus the span of its own sessions, and the sessions draw
+         inside it. Skipped when a real all-day row already says it, and not a button: there is
+         no session behind it to open. */
+      var mineC=timed.filter(function(x){return colKey(x.s)===c;});
+      var adC=allday.filter(function(x){return colKey(x)===c;});
+      var prog2=PROGRAMMES[c];
+      if(prog2&&!adC.length&&mineC.length>1){
+        var lo=Math.min.apply(null,mineC.map(function(x){return x.start;}));
+        var hi=Math.max.apply(null,mineC.map(function(x){return x.end;}));
+        if(lo<=MORNING_BY&&hi>=EVENING_FROM){
+          html+='<div class="tbbq-bp__allDay tbbq-bp__allDayProg" aria-hidden="true"'
+            +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:0;height:'+height+'px;z-index:0;pointer-events:none;'+trackVars(c)+'">'
+            +'<span class="tbbq-bp__allDayLabel">All day</span>'
+            +'<span class="tbbq-bp__allDayTitle">'+esc(prog2.join(" \u00b7 "))+'</span>'
+            +'</div>';
+        }
+      }
+      adC.forEach(function(s){
         html+='<button type="button" class="tbbq-bp__allDay" data-id="'+esc(s.id)+'"'
           +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:0;height:'+height+'px;z-index:0;'+sessionVars(s)+'"'
           +' title="'+esc(s.name)+'">'

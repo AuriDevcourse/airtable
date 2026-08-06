@@ -26,6 +26,7 @@ import {
   TIMELINE_COLUMNS,
   columnOf,
   roomProgrammes,
+  spansMorningToEvening,
   type ColumnDef,
   weekdayLabel,
   EVENT_DAYS,
@@ -652,9 +653,41 @@ function StageTimeline({
           // BEHIND the timed cards rather than as a lane beside them: Event Room 1 runs nine
           // sessions inside its all-day Board Summit, so the two are nested, not competing.
           const alldayHere = allDay.filter(inCol);
+          // A PROGRAMME THAT RUNS THE WHOLE DAY, with no umbrella session to say so.
+          //
+          // NISS occupies Event Room 2 from 09:30 to 17:30 — it has taken the room for the day
+          // as surely as Board Summit has taken Room 1 — but Brella has no all-day row for it,
+          // only its eleven sessions. So the band is DERIVED: a room with a named programme
+          // whose own sessions span morning to evening gets the same dotted band, with those
+          // sessions drawn inside it (Auri, 2026-08-06).
+          //
+          // Skipped when the column already has a real all-day session, or there would be two
+          // bands saying the same thing. Not a button: there is no session behind it to open.
+          const progs = roomProgrammes(col);
+          const bandSpan =
+            mine.length > 1
+              ? [Math.min(...mine.map((x) => x.start)), Math.max(...mine.map((x) => x.end))]
+              : null;
+          const progBand =
+            progs.length > 0 &&
+            alldayHere.length === 0 &&
+            bandSpan !== null &&
+            spansMorningToEvening(bandSpan[0], bandSpan[1])
+              ? progs.join(" · ")
+              : null;
           const laid = layOutColumn(withLanes(mine), from);
           return (
             <div key={col} className="bp-tl__col">
+              {progBand && (
+                <div
+                  className="bp-tl__allDayCard bp-tl__allDayCard--prog"
+                  style={{ ...trackVars(col), top: 0, height } as React.CSSProperties}
+                  aria-hidden="true"
+                >
+                  <span className="bp-tl__allDayLabel">All day</span>
+                  <span className="bp-tl__allDayTitle">{progBand}</span>
+                </div>
+              )}
               {alldayHere.map((s) => (
                 <button
                   key={s.id}

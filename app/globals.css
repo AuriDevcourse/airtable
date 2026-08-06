@@ -1397,6 +1397,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   overflow: hidden;
 }
 .bp-tl__allDayCard:hover { background: color-mix(in srgb, var(--track) 16%, transparent); }
+/* The DERIVED band — a programme that fills the day with no umbrella session behind it. Nothing
+   to open, so it takes no pointer and no hover: a band that highlights but does not respond is
+   worse than one that plainly is not a control. */
+.bp-tl__allDayCard--prog { cursor: default; pointer-events: none; }
 .bp-tl__allDayCard:focus-visible { outline: 2px solid var(--track); outline-offset: -2px; }
 .bp-tl__allDayLabel {
   font-family: var(--font-heading);

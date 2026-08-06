@@ -12,7 +12,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
-import { roomAlias } from "@/lib/brellaSections";
+import { roomAlias, spansMorningToEvening } from "@/lib/brellaSections";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -60,9 +60,8 @@ const ALL_DAY_MINUTES = 360;
 // Nordic IPO (12:30-17:30) and Beyond Unicorns (13:30-17:30) run to the close but start after
 // lunch, and calling an afternoon workshop "all day" overstates it. Nothing in the 2026
 // schedule matches yet; the rule is here for the bookings that will.
-const MORNING_BY_MIN = 11 * 60; // started by 11:00
-const EVENING_FROM_MIN = 16 * 60; // still running at 16:00
-
+// The thresholds live in lib/brellaSections.ts — the page needs the same rule for a room's
+// whole day, and two copies of a threshold is one that will disagree.
 /** "09:30" → 570. null when Brella gave us something unparseable. */
 function minutesOfDay(iso: string): number | null {
   const hhmm = localTime(iso);
@@ -286,10 +285,7 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     const startMin = minutesOfDay(startIso);
     const endMin = endIso ? minutesOfDay(endIso) : null;
     const morningToEvening =
-      startMin !== null &&
-      endMin !== null &&
-      startMin <= MORNING_BY_MIN &&
-      endMin >= EVENING_FROM_MIN;
+      startMin !== null && endMin !== null && spansMorningToEvening(startMin, endMin);
     const timeSlot =
       duration >= ALL_DAY_MINUTES || morningToEvening
         ? "All day"
