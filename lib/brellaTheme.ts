@@ -177,19 +177,27 @@ export function trackColor2(room: string): string | undefined {
 }
 
 /**
- * A session's accent: violet for a breathwork break, else its section's colour when it declares
- * one, else its track's. Breathwork wins outright — the point of the violet is that it is not
- * the colour of the stage it happens to be on.
+ * A session's accent: its section's colour when it declares one, else its track's.
+ *
+ * BREATHWORK NO LONGER OVERRIDES THIS. It used to return violet, on the reasoning that a break
+ * is a thing running ACROSS the stages and so should not wear any one stage's colour. Auri
+ * reversed that on 2026-08-06: a break on the BBQ Stage is orange, on the Founders Stage green,
+ * the same rule the openings already follow. What separates the two treatments is now the badge
+ * and the icon — the wind glyph and the word "Breathwork" — not the hue.
+ *
+ * BREATHWORK_COLOR is kept and still exported: the embed's legacy pill styling references it,
+ * and it is the one record of what the violet was if the decision is ever revisited.
  */
 export function sessionColor(s: { room: string; section?: string; name?: string }): string {
-  if (isBreathwork(s)) return BREATHWORK_COLOR;
   return (s.section && SECTION_COLORS[s.section]) || trackColor(s.room);
 }
 
-/** Gradient second stop. Breathwork and section colours are flat, so this is track-only. */
+/**
+ * Gradient second stop. Section colours are flat, so this is track-only — and breathwork now
+ * gets the gradient too, because a break on the Life Science stage is that stage's card.
+ */
 export function sessionColor2(
   s: { room: string; section?: string; name?: string }
 ): string | undefined {
-  if (isBreathwork(s)) return undefined;
   return s.section && SECTION_COLORS[s.section] ? undefined : trackColor2(s.room);
 }

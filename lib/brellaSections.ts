@@ -239,6 +239,28 @@ export function isStageDay(day: string): boolean {
  * with NO day number: inventing a "Day 0" would put a label on the signage that nobody uses,
  * and reusing Brella's number would contradict the two real days sitting right below it.
  */
+/**
+ * The long form, for the dialog: "Day 1 (26 August)".
+ *
+ * brellaDayLabel() is the compact SHOUTED version the tabs and day headings use ("DAY 1, 26
+ * AUG"); a dialog is reading material and gets the month spelled out in sentence case. Both
+ * derive the number from EVENT_DAYS, so neither can drift from TechBBQ's numbering — and
+ * neither ever surfaces Brella's own "Day N", which counts whatever dates happen to be in the
+ * feed and shifted by one mid-build when a test row was deleted.
+ *
+ * Falls back to the raw Brella string with its "Day N · " prefix stripped, so a session on an
+ * unlisted date (the 25 August side events) still prints something true.
+ */
+export function brellaDayLong(day: string): string {
+  const known = EVENT_DAYS.find((d) => day.includes(d.date));
+  if (known) {
+    // "DAY 1" → "Day 1". The constant is upper-case because that is how the tabs want it.
+    const n = known.label.replace(/^DAY\s*/i, "");
+    return `Day ${n} (${known.date})`;
+  }
+  return day.replace(/^Day\s+\d+\s*·\s*/i, "").trim() || day;
+}
+
 export function brellaDayLabel(day: string): string {
   const known = EVENT_DAYS.find((d) => day.includes(d.date));
   const m = /(\d+)\s+(\w{3})/.exec(day); // "27 August" → "27", "Aug"

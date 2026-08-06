@@ -579,6 +579,68 @@ a { color: inherit; }
 .howto__note { margin: 12px 0 0; color: var(--color-muted); font-size: 13px; opacity: 0.85; }
 
 .muted { color: var(--color-muted); }
+/* ── SPEAKER SEARCH ────────────────────────────────────────────────────────────────────
+   A search that DIMS rather than filters, so the timeline keeps its geometry — see the note
+   in app/brella-program/page.tsx. */
+.bp-search { margin: 14px auto 0; max-width: 460px; }
+.bp-search__box {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-card);
+  transition: border-color 0.15s ease;
+}
+.bp-search__box:focus-within { border-color: var(--color-orange); }
+.bp-search__icon { flex: none; color: var(--color-muted); }
+.bp-search__input {
+  flex: 1 1 auto; min-width: 0;
+  padding: 9px 0;
+  border: 0; background: none; outline: none;
+  color: var(--color-foreground);
+  font-family: inherit; font-size: 14px;
+}
+.bp-search__input::placeholder { color: var(--color-muted); }
+/* Safari draws its own clear button on type=search; ours is the one that exists everywhere, so
+   the native one is removed rather than sitting next to it. */
+.bp-search__input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+.bp-search__clear {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  padding: 0;
+  border: 0; border-radius: 9999px;
+  background: none;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.bp-search__clear:hover { background: rgba(255, 255, 255, 0.08); color: var(--color-foreground); }
+.bp-search__hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/* THE DIM ITSELF. Opacity only — no display:none, no visibility:hidden: the card must keep its
+   box or the timeline's columns collapse and the clock stops lining up across stages, which is
+   the entire reason this is a spotlight and not a filter.
+   pointer-events stays ON: a dimmed card is still readable and still worth opening if you spot
+   it. What it loses is the TAB STOP (set in the page), so keyboard focus goes straight to the
+   matches instead of through forty faded cards. */
+.bp-tl__card[data-dim],
+.bp-card[data-dim] {
+  opacity: 0.16;
+  filter: saturate(0.4);
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
+.bp-tl__card[data-dim]:hover,
+.bp-card[data-dim]:hover { opacity: 0.55; filter: none; }
+@media (prefers-reduced-motion: reduce) {
+  .bp-tl__card[data-dim],
+  .bp-card[data-dim] { transition: none; }
+}
+
 .count-line { color: var(--color-muted); font-size: 14px; margin: 4px 0 0; }
 .count-line .reval { color: var(--color-muted); opacity: 0.7; }
 
@@ -1276,6 +1338,10 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   /* 2 lines, not 3: the title is cut to five words now, so three lines only ever meant
      dead space above the time. */
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  /* overflow:hidden clips at the PADDING box, not the content box, so a single long word
+     ("#MadeInEU?", "Efficiencymaxxing") on a narrow column ran through the space reserved for
+     the avatar stack and painted under it. Breaking the word is what keeps it inside. */
+  overflow-wrap: anywhere;
 }
 .bp-tl__cardTime { flex: none; font-size: 11px; color: var(--color-muted); }
 .bp-tl__cardMeta {
@@ -1285,6 +1351,22 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* Two names plus a "+N" on one line; the dialog has the full list. */
 .bp-tl__cardNames { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bp-tl__faces { flex: none; display: inline-flex; }
+/* Pinned to the card's right edge and vertically centred, so it survives the compact and tight
+   rules that hide .bp-tl__cardMeta. Mirrors .tbbq-bp__evFaces in the embed builder — the
+   dashboard is the preview of that snippet, so the two have to agree. */
+.bp-tl__cardFaces {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  flex-direction: row-reverse; /* first speaker drawn last, so it sits on top of the stack */
+  pointer-events: none;
+  z-index: 1;
+}
+.bp-tl__cardFaces .bp-tl__face + .bp-tl__face { margin-left: 0; margin-right: -6px; }
+/* Room for the stack: two faces overlapping at 6px is 26px, plus the inset and some air. */
+.bp-tl__card:has(.bp-tl__cardFaces) .bp-tl__cardTitle,
+.bp-tl__card:has(.bp-tl__cardFaces) .bp-tl__cardTime { padding-right: 40px; }
 /* Overlapped, with a ring in the card's own colour so they read as a stack rather than a blur. */
 .bp-tl__face + .bp-tl__face { margin-left: -6px; }
 .bp-tl__face {
@@ -1547,6 +1629,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-family: var(--font-heading);
   font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
   color: var(--color-foreground);
+}
+/* "Day 1 (26 August)" ahead of the clock time, separated by a dot rather than a line break so
+   the whole thing stays one 12px kicker above the title. The day is the accent colour and the
+   time stays foreground: the day is the new information, the time was always there. */
+.bp-modal__day { color: var(--track, var(--color-orange)); }
+.bp-modal__day::after {
+  content: "·";
+  margin: 0 7px;
+  color: var(--color-muted);
 }
 .bp-modal__title { margin: 8px 0 0; font-size: 22px; font-weight: 600; line-height: 1.25; color: #fff; }
 .bp-modal__meta {

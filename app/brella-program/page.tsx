@@ -28,6 +28,7 @@ import {
   weekdayLabel,
   EVENT_DAYS,
   brellaDayLabel as dayLabel,
+  brellaDayLong,
   defaultEventDay,
   inBrellaSection,
   parseSlot,
@@ -105,6 +106,43 @@ function trackVars(room: string): React.CSSProperties {
 function sessionVars(s: Session): React.CSSProperties {
   const two = sessionColor2(s);
   return { "--track": sessionColor(s), ...(two ? { "--track2": two } : {}) } as React.CSSProperties;
+}
+
+// ─── SPEAKER SEARCH ─────────────────────────────────────────────────────────────────────
+// Type a speaker's name and every session they are NOT in dims. A filter was the obvious
+// alternative and is the wrong tool: on the timeline, removing the other cards collapses the
+// columns and the clock stops being readable, so you lose the one thing the view is for. Dimming
+// keeps the whole board and its geometry intact and just answers "where is this person today".
+//
+// Matched on the speaker's name, plus their company and title — searching "Nordea" to find the
+// Nordea speaker is the same question asked from the other end, and the data is already on the
+// card. The session NAME is deliberately not searched: "opening" would then light up ten cards
+// that have no speaker in common, which is not what this box is for.
+function normalise(v: string): string {
+  return v
+    .toLowerCase()
+    // "Jose" should find "José". Strips the accents rather than requiring the visitor to type
+    // them, which on a Danish keyboard is a real barrier for the Nordic names in this schedule.
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+/**
+ * Every term must hit SOMETHING, so "maria nordea" narrows rather than widens — the alternative
+ * (any term matches) means adding a word to a search returns more results, which is backwards.
+ */
+function matchesSpeaker(s: Session, terms: string[]): boolean {
+  if (!terms.length) return true;
+  const hay = normalise(
+    (s.speakers ?? []).map((p) => `${p.name} ${p.company ?? ""} ${p.title ?? ""}`).join(" ")
+  );
+  return terms.every((t) => hay.includes(t));
+}
+
+/** "  Jane   Doe " → ["jane","doe"]. Empty when the box is empty, which means "match all". */
+function searchTerms(q: string): string[] {
+  return normalise(q).split(/\s+/).filter(Boolean);
 }
 
 // Brella's own day number, used ONLY to order the day groups — it is chronological by
@@ -226,11 +264,20 @@ function shortNames(speakers: Speaker[] | undefined, n = 2): string {
 }
 
 /** The little stack of faces on a card. Initials when Brella has no photo. */
-function Avatars({ speakers, n = 2 }: { speakers: Speaker[] | undefined; n?: number }) {
+function Avatars({
+  speakers,
+  n = 2,
+  className,
+}: {
+  speakers: Speaker[] | undefined;
+  n?: number;
+  /** Extra class, so a timeline card can pin the stack to its right edge. */
+  className?: string;
+}) {
   const people = orderedSpeakers(speakers).slice(0, n);
   if (!people.length) return null;
   return (
-    <span className="bp-tl__faces" aria-hidden="true">
+    <span className={className ? `bp-tl__faces ${className}` : "bp-tl__faces"} aria-hidden="true">
       {people.map((p) =>
         p.photo ? (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -377,10 +424,13 @@ function StageTimeline({
   columns,
   sessions,
   onOpen,
+  terms,
 }: {
   columns: string[];
   sessions: Session[];
   onOpen: (s: Session) => void;
+  /** Speaker-search terms. Empty means no search is running and nothing dims. */
+  terms: string[];
 }) {
   // Everything with a real clock time goes on the grid; "All day" entries cannot be placed
   // against a time axis and get a strip of their own above it.
@@ -473,6 +523,10 @@ function StageTimeline({
                 </p>
               )}
               {laid.map(({ s, top, h, breath, opening, band, padTop }) => {
+                // Dimmed, never removed — see the SPEAKER SEARCH note. A card that is dimmed is
+                // also taken out of the tab order: tabbing through 40 faded cards to reach the
+                // two that matched is worse than not having the search.
+                const dim = terms.length > 0 && !matchesSpeaker(s, terms);
                 const detail = hasDetail(s);
                 // Below ~46px there is only room for one line, so the card drops the time
                 // and the speaker count rather than showing three clipped half-lines. A card
@@ -514,9 +568,16 @@ function StageTimeline({
                       {firstWords(s.name)}
                     </span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
+                    {/* The faces are pinned to the card's right edge and rendered on EVERY card
+                        with speakers, outside the meta row — the meta row is hidden on a compact
+                        or tight card, which is most of the board, so the shortest sessions used
+                        to show nobody. The names stay in the row and still drop out when there
+                        is no height for them. */}
+                    {s.speakers?.length ? (
+                      <Avatars speakers={s.speakers} className="bp-tl__cardFaces" />
+                    ) : null}
                     {names && (
                       <span className="bp-tl__cardMeta">
-                        <Avatars speakers={s.speakers} />
                         <span className="bp-tl__cardNames">{names}</span>
                       </span>
                     )}
@@ -532,6 +593,8 @@ function StageTimeline({
                     data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
                     data-opening={opening ? "1" : undefined}
+                    data-dim={dim ? "1" : undefined}
+                    tabIndex={dim ? -1 : undefined}
                     title={s.name}
                     onClick={() => onOpen(s)}
                     aria-label={`${s.name} — show details`}
@@ -547,6 +610,7 @@ function StageTimeline({
                     data-tight={tight ? "1" : undefined}
                     data-breathwork={breath ? "1" : undefined}
                     data-opening={opening ? "1" : undefined}
+                    data-dim={dim ? "1" : undefined}
                     title={s.name}
                   >
                     {inner}
@@ -623,6 +687,93 @@ function BreathIcon({ size = 12 }: { size?: number }) {
       {BREATHWORK_ICON_PATHS.map((d, i) => (
         <path key={i} d={d} />
       ))}
+    </svg>
+  );
+}
+
+/**
+ * The speaker search box.
+ *
+ * It reports its own match count rather than leaving the visitor to scan for what is still
+ * bright: a search that finds nothing looks exactly like a search that dimmed everything by
+ * mistake, and on a board of 40 cards those are impossible to tell apart by eye.
+ */
+function SpeakerSearch({
+  q,
+  setQ,
+  matches,
+  names,
+}: {
+  q: string;
+  setQ: (v: string) => void;
+  matches: number;
+  names: string[];
+}) {
+  const active = q.trim().length > 0;
+  return (
+    <div className="bp-search">
+      <label className="bp-search__box">
+        <SearchIcon />
+        <input
+          type="search"
+          // `search` gives iOS the right keyboard and a native clear affordance; the explicit
+          // button below is for everyone else, since Firefox and Safari desktop show none.
+          className="bp-search__input"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by speaker, company or title…"
+          aria-label="Search sessions by speaker"
+          list="bp-speaker-names"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <datalist id="bp-speaker-names">
+          {names.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+        {active && (
+          <button
+            type="button"
+            className="bp-search__clear"
+            onClick={() => setQ("")}
+            aria-label="Clear search"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </label>
+      {/* aria-live, so the count reaches a screen reader: the dimming itself is invisible to
+          one, and without this the box would silently do nothing. */}
+      <p className="bp-search__hint" aria-live="polite">
+        {active
+          ? matches > 0
+            ? `${matches} session${matches === 1 ? "" : "s"} with this speaker · everything else dimmed`
+            : "No sessions here match — try the other day, or another section"
+          : "Type a name to spotlight that speaker's sessions"}
+      </p>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      className="bp-search__icon"
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
     </svg>
   );
 }
@@ -731,7 +882,16 @@ function VenueLine({ s }: { s: Session }) {
   );
 }
 
-function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }) {
+function SessionCard({
+  s,
+  onOpen,
+  terms = [],
+}: {
+  s: Session;
+  onOpen: (s: Session) => void;
+  terms?: string[];
+}) {
+  const dim = terms.length > 0 && !matchesSpeaker(s, terms);
   const detail = hasDetail(s);
   const breath = isBreathwork(s);
   const opening = isOpening(s);
@@ -763,6 +923,7 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
         style={style}
         data-breathwork={breath ? "1" : undefined}
         data-opening={opening ? "1" : undefined}
+        data-dim={dim ? "1" : undefined}
       >
         {body}
       </article>
@@ -775,6 +936,8 @@ function SessionCard({ s, onOpen }: { s: Session; onOpen: (s: Session) => void }
       style={style}
       data-breathwork={breath ? "1" : undefined}
       data-opening={opening ? "1" : undefined}
+      data-dim={dim ? "1" : undefined}
+      tabIndex={dim ? -1 : undefined}
       onClick={() => onOpen(s)}
       aria-label={`${s.name} — show details`}
     >
@@ -891,7 +1054,13 @@ function SessionDialog({ s, onClose }: { s: Session; onClose: () => void }) {
           </svg>
         </button>
 
-        <p className="bp-modal__time">{timeLabel(s)}</p>
+        {/* Day BEFORE the time, and always shown. A dialog opened from a timeline column
+            has no day heading above it, so "10:05 - 10:10" alone left the visitor to work out
+            which of the two days they were looking at (Auri, 2026-08-06). */}
+        <p className="bp-modal__time">
+          <span className="bp-modal__day">{brellaDayLong(s.day)}</span>
+          {timeLabel(s)}
+        </p>
         {isBreathwork(s) && <BreathBadge />}
         {isOpening(s) && <OpeningBadge />}
         <h2 className="bp-modal__title" id="bp-dialog-title">
@@ -968,6 +1137,9 @@ export default function BrellaProgramPage() {
   // "" is the All pill. Reset whenever the section changes, since a track from the previous
   // section would filter the new one down to nothing.
   const [track, setTrack] = useState("");
+  // The speaker search box. Kept OUT of the `days`/`timelineSessions` memos on purpose: this
+  // dims cards, it does not remove them, so the layout must not depend on it.
+  const [q, setQ] = useState("");
   // Which stage column set to show. "" = all five.
   const [stage, setStage] = useState("");
   // Side Events is filtered by day rather than by track. Declared up here with the other
@@ -1087,6 +1259,30 @@ export default function BrellaProgramPage() {
         timelineColumns.includes(columnOf(s.room, columnSet) ?? s.room)
     );
   }, [all, dayIdx, section, columnSet, timelineColumns]);
+
+  const terms = useMemo(() => searchTerms(q), [q]);
+  // Counted over what is CURRENTLY ON SCREEN, so "0 sessions" is answerable: the speaker is
+  // real but is on the other day, or in a section you are not looking at. Counting across the
+  // whole feed would report a match the visitor cannot see, which is worse than reporting none.
+  const timelineMatches = useMemo(
+    () => (terms.length ? timelineSessions.filter((s) => matchesSpeaker(s, terms)).length : 0),
+    [timelineSessions, terms]
+  );
+  const listMatches = useMemo(
+    () =>
+      terms.length
+        ? days.reduce((n, d) => n + d.sessions.filter((s) => matchesSpeaker(s, terms)).length, 0)
+        : 0,
+    [days, terms]
+  );
+  // Every speaker in the feed, for the browser's native autocomplete. A <datalist> rather than a
+  // custom dropdown: it is one element, it is keyboard- and screen-reader-native, and the whole
+  // roster is ~500 names, which is well inside what the browser will happily filter itself.
+  const speakerNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of all) for (const p of s.speakers ?? []) if (p.name) set.add(p.name);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [all]);
 
   // ── Side Events ──
   // Day chips instead of a track filter: there is only one track ("Side Event Promotion"), so
@@ -1222,6 +1418,8 @@ export default function BrellaProgramPage() {
                 </div>
                 </div>
 
+                <SpeakerSearch q={q} setQ={setQ} matches={timelineMatches} names={speakerNames} />
+
                 <p className="count-line">
                   {timelineSessions.length} session(s).
                   {revalidating && <span className="reval"> · checking for updates…</span>}
@@ -1232,6 +1430,7 @@ export default function BrellaProgramPage() {
                   columns={timelineColumns}
                   sessions={timelineSessions}
                   onOpen={setOpen}
+                  terms={terms}
                 />
               </>
             ) : (
@@ -1282,6 +1481,8 @@ export default function BrellaProgramPage() {
                   )}
                 </div>
 
+                <SpeakerSearch q={q} setQ={setQ} matches={listMatches} names={speakerNames} />
+
                 <p className="count-line">
                   {shown} session(s).
                   {revalidating && <span className="reval"> · checking for updates…</span>}
@@ -1296,7 +1497,7 @@ export default function BrellaProgramPage() {
                       <h2 className="bp-day__label">{dayLabel(day)}</h2>
                       <div className="bp-grid">
                         {sessions.map((s) => (
-                          <SessionCard key={s.id} s={s} onOpen={setOpen} />
+                          <SessionCard key={s.id} s={s} onOpen={setOpen} terms={terms} />
                         ))}
                       </div>
                     </section>
