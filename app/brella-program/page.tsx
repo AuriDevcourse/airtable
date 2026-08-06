@@ -65,6 +65,8 @@ type Session = {
   type: string;
   /** Up to three topic tags. `type` is the first of them; this is the set the filter uses. */
   tags?: string[];
+  /** "NISS", "Future of Fintech" — the named programme, where the session belongs to one. */
+  programme?: string;
   description: string;
   room: string; // the Brella TRACK — "Founders Stage", "Event Room 3", "Side Event Promotion"
   location?: string; // Brella's venue string, e.g. "Hall E"
@@ -565,6 +567,17 @@ function StageTimeline({
   // "One column" is the FILTERED state — a room was chosen — not a count of what happens to
   // have sessions today. It gates the programme sub-labels in the headings.
   const oneColumn = columns.length === 1;
+  /**
+   * The sub-label under a column heading: the programmes whose sessions are actually in that
+   * column today. Falls back to the room's REGISTERED programmes only when the column is empty
+   * — that is the one case where the registration is all there is to say, and it is what lets
+   * an empty Event Room 6 still name Deep Tech Event Day.
+   */
+  const progLabel = (col: string): string => {
+    const here = sessions.filter((s) => (columnOf(s.room, columnSet) ?? s.room) === col);
+    const live = [...new Set(here.map((s) => s.programme).filter(Boolean))] as string[];
+    return (live.length ? live : here.length ? [] : roomProgrammes(col)).join(" · ");
+  };
   // Everything with a real clock time goes on the grid; an "All day" entry cannot be placed
   // against a time axis and spans its column instead.
   const timed: Placed[] = [];
@@ -628,8 +641,8 @@ function StageTimeline({
               {/* Only when a single room is chosen (Auri, 2026-08-06). Across six columns the
                   sub-labels were six lines of small print competing with the room numbers; on
                   one column there is room for it and it is the thing you just asked about. */}
-              {oneColumn && roomProgrammes(c).length > 0 && (
-                <span className="bp-tl__colProg">{roomProgrammes(c).join(" · ")}</span>
+              {oneColumn && progLabel(c) && (
+                <span className="bp-tl__colProg">{progLabel(c)}</span>
               )}
             </span>
           );
@@ -681,7 +694,11 @@ function StageTimeline({
           //
           // Skipped when the column already has a real all-day session, or there would be two
           // bands saying the same thing. Not a button: there is no session behind it to open.
-          const progs = roomProgrammes(col);
+          // What is ACTUALLY running here, from the sessions themselves — not every programme
+          // registered to the room. Event Room 2 is registered to NISS and NASS, but NASS has no
+          // track in Brella and no sessions, and a band reading "NISS · NASS" named a summit
+          // that is not on (Auri, 2026-08-06).
+          const progs = [...new Set(mine.map((x) => x.programme).filter(Boolean))] as string[];
           const bandSpan =
             mine.length > 1
               ? [Math.min(...mine.map((x) => x.start)), Math.max(...mine.map((x) => x.end))]

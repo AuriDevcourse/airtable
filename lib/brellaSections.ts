@@ -216,10 +216,25 @@ export function roomAlias(room: string): string {
 }
 
 /**
- * The named programmes running in a room, for the sub-label under its column heading.
+ * The programme a Brella TRACK belongs to, or null when the track is just a room.
  *
- * Derived from ROOM_ALIASES rather than listed a second time, so a programme that moves room
- * takes its label with it and the heading cannot go stale.
+ * This is what the label should come from, not the room. roomProgrammes() below lists every
+ * programme REGISTERED to a room, which is a different question: Event Room 2 is registered to
+ * both NISS and NASS, but NASS has no track in Brella and no sessions, so a heading built from
+ * the registration said "NISS · NASS" for a room where only NISS is running (Auri, 2026-08-06).
+ * Carried on the session by lib/brellaprogram.ts so the page can name what is actually there.
+ */
+export function programmeOf(track: string): string | null {
+  for (const a of ROOM_ALIASES) if (a.re.test(track)) return a.programme;
+  return null;
+}
+
+/**
+ * Every programme REGISTERED to a room, whether or not it has sessions.
+ *
+ * Only for the case where nothing is scheduled yet and the registration is all there is — an
+ * empty Event Room 6 can still say Deep Tech Event Day is coming. Anywhere sessions exist,
+ * prefer the programmes those sessions actually carry.
  */
 export function roomProgrammes(roomLabel: string): string[] {
   return ROOM_ALIASES.filter((a) => a.room === roomLabel).map((a) => a.programme);

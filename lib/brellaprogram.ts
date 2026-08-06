@@ -12,7 +12,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
-import { roomAlias, spansMorningToEvening } from "@/lib/brellaSections";
+import { programmeOf, roomAlias, spansMorningToEvening } from "@/lib/brellaSections";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -317,6 +317,10 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         // A named programme that occupies a numbered event room is filed under that room.
         // See ROOM_ALIASES; done here so page, route and embed cannot disagree.
         room: roomAlias(track),
+        // The named programme this session belongs to, when its track is one. Kept because
+        // roomAlias() rewrites the track into a room number and throws the name away, and the
+        // board needs it to label a room with what is ACTUALLY running in it.
+        ...(programmeOf(track) ? { programme: programmeOf(track) as string } : {}),
         location: label(a.location),
         speakers: speakersFor(row),
       },

@@ -66,6 +66,14 @@ export type ProgramSession = {
    * programmes have no tags to give.
    */
   tags?: string[];
+  /**
+   * The named programme this session is part of — "NISS", "Future of Fintech", "Policy Stage".
+   *
+   * Only set where a Brella track was folded into a room number by roomAlias(); the fold throws
+   * the track name away and this is what survives it. Absent on a plain "Event Room 4" session,
+   * which belongs to no programme.
+   */
+  programme?: string;
   location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
   speakers?: ProgramSpeaker[];
   // Public sign-up page. Only the Side Events carry one, and only because they come from

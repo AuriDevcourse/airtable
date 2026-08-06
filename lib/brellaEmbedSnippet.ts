@@ -875,7 +875,17 @@ export function buildBrellaEmbedSnippet({
            visitor is looking for. Empty on the stages, which are named after their programme. */
         /* Only on a single-column board (Auri, 2026-08-06). Across six columns the sub-labels
            were six lines of small print competing with the room numbers. */
-        var prog=(cols.length===1)?PROGRAMMES[c]:null;
+        /* What is ACTUALLY in the column, not every programme registered to the room: Event
+           Room 2 is registered to NISS and NASS, but NASS has no track in Brella and no
+           sessions. Falls back to the registration only when the column is empty — the one case
+           where the registration is all there is to say. */
+        var prog=null;
+        if(cols.length===1){
+          var here=mine.filter(function(x){return colKey(x)===c;});
+          var live=[];
+          here.forEach(function(x){if(x.programme&&live.indexOf(x.programme)<0)live.push(x.programme);});
+          prog=live.length?live:(here.length?null:PROGRAMMES[c]);
+        }
         return '<span class="tbbq-bp__colhead"'+hAttr+' style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner
           +(hits>0?'<span class="tbbq-bp__badge">'+hits+'</span>':'')
           +(prog?'<span class="tbbq-bp__colprog">'+esc(prog.join(" \u00b7 "))+'</span>':'')
@@ -907,8 +917,9 @@ export function buildBrellaEmbedSnippet({
          no session behind it to open. */
       var mineC=timed.filter(function(x){return colKey(x.s)===c;});
       var adC=allday.filter(function(x){return colKey(x)===c;});
-      var prog2=PROGRAMMES[c];
-      if(prog2&&!adC.length&&mineC.length>1){
+      var prog2=[];
+      mineC.forEach(function(x){if(x.s.programme&&prog2.indexOf(x.s.programme)<0)prog2.push(x.s.programme);});
+      if(prog2.length&&!adC.length&&mineC.length>1){
         var lo=Math.min.apply(null,mineC.map(function(x){return x.start;}));
         var hi=Math.max.apply(null,mineC.map(function(x){return x.end;}));
         if(lo<=MORNING_BY&&hi>=EVENING_FROM){
