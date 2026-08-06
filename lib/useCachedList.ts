@@ -91,7 +91,19 @@ export function useCachedList<T>(
     const cachedStr = cached ? JSON.stringify(cached) : null;
 
     // 2. Revalidate in the background.
-    fetch(url)
+    //
+    // cache:"no-store" is load-bearing, not belt-and-braces. The feeds send
+    // `stale-while-revalidate=3600` for techbbq.dk's benefit, and a BROWSER honours that too —
+    // so the dashboard's own revalidation was being answered from Chrome's disk cache with a
+    // copy up to an hour old, and this hook then wrote that stale copy into localStorage as if
+    // it were fresh. Three caches stacked (HTTP, localStorage, the server's own) and the middle
+    // one is ours: it already gives the instant paint, so the HTTP layer adds nothing here but
+    // delay. Observed 2026-08-06 — a rename showed the old label on reload after reload while
+    // the server was returning the new one.
+    //
+    // Only affects the dashboard. techbbq.dk keeps the stale-while-revalidate behaviour, which
+    // is right for a public page nobody is editing against.
+    fetch(url, { cache: "no-store" })
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Failed to load");
