@@ -62,6 +62,8 @@ type Session = {
   day: string; // "Day 3 · 26 August"
   timeSlot: string; // "09:30 - 10:00", or "All day"
   type: string;
+  /** Up to three topic tags. `type` is the first of them; this is the set the filter uses. */
+  tags?: string[];
   description: string;
   room: string; // the Brella TRACK — "Founders Stage", "Event Room 3", "Side Event Promotion"
   location?: string; // Brella's venue string, e.g. "Hall E"
@@ -140,6 +142,19 @@ function matchesSpeaker(s: Session, terms: string[]): boolean {
     (s.speakers ?? []).map((p) => `${p.name} ${p.company ?? ""} ${p.title ?? ""}`).join(" ")
   );
   return terms.every((t) => hay.includes(t));
+}
+
+/**
+ * Does this session carry one of the chosen tags?
+ *
+ * ANY, not ALL. A session carries at most three tags and they are mostly disjoint — Panel, AI &
+ * ML, Investment — so requiring all three would return nothing the moment a second chip is on,
+ * which reads as a broken filter. Picking two tags means "show me either".
+ */
+function matchesTags(s: Session, tags: string[]): boolean {
+  if (!tags.length) return true;
+  const own = s.tags ?? [];
+  return tags.some((t) => own.includes(t));
 }
 
 /** "  Jane   Doe " → ["jane","doe"]. Empty when the box is empty, which means "match all". */
@@ -517,6 +532,7 @@ function StageTimeline({
   sessions,
   onOpen,
   terms,
+  tags,
   stageMatches,
   columnSet,
 }: {
@@ -533,11 +549,16 @@ function StageTimeline({
   columnSet: ColumnDef[];
   /** Speaker-search terms. Empty means no search is running and nothing dims. */
   terms: string[];
+  /** Chosen topic tags. Empty means no tag filter and nothing dims. */
+  tags: string[];
   /** Column → matching sessions, for the marker on the heading. Empty when no search is on. */
   stageMatches: Map<string, number>;
 }) {
-  // Everything with a real clock time goes on the grid; "All day" entries cannot be placed
-  // against a time axis and get a strip of their own above it.
+  // "One column" is the FILTERED state — a room was chosen — not a count of what happens to
+  // have sessions today. It gates the programme sub-labels in the headings.
+  const oneColumn = columns.length === 1;
+  // Everything with a real clock time goes on the grid; an "All day" entry cannot be placed
+  // against a time axis and spans its column instead.
   const timed: Placed[] = [];
   const allDay: Session[] = [];
   for (const s of sessions) {
@@ -585,7 +606,10 @@ function StageTimeline({
               {/* WHAT RUNS IN THIS ROOM. "Event Room 2" is a place and says nothing; "NISS ·
                   NASS" is what a visitor is actually looking for. Empty for the stages, which
                   are already named after their programme. */}
-              {roomProgrammes(c).length > 0 && (
+              {/* Only when a single room is chosen (Auri, 2026-08-06). Across six columns the
+                  sub-labels were six lines of small print competing with the room numbers; on
+                  one column there is room for it and it is the thing you just asked about. */}
+              {oneColumn && roomProgrammes(c).length > 0 && (
                 <span className="bp-tl__colProg">{roomProgrammes(c).join(" · ")}</span>
               )}
             </span>
@@ -637,7 +661,11 @@ function StageTimeline({
                   type="button"
                   className="bp-tl__allDayCard"
                   style={{ ...sessionVars(s), top: 0, height } as React.CSSProperties}
-                  data-dim={terms.length > 0 && !matchesSpeaker(s, terms) ? "1" : undefined}
+                  data-dim={
+                    (terms.length > 0 && !matchesSpeaker(s, terms)) || !matchesTags(s, tags)
+                      ? "1"
+                      : undefined
+                  }
                   title={s.name}
                   onClick={() => onOpen(s)}
                 >
@@ -654,7 +682,8 @@ function StageTimeline({
                 // Dimmed, never removed — see the SPEAKER SEARCH note. A card that is dimmed is
                 // also taken out of the tab order: tabbing through 40 faded cards to reach the
                 // two that matched is worse than not having the search.
-                const dim = terms.length > 0 && !matchesSpeaker(s, terms);
+                const dim =
+                  (terms.length > 0 && !matchesSpeaker(s, terms)) || !matchesTags(s, tags);
                 const detail = hasDetail(s);
                 // Below ~46px there is only room for one line, so the card drops the time
                 // and the speaker count rather than showing three clipped half-lines. A card
@@ -809,6 +838,68 @@ function BreathIcon({ size = 12 }: { size?: number }) {
         <path key={i} d={d} />
       ))}
     </svg>
+  );
+}
+
+
+/**
+ * Topic-tag chips for the Event Rooms board.
+ *
+ * Dims rather than removes, like the speaker search above it and for the same reason: pulling
+ * cards out collapses the columns and the clock stops lining up across rooms, which is the only
+ * thing a timeline is for.
+ *
+ * Three at once, matching the three a session can carry. The cap is enforced in toggleTag; here
+ * it only has to SHOW that it is in force, or a chip that silently refuses to turn on reads as
+ * broken.
+ */
+function TagFilter({
+  counts,
+  chosen,
+  onToggle,
+  onClear,
+}: {
+  counts: [string, number][];
+  chosen: string[];
+  onToggle: (t: string) => void;
+  onClear: () => void;
+}) {
+  const full = chosen.length >= 3;
+  return (
+    <div className="bp-tags">
+      <div className="bp-tags__row" role="group" aria-label="Filter by topic">
+        {counts.map(([t, n]) => {
+          const on = chosen.includes(t);
+          return (
+            <button
+              key={t}
+              type="button"
+              className="bp-tags__chip"
+              aria-pressed={on}
+              // Disabled only once three are on AND this is not one of them, so the cap never
+              // stops you turning a chosen tag back off.
+              disabled={!on && full}
+              onClick={() => onToggle(t)}
+            >
+              {t}
+              <span className="bp-tags__n">{n}</span>
+            </button>
+          );
+        })}
+        {chosen.length > 0 && (
+          <button type="button" className="bp-tags__clear" onClick={onClear}>
+            Clear
+          </button>
+        )}
+      </div>
+      <p className="bp-tags__hint" aria-live="polite">
+        {chosen.length === 0
+          ? "Filter by topic · pick up to three"
+          : full
+            ? "Three topics is the maximum · everything else is dimmed"
+            : `${chosen.length} of 3 topics · everything else is dimmed`}
+      </p>
+    </div>
   );
 }
 
@@ -1305,6 +1396,9 @@ export default function BrellaProgramPage() {
   // The speaker search box. Kept OUT of the `days`/`timelineSessions` memos on purpose: this
   // dims cards, it does not remove them, so the layout must not depend on it.
   const [q, setQ] = useState("");
+  // Event Rooms is filtered by TAG as well as by room. Reset whenever the section changes, so a
+  // tag chosen under Event Rooms cannot quietly hide half of Stages.
+  const [tags, setTags] = useState<string[]>([]);
   // Which stage column set to show. "" = all five.
   const [stage, setStage] = useState("");
   // Side Events is filtered by day rather than by track. Declared up here with the other
@@ -1322,6 +1416,7 @@ export default function BrellaProgramPage() {
     setSection(k);
     setTrack("");
     setStage("");
+    setTags([]);
   }, []);
   // useLayoutEffect, not useEffect: this has to run before the browser paints, or the jump is
   // visible for a frame and then corrected, which looks worse than not correcting it.
@@ -1425,6 +1520,27 @@ export default function BrellaProgramPage() {
     );
   }, [all, dayIdx, section, columnSet, timelineColumns]);
 
+  // The tags actually present on what is showing, with counts — never a fixed vocabulary. A
+  // filter offering "Quantum Computing" on a day with no quantum session is a dead end, and
+  // Brella's tag list is edited by marketing without warning.
+  const tagCounts = useMemo(() => {
+    const c = new Map<string, number>();
+    for (const s of timelineSessions) for (const t of s.tags ?? []) c.set(t, (c.get(t) ?? 0) + 1);
+    return [...c.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [timelineSessions]);
+
+  const toggleTag = useCallback((t: string) => {
+    setTags((cur) =>
+      cur.includes(t)
+        ? cur.filter((x) => x !== t)
+        : // Three at once, matching the three a session can carry. A fourth would be a filter
+          // that can only ever return nothing once the tags are disjoint.
+          cur.length >= 3
+          ? cur
+          : [...cur, t]
+    );
+  }, []);
+
   const terms = useMemo(() => searchTerms(q), [q]);
   // Counted over what is CURRENTLY ON SCREEN, so "0 sessions" is answerable: the speaker is
   // real but is on the other day, or in a section you are not looking at. Counting across the
@@ -1464,12 +1580,12 @@ export default function BrellaProgramPage() {
     const m = new Map<string, number>();
     if (!terms.length || !columnSet) return m;
     for (const s of timelineSessions) {
-      if (!matchesSpeaker(s, terms)) continue;
+      if (!matchesSpeaker(s, terms) || !matchesTags(s, tags)) continue;
       const col = columnOf(s.room, columnSet) ?? s.room;
       m.set(col, (m.get(col) ?? 0) + 1);
     }
     return m;
-  }, [timelineSessions, terms, columnSet]);
+  }, [timelineSessions, terms, tags, columnSet]);
 
   /**
    * Picking a suggestion commits the name AND takes you to them: if none of their sessions are
@@ -1641,6 +1757,13 @@ export default function BrellaProgramPage() {
                   onPick={pickSpeaker}
                 />
 
+                {/* TAG FILTER. Only where the tags are worth filtering by: the stages board is
+                    five named programmes and the tag adds little, while a room is a place and
+                    the tag is the only thing that says what kind of session is in it. */}
+                {section === "rooms" && tagCounts.length > 0 && (
+                  <TagFilter counts={tagCounts} chosen={tags} onToggle={toggleTag} onClear={() => setTags([])} />
+                )}
+
                 <p className="count-line">
                   {timelineSessions.length} session(s).
                   {revalidating && <span className="reval"> · checking for updates…</span>}
@@ -1652,6 +1775,7 @@ export default function BrellaProgramPage() {
                   sessions={timelineSessions}
                   onOpen={setOpen}
                   terms={terms}
+                  tags={tags}
                   stageMatches={stageMatches}
                   columnSet={columnSet ?? []}
                 />

@@ -56,6 +56,12 @@ const ALL_DAY_MINUTES = 360;
 // topic shown on a card.
 const ROOMISH_TAG = /^(hall\b|event room\b|rooms?\b|stage\b)/i;
 
+// Brella allows as many tags as marketing cares to add — the 2026 event has sessions carrying
+// six. Three is what a card can show without becoming a tag cloud, and what the Event Rooms
+// filter offers (Auri, 2026-08-06). Cut here rather than in the UI so the page, the embed and
+// anything else reading the feed agree on which three.
+const MAX_TAGS = 3;
+
 const TIMEOUT_MS = 12_000;
 
 export class BrellaError extends Error {
@@ -265,10 +271,11 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
 
     // Topic for the card's tag. Room/hall labels live in tags too, so they are skipped —
     // the stage is already the `room` field.
-    const topic =
-      many(row.relationships?.tags)
-        .map((t) => nameOf("tag", t.id))
-        .find((n) => n && !ROOMISH_TAG.test(n)) || "";
+    const tags = many(row.relationships?.tags)
+      .map((t) => nameOf("tag", t.id))
+      .filter((n) => n && !ROOMISH_TAG.test(n))
+      .slice(0, MAX_TAGS);
+    const topic = tags[0] || "";
 
     // Brella's subtitle is a one-liner ("Side Event Promotion by Rockstart"); the body copy
     // is the Draft.js content. Both are useful, so subtitle leads the description.
@@ -283,6 +290,7 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         name: title,
         timeSlot,
         type: topic,
+        tags,
         description,
         // A named programme that occupies a numbered event room is filed under that room.
         // See ROOM_ALIASES; done here so page, route and embed cannot disagree.

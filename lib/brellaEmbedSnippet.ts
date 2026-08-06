@@ -155,6 +155,10 @@ export function buildBrellaEmbedSnippet({
     <ul class="tbbq-bp__sugg" hidden></ul>
     <p class="tbbq-bp__searchHint" aria-live="polite"></p>
   </div>
+  <div class="tbbq-bp__tags" hidden>
+    <div class="tbbq-bp__tagRow" role="group" aria-label="Filter by topic"></div>
+    <p class="tbbq-bp__tagHint" aria-live="polite"></p>
+  </div>
   <div class="tbbq-bp__out"><p class="tbbq-bp__empty">Loading…</p></div>
   <div class="tbbq-bp__overlay" hidden>
     <div class="tbbq-bp__modal" role="dialog" aria-modal="true" aria-label="Session details"></div>
@@ -261,6 +265,19 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__suggRole{font-family:var(--sans)!important;font-size:11.5px!important;font-weight:400!important;line-height:1.3!important;color:var(--muted)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
   #${id} .tbbq-bp__suggWhere{flex:none!important;display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:2px!important;font-family:var(--head)!important;font-size:10px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.3!important;color:#fa7000!important}
   #${id} .tbbq-bp__suggStage{font-size:9.5px!important;font-weight:600!important;letter-spacing:.04em!important;text-transform:none!important;color:var(--muted)!important;max-width:130px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+  /* TOPIC TAGS. Chips that DIM rather than filter, like the search above them. */
+  #${id} .tbbq-bp__tags{margin:12px auto 0!important;max-width:720px!important;width:100%!important;padding:0!important}
+  #${id} .tbbq-bp__tagRow{display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:6px!important;margin:0!important;padding:0!important}
+  #${id} .tbbq-bp__tag{display:inline-flex!important;align-items:center!important;gap:6px!important;margin:0!important;padding:5px 11px!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:var(--card)!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;line-height:1.3!important;text-transform:none!important;letter-spacing:0!important;cursor:pointer!important;box-shadow:none!important;appearance:none!important}
+  #${id} .tbbq-bp__tag:hover:not(:disabled){color:var(--fg)!important;border-color:var(--muted)!important}
+  #${id} .tbbq-bp__tag[aria-pressed="true"]{border-color:#fa7000!important;background:color-mix(in srgb,#fa7000 16%,transparent)!important;color:var(--fg)!important}
+  /* Faded, not hidden: a cap has to be visible to be understood. */
+  #${id} .tbbq-bp__tag:disabled{opacity:.35!important;cursor:not-allowed!important}
+  #${id} .tbbq-bp__tagN{font-size:10px!important;font-weight:700!important;color:var(--muted)!important}
+  #${id} .tbbq-bp__tag[aria-pressed="true"] .tbbq-bp__tagN{color:#fa7000!important}
+  #${id} .tbbq-bp__tagClear{margin:0!important;padding:5px 11px!important;border:0!important;background:none!important;color:var(--muted)!important;font-family:var(--sans)!important;font-size:12px!important;text-decoration:underline!important;cursor:pointer!important;box-shadow:none!important;appearance:none!important}
+  #${id} .tbbq-bp__tagHint{margin:6px 0 0!important;padding:0!important;font-family:var(--sans)!important;font-size:12.5px!important;font-weight:400!important;line-height:1.4!important;color:var(--muted)!important;text-align:center!important;text-transform:none!important;letter-spacing:0!important}
 
   /* THE DIM. Opacity only — the card keeps its box, or the columns collapse. */
   #${id} .tbbq-bp__ev[data-dim]{opacity:.16!important;filter:saturate(.4)!important;transition:opacity .18s ease,filter .18s ease}
@@ -484,6 +501,13 @@ export function buildBrellaEmbedSnippet({
      whole board with innerHTML and the search box is a sibling of it — the input keeps focus
      and the caret while you type. */
   var TERMS=[];
+  /* Chosen topic tags, at most three — the three a session can carry. ANY, not ALL: the tags
+     are mostly disjoint, so requiring all of them returns nothing the moment a second chip is
+     on, which reads as a broken filter. */
+  var TAGS=[];
+  var tagsEl=root.querySelector(".tbbq-bp__tags");
+  var tagRowEl=root.querySelector(".tbbq-bp__tagRow");
+  var tagHintEl=root.querySelector(".tbbq-bp__tagHint");
   var pickWrap=root.querySelector(".tbbq-bp__pickWrap");
   var pickEl=root.querySelector(".tbbq-bp__pick");
   var overlay=root.querySelector(".tbbq-bp__overlay");
@@ -615,6 +639,12 @@ export function buildBrellaEmbedSnippet({
     var sp=s&&s.speakers||[],i,out=[];
     for(i=0;i<sp.length;i++)out.push((sp[i].name||"")+" "+(sp[i].company||"")+" "+(sp[i].title||""));
     return norm(out.join(" "));
+  }
+  function matchesTags(s){
+    if(!TAGS.length)return true;
+    var own=(s&&s.tags)||[],i;
+    for(i=0;i<TAGS.length;i++)if(own.indexOf(TAGS[i])>=0)return true;
+    return false;
   }
   function matchesQ(s){
     if(!TERMS.length)return true;
@@ -824,11 +854,14 @@ export function buildBrellaEmbedSnippet({
            and scrolls sideways on a phone — so a match far down a column you are not looking at
            is otherwise invisible. */
         var hits=0;
-        if(TERMS.length)for(var hi=0;hi<timed.length;hi++)if(colKey(timed[hi].s)===c&&matchesQ(timed[hi].s))hits++;
-        var hAttr=(hits>0?' data-hasmatch="1"':(TERMS.length?' data-dim="1"':''));
+        var filtering=TERMS.length||TAGS.length;
+        if(filtering)for(var hi=0;hi<timed.length;hi++)if(colKey(timed[hi].s)===c&&matchesQ(timed[hi].s)&&matchesTags(timed[hi].s))hits++;
+        var hAttr=(hits>0?' data-hasmatch="1"':(filtering?' data-dim="1"':''));
         /* "Event Room 2" is a place and says nothing on its own; "NISS · NASS" is what a
            visitor is looking for. Empty on the stages, which are named after their programme. */
-        var prog=PROGRAMMES[c];
+        /* Only on a single-column board (Auri, 2026-08-06). Across six columns the sub-labels
+           were six lines of small print competing with the room numbers. */
+        var prog=(cols.length===1)?PROGRAMMES[c]:null;
         return '<span class="tbbq-bp__colhead"'+hAttr+' style="position:absolute;top:0;height:'+HEADH+'px;left:'+CL(i)+';width:'+CW+';'+vars+'">'+inner
           +(hits>0?'<span class="tbbq-bp__badge">'+hits+'</span>':'')
           +(prog?'<span class="tbbq-bp__colprog">'+esc(prog.join(" \u00b7 "))+'</span>':'')
@@ -950,7 +983,7 @@ export function buildBrellaEmbedSnippet({
           /* Dimmed, never removed: pulling the card would collapse the column and the clock
              would stop lining up across stages. tabindex -1 so keyboard focus skips the faded
              ones instead of walking through forty of them. */
-          +(TERMS.length&&!matchesQ(s)?' data-dim="1" tabindex="-1"':'');
+          +((TERMS.length&&!matchesQ(s))||!matchesTags(s)?' data-dim="1" tabindex="-1"':'');
         /* The face stack is OUTSIDE the who-row and always rendered, so a compact or tight card
            still shows who is on it — those two hide the who-row, and they cover most of the
            board. data-faces tells the title to leave room for it. */
@@ -994,7 +1027,7 @@ export function buildBrellaEmbedSnippet({
             +(sum?'<p class="tbbq-bp__count">'+esc(sum)+'</p>':'')
             /* Last line on the card: it is a caveat, not a headline. */
             +(s.access==="private-invite"?'<p class="tbbq-bp__note">'+esc(PRIVATE_NOTE)+'</p>':'');
-          var st=' style="'+sessionVars(s)+'"'+(TERMS.length&&!matchesQ(s)?' data-dim="1"':'');
+          var st=' style="'+sessionVars(s)+'"'+((TERMS.length&&!matchesQ(s))||!matchesTags(s)?' data-dim="1"':'');
           /* No Register button on the preview (Auri, 2026-08-04): a pill on every card turned
              this section into a wall of buttons, and someone should read what an event is
              before signing up. The sign-up page lives in the dialog, and hasDetail() counts a
@@ -1085,6 +1118,51 @@ export function buildBrellaEmbedSnippet({
       : "Nothing on this day \u2014 the highlighted tab has them";
   }
 
+  /* The tags actually present on what is showing, with counts — never a fixed vocabulary. A
+     chip for a topic that is not on today is a dead end, and Brella's tag list is edited
+     without warning. Rooms only: a stage is a named programme and the tag adds little. */
+  function renderTags(){
+    if(!tagsEl)return;
+    if(SECTION!=="rooms"){tagsEl.hidden=true;tagRowEl.innerHTML="";TAGS=[];return;}
+    var date=(EVENT_DAYS[dayIdx]||{}).date||"",counts={},order=[],i,j;
+    for(i=0;i<ALL.length;i++){
+      var s=ALL[i];
+      if(IS_TL&&!SPLIT_DAYS&&String(s.day||"").indexOf(date)<0)continue;
+      /* columnOf, not colKey: colKey is a local of renderTimeline and invisible here. Reaching
+         for it threw a ReferenceError that aborted the pill handler before render() ran, so
+         choosing a room appeared to do nothing at all. */
+      if(col&&(columnOf(s.room)||s.room)!==col)continue;
+      var tg=s.tags||[];
+      for(j=0;j<tg.length;j++){if(!counts[tg[j]]){counts[tg[j]]=0;order.push(tg[j]);}counts[tg[j]]++;}
+    }
+    if(!order.length){tagsEl.hidden=true;tagRowEl.innerHTML="";return;}
+    order.sort(function(a,b){return counts[b]-counts[a]||a.localeCompare(b);});
+    var full=TAGS.length>=3;
+    tagsEl.hidden=false;
+    tagRowEl.innerHTML=order.map(function(t){
+      var on=TAGS.indexOf(t)>=0;
+      /* Disabled only once three are on AND this is not one of them, so the cap can never stop
+         you turning a chosen tag back off. */
+      return '<button type="button" class="tbbq-bp__tag" data-t="'+esc(t)+'" aria-pressed="'+on+'"'
+        +((!on&&full)?' disabled':'')+'>'+esc(t)+'<span class="tbbq-bp__tagN">'+counts[t]+'</span></button>';
+    }).join("")+(TAGS.length?'<button type="button" class="tbbq-bp__tagClear">Clear</button>':'');
+    tagHintEl.textContent=!TAGS.length
+      ? "Filter by topic \u00b7 pick up to three"
+      : (full?"Three topics is the maximum \u00b7 everything else is dimmed"
+             :TAGS.length+" of 3 topics \u00b7 everything else is dimmed");
+  }
+  if(tagRowEl){
+    tagRowEl.addEventListener("click",function(e){
+      var c=e.target&&e.target.closest?e.target.closest(".tbbq-bp__tagClear"):null;
+      if(c){TAGS=[];renderTags();render();return;}
+      var b=e.target&&e.target.closest?e.target.closest(".tbbq-bp__tag"):null;
+      if(!b||b.disabled)return;
+      var t=b.getAttribute("data-t"),i=TAGS.indexOf(t);
+      if(i>=0)TAGS.splice(i,1); else if(TAGS.length<3)TAGS.push(t);
+      renderTags(); render();
+    });
+  }
+
   function onSearch(){
     TERMS=toTerms(searchEl.value);
     renderSuggestions();
@@ -1137,6 +1215,7 @@ export function buildBrellaEmbedSnippet({
     SECTION=key;
     ALL=GROUPS[key]||[];
     COLS=compile(COLS_BY_SECTION[key]);
+    TAGS=[];
     IS_TL=COLS.length>0;
     col="";sideDay="";
     buildSectionControls();
@@ -1318,6 +1397,7 @@ export function buildBrellaEmbedSnippet({
       if(!b)return;
       col=b.getAttribute("data-t");
       Array.prototype.forEach.call(pillsEl.children,function(x){x.setAttribute("aria-selected",String(x===b));});
+      renderTags();
       if(pickEl)pickEl.value=col;
       render();
     });
@@ -1327,6 +1407,8 @@ export function buildBrellaEmbedSnippet({
       if(b.hasAttribute("data-d"))dayIdx=+b.getAttribute("data-d");
       else sideDay=b.getAttribute("data-sd");
       Array.prototype.forEach.call(daysEl.children,function(x){x.setAttribute("aria-selected",String(x===b));});
+      /* The chips list what is on TODAY, so a day change rebuilds them. */
+      renderTags();
       render();
     });
     if(pickEl)pickEl.addEventListener("change",function(){
@@ -1368,6 +1450,7 @@ export function buildBrellaEmbedSnippet({
     wireControls();
     syncNarrow();
     render();
+    renderTags();
     /* The resting hint. Without this the line is blank until the first keystroke, so the box
        looks like it might not do anything. */
     paintHint();

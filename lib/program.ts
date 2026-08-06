@@ -55,6 +55,17 @@ export type ProgramSession = {
   room: string;
   // Optional so the three Airtable sources don't have to invent them. Consumers must treat
   // both as possibly-absent: the agenda embed predates them and ignores them entirely.
+  /**
+   * Every topic tag on the session, room/hall labels stripped, capped at three.
+   *
+   * `type` is the FIRST of these and is unchanged — the speaker grids and older embeds read it,
+   * and a card has room for one kicker. This is the full set, for FILTERING: a session tagged
+   * Panel + AI & ML + Investment is findable by only one of the three if the feed keeps one.
+   *
+   * Optional, like the two below: only the Brella source fills it, and the Airtable-sourced
+   * programmes have no tags to give.
+   */
+  tags?: string[];
   location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
   speakers?: ProgramSpeaker[];
   // Public sign-up page. Only the Side Events carry one, and only because they come from
