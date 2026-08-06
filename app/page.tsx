@@ -22,7 +22,7 @@ import { HOURLY_FEEDS, inFastWindow } from "@/lib/cachePolicy";
 // step state. The step is only about how much is on screen at once.
 
 type Item = { href: string; label: string; note: string };
-type SectionKey = "speakers" | "projects" | "program";
+type SectionKey = "speakers" | "projects" | "rooms" | "program";
 type Section = {
   key: SectionKey;
   title: string;
@@ -59,6 +59,19 @@ function IconCalendar() {
       <path d="M16 2v4" />
       <rect width="18" height="18" x="3" y="4" rx="2" />
       <path d="M3 10h18" />
+    </>
+  );
+}
+
+// Lucide "door-open": the Event Rooms group is the physical rooms at the venue, not a topic.
+function IconDoor() {
+  return (
+    <>
+      <path d="M13 4h3a2 2 0 0 1 2 2v14" />
+      <path d="M2 20h3" />
+      <path d="M13 20h9" />
+      <path d="M10 12v.01" />
+      <path d="M13 2.5a1 1 0 0 0-1.16-.99l-6 1A1 1 0 0 0 5 3.5V20a1 1 0 0 0 1.16.99l6-1A1 1 0 0 0 13 19z" />
     </>
   );
 }
@@ -164,16 +177,6 @@ const SECTIONS: Section[] = [
         note: "Nordic Africa Startup Summit, this year's grid.",
       },
       {
-        href: "/fintech-speakers",
-        label: "Fintech Speakers",
-        note: "Future of Fintech · the speaker submissions for that day.",
-      },
-      {
-        href: "/policy-stage",
-        label: "The Policy Stage",
-        note: "The Policy Stage roster · ministers, MEPs and ecosystem leaders, across Event Rooms 5, 6 and 7.",
-      },
-      {
         href: "/investors",
         label: "Investor speakers",
         note: "LP Forum, Investor Day and the Pension & Insurance Summit, filtered per event.",
@@ -187,6 +190,33 @@ const SECTIONS: Section[] = [
         href: "/niss-2025",
         label: "NISS 2025",
         note: "Last year's Nordic India Startup Summit, kept as an archive.",
+      },
+    ],
+  },
+  // EVENT ROOMS is a PLACE, not a theme — that is the whole point of splitting it out of
+  // Projects (Auri, 2026-08-06). Policy Stage is Rooms 5/6/7, Future of Fintech runs in a room
+  // rather than on a stage, and the partner-run sessions are the room schedule itself. Grouped
+  // by where you physically go, they stop reading as three unrelated Airtable tables.
+  {
+    key: "rooms",
+    title: "Event Rooms",
+    blurb: "What is on in the rooms, and who is in them. Grouped by where it happens.",
+    icon: <IconDoor />,
+    items: [
+      {
+        href: "/partner-events",
+        label: "Side Events & Event Rooms",
+        note: "The room schedule · what partners are running around the Summit, and where.",
+      },
+      {
+        href: "/policy-stage",
+        label: "The Policy Stage",
+        note: "Ministers, MEPs and ecosystem leaders · Event Rooms 5, 6 and 7.",
+      },
+      {
+        href: "/fintech-speakers",
+        label: "Future of Fintech",
+        note: "Speakers, moderators and keynotes for the fintech day.",
       },
     ],
   },
@@ -205,11 +235,6 @@ const SECTIONS: Section[] = [
         href: "/program",
         label: "Project programs",
         note: "The agendas for NISS and Future of Fintech, from each team's own Airtable view.",
-      },
-      {
-        href: "/partner-events",
-        label: "Side Events & Event Rooms",
-        note: "What partners are running around the Summit, and where.",
       },
     ],
   },
