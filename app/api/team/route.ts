@@ -30,8 +30,22 @@ export async function GET(req: NextRequest) {
     if (gate.fresh) invalidate(key);
 
     const members = await cached(key, () => fetchTeam(department), dailyTtlMs());
+
+    // ?email=0 — the addresses never leave the server.
+    //
+    // The embed already has an `email` flag, but that only stops it DRAWING them: the JSON
+    // still carries every address, one devtools panel away, and a scraper reads JSON before it
+    // reads markup. For a card wall whose whole point is "show the team without publishing
+    // their inboxes", not sending the field is the only version of that which is true.
+    //
+    // Stripped AFTER the cache, like every other feed variant here, so both shapes share one
+    // Airtable read. Opt-IN to omission, so the existing embeds on techbbq.dk — which do print
+    // emails, by product decision — keep working untouched.
+    const withEmail = req.nextUrl.searchParams.get("email") !== "0";
+    const team = withEmail ? members : members.map(({ email: _drop, ...rest }) => rest);
+
     return feedResponse(
-      { count: members.length, department: department || "all", team: members },
+      { count: team.length, department: department || "all", team },
       gate,
       { daily: true }
     );

@@ -195,6 +195,30 @@ export default function TeamPage() {
               email
               deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
             />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Cards with a mailto link under each name.
+            </span>
+          </div>
+
+          {/* NAMES, PHOTOS AND TITLES ONLY — for a "meet the team" block that is not also a
+              contact directory (Auri, 2026-08-06).
+              It points at ?email=0 as well as passing email={false}: the flag alone only stops
+              the snippet DRAWING the address, while the feed keeps shipping all 27 of them in
+              the JSON, one devtools panel away. Two changes, because "do not show" and "do not
+              send" are different promises and only the second one holds up. */}
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <CopyEmbed
+              path={embedUrl + (embedUrl.includes("?") ? "&" : "?") + "email=0"}
+              listKey="team"
+              shuffle={active === TABS_ALL}
+              loadMore={false}
+              email={false}
+              deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
+              label="Copy embed (no emails)"
+            />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Name, photo, job title and LinkedIn · addresses never reach the page.
+            </span>
           </div>
 
           {/* This feed is the slowest to refresh on its own — daily outside the event window
