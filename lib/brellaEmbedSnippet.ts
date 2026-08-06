@@ -896,7 +896,7 @@ export function buildBrellaEmbedSnippet({
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
-      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(SPLIT?"Nothing on this day":(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled"))+'</p>';
+      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(SPLIT?"Nothing on this day":(/^event room/i.test(c)?"Information coming soon":(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled")))+'</p>';
       /* Lanes per CLUSTER of overlapping sessions, compared on the DRAWN extent: a 5-minute
          slot is floored to a minimum height and so covers the next card even though the clock
          says it has finished. Counting per column would halve every card on the stage. */

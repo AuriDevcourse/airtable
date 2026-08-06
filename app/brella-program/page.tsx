@@ -675,7 +675,16 @@ function StageTimeline({
               ))}
               {laid.length === 0 && alldayHere.length === 0 && (
                 <p className="bp-tl__empty">
-                  {/campfire/i.test(col) ? "Program coming soon" : "Nothing scheduled"}
+                  {/* An empty ROOM is not the same as an empty stage. A stage with nothing on
+                      it has a gap in its day; a room column that is empty usually means the
+                      programme has not been handed over yet — Event Room 6 has Deep Tech Event
+                      Day coming and no track in Brella (Auri, 2026-08-06). "Nothing scheduled"
+                      would read as a decision rather than as work in progress. */}
+                  {/^event room/i.test(col)
+                    ? "Information coming soon"
+                    : /campfire/i.test(col)
+                      ? "Program coming soon"
+                      : "Nothing scheduled"}
                 </p>
               )}
               {laid.map(({ s, top, h, breath, opening, band, padTop }) => {

@@ -51,6 +51,25 @@ const HIDDEN_TRACKS: RegExp[] = [/^lp forum/i];
 // "00:00 - 12:00" for it reads like a bug.
 const ALL_DAY_MINUTES = 360;
 
+// MORNING TO EVENING IS AN ALL-DAY THING TOO, however long it technically runs (Auri,
+// 2026-08-06). A booking that opens in the morning and is still going in the evening has taken
+// the room for the day, and on the board it should be the band that says so rather than a tall
+// block that happens to reach both ends.
+//
+// Deliberately strict — BOTH ends, not a duration. Auri chose this over lowering the 6h cap:
+// Nordic IPO (12:30-17:30) and Beyond Unicorns (13:30-17:30) run to the close but start after
+// lunch, and calling an afternoon workshop "all day" overstates it. Nothing in the 2026
+// schedule matches yet; the rule is here for the bookings that will.
+const MORNING_BY_MIN = 11 * 60; // started by 11:00
+const EVENING_FROM_MIN = 16 * 60; // still running at 16:00
+
+/** "09:30" → 570. null when Brella gave us something unparseable. */
+function minutesOfDay(iso: string): number | null {
+  const hhmm = localTime(iso);
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
 // Tags carry topics ("AI", "HealthTech") but marketing also parks room/hall labels in
 // there. The stage already comes from the track, so those are skipped when picking the
 // topic shown on a card.
@@ -264,8 +283,15 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
 
     const duration = typeof a.duration === "number" ? a.duration : 0;
     const endIso = str(a["end-time"]);
+    const startMin = minutesOfDay(startIso);
+    const endMin = endIso ? minutesOfDay(endIso) : null;
+    const morningToEvening =
+      startMin !== null &&
+      endMin !== null &&
+      startMin <= MORNING_BY_MIN &&
+      endMin >= EVENING_FROM_MIN;
     const timeSlot =
-      duration >= ALL_DAY_MINUTES
+      duration >= ALL_DAY_MINUTES || morningToEvening
         ? "All day"
         : [localTime(startIso), endIso ? localTime(endIso) : ""].filter(Boolean).join(" - ");
 

@@ -67,6 +67,10 @@ export const BRELLA_ROOMS: ColumnDef[] = [
   // resolves first-match-wins — so the combined space would land in the Room 5 column and its
   // own column would sit permanently empty.
   { label: "Event Room 5", match: /^event room 5\b(?!\s*,)/i },
+  // Real this year and not in Brella yet — Deep Tech Event Day is going in here (Auri,
+  // 2026-08-06). Declared now so it shows as an empty column with "Information coming soon"
+  // rather than appearing out of nowhere the day the track is created.
+  { label: "Event Room 6", match: /^event room 6\b/i },
   { label: ROOM_567, match: /policy stage|rooms?\s*5\s*,?\s*6\s*,?\s*7|^event room 5\s*,/i },
 ];
 
@@ -200,6 +204,10 @@ const ROOM_ALIASES: { re: RegExp; room: string; programme: string }[] = [
   // Rooms 5, 6 and 7 opened up are ONE space with one name, not three rooms — so the column
   // is called after the space and the Policy Stage is the programme running in it.
   { re: /policy stage/i, room: ROOM_567, programme: "Policy Stage" },
+  // Not in Brella yet. Matched now so it lands in Room 6 with its label the day it appears,
+  // rather than defaulting to Stages — the same future-proofing Nordic Africa has. Specific
+  // enough not to catch "Life Science x Deep Tech Stage".
+  { re: /deep tech event day/i, room: "Event Room 6", programme: "Deep Tech Event Day" },
 ];
 
 export function roomAlias(room: string): string {
