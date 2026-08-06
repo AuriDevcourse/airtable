@@ -1306,20 +1306,45 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    the body, so without room it reads as cut off. */
 .bp-tl { margin-top: 20px; padding-bottom: 22px; --gutter: 74px; }
 
-.bp-tl__allday {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 12px; padding: 8px 10px;
-  border: 1px solid var(--color-border); border-radius: 10px;
+/* ── AN ALL-DAY SESSION IS THE WHOLE COLUMN ────────────────────────────────────────────
+   It replaced a row of chips above the board. A chip could say a thing existed; it could not
+   say the room is booked from open to close, which is the only reason anyone looks at a room
+   column. Height is set inline from the timeline's own height, so it always reaches the last
+   gridline exactly.
+
+   Drawn BEHIND the timed cards (z-index 0 against their 1+), because the two are nested rather
+   than competing: Event Room 1 runs nine sessions INSIDE its all-day Board Summit. A lane
+   beside them would have said the opposite and halved every card on the column. */
+.bp-tl__allDayCard {
+  position: absolute;
+  left: 0; right: 0;
+  z-index: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, var(--track) 45%, transparent);
+  border-radius: 8px;
+  /* A wash, not a fill. Whatever sits on top has to stay readable through it. */
+  background: color-mix(in srgb, var(--track) 9%, transparent);
+  color: var(--color-foreground);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
 }
-.bp-tl__allday > div { display: flex; flex-wrap: wrap; gap: 6px; }
-.bp-tl__alldayLabel {
-  flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--color-muted);
+.bp-tl__allDayCard:hover { background: color-mix(in srgb, var(--track) 16%, transparent); }
+.bp-tl__allDayCard:focus-visible { outline: 2px solid var(--track); outline-offset: -2px; }
+.bp-tl__allDayLabel {
+  font-family: var(--font-heading);
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--track);
 }
-.bp-tl__chipCard {
-  border: 0; border-left: 3px solid var(--track, var(--color-red));
-  background: var(--color-card); color: var(--color-foreground);
-  padding: 5px 9px; border-radius: 4px; font-size: 12px; cursor: pointer; text-align: left;
+/* The title stays at the TOP of a column that can be 2000px tall — centred, it would sit off
+   screen on a tall day and the band would read as an unexplained tint. */
+.bp-tl__allDayTitle {
+  font-family: var(--font-heading);
+  font-size: 12.5px; font-weight: 600; line-height: 1.25;
+  color: #fff;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 
 /* Head and body share one grid template, or the column headings drift off their columns. */

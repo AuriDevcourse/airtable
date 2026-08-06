@@ -490,10 +490,19 @@ function StageTimeline({
   onOpen,
   terms,
   stageMatches,
+  columnSet,
 }: {
   columns: string[];
   sessions: Session[];
   onOpen: (s: Session) => void;
+  /**
+   * The section's column DEFINITIONS. Needed because a track name and its column label are not
+   * always the same string: "Policy Stage (Rooms 5,6,7)" belongs to the column "Policy Stage".
+   * This used to group by stageOf(), which only knows the five stages, so every Event Rooms
+   * track resolved to null and only survived by accidentally equalling its own label — and the
+   * Policy Stage, which does not, was dropped from the board entirely.
+   */
+  columnSet: ColumnDef[];
   /** Speaker-search terms. Empty means no search is running and nothing dims. */
   terms: string[];
   /** Column → matching sessions, for the marker on the heading. Empty when no search is on. */
@@ -524,25 +533,6 @@ function StageTimeline({
 
   return (
     <div className="bp-tl" style={{ "--cols": columns.length } as React.CSSProperties}>
-      {allDay.length > 0 && (
-        <div className="bp-tl__allday">
-          <span className="bp-tl__alldayLabel">All day</span>
-          <div>
-            {allDay.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="bp-tl__chipCard"
-                style={sessionVars(s)}
-                onClick={() => onOpen(s)}
-              >
-                {s.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="bp-tl__head">
         <span className="bp-tl__gutterHead" />
         {columns.map((c) => {
@@ -594,13 +584,34 @@ function StageTimeline({
         ))}
 
         {columns.map((col) => {
+          const inCol = (s: Session) => (columnOf(s.room, columnSet) ?? s.room) === col;
           const mine = timed
-            .filter((s) => (stageOf(s.room) ?? s.room) === col)
+            .filter(inCol)
             .sort((a, b) => a.start - b.start || a.name.localeCompare(b.name));
+          // ALL-DAY SESSIONS SPAN THE WHOLE COLUMN (Auri, 2026-08-06). A room that is booked
+          // all day for one thing — "Board Summit", the Policy Stage — is a different fact from
+          // a room with a gap in it, and a chip in a strip above the board said neither. Drawn
+          // BEHIND the timed cards rather than as a lane beside them: Event Room 1 runs nine
+          // sessions inside its all-day Board Summit, so the two are nested, not competing.
+          const alldayHere = allDay.filter(inCol);
           const laid = layOutColumn(withLanes(mine), from);
           return (
             <div key={col} className="bp-tl__col">
-              {laid.length === 0 && (
+              {alldayHere.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="bp-tl__allDayCard"
+                  style={{ ...sessionVars(s), top: 0, height } as React.CSSProperties}
+                  data-dim={terms.length > 0 && !matchesSpeaker(s, terms) ? "1" : undefined}
+                  title={s.name}
+                  onClick={() => onOpen(s)}
+                >
+                  <span className="bp-tl__allDayLabel">All day</span>
+                  <span className="bp-tl__allDayTitle">{s.name}</span>
+                </button>
+              ))}
+              {laid.length === 0 && alldayHere.length === 0 && (
                 <p className="bp-tl__empty">
                   {/campfire/i.test(col) ? "Program coming soon" : "Nothing scheduled"}
                 </p>
@@ -1596,6 +1607,7 @@ export default function BrellaProgramPage() {
                   onOpen={setOpen}
                   terms={terms}
                   stageMatches={stageMatches}
+                  columnSet={columnSet ?? []}
                 />
               </>
             ) : (

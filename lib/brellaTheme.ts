@@ -31,6 +31,10 @@ export const TRACK_STYLES: TrackStyle[] = [
   { re: "blue grill", color: "#1B6CA8" },
   { re: "orange grill", color: "#FA7000" },
   { re: "^event room|^rooms?\\b", color: "#1B6CA8" },
+  // The Policy Stage is three event rooms opened up, not a stage, so it wears the room blue.
+  // Without this it fell through to the orange default and read as a sixth stage on a board of
+  // otherwise-blue rooms.
+  { re: "policy stage", color: "#1B6CA8" },
   { re: "^side event", color: "#CE0F2E" },
 ];
 

@@ -206,10 +206,15 @@ export function buildBrellaEmbedSnippet({
      below the body. Without this the 05:00 PM label sits flush against whatever follows and
      reads as cut off, which is how it looked in the Elementor editor. */
   #${id} .tbbq-bp__tl{margin:0!important;padding:0 0 22px!important}
-  #${id} .tbbq-bp__allday{display:flex!important;align-items:center!important;gap:12px!important;margin:0 0 12px!important;padding:8px 10px!important;border:1px solid var(--border)!important;border-radius:10px!important}
-  #${id} .tbbq-bp__alldayLabel{flex:none!important;font-size:11px!important;letter-spacing:.1em!important;text-transform:uppercase!important;color:var(--muted)!important}
-  #${id} .tbbq-bp__alldayList{display:flex!important;flex-wrap:wrap!important;gap:6px!important}
-  #${id} .tbbq-bp__chip{appearance:none!important;border:0!important;border-left:3px solid var(--track)!important;background:var(--card)!important;color:var(--fg)!important;padding:5px 9px!important;border-radius:4px!important;font-size:12px!important;cursor:pointer!important;text-align:left!important}
+  /* AN ALL-DAY SESSION IS THE WHOLE COLUMN. A wash rather than a fill, dashed rather than
+     solid, so whatever sits on top of it stays readable. Height comes inline from the
+     timeline's own height, so it always reaches the last gridline exactly. */
+  #${id} .tbbq-bp__allDay{display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important;padding:8px 10px!important;border:1px dashed color-mix(in srgb,var(--track) 45%,transparent)!important;border-radius:8px!important;background:color-mix(in srgb,var(--track) 9%,transparent)!important;color:var(--fg)!important;text-align:left!important;font:inherit!important;cursor:pointer!important;overflow:hidden!important;box-shadow:none!important;appearance:none!important}
+  #${id} .tbbq-bp__allDay:hover{background:color-mix(in srgb,var(--track) 16%,transparent)!important}
+  #${id} .tbbq-bp__allDay:focus-visible{outline:2px solid var(--track)!important;outline-offset:-2px!important}
+  #${id} .tbbq-bp__allDayLabel{font-family:var(--head)!important;font-size:9.5px!important;font-weight:700!important;letter-spacing:.1em!important;text-transform:uppercase!important;line-height:1.3!important;color:var(--track)!important}
+  /* Pinned at the TOP of a column that can be 2000px tall — centred it would sit off screen. */
+  #${id} .tbbq-bp__allDayTitle{font-family:var(--head)!important;font-size:12.5px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important;overflow-wrap:anywhere!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
   /* NO CSS GRID HERE. On techbbq.dk the theme blockified the grid container — the timeline
      collapsed, the gutter ran the full width and every card drew on top of the next. The
@@ -760,17 +765,21 @@ export function buildBrellaEmbedSnippet({
     var ticks=[];for(var t=from;t<=to;t+=SLOT)ticks.push(t);
 
     var html="";
-    if(allday.length){
-      html+='<div class="tbbq-bp__allday"><span class="tbbq-bp__alldayLabel">All day</span><div class="tbbq-bp__alldayList">'
-        +allday.map(function(s){return '<button type="button" class="tbbq-bp__chip" data-id="'+esc(s.id)+'" style="'+sessionVars(s)+'">'+esc(s.name)+'</button>';}).join("")
-        +'</div></div>';
-    }
+    /* The all-day strip that used to sit here is gone. An all-day session now SPANS ITS COLUMN
+       (see the per-column block below): a room booked open-to-close is a different fact from a
+       room with gaps in it, and a chip in a strip said neither. */
     /* Written inline, not left to the stylesheet. On techbbq.dk the timeline collapsed to
        block flow — the gutter ran the full width with its times pinned right, and every card
        positioned against the BODY instead of its column, so they all drew full width on top of
        each other. Inline styles cannot be lost the way a stylesheet rule can, and they also
        avoid depending on the --cols custom property surviving the paste. */
     var GUT=narrow?60:74;
+    /* Breathing room either side of every card, so one column's card does not run up against
+       its neighbour (Auri, 2026-08-04). Declared HERE rather than inside the per-card loop:
+       the all-day card in the column loop needs it too, and a var inside a callback is not
+       visible to its caller. (No backticks in this file — it is one JS template literal.) Tighter on a phone, where there is one column and the width is
+       all text. */
+    var INSET=narrow?6:12;
     var N=cols.length;
     /* One column's width, and the left edge of column i, as calc() so they still track a
        fluid container. 4px of side padding inside each column stands in for the grid gap. */
@@ -811,6 +820,17 @@ export function buildBrellaEmbedSnippet({
          abs-positioned child resolves left/width against the PADDING box — padding included —
          so padding here moves nothing. The inset is applied to each card below instead. */
       html+='<div class="tbbq-bp__col" style="position:absolute;top:0;height:100%;left:'+CL(ci)+';width:'+CW+';box-sizing:border-box">';
+      /* Behind the timed cards (z-index 0 against their 1+), because the two are NESTED: a room
+         runs its sessions inside its all-day booking. A lane beside them would halve every card
+         on the column and say the opposite. */
+      allday.filter(function(x){return colKey(x)===c;}).forEach(function(s){
+        html+='<button type="button" class="tbbq-bp__allDay" data-id="'+esc(s.id)+'"'
+          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:0;height:'+height+'px;z-index:0;'+sessionVars(s)+'"'
+          +' title="'+esc(s.name)+'">'
+          +'<span class="tbbq-bp__allDayLabel">All day</span>'
+          +'<span class="tbbq-bp__allDayTitle">'+esc(s.name)+'</span>'
+          +'</button>';
+      });
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
@@ -881,7 +901,10 @@ export function buildBrellaEmbedSnippet({
            channel of their own, so 12px a side gives the ~24px between cards that the dashboard
            gets from 8px plus its 8px grid gap — the preview and the pasted embed have to match.
            Tighter on a phone, where there is one column and the width is all text. */
-        var INSET=narrow?6:12;
+        /* INSET is hoisted above the column loop — see the declaration near GUT. It used to be
+           declared here, which is inside the per-card callback, so the all-day card in the
+           column loop could not see it and threw a ReferenceError that killed the whole
+           column's markup. */
         var st="position:absolute;top:"+g.top+"px;height:"+h+"px;left:calc("+((p.lane*100)/p.lanes)+"% + "+INSET+"px);width:calc("+(100/p.lanes)+"% - "+(INSET*2)+"px);"+sessionVars(s)
           /* ALWAYS in front: every card around a break is drawn taller than its own slot, so
              without this the break is behind one and in front of the next. */

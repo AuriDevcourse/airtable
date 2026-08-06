@@ -40,6 +40,30 @@ export const BRELLA_STAGES: ColumnDef[] = [
   { label: "Life Science x Deep Tech Stage", match: /life science/i },
 ];
 
+// THE EVENT ROOMS, on a clock like the stages (Auri, 2026-08-06).
+//
+// They were a card list, which reads as "a pile of things happening in rooms" and loses the one
+// fact a visitor needs: a room is a PLACE, and at 14:00 exactly one thing is on in it. On a
+// timeline the shape of the day is the information — Event Room 2 runs eleven short talks
+// back-to-back while Event Room 3 is one five-hour block, and you can see that without reading
+// a single time.
+//
+// Explicit, like BRELLA_STAGES and for the same reason: a room with nothing scheduled should
+// show as a visibly empty column rather than silently not exist. Rooms 3 and 4 carry one
+// session each today and would otherwise appear and disappear day to day.
+//
+// The Policy Stage is a room despite its name — it IS Rooms 5, 6 and 7 knocked together — so it
+// gets a column here rather than on the stages board, where it matched no stage regex and was
+// being dropped from the timeline entirely.
+export const BRELLA_ROOMS: ColumnDef[] = [
+  { label: "Event Room 1", match: /^event room 1\b/i },
+  { label: "Event Room 2", match: /^event room 2\b/i },
+  { label: "Event Room 3", match: /^event room 3\b/i },
+  { label: "Event Room 4", match: /^event room 4\b/i },
+  { label: "Event Room 5", match: /^event room 5\b/i },
+  { label: "Policy Stage", match: /policy stage|rooms?\s*5\s*,?\s*6\s*,?\s*7/i },
+];
+
 // The Grill Sessions, in signage order rather than alphabetical. They run on a clock in
 // parallel exactly like the stages, so they get the same timeline treatment.
 export const BRELLA_GRILLS: ColumnDef[] = [
@@ -62,6 +86,7 @@ export function stageOf(room: string): string | null {
 /** The sections drawn as a timeline, and the columns each one uses. */
 export const TIMELINE_COLUMNS: Partial<Record<BrellaSection, ColumnDef[]>> = {
   stages: BRELLA_STAGES,
+  rooms: BRELLA_ROOMS,
   grills: BRELLA_GRILLS,
 };
 
@@ -178,6 +203,10 @@ export function sectionOf(room: string): BrellaSection {
   if (GRILLS.test(room)) return "grills";
   // "Event Room 3" and "Rooms 5,6,7" are both room tracks.
   if (/^(event room|rooms?\b)/i.test(room)) return "rooms";
+  // "Policy Stage (Rooms 5,6,7)" is named a stage and is not one — it is three event rooms
+  // opened up. It matched no BRELLA_STAGES regex, so under "stages" it was filtered off the
+  // timeline and appeared nowhere at all. Checked BEFORE the stages fallback below.
+  if (/policy stage/i.test(room)) return "rooms";
   if (ROOM_SUMMITS.test(room)) return "rooms";
   if (ROOM_PROGRAMMES.test(room)) return "rooms";
   return "stages";
