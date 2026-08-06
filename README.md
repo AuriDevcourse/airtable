@@ -34,6 +34,39 @@ Notes:
 - For NISS speakers, use `public/niss-embed.html` and the `/api/niss-speakers` endpoint
   the same way (add `?role=Speaker` to show only speakers).
 
+## Giving the partner list to an external agency
+
+The branded partner wall (`?kind=partners`) is ~48KB of TechBBQ fonts, tier colours and
+`!important` overrides — everything an outside designer has to fight. `partners-bare` is the
+same data with the design removed: semantic markup, class names, absolute logo URLs, nothing
+else. Hand them one line:
+
+```
+https://<deployed-url>/api/embed?kind=partners-bare
+```
+
+```
+section.tbbq-tier[data-tier]
+  h2.tbbq-tier__name
+  ul.tbbq-partners
+    li.tbbq-partner[data-tier][data-company]   (+ .tbbq-partner--wide for the EU strip)
+      a.tbbq-partner__link                     (omitted when the partner has no website)
+        img.tbbq-logo
+```
+
+- `&css=0` — drop the 5-line starter stylesheet and emit zero CSS.
+- `&tiers=0` — one flat `<ul>`, no tier headings, for a plain logo strip.
+- `&download=1` — get it as a file instead of inline text.
+
+The starter stylesheet is on by default only because unsized `<img>` tags render at intrinsic
+size; it sets a logo height and lays out the list, no colour and no type. It is fenced in a
+comment so it can be deleted in one selection.
+
+Partners with no logo are dropped, empty tiers print no heading, and logo URLs are absolute
+against this connector — a relative `/api/photo/...` would resolve against *their* domain and
+404, which is exactly how the 2026 partners page broke. `ALLOWED_ORIGIN` must include their
+site (or stay `*`) or the `fetch` is blocked; the `<img>` tags need no CORS either way.
+
 ## What it exposes
 
 `GET /api/speakers` → `{ count, speakers: [{ id, name, title, company, bio, quote, photo, linkedin, website }] }`

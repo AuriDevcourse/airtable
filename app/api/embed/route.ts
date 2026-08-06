@@ -11,7 +11,11 @@
 //   /api/embed?kind=brella&section=all   → the whole program, one snippet
 //   /api/embed?kind=brella&stage=life-science → ONE stage as its own timeline
 //   /api/embed?kind=partners             → the partner logo wall
+//   /api/embed?kind=partners-bare        → the same wall with no TechBBQ styling, for a third party
 //   /api/embed?kind=ls-startups          → the Life Science wall
+//
+// partners-bare takes two extra switches: &css=0 for zero CSS at all, and &tiers=0 for one flat
+// list with no tier headings.
 //
 // Add ?download=1 to get it as a file rather than inline text.
 
@@ -19,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { corsPreflight, withCors } from "@/lib/apiRoute";
 import { buildBrellaEmbedSnippet } from "@/lib/brellaEmbedSnippet";
 import { buildPartnersEmbedSnippet } from "@/lib/partnersEmbedSnippet";
+import { buildPartnersBareEmbedSnippet } from "@/lib/partnersBareEmbedSnippet";
 import { buildLsStartupsEmbedSnippet } from "@/lib/lsStartupsEmbedSnippet";
 import { columnSlug, findTimelineColumn, isBrellaSection, TIMELINE_COLUMNS } from "@/lib/brellaSections";
 import { baseUrl } from "@/lib/photo";
@@ -71,12 +76,20 @@ export async function GET(req: NextRequest) {
       });
     } else if (kind === "partners") {
       snippet = buildPartnersEmbedSnippet({ uid: uid("tbbq-pw") });
+    } else if (kind === "partners-bare") {
+      // Opt-OUT switches, so the default stays the friendly one: a snippet that renders
+      // sensibly the moment it is pasted. Only an explicit "0" turns either off.
+      snippet = buildPartnersBareEmbedSnippet({
+        uid: uid("tbbq-pb"),
+        css: q.get("css") !== "0",
+        tiers: q.get("tiers") !== "0",
+      });
     } else if (kind === "ls-startups") {
       snippet = buildLsStartupsEmbedSnippet({ uid: uid("tbbq-lsw") });
     } else {
       return withCors(
         NextResponse.json(
-          { error: "Unknown kind. Use brella, partners or ls-startups." },
+          { error: "Unknown kind. Use brella, partners, partners-bare or ls-startups." },
           { status: 400 }
         ),
         reqOrigin

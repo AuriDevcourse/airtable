@@ -180,6 +180,17 @@ export default function PartnersPage() {
             </span>
           </div>
 
+          {/* The same wall with the TechBBQ design taken out, for an outside agency who will
+              style it themselves: semantic markup, class names, absolute logo URLs, a 5-line
+              starter stylesheet and nothing else. 4KB instead of 48KB. */}
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <CopyPartnersEmbed bare label="Copy embed (unstyled, for external use)" />
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Logos and links only, no TechBBQ styling · they can restyle it freely. Same
+              localhost caveat.
+            </span>
+          </div>
+
           {/* Manual sync: a live Airtable read past both caches, with a report of what
               changed. Gated by the dashboard password. */}
           <div style={{ marginTop: 14 }}>
