@@ -12,7 +12,12 @@
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { str } from "@/lib/fields";
-import { programmeOf, roomAlias, spansMorningToEvening } from "@/lib/brellaSections";
+import {
+  dayProgrammeOf,
+  programmeOf,
+  roomAlias,
+  spansMorningToEvening,
+} from "@/lib/brellaSections";
 
 const API = "https://api.brella.io/api/integration";
 
@@ -334,6 +339,13 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
   for (const p of prepared) {
     const n = dateKeys.indexOf(p.dateKey) + 1;
     p.session.day = `Day ${n} · ${localDateLabel(p.startIso)}`;
+    // Applied HERE and not in the loop above, because it needs the day label that loop has only
+    // just produced. Never overwrites a programme the TRACK already named — a real track is
+    // better evidence than a room-and-date rule.
+    if (!p.session.programme) {
+      const byDay = dayProgrammeOf(p.session.room, p.session.day);
+      if (byDay) p.session.programme = byDay;
+    }
   }
 
   // Chronological. lib/program.ts re-sorts by (day, parsed start time, name), but that

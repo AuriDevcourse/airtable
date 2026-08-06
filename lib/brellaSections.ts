@@ -199,8 +199,8 @@ export function weekdayLabel(day: string): string {
 const ROOM_ALIASES: { re: RegExp; room: string; programme: string }[] = [
   // Event Room 3, corrected 2026-08-06 — it was filed under Event Room 1, which is wrong.
   { re: /future of fintech/i, room: "Event Room 3", programme: "Future of Fintech" },
-  { re: /nordic\s+india|india\s+summit|\bniss\b/i, room: "Event Room 2", programme: "NISS" },
-  { re: /nordic\s+africa|africa\s+summit|\bnass\b/i, room: "Event Room 2", programme: "NASS" },
+  { re: /nordic\s+india|india\s+summit|\bniss\b/i, room: "Event Room 2", programme: "Nordic India Startup Summit" },
+  { re: /nordic\s+africa|africa\s+summit|\bnass\b/i, room: "Event Room 2", programme: "Nordic Africa Startup Summit" },
   // Rooms 5, 6 and 7 opened up are ONE space with one name, not three rooms — so the column
   // is called after the space and the Policy Stage is the programme running in it.
   { re: /policy stage/i, room: ROOM_567, programme: "Policy Stage" },
@@ -224,6 +224,28 @@ export function roomAlias(room: string): string {
  * the registration said "NISS · NASS" for a room where only NISS is running (Auri, 2026-08-06).
  * Carried on the session by lib/brellaprogram.ts so the page can name what is actually there.
  */
+// A PROGRAMME WITH NO TRACK OF ITS OWN, identified by the room and the day instead.
+//
+// Nordic Africa Startup Summit takes Event Room 2 on the 27th, but Brella has no NASS track —
+// its sessions sit on the plain "Event Room 2" track, indistinguishable from any other booking
+// in that room. Nothing in the session can say which summit it belongs to, so the room and the
+// date have to (Auri, 2026-08-06).
+//
+// Matched on the DATE, never on Brella's "Day N": that numbering is derived from whichever
+// dates exist in the feed and shifted by one the last time a test row was deleted.
+//
+// Delete an entry the day its programme gets a real track — programmeOf() wins over this, so a
+// stale entry would be harmless but misleading.
+const ROOM_DAY_PROGRAMMES: { room: string; date: string; programme: string }[] = [
+  { room: "Event Room 2", date: "27 August", programme: "Nordic Africa Startup Summit" },
+];
+
+/** The programme running in a room on a given day, when only the room and date can say. */
+export function dayProgrammeOf(room: string, day: string): string | null {
+  const hit = ROOM_DAY_PROGRAMMES.find((r) => r.room === room && day.includes(r.date));
+  return hit ? hit.programme : null;
+}
+
 export function programmeOf(track: string): string | null {
   for (const a of ROOM_ALIASES) if (a.re.test(track)) return a.programme;
   return null;
