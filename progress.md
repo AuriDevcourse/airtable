@@ -142,6 +142,55 @@ Same state, worth a look while in there: **PropTech Denmark** (ID 993) has `Put 
 `Company Link`, so somebody expected it to publish and it cannot. ESA BIC Denmark (456) and Venture
 Café Warsaw (1851) are unticked and unlinked.
 
+### Where it ended: all three Prime partners live, pushed as `009d570`
+Merged to `main` and pushed, so Vercel redeployed production. `tsc --noEmit` and `npm run build` both
+clean before the push. The wall's Prime band now holds:
+
+    Danish Business Authority   https://danishbusinessauthority.dk/
+    Industriens Fond            https://industriensfond.dk/
+    Novo Nordisk Foundation     https://www.novonordisk.com/
+
+**Novo needed no code in the end.** Auri repointed `Company Link` to `rec8pk7xHskWFvKO2` (Deal
+3,125,000), renamed the row back to "Novo Nordisk Foundation" and ticked the box; the formula produced
+Prime by itself. Only Industriens Fond and Danish Business Authority are in `TIER_EXCEPTIONS`.
+
+**The DBA row was edited over the API, and NOTHING WAS DELETED.** Rather than removing the two
+Virksomhedsguiden files to stop them winning the tie, the new mark was uploaded as
+**`white-Danish Business Authority.svg`** — the `white-` prefix is worth +4 in `logoPick`, so it scores
+9 against their 5 and wins outright. Non-destructive, and it matches the prefix convention
+`scripts/upload-white-logos.mjs` already uses. Prefer this trick over deletion next time. Also set:
+`Company` → "Danish Business Authority" (the exception key depends on it), website → the DBA domain.
+
+**No `LOGO_SCALE` for any of the three.** All measure 100% ink and already sit at the `contain` cap:
+Novo 5.22:1, DBA 4.25:1, Industriens Fond 12.31:1 (that last one reads short and no nudge can fix it,
+the artwork is simply that wide).
+
+### I walked into the build/dev `.next` gotcha, so it is real — reread it
+Ran `npm run build` for pre-push evidence and then `npm run dev` on the SAME `.next`. The photo proxy
+began returning 500 for every logo, which looked exactly like a bug in the change just made. It was not.
+Recovery: stop dev, `rm -rf .next`, restart. Note `TaskStop` on the dev task **left the node process
+holding port 3000**, so the "restarted" server came up on 3002 while the broken one still answered
+:3000 — kill the PID (`Get-NetTCPConnection -LocalPort 3000`) before concluding anything.
+
+### Nordic Ninja / PropTech / Venture Café (Auri, 2026-08-07)
+Asked for `Company Link` on three CRM records. Only ONE needed anything:
+- **Nordic Ninja** — already linked (`recrsL54g3Pg8Kq5M`), live in Challenger. No action.
+- **Venture Café Warsaw** — already linked and live in Community via `rec4JrqByXKF4BuNI`. It has a
+  SECOND marketing row, `rectRGYTjKrZHxKYv`, same Partner ID 1851, unlinked — a duplicate form
+  submission. Linking it would have produced a second entry. Delete it instead.
+- **PropTech Denmark** — `rec5YdSIgXVVTqCQC` genuinely had no link. Set to `recn3UUCH97aefeT7`
+  (Deal 0, Confirmed) → tier now Community. **Still `Put on web: false`**, so still off the wall.
+
+PropTech's logo cell needs a decision before it publishes. Three files, and the tie goes to a
+TWO-COLOUR one:
+
+    score 1   PropTech Denmark, colored (dark).svg    #1d2d2e + #26e4b5   near-black, unusable
+    score 9   PropTech Denmark, colored (white).svg   #fff + #26e4b5      <-- wins on upload order
+    score 9   PropTech Denmark White.svg              #fff                pure white
+
+Both white ones are legible on #0d0d0d, but the rest of the wall is the pure-white set. To switch,
+delete the `colored (white)` file rather than adding another name rule to `logoPick.ts`.
+
 ### Next steps
 1. ~~Add the row.~~ **DONE** — `recXzgXhXwp5Fn9yG`, `Partner ID` 647, `Company` "Industriens Fond",
    `industriens-fond.svg` uploaded as `image/svg+xml`. `Company Link` was left empty and that turned
