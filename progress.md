@@ -4,6 +4,118 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-06 · Brella Event Rooms rebuilt, partner backfill, Skytek, cadence
+
+State: DONE, all pushed to `main` (`0916ccf` → `19cb94c`). `tsc --noEmit` + `npm run build`
+clean. Everything verified over CDP on **both** the dashboard and the executed embed.
+
+### The one that cost the most time — three caches, and the wrong one answering
+A rename (NISS → "Nordic India Startup Summit") shipped, the server returned the new name, and
+the board kept printing the old one **across reloads**. Cause: the feeds send
+`stale-while-revalidate=3600` for techbbq.dk, and **a browser honours that as readily as a CDN
+does**, so `useCachedList`'s own revalidation was answered from Chrome's disk cache with a copy
+up to an hour old — and then wrote that stale copy into localStorage as if it were fresh.
+
+Caught it in the network log: **two requests per load, the first `fromCache: true`**. Fixed with
+`cache: "no-store"` on the revalidation (dashboard only; techbbq.dk keeps SWR).
+
+**The reason it took so long to see:** every CDP test used a fresh `--user-data-dir`, so the
+stale-cache path was never exercised. **If a dashboard change "doesn't appear", test with a
+persistent browser profile before touching the code.**
+
+### Brella program — Event Rooms are now a timeline
+Was a card list. A room is a PLACE: at 14:00 exactly one thing is on in it, and the shape of the
+day is the information. Columns are explicit (`BRELLA_ROOMS`), so an empty room shows rather
+than vanishing: **Event Room 1–6 + "Event Room 5,6,7"**.
+
+- **Event Room 6** is real and has **no Brella track** — Deep Tech Event Day is going in it.
+  Declared anyway, and pre-matched in `ROOM_ALIASES`, so it lands correctly the day the track
+  appears. Empty rooms read **"Information coming soon"**, not "Nothing scheduled".
+- **Rooms 5,6,7 is one space.** The column was named "Policy Stage" (the programme, not the
+  place). Watch the regex: `/^event room 5\b/` also matches "Event Room 5,6,7" and `columnOf` is
+  first-match-wins, so Room 5 needs the `(?!\s*,)` lookahead or the combined space lands in it.
+- **Future of Fintech was filed in Event Room 1. It is Room 3** — 8 sessions were in the wrong
+  room. Root cause: the room and its label lived in different places and only one was
+  maintained. `ROOM_ALIASES` now carries both, so a programme cannot move without its label.
+- **All-day sessions span the whole column**, dotted, drawn BEHIND the timed cards (z-index 0).
+  They are nested, not competing — Room 1 runs nine sessions inside its all-day Board Summit.
+- **A programme that fills the day gets the band even with no all-day row.** NISS occupies Room 2
+  09:30–17:30 with eleven sessions and no umbrella row, so the band is derived from the
+  programme + its own sessions' span.
+- **Morning-to-evening counts as all day** (start ≤ 11:00 AND end ≥ 16:00). Auri chose the strict
+  both-ends rule over lowering the 6h cap: Nordic IPO (12:30–17:30) runs to the close but starts
+  after lunch. **Matches nothing in the 2026 data yet** — deliberate.
+- **Label what is RUNNING, not what is registered.** Room 2 is registered to NISS and NASS; NASS
+  has no track, so the board named a summit that was not on. `ProgramSession.programme` now
+  survives the `roomAlias()` fold. NASS has no track at all, so it is identified by **room +
+  date** (`ROOM_DAY_PROGRAMMES`): Room 2 = Nordic India on the 26th, **Nordic Africa on the
+  27th**. A real track always wins over that rule.
+- Board opens at **09:00** for rooms only, so the band's label clears the first card (90px).
+
+### Brella program — everything else
+- **Speaker search.** Dims, never filters — removing cards collapses the columns and the clock
+  stops lining up. Predicts PEOPLE with their day and stage, jumps day on pick, badges the day
+  tab and stage headings.
+- **Cards are faces-only.** Names moved to the dialog; a `+N` chip carries the overflow. The
+  `data-tight` tier is gone with the row it hid.
+- **Moderators ringed.** Needed a second change to mean anything: `orderedSpeakers` puts them
+  last, which hid the chair on **45 of the 73** sessions that have one. A panel now shows one
+  speaker plus the chair. 43 rings where there were 0.
+- **Tag filter (Event Rooms).** The feed kept ONE tag and discarded the rest; `tags` now carries
+  up to three. Chips are built from tags actually present, ANY not ALL, max three.
+  **Only `Nordic-India` exists on the whole rooms board** — the filter needs tagging in Brella.
+- **Stage openings** highlighted in each stage's own colour; **breathwork now takes its stage's
+  colour too** (told apart by icon + badge, not hue).
+- Dialog shows **"Day 1 (26 August)"** next to the time.
+
+### Partners
+- **`?kind=partners-bare`** — unstyled embed for an outside agency (4KB vs 48KB), and
+  **`/api/partners` in `API_SNIPPETS`** for one that builds in its own framework. Prod CORS is a
+  real allowlist (`techbbq.dk`, `staging.techbbq.dk`) — a foreign origin gets the canonical
+  domain echoed back and is blocked. Server-side fetches are unaffected.
+- **45 partners backfilled** into the Marketing view from the Brella sponsor list (`external-id`
+  IS the Partner ID). All `Put on web = false`; tier comes from `Company Link` → deal size, so it
+  stays correct on its own. **28→30 logos** attached from `tbbqvisualgen/public/logos`.
+  **15 still need one, incl. NVIDIA.**
+- **Mistake to learn from:** 14 of the first 45 duplicated rows that already existed in the
+  TABLE but sat outside the VIEW. Compared against the view and treated "not in the view" as
+  "not in Airtable". Deleted them (backup in scratchpad). **Check the table, not just the view.**
+- **`TIER_EXCEPTIONS` — Skytek is Core.** Its Deal 2026 is 0, so the formula can only say
+  Community. Distinct from the deleted corrections table and from `NO_CONTRACT_TIERS`: that one
+  FILLS a missing tier, this one REPLACES a resolved one. Bar for adding: the deal cannot express
+  the tier, not someone disagrees with it.
+
+### Team, cadence, menu
+- **`/api/team?email=0`** + a "Copy embed (no emails)" button. The embed's `email` flag only
+  stopped it DRAWING addresses; the JSON still carried all 27. Two changes, because "do not
+  show" and "do not send" are different promises.
+- **`HOURLY_FEEDS`** in `lib/cachePolicy.ts` — `/api/fintech-speakers` held at 1h regardless of
+  the event window, by request. Standing until told otherwise; delete the string to revert.
+  Warranted: that table is form-filled at ~1 entry per 2 days.
+- **Front page** gained a "How often this updates" box that READS from `cachePolicy` (a typed-out
+  "30 minutes" becomes a lie on 28 Aug), and an **Event Rooms** menu group so the hub sorts by
+  place rather than topic.
+
+### Traps hit, worth not re-learning
+- **`lib/brellaEmbedSnippet.ts` is ONE template literal.** A backtick in a comment is a syntax
+  error. Hit three times.
+- **`var` inside a callback is not visible to its caller.** `INSET` (declared in the per-card
+  loop) and `colKey` (a local of `renderTimeline`) both threw ReferenceErrors that silently
+  killed a column's markup / aborted a click handler. **Read the browser console, not the DOM.**
+- **Do not `npm run build` while `next dev` is running** — the build rewrites `.next` under it
+  and the dev server 500s. Stop dev, build, then restart. Cost two "Internal Server Error"
+  reports.
+- **Brella JSON:API types are SINGULAR** (`tag`, `track`), and `included` only populates with
+  `Accept: application/vnd.brella.v4+json`.
+
+### Open
+- 15 partner logos outstanding (NVIDIA the notable one); Sustainary + Novo Nordisk have JPEGs,
+  which the wall rejects (needs white SVG/PNG).
+- 7 Brella sponsors unmatchable: 5 with a blank Partner ID, 2 with six-digit typos
+  (`137801` → `1378`). **Fix in Brella, not Airtable.**
+- 6 duplicate Partner IDs pre-existing in the Marketing view — not ours, would double a logo.
+- Event Rooms are barely tagged; the tag filter is thin until that is done in Brella.
+
 ## Session 2026-08-01 (Team embed "Could not load right now." — diagnosed + hardened)
 
 State: DONE, committed, NOT pushed. `tsc --noEmit` + `npm run build` clean. **The symptom
