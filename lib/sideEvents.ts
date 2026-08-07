@@ -31,7 +31,7 @@
 
 import { PartnerEvent } from "@/lib/partnerevents";
 import { ProgramSession } from "@/lib/program";
-import { LumaDetail } from "@/lib/lumaEvents";
+import { EventPageDetail } from "@/lib/eventPages";
 
 /**
  * Titles do not match exactly across the two systems, so compare them loosely: lowercase,
@@ -120,7 +120,7 @@ function dayRank(day: string): number {
 export function mergeSideEvents(
   events: PartnerEvent[],
   brellaSide: ProgramSession[] = [],
-  luma: Map<string, LumaDetail> = new Map()
+  luma: Map<string, EventPageDetail> = new Map()
 ): ProgramSession[] {
   const days = dayStrings(events);
   const brella = brellaSide.map((s) => ({ key: titleKey(s.name), session: s }));
@@ -152,6 +152,9 @@ export function mergeSideEvents(
         // alone is honest and useful, "Time TBC" is neither. Partners will get a time field on
         // the form; until they fill it, this is what a visitor sees.
         dateLabel: e.date ? dateWords(e.date) : undefined,
+        // The partner's own artwork. Only source there is: neither Airtable nor Brella has an
+        // image for a side event, so a card without one simply shows no thumbnail.
+        image: extra.image ?? null,
         // Just the kind. Public/private used to be fused into this string, which made the
         // dialog's badge read "Side Event · Private · invite only" and forced any consumer
         // wanting the access rule to parse prose. It has its own field now.

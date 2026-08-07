@@ -5,7 +5,7 @@ import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaS
 import { fetchPartnerEvents } from "@/lib/partnerevents";
 import { mergeSideEvents } from "@/lib/sideEvents";
 import { mergePolicyStage } from "@/lib/policyOverride";
-import { fetchLumaDetails, LumaDetail } from "@/lib/lumaEvents";
+import { fetchEventPageDetails, EventPageDetail } from "@/lib/eventPages";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
 
@@ -71,11 +71,11 @@ export async function GET(req: NextRequest) {
         // Cached for SIX HOURS rather than on the feed cadence: a venue does not move, and this
         // reaches out to a third-party site, so a handful of lookups a day is the polite
         // amount. An empty map is a fine answer; the cards simply show no venue line.
-        let luma = new Map<string, LumaDetail>();
+        let luma = new Map<string, EventPageDetail>();
         try {
           luma = await cached(
             "luma:side-events",
-            () => fetchLumaDetails(partnerEvents.map((e) => e.registerUrl)),
+            () => fetchEventPageDetails(partnerEvents.map((e) => e.registerUrl)),
             LUMA_TTL_MS
           );
         } catch (err) {

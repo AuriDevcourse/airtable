@@ -77,6 +77,12 @@ export type ProgramSession = {
   location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
   speakers?: ProgramSpeaker[];
   // Public sign-up page. Only the Side Events carry one, and only because they come from
+  /**
+   * Side events only: the partner's own event artwork, lifted from their ticketing page's
+   * og:image (lib/eventPages.ts). Absent for events on a host we do not read, and for the one
+   * that publishes no image, so every consumer must treat it as optional.
+   */
+  image?: string | null;
   // Airtable (lib/sideEvents.ts) — Brella's API sends the WORDS "LINK TO REGISTER" in the
   // description with no URL behind them, so a Brella-sourced side event can never have this.
   registerUrl?: string | null;

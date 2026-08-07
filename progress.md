@@ -142,6 +142,49 @@ Same state, worth a look while in there: **PropTech Denmark** (ID 993) has `Put 
 `Company Link`, so somebody expected it to publish and it cannot. ESA BIC Denmark (456) and Venture
 Café Warsaw (1851) are unticked and unlinked.
 
+### Side event cards carry the partner's own artwork (Auri, 2026-08-07)
+"The majority of them you have to go and register somewhere else and they usually have a visual to
+represent it." Correct, and it was nearly free: the ticketing page is ALREADY fetched for the venue,
+so the picture comes out of the same parse and costs no extra request for the 9 Luma events.
+
+**Scope was decided by measuring, not guessing.** `og:image` is published by Luma, Eventbrite,
+nrich.io and EUVC's Circle community — 13 of the 14 side events. Only rsvp.withgoogle.com has none,
+so it is deliberately NOT in the host list: fetching it would spend a request to learn nothing. Live
+feed currently returns 12 with artwork (the 14th has no register link at all).
+
+`og:image` rather than the JSON-LD `image`, again measured: three private Luma pages publish no
+JSON-LD at all but still carry og:image, and Luma serves og:image at 800x420 against JSON-LD's
+1920x1920 — the former is already a thumbnail.
+
+**lib/lumaEvents.ts is now lib/eventPages.ts**, with `LumaDetail`/`fetchLumaDetails`/`isLumaEventUrl`
+renamed to match. It stopped being Luma-only, and a file whose name lies is worse than a rename.
+
+**THE HOST LIST IS AN ALLOWLIST, AND THAT IS THE WHOLE SSRF STORY.** These URLs come from partners
+through an Airtable form. A hostname not in `EVENT_HOSTS` is never fetched, so there is no
+169.254.169.254, no localhost, no internal address reachable. HTTPS is required, and each entry pins
+the path shape so only public event pages are read. Adding a host is a deliberate act.
+
+Rendered full-bleed at the top of the card on BOTH surfaces, 16:9 with `object-fit:cover` — the four
+hosts serve four different ratios and letting each keep its own made a row look ragged. `alt=""`
+because the title is right underneath, and `onerror` hides the figure rather than leaving a broken
+glyph, since a partner can unpublish at any time.
+
+**Two traps in the embed snippet, both invisible to the compiler**, because it is a template literal
+that emits JavaScript as a string:
+1. `onerror="...display='none'"` — the raw apostrophe closed the surrounding single-quoted JS string
+   and the snippet died with "Unexpected identifier 'none'". Written as `&#39;`; the browser decodes
+   it when parsing the attribute.
+2. A regex written as `/^https:\/\//i` in the source emitted `/^https:///i`, where `//` began a LINE
+   COMMENT and swallowed the closing brace. Needs `\/` in the template. The fix was to derive the
+   line from `safeUrl`, which was already escaped correctly.
+
+Neither showed up in `tsc` or `npm run build`. **Generate the embed and parse it** — 
+`node:vm`'s `new vm.Script(src)` on the extracted `<script>` body catches both in a second. Baseline
+first, so you know whether a break is yours.
+
+Local gotcha: `/api/embed` 409s without `PUBLIC_BASE_URL`. Run
+`PUBLIC_BASE_URL=http://localhost:3000 npm run dev` when working on the snippet.
+
 ### Policy Stage on the Brella board now comes from Airtable (Auri, 2026-08-07)
 "It doesn't have properly made sessions: who is speaking and when. Can you overwrite it just for
 policy stage until I tell otherwise?"

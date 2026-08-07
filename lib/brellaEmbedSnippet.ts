@@ -378,6 +378,13 @@ export function buildBrellaEmbedSnippet({
   #${id} button.tbbq-bp__card{cursor:pointer!important}
   #${id} .tbbq-bp__card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--track)}
   #${id} button.tbbq-bp__card:hover{border-color:var(--track)!important;background:var(--card2)!important}
+  /* SIDE EVENT ARTWORK, full-bleed at the top of the card. Negative margins mirror the card's
+     own 14/14/14/16 padding. 16:9 with object-fit:cover because the four ticketing hosts serve
+     four different ratios and a ragged row looked broken. The spine (::before) is absolutely
+     positioned, so it still paints over this. */
+  #${id} .tbbq-bp__thumb{margin:-14px -14px 12px -16px!important;padding:0!important;aspect-ratio:16/9!important;overflow:hidden!important;background:rgba(255,255,255,.05)!important;border-radius:0!important}
+  #${id} .tbbq-bp__thumb img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;margin:0!important;border-radius:0!important;max-width:none!important}
+  #${id} .tbbq-bp__modal .tbbq-bp__thumb{margin:0 0 14px!important;border-radius:10px!important}
   #${id} .tbbq-bp__time{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:11px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--fg)!important}
   /* In the dialog the time gets the stage's colour as a bar on its left, and enough room on
      its right that the close button is not sitting on top of it. */
@@ -562,6 +569,20 @@ export function buildBrellaEmbedSnippet({
   /* Only an absolute http(s) URL becomes a live src — never a javascript: or data: URL from
      upstream data. Brella photo URLs are plain public https links. */
   function safeUrl(u){var s=String(u==null?"":u).trim();return /^https?:\\/\\//i.test(s)?s:"";}
+  /* HTTPS ONLY, unlike safeUrl. This goes into an <img src> on techbbq.dk, and an http image
+     would downgrade a secure page to a mixed-content warning. The server already guarantees it
+     (lib/eventPages.ts); this is the second gate, because a snippet pasted on someone else's
+     site cannot be corrected afterwards. */
+  function imgSrc(u){var s=String(u==null?"":u).trim();return /^https:\\/\\//i.test(s)?s:"";}
+  /* alt="" on purpose: the title sits right beside it in text, so a screen reader would read
+     the event twice. onerror drops the figure rather than leaving a broken-image glyph -- these
+     are third-party CDNs and a partner can unpublish their page at any time.
+
+     &#39; RATHER THAN AN APOSTROPHE. The handler lives inside a single-quoted JS string, and a
+     raw quote closed it early -- the generated snippet died with "Unexpected identifier 'none'"
+     and only in the browser, since nothing here typechecks a string. The browser decodes the
+     entity when it parses the attribute, so the handler still receives 'none'. */
+  function thumb(s){var u=imgSrc(s&&s.image);return u?'<figure class="tbbq-bp__thumb"><img src="'+esc(u)+'" alt="" loading="lazy" decoding="async" onerror="this.parentNode.style.display=&#39;none&#39;"></figure>':"";}
   function styleOf(room){for(var i=0;i<STYLE_RX.length;i++){if(STYLE_RX[i].rx.test(room||""))return STYLE_RX[i];}return {color:"${DEFAULT_TRACK_COLOR}"};}
   function trackVars(room){var t=styleOf(room);return "--track:"+t.color+(t.color2?";--track2:"+t.color2:"");}
   /* A SESSION's accent. Side Events must go through this: their room is the hosting partner
@@ -1063,7 +1084,7 @@ export function buildBrellaEmbedSnippet({
           var sum=summary(s.speakers);
           /* Above the title, where a kicker goes: it says what KIND of thing this is, which is
              the question the violet is asking the visitor to notice. */
-          var inner='<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
+          var inner=thumb(s)+'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
             +(isBreath(s)?breathBadge():'')
       +(isOpen(s)?openBadge():'')
             +'<p class="tbbq-bp__title">'+esc(s.name)+'</p>'
@@ -1299,6 +1320,7 @@ export function buildBrellaEmbedSnippet({
     }).join("");
     modal.innerHTML='<button type="button" class="tbbq-bp__close" aria-label="Close">'
       +'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>'
+      +thumb(s)
       +'<p class="tbbq-bp__time">'+esc(timeLabel(s))+'</p>'
       +(isBreath(s)?breathBadge():'')
       +(isOpen(s)?openBadge():'')

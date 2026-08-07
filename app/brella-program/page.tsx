@@ -71,6 +71,8 @@ type Session = {
   room: string; // the Brella TRACK — "Founders Stage", "Event Room 3", "Side Event Promotion"
   location?: string; // Brella's venue string, e.g. "Hall E"
   speakers?: Speaker[];
+  /** Side events only: the partner's event artwork from their ticketing page (lib/eventPages.ts). */
+  image?: string | null;
   // Side Events only, and only because that section comes from Airtable (lib/sideEvents.ts).
   // Brella's API sends the words "LINK TO REGISTER" with no URL behind them.
   registerUrl?: string | null;
@@ -1222,6 +1224,33 @@ function SessionCard({
   const opening = isOpening(s);
   const body = (
     <>
+      {/* THE PARTNER'S OWN ARTWORK, above everything, because that is the first thing a side
+          event is recognised by (Auri, 2026-08-07: "they usually have a visual to represent
+          it"). Only side events have one — see `image` in lib/program.ts.
+
+          `alt=""` on purpose: the title is right underneath in text, so describing the poster
+          again would make a screen reader read the event twice. The image is decoration here.
+
+          Errors HIDE the figure rather than leaving a broken-image glyph. These are third-party
+          CDNs and a partner can replace or unpublish their page at any time, so a picture that
+          stops resolving must cost nothing more than the space it used. */}
+      {s.image && (
+        <figure className="bp-card__thumb">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={s.image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              (e.currentTarget.closest("figure") as HTMLElement | null)?.style.setProperty(
+                "display",
+                "none"
+              );
+            }}
+          />
+        </figure>
+      )}
       <p className="bp-card__time">{timeLabel(s)}</p>
       {/* Above the title, where a kicker goes: it says what KIND of thing this is, which is
           the question the violet is answering. */}
