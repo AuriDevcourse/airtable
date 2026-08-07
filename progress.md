@@ -169,6 +169,21 @@ Verified on the live feed: 15 sessions in the column, all on Day 3, all in the `
 all-day blob gone, moderators listed before speakers, photos present, and `parseSlot()` places the en
 dash slots correctly (it already accepted `[-–—]`, so no rewriting was needed).
 
+**The whole-day band came back by EARNING it, not by faking it** (Auri, 2026-08-07: "it misses still
+to indicate that it's a whole day event and it's like the policy stage"). Brella's all-day row had
+been doing two jobs nobody noticed until it was gone: it drew the dotted whole-day band and it named
+the column "Policy Stage". Dropping it took both.
+
+The tempting fix — put a synthetic all-day session back — would have been wrong. The board ALREADY
+derives that band for this exact case: a room whose named programme spans morning to evening gets one
+without an umbrella row, which is how NISS holds Event Room 2 through eleven sessions. The trigger is
+`programme` being set on the sessions. So the sessions now carry it, read from `programmeOf()` in
+ROOM_ALIASES rather than typed again, and the same value feeds the column's sub-label.
+
+Verified all three of the band's conditions on the live feed rather than assuming: programme set
+(["Policy Stage"]), no real all-day session in the column, and span 570→1020 minutes against the
+`spansMorningToEvening` thresholds of ≤660 and ≥960.
+
 Data quirk, not a bug: `Speaker Details` is hand-typed "Name, Title, Company", split on the FIRST
 comma. Two rows carry commas mid-title, so one reads "Founder · and former AI & Privacy Policy Manager
 at Meta" and another has an empty company. Fix those cells in Airtable, not in code.

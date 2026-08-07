@@ -29,7 +29,26 @@
 // Written as the board's own day string rather than a date, because that is what the timeline
 // groups on. If the day labels are ever renumbered this constant moves with them.
 import type { ProgramPerson, ProgramSession, ProgramSpeaker } from "@/lib/program";
-import { ROOM_567 } from "@/lib/brellaSections";
+import { programmeOf, ROOM_567 } from "@/lib/brellaSections";
+
+/**
+ * "Policy Stage", taken from ROOM_ALIASES rather than typed again here.
+ *
+ * IT IS WHAT PUTS THE ALL-DAY BAND BACK. Brella's all-day row used to be the thing telling the
+ * board that this column is a whole-day programme called the Policy Stage; dropping it took the
+ * band and the column's sub-label with it (Auri, 2026-08-07: "it misses still to indicate that
+ * it's a whole day event and it's like the policy stage").
+ *
+ * The board already derives that band for exactly this case — NISS holds Event Room 2 all day
+ * through eleven sessions and no umbrella row — and the trigger is `programme` being set on the
+ * sessions themselves. So the band is EARNED from the real programme rather than restored by
+ * putting a fake all-day session back: the sessions span 09:30 to 17:00, which clears the
+ * morning-to-evening test, and they carry the name.
+ *
+ * Sourced from programmeOf() so a rename in ROOM_ALIASES moves this with it. That table already
+ * says /policy stage/i lives in ROOM_567, which is the same fact this file depends on.
+ */
+const POLICY_PROGRAMME = programmeOf("Policy Stage") ?? "Policy Stage";
 
 /** The board's day label for the Policy Stage. Auri, 2026-08-07. */
 export const POLICY_DAY = "Day 3 · 27 August";
@@ -89,6 +108,8 @@ export function mergePolicyStage(
       // Rooms 5, 6 and 7 are one space and one column. Naming it via the shared constant keeps
       // this and the column definition from drifting apart.
       room: ROOM_567,
+      // Names the column's sub-label AND earns the dotted whole-day band. See POLICY_PROGRAMME.
+      programme: POLICY_PROGRAMME,
       // parseSlot() accepts the en dash the Sessions table uses, so the slot needs no rewriting
       // — only the trailing spaces some cells carry.
       timeSlot: s.timeSlot.trim(),
