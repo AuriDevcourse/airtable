@@ -142,6 +142,37 @@ Same state, worth a look while in there: **PropTech Denmark** (ID 993) has `Put 
 `Company Link`, so somebody expected it to publish and it cannot. ESA BIC Denmark (456) and Venture
 Café Warsaw (1851) are unticked and unlinked.
 
+### Policy Stage on the Brella board now comes from Airtable (Auri, 2026-08-07)
+"It doesn't have properly made sessions: who is speaking and when. Can you overwrite it just for
+policy stage until I tell otherwise?"
+
+**Brella held the entire stage as ONE all-day row** — "Policy Stage: Shaping the Future of European
+Startups", with 28 speakers heaped onto it. On a timeline that is the worst possible shape: the column
+claims the whole day and tells a visitor nothing about 11:00.
+
+The real programme already existed and nothing was missing from it. `tblSlpTzDi2oVYwqv`, view "The
+Policy Stage": 15 sessions, times, types, descriptions, speakers and moderators named per session,
+already served at `/api/program?event=policy`. Only the Brella board could not see it.
+
+`lib/policyOverride.ts` substitutes the column: every Brella session in `ROOM_567` is dropped and the
+Airtable sessions replace them, merged in `app/api/program/route.ts` beside the side events so every
+variant of the endpoint agrees. **It is meant to be deleted** — remove the `mergePolicyStage()` call
+and the file when Brella's own entry is filled in.
+
+**THE DAY HAD TO BE ASKED, and the embed is the thing that is wrong.** The Sessions table has NO date
+column, only `Time Slot`, because it was typed from a single-day PDF. The agenda embed pasted on
+techbbq.dk says "August 26th"; Brella files the all-day block on 27 August. Auri settled it: **27
+August**. So Brella's placement was right and **the embed's `HEADING = "August 26th"` still needs
+fixing** — it was not touched here.
+
+Verified on the live feed: 15 sessions in the column, all on Day 3, all in the `rooms` section, the
+all-day blob gone, moderators listed before speakers, photos present, and `parseSlot()` places the en
+dash slots correctly (it already accepted `[-–—]`, so no rewriting was needed).
+
+Data quirk, not a bug: `Speaker Details` is hand-typed "Name, Title, Company", split on the FIRST
+comma. Two rows carry commas mid-title, so one reads "Founder · and former AI & Privacy Policy Manager
+at Meta" and another has an empty company. Fix those cells in Airtable, not in code.
+
 ### "Founder Stage" → "Founders Stage" on the program board (Auri, 2026-08-07)
 The signage, and Brella's own track name, both say **Founders Stage** — the feed returns exactly that
 string on 28 sessions. The board printed "Founder Stage" purely because `BRELLA_STAGES` in

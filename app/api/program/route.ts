@@ -4,6 +4,7 @@ import { cached, invalidate } from "@/lib/rate-limit";
 import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaSections";
 import { fetchPartnerEvents } from "@/lib/partnerevents";
 import { mergeSideEvents } from "@/lib/sideEvents";
+import { mergePolicyStage } from "@/lib/policyOverride";
 import { fetchLumaDetails, LumaDetail } from "@/lib/lumaEvents";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
@@ -42,6 +43,9 @@ export async function GET(req: NextRequest) {
     if (fresh && source === "brella") {
       invalidate("partnerevents");
       invalidate("luma:side-events");
+      // The Policy Stage column is Airtable too (lib/policyOverride.ts). Without this the
+      // refresh button would report no change on the one column somebody has just edited.
+      invalidate("program:policy");
     }
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
@@ -86,6 +90,23 @@ export async function GET(req: NextRequest) {
         sessionsAll = [...all.filter((s) => !inBrellaSection(s, "side")), ...merged];
       } catch (err) {
         console.error("[/api/program] side events unavailable, falling back to Brella", err);
+      }
+
+      // THE POLICY STAGE IS THE SECOND MERGE, and a substitution rather than a pairing.
+      //
+      // Brella holds the whole stage as one all-day row with 28 speakers heaped on it, which on
+      // a timeline claims the day and says nothing about it. The real 15 sessions live in
+      // Airtable and are already served at ?event=policy. See lib/policyOverride.ts — including
+      // why it is temporary and how to remove it.
+      //
+      // Done HERE, beside the side events, for the reason written above them: every variant of
+      // this endpoint must agree about what the programme is, or the page and the embed drift.
+      // Its own try/catch, so a failing Policy read cannot take the side events down with it.
+      try {
+        const policy = await cached("program:policy", () => fetchProgram("policy"), feedTtlMs());
+        sessionsAll = mergePolicyStage(sessionsAll, policy);
+      } catch (err) {
+        console.error("[/api/program] policy stage unavailable, leaving Brella's own", err);
       }
     }
 
