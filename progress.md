@@ -4,7 +4,7 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## Session 2026-08-07 · Industriens Fond → Prime (code done, Airtable row still missing)
+## Session 2026-08-07 · Prime band filled, Policy Stage rebuilt, side event artwork
 
 State: **ONE CHECKBOX FROM DONE.** On branch `partner-industriens-fond-prime`, not merged.
 `tsc --noEmit` clean. Auri created the Airtable row himself (`recXzgXhXwp5Fn9yG`, Partner ID 647,
@@ -299,19 +299,44 @@ Both white ones are legible on #0d0d0d, but the rest of the wall is the pure-whi
 delete the `colored (white)` file rather than adding another name rule to `logoPick.ts`.
 
 ### Next steps
-1. ~~Add the row.~~ **DONE** — `recXzgXhXwp5Fn9yG`, `Partner ID` 647, `Company` "Industriens Fond",
-   `industriens-fond.svg` uploaded as `image/svg+xml`. `Company Link` was left empty and that turned
-   out not to matter here; leave it or set it to `recBzmO3VTbcqQ13u`, the tier is the exception's
-   either way.
-1b. **Tick `Put on web` on `recXzgXhXwp5Fn9yG`.** The last blocker. Publish rule 1, and the feed is
-   currently reporting it as `pending: "not-on-web"`.
-2. Hit `/api/partners?fresh=1` and confirm it appears with `tier: "Prime"`.
-3. **Measure the logo, AFTER step 1b.** `node scripts/measure-logo-ink.mjs Industriens` reads the
-   PUBLIC feed, so while the row is pending it prints a header and no rows — that is not a bug in the
-   script. The file is viewBox `4307.39 × 346.83`,
-   **12.4:1** — far wider than anything currently on the wall, and the area-based fitter will very
-   likely render it small in a 4-column Prime band. Add a `LOGO_SCALE` entry if so.
-4. Merge `partner-industriens-fond-prime` into `main` once 1–3 check out.
+Everything below is ANOTHER PERSON'S to do — no code is outstanding. Verified against Airtable at the
+end of the session, so these are real as of 2026-08-07.
+
+**Airtable**
+1. **PropTech Denmark** `rec5YdSIgXVVTqCQC` — `Company Link` is set and the tier resolves to
+   Community, but `Put on web` is still false so it is off the wall. Tick it. Then decide its logo:
+   three files, and the tie goes to a TWO-COLOUR one (`#fff` + teal `#26e4b5`) over the pure-white
+   `PropTech Denmark White.svg`. To switch, delete the `colored (white)` file rather than adding a
+   name rule to logoPick.ts.
+2. **Delete `rectRGYTjKrZHxKYv`** — a duplicate Venture Café Warsaw row, same Partner ID 1851 as the
+   live one (`rec4JrqByXKF4BuNI`). Unlinked and unpublishable; it is what shows as unresolved on the
+   dashboard.
+3. **Delete `rec8097GK3Bz4hvHM`** (Bio Innovation Institue) or clear its `Partner ID` — a form
+   submission from a company Auri says is not a partner. The ID is what pulls it into the view.
+4. **Novo Nordisk Foundation** `reciUJWZD4lX6usnD` — live and correct, but its website field points at
+   `novonordisk.com`, the pharma company. The Foundation is `novonordiskfonden.dk`.
+5. **Fix two `Speaker Details` cells** in the Policy Stage Sessions table. The format is
+   "Name, Title, Company" split on the FIRST comma, and two rows carry commas mid-title, so one renders
+   "Founder · and former AI & Privacy Policy Manager at Meta" and another has an empty company.
+
+**Airtable schema, and this one is worth doing**
+6. **`Company Link` cannot reach a Confirmed partner.** The field is limited to the "Partner ID Search"
+   view (`viw570nYi8Fyzodme`), which holds open pipeline records only — of its 1,934 rows, not ONE is
+   `Status 2026 = Confirmed`, and all 169 Confirmed records sit outside it. So the field used to attach
+   a partner to its CRM record cannot offer any partner who has signed, which is why Auri "just cannot
+   tag them". Fix: uncheck "Limit record selection to a view" on the field, or add Confirmed to that
+   view's filter. The API ignores the restriction, which is why the writes this session went through.
+
+**WordPress / techbbq.dk**
+7. **The agenda embed's `HEADING` says "August 26th".** The Policy Stage runs the **27th** (Auri
+   confirmed). The heading is in the pasted snippet, not in this repo.
+8. **Check the side event thumbnails actually render on techbbq.dk.** They point at four third-party
+   CDNs (lumacdn, circle.so, eventbrite, nrich). If WordPress sets a CSP `img-src`, they fail silently
+   there while working perfectly on the dashboard. Untestable from here.
+
+**Whenever Brella catches up**
+9. Delete `lib/policyOverride.ts` and its `mergePolicyStage()` call once Brella's own Policy Stage
+   entry has real sessions instead of one all-day row.
 
 ### Gotchas
 - **The artwork is already correct.** `C:\Users\User\Desktop\TBBQ\techbbq-brand-kit\partners\industriens-fond.svg`
@@ -341,9 +366,19 @@ delete the `colored (white)` file rather than adding another name rule to `logoP
 - The Airtable token can write (`scripts/upload-white-logos.mjs` appends attachments with it), so the
   API route is available if the manual one is ever too slow.
 
-### Files
-- `lib/partners.ts` — `TIER_EXCEPTIONS` (the change), `PARTNER_TIERS` (Prime = 4 cols, `#CE0F2E`),
-  `LOGO_SCALE` (step 3 lands here).
+### Files touched this session
+- `lib/partners.ts` — `TIER_EXCEPTIONS` gained Industriens Fond and Danish Business Authority.
+- `lib/brellaSections.ts` — "Founder Stage" → "Founders Stage", plus the note that the label is a
+  two-file rename.
+- `lib/brellaTheme.ts` — `STAGE_ICON_PATHS` key renamed in lockstep.
+- `lib/policyOverride.ts` — NEW, and meant to be deleted. See step 9.
+- `lib/eventPages.ts` — WAS `lib/lumaEvents.ts`. Host allowlist + `og:image`.
+- `lib/sideEvents.ts`, `lib/program.ts` — carry `image` through to the feed.
+- `lib/brellaEmbedSnippet.ts` — `thumb()` / `imgSrc()` and their CSS.
+- `app/api/program/route.ts` — the Policy Stage merge, and `program:policy` added to `?fresh=`.
+- `app/brella-program/page.tsx`, `app/globals.css` — the card thumbnail.
+
+Commits: `009d570` `e415303` `38c65d5` `22a3cea` `2613d7e` `a211a69`, all on `main`.
 
 ## Session 2026-08-06 · Brella Event Rooms rebuilt, partner backfill, Skytek, cadence
 
