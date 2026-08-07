@@ -4,6 +4,191 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-07 · Industriens Fond → Prime (code done, Airtable row still missing)
+
+State: **ONE CHECKBOX FROM DONE.** On branch `partner-industriens-fond-prime`, not merged.
+`tsc --noEmit` clean. Auri created the Airtable row himself (`recXzgXhXwp5Fn9yG`, Partner ID 647,
+logo uploaded) and the dashboard feed now returns it resolved:
+
+```json
+{ "company": "Industriens Fond", "tier": "Prime",
+  "logo": "/api/photo/partners/recXzgXhXwp5Fn9yG?v=attxtUxbsrjjx0zao",
+  "website": "https://industriensfond.dk/", "pending": "not-on-web" }
+```
+
+`tier: "Prime"` proves the `TIER_EXCEPTIONS` entry fires — and note it fires with **no `Company Link`
+set at all**, because `tierException()` runs before the Airtable lookup. **`Put on web` is still
+unticked**, which is the only thing holding it off techbbq.dk. Tick it and it is live.
+
+### The complaint, and why it was two problems
+Auri: "we are missing one very important company, Industriens Fond. It should be the prime
+partner." It looked like a logo problem. It was not.
+
+1. **No row exists.** The Partner Deliverables 2026 view holds 162 rows and Industriens Fond is
+   not one of them. The wall had nothing to draw. Confirmed by paging the view over the API, not
+   by trusting the feed.
+2. **The Prime band was empty for everybody.** All 162 rows: Community 69, Challenger 37, Core 32,
+   Pioneer 9, Conqueror 8, Main 2, no tier 5. **Prime: 0.** So `PARTNER_TIERS[0]` had never
+   rendered a single logo since the tier started following the deal.
+
+### Why adding the row would not have been enough
+`Partnership Tier (Based on Deal Size)` on Partners 2026 is a FORMULA, and the commercial ladder is
+`Prime ≥ 751000`, Main ≥ 355000, Conqueror ≥ 255000, Pioneer ≥ 175000, Core ≥ 65000, Challenger ≥ 1.
+(The non-commercial branch is a different, much lower ladder.) **No row in the base reaches 751000**,
+which is the whole reason the Prime band is empty.
+
+Industriens Fond has **five** records in Partners 2026 and every one reads `Deal 2026 inc. VAT % = 0`:
+
+| rec | Partner ID | note |
+|---|---|---|
+| `recBzmO3VTbcqQ13u` | 647 | **the live one, link to this** |
+| `recWMS5Ndufhtcv5s` | 648 | flagged Duplicate |
+| `rec1gmPMahnBWAPvD` | 649 | Asia Venture Alliance |
+| `recYFB9VKV7aDrlOg` | 1447 | cyber |
+| `recFdQL2S1egL2nrh` | 1966 | Upsell, archived |
+
+It funds TechBBQ **by grant**, and a grant never lands in a deal column. So the formula can only
+ever say Community — not because it disagrees with anyone, because it is reading the wrong column.
+That is exactly the stated bar for `TIER_EXCEPTIONS`, so Auri's call (2026-08-07) went there:
+
+```ts
+const TIER_EXCEPTIONS: Record<string, string> = {
+  "skytek nordics aps": "Core",
+  "industriens fond": "Prime",   // grant funding, never priced in Deal 2026
+};
+```
+
+`tierException()` runs BEFORE the Airtable lookup in the `tier` chain, so it beats the Community the
+formula produces. Read the header above that table before adding a third entry — it is not the
+deleted corrections table and must not turn back into one.
+
+### Novo Nordisk Foundation — also Prime, and it needs NO code (Auri, 2026-08-07)
+Asked for in the same breath as Industriens Fond, and it is the OPPOSITE case. **Do not give this one
+a `TIER_EXCEPTIONS` entry.** The CRM already computes it:
+
+    rec8pk7xHskWFvKO2  "Novo Nordisk Foundation"  Partner ID 2091  Deal 2026 = 3,125,000  → Prime
+
+3.1M clears the 751,000 Prime threshold, so the formula does the whole job. The bar for an exception is
+"the deal cannot express the tier"; here it expresses it fine.
+
+**The actual bug is a wrong link.** Marketing row `reciUJWZD4lX6usnD` is named "Novo Nordisk
+Foundation" but its `Company Link` points at `recymMS2IyGygOtqs` = **"Novo Nordisk Danmark"**, a
+different partner with Deal 2026 = 0. So the lookup returns Community. Two edits fix it, both in
+Airtable: repoint `Company Link` to `rec8pk7xHskWFvKO2`, and tick `Put on web`.
+
+Watch out for the DECOY: a second CRM record is also called "Novo Nordisk Foundation"
+(`recJG8jBv9jYCQGkV`, Partner ID 2046, Deal 0). Linking that one silently reproduces the same bug.
+
+Also on that row, neither blocking:
+- **The website is the wrong organisation** — `https://www.novonordisk.com/` is the pharma company;
+  the Foundation is `novonordiskfonden.dk`. A Prime tile clicking through to the wrong org.
+- **`Partner ID` is 2718, which belongs to Novo Nordisk Danmark.** LEAVE IT. `lib/partners.ts` never
+  reads Partner ID, but `lib/eventrooms.ts` keys this same table by it for event-room matching, so
+  changing it to 2091 risks something unrelated to fix something cosmetic.
+- Logo is already good: `Novo Nordisk Foundation New.svg`, `fill: #fff`, viewBox 249 × 48 (5.2:1), so
+  no `LOGO_SCALE` nudge expected. The stray `2718-brella-logo.png` in the cell is really `image/jpeg`;
+  `pickLogo` correctly takes the SVG, so it is untidy rather than broken.
+- Repointing this row leaves **Novo Nordisk Danmark with no marketing row**, and its CRM status is
+  "Contract Sent". It may need its own row later — a partnerships question, not a code one.
+
+### Danish Business Authority — the third Prime, and the one that needed a judgement call
+Auri, 2026-08-07: "this is also a Prime Partner", with `Desktop/TBBQ/Logos/SVG/Danish Business
+Authority.svg`. **Danish Business Authority IS Erhvervsstyrelsen** — same organisation, English name —
+and it was already on the wall as `Erhvervsstyrelsen / Virksomhedsguiden` (`recicegSWL1fgCvqZ`), live,
+in **Core**.
+
+Unlike Industriens Fond, this one has a real priced deal sitting next to it:
+
+    recqnMz5meohOgjnK  "Erhvervsstyrelsen"  Partner ID 2740  Deal 2026 = 81,250  Confirmed  → Core
+
+That is exactly the shape `TIER_EXCEPTIONS` is supposed to refuse, so it was put to Auri rather than
+assumed. **His answer: the 81,250 prices the VIRKSOMHEDSGUIDEN work; the Danish Business Authority
+partnership is separate and funded outside that column.** So the deal is not wrong, it is answering a
+different question — which clears the bar, and the entry was added. (The other two Erhvervsstyrelsen
+CRM records are `recO6wFb4GdwJPndo`, Duplicate, and `recnsSTaUhARYoWJu`, Deal 0. Neither is bigger.)
+
+**One organisation, one row** (Auri's choice): rename `recicegSWL1fgCvqZ` rather than add a second row,
+so the wall does not show the same org in two bands. The code only dedupes WITHIN a tier, so two rows
+would both have rendered.
+
+**The exception key depends on the rename.** `TIER_EXCEPTIONS` is keyed on `Company`, so the row must
+read exactly `Danish Business Authority`. Left at the old name it matches nothing and the partner
+quietly sits in Core — which is what the feed still shows as of this writing.
+
+**THE LOGO TRAP, and it would have looked like a code bug.** `pickLogo` scores SVG +5 and a white
+colour-word in the filename +4, and **ties keep upload order**. `Danish Business Authority.svg` has no
+colour word, so it scores 5 — an exact tie with `virksomhedsguiden.svg` already in that cell, which was
+uploaded first and therefore keeps winning. Renaming the row would show Prime with the OLD
+Virksomhedsguiden mark in it. So: **delete both Virksomhedsguiden files from the `Logo` cell** and
+leave only the new SVG. (`Virksomhedsguiden_Logo.svg` is also in `DEMOTED_FILES` in lib/logoPick.ts;
+once deleted from Airtable that entry harmlessly matches nothing, which is what its own comment asks
+for. Leave it.)
+
+The DBA file itself is fine: `fill: #fff`, viewBox 253.5 × 59.9 (4.2:1), no scale nudge expected.
+
+### Bio Innovation Institue — not a partner, and not on the wall either (asked 2026-08-07)
+Auri: "we don't have it as a partner." It has never been on techbbq.dk. It shows on the DASHBOARD,
+which is the intended behaviour — that page is the worklist of rows that cannot publish yet.
+
+    rec8097GK3Bz4hvHM  "Bio Innovation Institue"  Partner ID 154
+      Submitted 2026-08-06 12:50 by Hans Christian Mandøe (HCM@bii.dk) — a FORM SUBMISSION
+      Company Link: empty → no tier · Put on web: false
+
+Somebody at BII filled in the deliverables form, which set a `Partner ID`, which is what pulls a row
+into the view. To remove it: delete the row, or clear its `Partner ID`. Its CRM record
+(`recQrkl1qiqiaSN2U`, "Bio Innovation Institute/ AI Lab") says Status 2025 "No Deal", consistent.
+
+Same state, worth a look while in there: **PropTech Denmark** (ID 993) has `Put on web` TICKED and no
+`Company Link`, so somebody expected it to publish and it cannot. ESA BIC Denmark (456) and Venture
+Café Warsaw (1851) are unticked and unlinked.
+
+### Next steps
+1. ~~Add the row.~~ **DONE** — `recXzgXhXwp5Fn9yG`, `Partner ID` 647, `Company` "Industriens Fond",
+   `industriens-fond.svg` uploaded as `image/svg+xml`. `Company Link` was left empty and that turned
+   out not to matter here; leave it or set it to `recBzmO3VTbcqQ13u`, the tier is the exception's
+   either way.
+1b. **Tick `Put on web` on `recXzgXhXwp5Fn9yG`.** The last blocker. Publish rule 1, and the feed is
+   currently reporting it as `pending: "not-on-web"`.
+2. Hit `/api/partners?fresh=1` and confirm it appears with `tier: "Prime"`.
+3. **Measure the logo, AFTER step 1b.** `node scripts/measure-logo-ink.mjs Industriens` reads the
+   PUBLIC feed, so while the row is pending it prints a header and no rows — that is not a bug in the
+   script. The file is viewBox `4307.39 × 346.83`,
+   **12.4:1** — far wider than anything currently on the wall, and the area-based fitter will very
+   likely render it small in a 4-column Prime band. Add a `LOGO_SCALE` entry if so.
+4. Merge `partner-industriens-fond-prime` into `main` once 1–3 check out.
+
+### Gotchas
+- **The artwork is already correct.** `C:\Users\User\Desktop\TBBQ\techbbq-brand-kit\partners\industriens-fond.svg`
+  is pure white (`.cls-1 { fill: #fff }`) and `image/svg+xml`, so it passes publish rule 2 as-is. No
+  white-variant export needed, no `AIRTABLE_LOGO_REJECT` entry.
+- **`Partner ID` is what puts a row in the view, not `Company Link`.** Airtable exposes no API for a
+  view's filter, so this was derived by diffing the 162 in-view rows against the other 3,436 and
+  testing predicates. Only one is exact in both directions:
+
+  | predicate | false + | false − |
+  |---|---|---|
+  | `Company Link` not empty | 0 | **5** |
+  | `Partner ID` not empty | **194** | 0 |
+  | **`Partner ID` not empty AND `Created` in 2026** | **0** | **0** |
+
+  `Company Link` merely LOOKS perfect: it is filled on 157 of the 162 and on nothing outside the view.
+  Five in-view rows have no link at all (Crescita Partners, Bio Innovation Institue, ESA BIC Denmark,
+  PropTech Denmark, Venture Café Warsaw), and 72 rows created this month sit OUTSIDE the view with an
+  empty `Partner ID`. So the two fields do different jobs and you need both:
+  **`Partner ID` gets the row into the view · `Company Link` gets it a tier.** A row with the link and
+  no ID is invisible to this codebase, which reads the view and nothing else.
+- **`Partner ID` mirrors the linked CRM record's** — 24/24 on the rows checked. It is a plain `number`
+  field on Marketing Project Overview (not a lookup, not a formula), so it must be TYPED IN. It is not
+  unique either; 7 values are duplicated across the view.
+- **`Company Name` is not the field to fill.** It is empty on all 162 view rows; the code reads
+  `Company`. Filling the wrong one produces a row that is in the view and still invisible.
+- The Airtable token can write (`scripts/upload-white-logos.mjs` appends attachments with it), so the
+  API route is available if the manual one is ever too slow.
+
+### Files
+- `lib/partners.ts` — `TIER_EXCEPTIONS` (the change), `PARTNER_TIERS` (Prime = 4 cols, `#CE0F2E`),
+  `LOGO_SCALE` (step 3 lands here).
+
 ## Session 2026-08-06 · Brella Event Rooms rebuilt, partner backfill, Skytek, cadence
 
 State: DONE, all pushed to `main` (`0916ccf` → `19cb94c`). `tsc --noEmit` + `npm run build`
