@@ -153,7 +153,9 @@ export const STAGE_ICON_PATHS: Record<string, string[]> = {
   // Two crossed logs spanning the box. A small flame above them rendered as a stray dot at
   // 16px, so the logs carry the whole idea.
   "Campfire Stage": ["m4 18 16-9", "m4 9 16 9"],
-  "Founder Stage": [
+  // Keyed on the LABEL in lib/brellaSections.ts, so the two move together — renamed to
+  // "Founders Stage" with it on 2026-08-07 to match the signage.
+  "Founders Stage": [
     "M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91 0z",
     "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z",
     "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0",

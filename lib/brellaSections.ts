@@ -27,14 +27,21 @@ export function isBrellaSection(v: string | null): v is BrellaSection {
  * Derived from the data it would simply not exist, and would then appear without warning the
  * day someone adds a session. Naming it here gives it a column that is visibly empty instead.
  *
- * `match` exists because Brella's track name and the public stage name are not always the same
- * ("Founders Stage" on the signage is "Founder Stage" in Auri's list).
+ * `match` exists because Brella's track name and the public stage name are not always the same.
+ * The Founders Stage is the standing example: the signage says "Founders Stage", and the label
+ * here now matches it (Auri, 2026-08-07) after a spell reading "Founder Stage" on the board.
+ * Brella's own track may still say either, so the regex keeps the optional "s" and the two
+ * spellings stay interchangeable on the input side.
+ *
+ * RENAMING A LABEL IS A TWO-FILE EDIT. lib/brellaTheme.ts keys STAGE_ICON_PATHS on this exact
+ * string, so a label changed here alone silently drops that stage's icon. The COLOUR is safe —
+ * TRACK_STYLES matches on its own regex — which is what makes the icon the easy one to miss.
  */
 export type ColumnDef = { label: string; match: RegExp };
 
 export const BRELLA_STAGES: ColumnDef[] = [
   { label: "BBQ Stage", match: /^bbq stage/i },
-  { label: "Founder Stage", match: /^founders? stage/i },
+  { label: "Founders Stage", match: /^founders? stage/i },
   { label: "Tech Stage", match: /^tech stage/i },
   { label: "Campfire Stage", match: /campfire/i },
   { label: "Life Science x Deep Tech Stage", match: /life science/i },

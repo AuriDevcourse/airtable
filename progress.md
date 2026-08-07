@@ -142,6 +142,24 @@ Same state, worth a look while in there: **PropTech Denmark** (ID 993) has `Put 
 `Company Link`, so somebody expected it to publish and it cannot. ESA BIC Denmark (456) and Venture
 Café Warsaw (1851) are unticked and unlinked.
 
+### "Founder Stage" → "Founders Stage" on the program board (Auri, 2026-08-07)
+The signage, and Brella's own track name, both say **Founders Stage** — the feed returns exactly that
+string on 28 sessions. The board printed "Founder Stage" purely because `BRELLA_STAGES` in
+lib/brellaSections.ts hardcoded that label. Renamed.
+
+**It was a two-file edit, and the second file is easy to miss.** `STAGE_ICON_PATHS` in
+lib/brellaTheme.ts is keyed on the label STRING, so renaming the label alone would have silently
+dropped the stage's rocket icon. The COLOUR is safe either way, because `TRACK_STYLES` matches on its
+own regex (`^founders? stage`) rather than the label — which is exactly what makes the icon the one
+that slips through. A note now sits in both files.
+
+The `match` regex keeps its optional "s", so whichever spelling Brella uses still lands in the column.
+Verified by executing both modules directly (`node --experimental-strip-types`): label "Founders
+Stage", regex matches, icon resolves to 4 paths, colour still `#37C978`.
+
+Side note for whoever tests the embed locally: `/api/embed` returns **409 "No absolute origin"**
+without `PUBLIC_BASE_URL` set. That is a local env gap, not a broken embed.
+
 ### Where it ended: all three Prime partners live, pushed as `009d570`
 Merged to `main` and pushed, so Vercel redeployed production. `tsc --noEmit` and `npm run build` both
 clean before the push. The wall's Prime band now holds:
