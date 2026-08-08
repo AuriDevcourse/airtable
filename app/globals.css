@@ -1678,8 +1678,14 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
    16:9 rather than the sources' own shapes: Luma serves og:image at 800x420 (~1.9:1),
    Eventbrite 2:1, nrich something else again, and letting each keep its ratio made a row of
-   cards look ragged. `cover` crops to the common shape instead. Posters are centred artwork,
-   so the crop takes the edges, not the subject.
+   cards look ragged. The BOX is still that common shape; the FIT is contain.
+
+   It was `cover`, on the reasoning that posters are centred artwork so a crop takes the edges
+   rather than the subject. Measuring the real set killed that (Auri, 2026-08-08: "some of the
+   thumbnails are cut"): 9 of the 12 are Luma's 800x420 (1.90), one is 1920x1192 (1.61) and one
+   is 5376x1920 (2.80). Against a 1.78 box, cover shaved the Luma set and cut a THIRD off the
+   widest. These posters carry TYPE, so the edges are words. Contain letterboxes onto the
+   translucent wash below instead, which reads as a frame rather than as damage.
 
    The negative margins mirror .bp-card's own padding EXACTLY (14px 14px 14px 16px), pulling the
    figure to the card's edge so the picture reads as the top of the card rather than a framed
@@ -1698,7 +1704,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-card__thumb img {
   display: block;
   width: 100%; height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 
 .bp-card__time {

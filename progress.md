@@ -126,6 +126,95 @@ for. Leave it.)
 
 The DBA file itself is fine: `fill: #fff`, viewBox 253.5 × 59.9 (4.2:1), no scale nudge expected.
 
+### 2026-08-08 · THE PRIME ABOVE WAS THE WRONG ORGANISATION. Read this before the section above
+Auri: "I did a mistake with this Erhvervsstyrelsen." The grant argument that earned the Prime slot was
+sound; it was attached to the wrong Danish agency. Two bodies, and the English names blur them:
+
+    Erhvervsstyrelsen          = Danish Business Authority.        Commercial partner, Deal 2026 81,250.
+    Erhvervsfremmebestyrelsen  = Danish Board of Business Dev.     The GRANT funder. recHE7XwVZgNPqtlP.
+
+So `TIER_EXCEPTIONS` lost `"danish business authority"` and gained `"erhvervsfremmebestyrelsen"`.
+This is not overruling the 2026-08-07 call, it points it at the right body — and it costs nothing,
+because Erhvervsstyrelsen's 81,250 deal describes its partnership perfectly well on its own.
+
+**`recicegSWL1fgCvqZ` stays on the wall and stays named "Danish Business Authority".** With the
+override gone its deal computes **Core**, which is where it now draws. Nothing else about that row
+changed: the `white-Danish Business Authority.svg` trick, the rename and the website all still hold,
+they simply no longer feed an exception. Auri's separate `Erhvervsstyrelsen` row
+(`recBoNog9opyOkKHs`) has never been on the wall — no tier, `Put on web` unticked — so "remove it
+from the web" needed no action.
+
+`Erhvervsfremmebestyrelsen.svg` measures **luminance 255** at 21% ink coverage and renders level with
+Industriens Fond beside it, so **no `LOGO_SCALE` entry** despite the low coverage. `Put on web` was
+ticked over the API. It is deliberately NOT linked to a `Company Link`: its only CRM record is
+"Erhvervsfremmebestyrelsen: Startup Database" (To Be Contacted, no deal), which would resolve to
+Community and read as a partnership that does not exist. The exception carries it instead.
+
+Prime is now: Erhvervsfremmebestyrelsen · Industriens Fond · Novo Nordisk Foundation.
+
+### 2026-08-08 · The `Company Link` sweep, and why most of it could NOT be automated
+Auri gave the Symbion and Venture Café Warsaw CRM records by hand ("I can't find it myself") and asked
+for the rest. 11 view rows had no `Company Link`. Matching them by normalised `Company` against the
+2609 records in Partners 2026 resolved **three**, and the other eight are the interesting part:
+**Partners 2026 holds several records per organisation** — a Confirmed one, a Duplicate, a
+To Be Contacted — so a name match returns a set, not a record, and picking the wrong one writes a
+tier that reads like a partnership nobody sold. Those stay a human decision. Set over the API:
+
+    Symbion                              recJcFFzW89QyjM3p -> recBpjYzGMotYGcD7   Core       (Auri)
+    Venture Café Warsaw Foundation       rectRGYTjKrZHxKYv -> recak2fWPK674hfmL   Community  (Auri)
+    SISP Swedish Incubators & Science …  reccR5qcSrWGMsJSf -> recJV70KxwDNyKSOw   Community
+
+Warsaw is a SECOND row for an org already live as `rec4JrqByXKF4BuNI`; the within-tier dedupe absorbs
+it, so the link is harmless but bought nothing. `BETA.HEALTH` (`recVZavNjLKvb3vHp`) 403s on both GET
+and PATCH — the row was read in the same run and then vanished, so treat it as deleted mid-session.
+
+Left for Auri, with the reason, because the CRM cannot answer them:
+
+    Erhvervsfremmebestyrelsen  only record is "…: Startup Database", To Be Contacted — see above
+    Industriens Fond           3 records, all To Be Contacted, no deal — TIER_EXCEPTIONS covers it
+    Erhvervsstyrelsen          recqnMz5meohOgjnK is Confirmed at 65,000, but Auri wants this row
+                               Community and off the wall, so linking it would fight that
+    Daya Ventures              75,000 sits on a record marked Duplicate; the Confirmed one has no deal
+    ESA BIC Denmark            best candidate recgu44HbttMAyjiJ is status "No Deal"
+    NordicNinja VC             one name match (recKdGISB13kcjudW) but To Be Contacted, no deal
+    Bio Innovation Institue    two candidates, neither a partnership — and see the section below
+    Crescita Partners          NO record in Partners 2026 at all; NO_CONTRACT_TIERS already covers it
+
+Still short of the wall after all this: **Symbion and SISP need `Put on web` ticked** (both have a
+white SVG and now a tier). BETA.HEALTH has no logo in Airtable.
+
+### 2026-08-08 · Side event cards: four across in the EMBED too, and thumbnails no longer cropped
+Auri: "in program, we want to have 4 in one row for side events, and I can see some of the thumbnails
+are cut". Two separate bugs wearing one complaint.
+
+**The columns were only wrong in one of the two places.** `.bp-grid` on the dashboard was already
+`repeat(4, 1fr)`; `.tbbq-bp__grid` in `lib/brellaEmbedSnippet.ts` was `repeat(3, 1fr)`, so the board
+Auri reviews and the board techbbq.dk serves disagreed. The embed is now 4, and its breakpoint ladder
+was widened from 3/2/1 to **4/3/2/1** to match the dashboard — a 4-column grid dropping straight to 2
+at 1100px leaves a gap where the cards are needlessly wide.
+
+**The crop was a decision made without measuring, and this is the note that fixes that.** Both files
+carried a comment justifying `object-fit:cover` on the grounds that "posters are centred artwork, so
+the crop takes the edges, not the subject". Measuring all 12 images in the live feed killed it:
+
+    9 x  800x420   1.90   Luma og:image, the common case
+    1 x 1920x1192  1.61   GTM Secret Dinner
+    1 x 5376x1920  2.80   EUVC Corporate Live  ← cover was cutting a THIRD of it away
+    1 x  —         —      BSR Go-abroad, an image format sharp cannot even decode
+
+Against the 1.78 box, cover shaved the Luma set and gutted the widest. These posters carry TYPE along
+their edges — sponsor lockups, dates — so the crop was taking words. Both files are now
+`object-fit:contain` with `object-position:center`.
+
+**The 16:9 BOX stays.** It is not decoration: it is what stops the row jumping as twelve lazy images
+arrive from four CDNs at four sizes. Contain letterboxes onto the `rgba(255,255,255,.05)` wash that
+was already behind the image as its loading state, so the bars read as a frame. Verified on both the
+dashboard and the EXECUTED embed.
+
+**To preview the embed locally you must set `PUBLIC_BASE_URL`** — without it `/api/embed` returns
+`{"error":"No absolute origin"}` and there is nothing to look at. `PUBLIC_BASE_URL=http://localhost:3000
+npm run dev`, then serve the snippet from `public/` so the fetch is same-origin.
+
 ### Bio Innovation Institue — not a partner, and not on the wall either (asked 2026-08-07)
 Auri: "we don't have it as a partner." It has never been on techbbq.dk. It shows on the DASHBOARD,
 which is the intended behaviour — that page is the worklist of rows that cannot publish yet.

@@ -373,17 +373,27 @@ export function buildBrellaEmbedSnippet({
 
   /* ── CARD LIST (event rooms, side events) ── */
   #${id} .tbbq-bp__daylabel{margin:26px 0 12px!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important}
-  #${id} .tbbq-bp__grid{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:14px!important}
+  /* FOUR ACROSS, matching the dashboard's .bp-grid (Auri, 2026-08-08). This was 3 and the
+     dashboard was already 4, so the same board read differently in the two places. The
+     breakpoint ladder below now matches too — 4 / 3 / 2 / 1 rather than 3 / 2 / 1. */
+  #${id} .tbbq-bp__grid{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:14px!important}
   #${id} .tbbq-bp__card{position:relative!important;display:block!important;width:100%!important;text-align:left!important;appearance:none!important;background:var(--card)!important;border:1px solid var(--border)!important;border-radius:12px!important;padding:14px 14px 14px 16px!important;margin:0!important;overflow:hidden!important;font-family:var(--sans)!important;color:var(--fg)!important;box-shadow:none!important;transition:border-color .2s,background .2s}
   #${id} button.tbbq-bp__card{cursor:pointer!important}
   #${id} .tbbq-bp__card::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--track)}
   #${id} button.tbbq-bp__card:hover{border-color:var(--track)!important;background:var(--card2)!important}
   /* SIDE EVENT ARTWORK, full-bleed at the top of the card. Negative margins mirror the card's
-     own 14/14/14/16 padding. 16:9 with object-fit:cover because the four ticketing hosts serve
-     four different ratios and a ragged row looked broken. The spine (::before) is absolutely
-     positioned, so it still paints over this. */
+     own 14/14/14/16 padding. The fixed 16:9 box stays — it is what stops the row jumping as
+     twelve lazy images arrive from four CDNs at four sizes — but the fit is CONTAIN, not cover
+     (Auri, 2026-08-08: "some of the thumbnails are cut"). The spine (::before) is absolutely
+     positioned, so it still paints over this.
+
+     Measured, which is the reason: 9 of the 12 posters are Luma's 800x420 (1.90), one is
+     1920x1192 (1.61) and one is 5376x1920 (2.80). Against a 1.78 box, cover was shaving the
+     edges off the Luma set and cutting a THIRD off the 2.80 one. These are posters with type
+     on them, so a crop takes words, not background. Contain letterboxes onto the existing
+     translucent wash instead, which reads as a frame rather than as damage. */
   #${id} .tbbq-bp__thumb{margin:-14px -14px 12px -16px!important;padding:0!important;aspect-ratio:16/9!important;overflow:hidden!important;background:rgba(255,255,255,.05)!important;border-radius:0!important}
-  #${id} .tbbq-bp__thumb img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;margin:0!important;border-radius:0!important;max-width:none!important}
+  #${id} .tbbq-bp__thumb img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;margin:0!important;border-radius:0!important;max-width:none!important}
   #${id} .tbbq-bp__modal .tbbq-bp__thumb{margin:0 0 14px!important;border-radius:10px!important}
   #${id} .tbbq-bp__time{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:11px!important;font-weight:600!important;letter-spacing:.06em!important;color:var(--fg)!important}
   /* In the dialog the time gets the stage's colour as a bar on its left, and enough room on
@@ -470,7 +480,8 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__chev[data-open]{transform:rotate(180deg)}
   #${id} .tbbq-bp__pbio{margin:6px 0 0!important;padding:0!important;color:rgba(255,255,255,.7)!important;font-size:12px!important;line-height:1.5!important}
 
-  @media(max-width:1100px){#${id} .tbbq-bp__grid{grid-template-columns:repeat(2,1fr)!important}}
+  @media(max-width:1100px){#${id} .tbbq-bp__grid{grid-template-columns:repeat(3,1fr)!important}}
+  @media(max-width:820px){#${id} .tbbq-bp__grid{grid-template-columns:repeat(2,1fr)!important}}
   /* THE PHONE LAYOUT. One timeline column, chosen from the select; the pill row of columns is
      hidden because five of them wrap into a block taller than the schedule. The DAY pills stay:
      there are only two and they are the thing people switch most. */
