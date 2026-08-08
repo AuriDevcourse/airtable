@@ -32,6 +32,7 @@
 import { PartnerEvent } from "@/lib/partnerevents";
 import { ProgramSession } from "@/lib/program";
 import { EventPageDetail } from "@/lib/eventPages";
+import { baseUrl } from "@/lib/photo";
 
 /**
  * Titles do not match exactly across the two systems, so compare them loosely: lowercase,
@@ -111,6 +112,47 @@ function dayRank(day: string): number {
   return m ? Number(m[1]) : 99;
 }
 
+// ─── BANNERS TECHBBQ DREW, FOR EVENTS WHOSE TICKETING PAGE PUBLISHES NO ARTWORK ─────────
+// Three of the fourteen side events had no thumbnail, and not because of a bug: CTO Connect sells
+// through rsvp.withgoogle.com, which publishes no og:image at all, and the other two have no
+// scrapeable artwork either. A row of cards where three are text-only reads as a broken page rather
+// than as a page missing three images, so Auri drew Luma-style banners for them (2026-08-08).
+//
+// LOCAL FILES, and that is the same call `LOGO_FILE_OVERRIDES` makes in lib/partners.ts for the
+// Erhvervshus frieze: this artwork exists NOWHERE upstream, so there is no upstream to read it
+// from. Airtable would only be a second place to keep a file nobody else maintains.
+//
+// THE PARTNER'S OWN ARTWORK ALWAYS WINS over an entry here — see the `??` order at the call site.
+// So the day one of these events publishes a real og:image, theirs appears and the line below
+// becomes dead weight to delete. That direction matters: a hand-drawn banner is a stand-in, not a
+// preference, and it carries whatever the date and venue were on the day it was drawn.
+//
+// KEYED ON titleKey(), not on the raw title, because these names are inconsistent across the two
+// sources ("BSR Go-abroad Co-ceation Seminar" is spelt that way in Airtable, typo included). An
+// exact-match key would silently match nothing and show no banner, which is indistinguishable from
+// not having added one.
+//
+// NOT IN HERE, deliberately: BSR Go-abroad. It looked like a fourth missing image and was actually
+// a MANGLED URL — Eventbrite writes its og:image with `&amp;` and the scraper was not decoding
+// entities, so the proxy answered 400 and the card hid its own figure. Fixed properly in
+// lib/eventPages.ts, so BSR shows Eventbrite's real artwork. The hand-drawn BSR banner is not used
+// and should not be: its date and venue were guesses, and a wrong venue on techbbq.dk is worse than
+// no picture.
+const ARTWORK_OVERRIDES: Record<string, string> = {
+  "cto connect": "cto-connect.webp",
+  "techbbq biotech university spinouts discussion 2026": "biotech-spinouts.webp",
+  "the nordic paradox from mapping to action": "nordic-paradox.webp",
+};
+
+function artworkOverride(key: string): string | null {
+  const file = ARTWORK_OVERRIDES[key];
+  if (!file) return null;
+  // ABSOLUTE, via the same baseUrl() every other feed uses. A bare "/side-events/..." works on the
+  // dashboard and silently 404s inside the embed, where the browser resolves it against techbbq.dk.
+  // That exact mistake shipped once on the partner wall and produced 104 empty tiles.
+  return `${baseUrl()}/side-events/${file}`;
+}
+
 /**
  * Merge the two sources into the program's Side Events section.
  *
@@ -152,9 +194,9 @@ export function mergeSideEvents(
         // alone is honest and useful, "Time TBC" is neither. Partners will get a time field on
         // the form; until they fill it, this is what a visitor sees.
         dateLabel: e.date ? dateWords(e.date) : undefined,
-        // The partner's own artwork. Only source there is: neither Airtable nor Brella has an
-        // image for a side event, so a card without one simply shows no thumbnail.
-        image: extra.image ?? null,
+        // The partner's own artwork from their ticketing page, or a banner TechBBQ drew because
+        // the page had none. The partner's own always wins — see ARTWORK_OVERRIDES.
+        image: artworkOverride(key) ?? extra.image ?? null,
         // Just the kind. Public/private used to be fused into this string, which made the
         // dialog's badge read "Side Event · Private · invite only" and forced any consumer
         // wanting the access rule to parse prose. It has its own field now.
