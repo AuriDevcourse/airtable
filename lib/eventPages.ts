@@ -104,13 +104,41 @@ export function isEventPageUrl(url: string | null | undefined): boolean {
  *
  * Only https is accepted. This string ends up in an <img src> on techbbq.dk, and a page that
  * advertised an http image would turn a secure page into a mixed-content warning.
+ *
+ * ─── THE ENTITIES HAVE TO BE DECODED, AND SKIPPING IT COST ONE CARD ITS ARTWORK ─────────
+ * An attribute value in HTML is ENCODED text, not a literal. Eventbrite writes its og:image as a
+ * Next.js image-proxy URL whose own query string is joined with `&amp;`, which is correct HTML and
+ * a broken URL: `/_next/image?url=…&amp;w=940&amp;q=75` asks the proxy for a parameter literally
+ * named "amp;w". Eventbrite answers 400, the browser fires onerror, and the snippet hides the
+ * figure — so "BSR Go-abroad" looked like an event with no artwork rather than one with a mangled
+ * link (found 2026-08-08, after Auri had already drawn a replacement banner for it by hand).
+ *
+ * Only the five predefined XML entities are decoded, and `&amp;` is decoded LAST so that an
+ * already-doubled `&amp;amp;` collapses correctly instead of turning into a stray `&`.
  */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
 function ogImage(html: string): string | undefined {
   const m =
     /<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(html) ||
     /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html);
-  const raw = m?.[1]?.trim();
+  const raw = m?.[1] ? decodeEntities(m[1].trim()) : undefined;
   if (!raw || !/^https:\/\//i.test(raw)) return undefined;
+  // Re-validated AFTER decoding, because decoding is what can introduce a second scheme: a value
+  // written as `https://x/?u=%20&amp;` is fine, but the check has to run on what is actually used.
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return undefined;
+  } catch {
+    return undefined;
+  }
   return raw;
 }
 
