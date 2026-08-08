@@ -72,9 +72,38 @@ const FAILURE_TTL_MS = 10_000;
 // Drop a cached entry so the next read re-fetches. Used by the manual sync button:
 // without this, a sync would land in Airtable but the grid would keep serving the
 // hour-old list, making the button look broken.
-export function invalidate(key: string): void {
-  cache.delete(key);
+// Returns whether anything was actually there. Callers that only want the side effect can ignore
+// it; app/api/revalidate reports it, and a purge that always claimed success regardless is exactly
+// how a broken cache invalidation stays hidden.
+export function invalidate(key: string): boolean {
+  const had = cache.delete(key);
   failures.delete(key);
+  return had;
+}
+
+/**
+ * Drop every cached entry whose key starts with `prefix`, and report how many went.
+ *
+ * Several feeds cache PER QUERY PARAMETER — `niss:all` and `niss:Speaker`, `team:all` and
+ * `team:<department>`, `investors:all` and `investors:lp-forum`. Dropping one variant leaves the
+ * others serving the old data, which is worse than not refreshing at all: the same edit would
+ * appear on one view of a page and not another. The webhook in app/api/revalidate therefore names
+ * these feeds by prefix.
+ *
+ * Prefixes are only ever supplied by lib/feedKeys.ts, never by a caller, so this cannot be used
+ * to clear the whole cache by passing "".
+ */
+export function invalidatePrefix(prefix: string): number {
+  if (!prefix) return 0;
+  let n = 0;
+  for (const key of [...cache.keys()]) {
+    if (key.startsWith(prefix)) {
+      cache.delete(key);
+      failures.delete(key);
+      n++;
+    }
+  }
+  return n;
 }
 
 // ttlMs is per call, so one feed can refresh on a different schedule from the rest without

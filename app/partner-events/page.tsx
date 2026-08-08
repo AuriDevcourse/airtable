@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
@@ -9,6 +9,30 @@ import { CopyEventEmbed } from "@/components/CopyEventEmbed";
 // One card per partner-hosted event: Side Events in red, Event Rooms in blue.
 // Fed by /api/partner-events — see lib/partnerevents.ts for why that lib addresses
 // Airtable fields by ID (three columns share the name "Date of Event ").
+//
+// ─── IT LOOKS LIKE PROGRAM 2026 ON PURPOSE ──────────────────────────────────────────────
+// Auri, 2026-08-08: make this look the same as Program 2026. It was a wall of logo cards with
+// its own `.ev-*` styling; these are SESSIONS, the same kind of thing /brella-program lists, and
+// two schedules in one dashboard that look nothing alike is the thing that made "Side Events &
+// Event Rooms" and "Program 2026" read as unrelated products.
+//
+// So this page now reuses the `.bp-*` classes from /brella-program RATHER THAN COPYING THEM:
+// day tabs (`.seg.bp-days`), one `.bp-day` block per date, a `.bp-grid` of `.bp-card`s, and a
+// click-to-open `.bp-modal`. Restyling a card in globals.css now moves both pages, which is the
+// point — the `.ev-*` block is what let them drift apart.
+//
+// Three things deliberately kept from the old design, all of them hard-won:
+//   1. The kind colour still drives the card (red Side Event, blue Event Room). It feeds
+//      `--track`, the variable `.bp-card` already uses for its spine.
+//   2. The logo sits on a LIGHT panel (`.bp-card__thumb--logo`). Partner logos are mostly
+//      dark-on-transparent PNGs and vanish on the dark wash `.bp-card__thumb` uses for the
+//      Brella posters. That was found the hard way; see lightTint() below.
+//   3. Register lives ONLY in the dialog, matching Program 2026 — a pill on every card turned
+//      the section into a wall of buttons (Auri, 2026-08-04).
+//
+// NOT changed: the WordPress embed (lib/eventEmbedSnippet.ts) still draws the old card wall. The
+// dashboard and the embed are now two different designs — see progress.md before assuming that
+// is a bug to fix rather than a decision to make.
 type PartnerEvent = {
   id: string;
   title: string;
@@ -61,6 +85,46 @@ const FILTERS = [
   { key: "event-room", label: "Event Rooms", color: "#1B6CA8" },
 ] as const;
 
+// Same sentence as /brella-program, character for character. Two pages telling a visitor the same
+// rule in two different wordings is how "private" starts meaning two things.
+const PRIVATE_NOTE =
+  "Private event · you need an invitation or the host's approval to attend";
+
+// "09:30-11:30" → 570, for sorting a day's cards by when they start. The feed has already
+// normalised this string (lib/partnerevents.ts parseTimeSlot), so anything unparseable here is
+// absent rather than malformed — those sort last, which is where an unscheduled event belongs.
+function startMinutes(slot: string | null): number {
+  if (!slot) return Number.MAX_SAFE_INTEGER;
+  const m = /^(\d{2}):(\d{2})/.exec(slot);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : Number.MAX_SAFE_INTEGER;
+}
+
+// "2026-08-26" → "Wednesday 26 August", the day heading. UTC for the same reason the feed
+// formats in UTC: these are date-only cells, and a zone west of UTC renders them a day early.
+function dayLabel(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(d);
+}
+
+// The two lines inside a day tab: "WED" over "26 Aug".
+function tabLabel(iso: string): { n: string; date: string } {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return { n: "TBC", date: "" };
+  const f = (o: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-GB", { ...o, timeZone: "UTC" }).format(d);
+  return { n: f({ weekday: "short" }).toUpperCase(), date: f({ day: "numeric", month: "short" }) };
+}
+
+// The bucket for events whose partner never filled in a date. A real key rather than null so it
+// can be a tab and a heading like any other day, and sorted last by the "z" prefix.
+const NO_DATE = "zzz-no-date";
+
 // Second stop of the hover glow, per kind. The speaker cards fade a diagonal
 // black -> colour -> lighter-colour -> transparent gradient in (.s-card::after), so these
 // keep that shape: a Side Event reuses the site's exact fire pairing (#CE0F2E -> #FA7000),
@@ -71,84 +135,197 @@ const GLOW_SECOND: Record<string, string> = {
   "event-room": "#2BB4E1",
 };
 
-function EventCard({ ev }: { ev: PartnerEvent }) {
+// The kind colour, handed to the shared `.bp-card` / `.bp-modal` styles the same way
+// /brella-program hands over a track colour.
+function kindVars(ev: PartnerEvent): React.CSSProperties {
+  return {
+    "--track": ev.color,
+    // The logo panel. Mixed toward WHITE, not toward the card, because partner logos are almost
+    // all dark-on-transparent PNGs — Rockstart, advores and OMR Reviews were invisible on a dark
+    // panel. A partner who uploads a white logo will vanish on it; that is a swap in Airtable.
+    "--kind-panel": lightTint(ev.color, 0.1),
+    // Backs the kind badge. Solid rgb, not rgba: as a tint it disappeared into the hover glow.
+    "--kind-soft": mix(ev.color, 0.18, "#131313"),
+    "--glow-a": tint(ev.color, 0.92),
+    "--glow-b": tint(GLOW_SECOND[ev.kind] ?? ev.color, 0.6),
+  } as React.CSSProperties;
+}
+
+// The kind is a kicker above the title, exactly where Program 2026 puts its Breathwork and
+// Opening badges — that is the slot on this card that answers "what kind of thing is this".
+function KindBadge({ ev }: { ev: PartnerEvent }) {
+  return <span className="bp-kind">{ev.kindLabel}</span>;
+}
+
+function PartnerLogo({ ev }: { ev: PartnerEvent }) {
   const [loaded, setLoaded] = useState(false);
   return (
-    <article
-      className="ev-card"
-      style={
-        {
-          "--kind": ev.color,
-          // Solid, NOT rgba: this backs the kind badge, which sits above the hover glow.
-          // As a translucent tint the badge's red text vanished into the red glow.
-          "--kind-soft": mix(ev.color, 0.18, "#131313"),
-          "--kind-panel": lightTint(ev.color, 0.1),
-          // Same alphas as .s-card::after: .92 on the first stop, .6 on the second.
-          "--glow-a": tint(ev.color, 0.92),
-          "--glow-b": tint(GLOW_SECOND[ev.kind] ?? ev.color, 0.6),
-        } as React.CSSProperties
-      }
+    <figure className={"bp-card__thumb bp-card__thumb--logo" + (ev.logo && !loaded ? " shimmer" : "")}>
+      {ev.logo ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={ev.logo}
+          alt={ev.company ? `${ev.company} logo` : ""}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+        />
+      ) : (
+        <span className="bp-card__initial" aria-hidden="true">
+          {(ev.company || ev.title).trim().charAt(0).toUpperCase()}
+        </span>
+      )}
+    </figure>
+  );
+}
+
+// A card is a BUTTON when there is something behind it and a plain article when there is not —
+// the same rule as SessionCard in /brella-program, and the reason it is keyboard-reachable.
+// Only the 6 Side Events carry a description or a register link; the 13 Event Rooms open nothing,
+// so they must not look pressable.
+function hasDetail(ev: PartnerEvent): boolean {
+  return Boolean(ev.description || ev.registerUrl);
+}
+
+function EventCard({ ev, onOpen }: { ev: PartnerEvent; onOpen: (ev: PartnerEvent) => void }) {
+  const body = (
+    <>
+      <PartnerLogo ev={ev} />
+      {/* Time first, in the card's own time slot. "Time TBC" is not printed: most of these have
+          no time yet and a grid of italic placeholders reads as broken data rather than as a
+          schedule. The gaps panel above already names the ones that are missing. */}
+      <p className="bp-card__time">{ev.timeSlot ?? ev.dateLabel ?? "Date TBC"}</p>
+      <KindBadge ev={ev} />
+      <h3 className="bp-card__title">{ev.title}</h3>
+      {ev.company && (
+        <p className="bp-card__room">
+          <HostIcon />
+          Hosted by {ev.company}
+        </p>
+      )}
+      {ev.description && <p className="bp-card__desc">{ev.description}</p>}
+      {/* Last line, Auri's placement: a condition of attending, not a headline. */}
+      {ev.accessKind === "private-invite" && <p className="bp-card__note">{PRIVATE_NOTE}</p>}
+    </>
+  );
+
+  if (!hasDetail(ev)) {
+    return (
+      <article className="bp-card" style={kindVars(ev)}>
+        {body}
+      </article>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="bp-card bp-card--open"
+      style={kindVars(ev)}
+      onClick={() => onOpen(ev)}
+      aria-label={`${ev.title} — show details`}
     >
-      <div className={"ev-card__media" + (ev.logo && !loaded ? " shimmer" : "")}>
-        {ev.logo ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            className="ev-card__logo"
-            src={ev.logo}
-            alt={ev.company ? `${ev.company} logo` : ""}
-            loading="lazy"
-            onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
-          />
-        ) : (
-          <span className="ev-card__logo--empty" aria-hidden="true">
-            {(ev.company || ev.title).trim().charAt(0).toUpperCase()}
-          </span>
+      {body}
+    </button>
+  );
+}
+
+// Lucide "building-2": the host is a company, not a venue. Same icon Program 2026 uses on a
+// side event's host line.
+function HostIcon() {
+  return (
+    <svg
+      className="bp-card__pin"
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+      <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
+    </svg>
+  );
+}
+
+function EventDialog({ ev, onClose }: { ev: PartnerEvent; onClose: () => void }) {
+  // Escape closes, and the page behind is locked so a scroll over the overlay does not silently
+  // move the list underneath. Same as SessionDialog in /brella-program.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="bp-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ev-dialog-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bp-modal" style={kindVars(ev)}>
+        <button type="button" className="bp-modal__close" onClick={onClose} aria-label="Close">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Day before the time, always shown: a dialog has no day heading above it. */}
+        <p className="bp-modal__time">
+          <span className="bp-modal__day">{ev.dateLabel ?? "Date TBC"}</span>
+          {ev.timeSlot ?? "Time TBC"}
+        </p>
+        <KindBadge ev={ev} />
+        <h2 className="bp-modal__title" id="ev-dialog-title">
+          {ev.title}
+        </h2>
+        {ev.company && (
+          <p className="bp-modal__meta">
+            <HostIcon />
+            Hosted by {ev.company}
+          </p>
         )}
-      </div>
 
-      <div className="ev-card__body">
-        <div className="ev-card__tags">
-          <span className="ev-card__kind">{ev.kindLabel}</span>
-          {ev.accessLabel && (
-            <span
-              className={
-                "ev-card__access" +
-                (ev.accessKind === "private-invite" ? " ev-card__access--private" : "")
-              }
-            >
-              {ev.accessLabel}
-            </span>
-          )}
-          {/* Day and time are ONE wrapping unit. Left as two siblings of the badges they
-              broke apart on a three-badge card: the badges filled the line and the time
-              dropped underneath, left-aligned, while every two-badge card kept it inline. */}
-          <span className="ev-card__when">
-            {ev.dateLabel ? (
-              <span className="ev-card__date">{ev.dateLabel}</span>
-            ) : (
-              <span className="ev-card__date ev-card__date--none">Date TBC</span>
-            )}
-            {/* No "Time TBC" counterpart: most of these have no time yet, and a page of
-                italic placeholders reads as missing data rather than as a schedule. The
-                gaps panel above already names it. */}
-            {ev.timeSlot && <span className="ev-card__time">{ev.timeSlot}</span>}
-          </span>
-        </div>
-
-        <h3 className="ev-card__title">{ev.title}</h3>
-        {ev.company && <p className="ev-card__company">{ev.company}</p>}
-        {ev.description && <p className="ev-card__desc">{ev.description}</p>}
-
-        {ev.registerUrl && (
-          <div className="ev-card__cta">
-            <a href={ev.registerUrl} target="_blank" rel="noopener noreferrer">
-              Register
-            </a>
+        {/* Unclamped here — the card shows three lines, this is where the rest lives. */}
+        {ev.description && (
+          <div className="bp-modal__desc">
+            {ev.description
+              .split("\n")
+              .filter(Boolean)
+              .map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
           </div>
         )}
+
+        {ev.registerUrl && (
+          <p className="bp-modal__cta">
+            <a href={ev.registerUrl} target="_blank" rel="noopener noreferrer">
+              Register for this event
+            </a>
+          </p>
+        )}
+        {/* Directly under the button it explains, so nobody presses it expecting a ticket. */}
+        {ev.accessKind === "private-invite" && <p className="bp-modal__note">{PRIVATE_NOTE}</p>}
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -158,6 +335,10 @@ export default function PartnerEventsPage() {
     useCachedList<PartnerEvent>("partnerevents", url, "events");
   const all = data ?? [];
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  // "" is the ALL tab, which lists every day down the page — the same shape as the Side Events
+  // day tabs on /brella-program.
+  const [day, setDay] = useState("");
+  const [open, setOpen] = useState<PartnerEvent | null>(null);
 
   // Filtered client-side so switching kinds never refetches — the whole list is 15 rows,
   // and /api/partner-events?kind=… exists for consumers that want it server-side.
@@ -174,6 +355,26 @@ export default function PartnerEventsPage() {
     }),
     [all]
   );
+
+  // Every date present in the CURRENT kind filter, so switching to Side Events cannot leave a tab
+  // selected that now holds nothing.
+  const dayKeys = useMemo(() => {
+    const keys = new Set(events.map((e) => e.date ?? NO_DATE));
+    return [...keys].sort();
+  }, [events]);
+
+  // The days actually rendered, each with its events sorted by start time.
+  const days = useMemo(() => {
+    const wanted = day && dayKeys.includes(day) ? [day] : dayKeys;
+    return wanted.map((k) => ({
+      key: k,
+      events: events
+        .filter((e) => (e.date ?? NO_DATE) === k)
+        .sort((a, b) => startMinutes(a.timeSlot) - startMinutes(b.timeSlot)),
+    }));
+  }, [events, dayKeys, day]);
+
+  const shown = days.reduce((n, d) => n + d.events.length, 0);
 
   return (
     <main>
@@ -280,38 +481,74 @@ export default function PartnerEventsPage() {
           <p className="count-line">Loading…</p>
         ) : (
           <>
-            <div className="ev-tabs">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  // data-k drives the "All" pill's dark-ink carve-out in globals.css: it has
-                  // no --tab-color, so it would otherwise render white text on white.
-                  data-k={f.key}
-                  aria-pressed={filter === f.key}
-                  onClick={() => setFilter(f.key)}
-                  style={f.color ? ({ "--tab-color": f.color } as React.CSSProperties) : undefined}
-                >
-                  {f.label} ({counts[f.key]})
+            {/* Two rows of tabs inside one control block, the Program 2026 arrangement: WHAT
+                (kind) above WHEN (day). Both are `.seg`, so they are the same control as the
+                track and day switchers on that page rather than a second tab style. */}
+            <div className="bp-controls">
+              <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by kind">
+                {FILTERS.map((f) => (
+                  <button
+                    key={f.key}
+                    role="tab"
+                    aria-selected={filter === f.key}
+                    onClick={() => setFilter(f.key)}
+                  >
+                    {f.label} ({counts[f.key]})
+                  </button>
+                ))}
+              </div>
+
+              <div className="seg bp-days" role="tablist" aria-label="Event day">
+                <button role="tab" aria-selected={day === ""} onClick={() => setDay("")}>
+                  <span className="bp-days__n">ALL</span>
+                  <span className="bp-days__date">{events.length} events</span>
                 </button>
-              ))}
+                {dayKeys.map((k) => {
+                  const t = tabLabel(k);
+                  return (
+                    <button
+                      key={k}
+                      role="tab"
+                      aria-selected={day === k}
+                      onClick={() => setDay(k)}
+                    >
+                      <span className="bp-days__n">{k === NO_DATE ? "TBC" : t.n}</span>
+                      <span className="bp-days__date">
+                        {k === NO_DATE ? "no date" : t.date}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Centered to sit under the centered tabs. */}
-            <p className="count-line" style={{ marginTop: 16, textAlign: "center" }}>
-              {events.length} event(s).
+            <p className="count-line" style={{ textAlign: "center" }}>
+              {shown} event(s).
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}
             </p>
 
-            <div className="ev-grid">
-              {events.map((ev) => (
-                <EventCard key={ev.id} ev={ev} />
-              ))}
-            </div>
+            {days.length === 0 ? (
+              <p className="count-line">Nothing scheduled here yet.</p>
+            ) : (
+              days.map((d) => (
+                <section key={d.key} className="bp-day">
+                  <h2 className="bp-day__label">
+                    {d.key === NO_DATE ? "Date still to be confirmed" : dayLabel(d.key)}
+                  </h2>
+                  <div className="bp-grid">
+                    {d.events.map((ev) => (
+                      <EventCard key={ev.id} ev={ev} onOpen={setOpen} />
+                    ))}
+                  </div>
+                </section>
+              ))
+            )}
           </>
         )}
       </div>
+
+      {open && <EventDialog ev={open} onClose={() => setOpen(null)} />}
     </main>
   );
 }

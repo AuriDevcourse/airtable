@@ -54,6 +54,11 @@ const PUBLIC_PATHS = new Set([
   "/api/interns/apply",
   "/interns/apply",
   "/api/sync-speakers", // guarded by CRON_SECRET instead
+  // Airtable's Automation cannot answer a Basic auth challenge, so this bypasses the dashboard
+  // password the same way /api/sync-speakers does — and is guarded the same way, by its own
+  // bearer secret (REVALIDATE_SECRET), compared constant-time and failing closed when unset.
+  // It writes nothing and reads nothing; it only drops this project's cache.
+  "/api/revalidate",
   // Returns embed markup, not data. Every byte of it is already public in the source of any
   // page that has pasted the snippet, it reads no protected feed and it calls no paid API,
   // so gating it would protect nothing while making the snippet impossible to fetch from the

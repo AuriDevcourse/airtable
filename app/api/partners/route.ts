@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
 
     // Cached WITH the pending rows, then narrowed below. One Airtable read serves both audiences;
     // caching the two lists separately would double the calls to say the same thing twice.
-    const all = await cached(KEY, () => fetchPartners({ includePending: true }), feedTtlMs());
+    // KEY is passed so the per-feed cadence overrides in lib/cachePolicy.ts apply — this feed is
+    // in NEAR_LIVE_FEEDS. Without it the call gets the default and the override does nothing,
+    // silently.
+    const all = await cached(KEY, () => fetchPartners({ includePending: true }), feedTtlMs(KEY));
 
     const wantsPending =
       req.nextUrl.searchParams.get("pending") !== null &&
@@ -50,7 +53,8 @@ export async function GET(req: NextRequest) {
     // partners we have not announced.
     return feedResponse(
       { count: partners.length, tiers: PARTNER_TIERS, partners },
-      wantsPending ? { ...gate, fresh: true } : gate
+      wantsPending ? { ...gate, fresh: true } : gate,
+      { key: KEY }
     );
   } catch (err) {
     console.error("[/api/partners]", err);

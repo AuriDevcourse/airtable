@@ -1708,6 +1708,47 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   object-position: center;
 }
 
+/* PARTNER LOGO VARIANT (/partner-events, 2026-08-08). Same box as the Brella poster above, two
+   differences that are not cosmetic:
+
+   1. The panel is a LIGHT tint of the kind colour, not the dark wash. Partner logos are almost
+      all dark-on-transparent PNGs — Rockstart, advores and OMR Reviews were invisible on a dark
+      panel — so the block is mixed toward white instead. `--kind-panel` is computed in
+      app/partner-events/page.tsx. Caveat: a partner who uploads a WHITE logo vanishes on it;
+      that is a swap in Airtable, not a code fix.
+   2. Shorter and padded. A poster IS the card's top; a logo is a mark that needs air around it,
+      and at 16:9 full-bleed the small ones looked stranded. */
+.bp-card__thumb--logo {
+  aspect-ratio: 5 / 2;
+  display: grid; place-items: center;
+  padding: 12px 16px;
+  background: var(--kind-panel, rgba(255, 255, 255, 0.06));
+}
+.bp-card__thumb--logo img { width: auto; max-width: 100%; max-height: 100%; }
+/* The fallback when a partner uploaded no logo at all: their initial, in the kind colour. */
+.bp-card__initial {
+  font-family: var(--font-heading);
+  font-size: 26px; font-weight: 700;
+  color: var(--track, var(--color-muted));
+}
+
+/* The kicker above the title that says what KIND of thing this is. Sits in the same slot as the
+   Breathwork and Opening badges on /brella-program, and is the card's only other colour. */
+.bp-kind {
+  align-self: flex-start;
+  margin: 10px 0 0;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: var(--kind-soft, var(--color-card-2));
+  color: var(--track, var(--color-foreground));
+  font-family: var(--font-heading);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+/* In the dialog it is a block-level element rather than a flex child, so it needs its own
+   inline-block to keep from stretching the full width. */
+.bp-modal .bp-kind { display: inline-block; }
+
 .bp-card__time {
   margin: 0;
   font-family: var(--font-heading);
@@ -2086,92 +2127,151 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 
 /* ─── THE FRONT-PAGE HUB (app/page.tsx) ────────────────────────────────────────────────────
-   Three section headings, each opening the pages inside it. Two steps rather than one long
-   list: twenty-one entries on one screen is the dropdown's problem again, printed larger. */
-.hub { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+   A GRID of section cards, every page visible at once.
 
-.hub__section {
+   It was an accordion until 2026-08-08, on the theory that twenty-one entries on one screen is
+   the dropdown's problem printed larger. It is not: the dropdown is bad because it hides its
+   contents until you click and shows one narrow column. The accordion did BOTH of those too, and
+   started fully closed on top. Laid out as cards in a grid, twenty-one entries are four short
+   lists you read in parallel, which is the thing a wide screen is for. */
+.hubbar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.hubbar__search {
+  flex: 1 1 320px; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px;
   border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-card);
-  overflow: hidden;
-}
-.hub__section[data-open] { border-color: #3a3a3a; background: var(--color-card-2); }
-
-.hub__head {
-  width: 100%;
-  display: flex; align-items: center; gap: 16px;
-  padding: 20px 22px;
-  border: 0; background: none; color: inherit;
-  font: inherit; text-align: left; cursor: pointer;
-  transition: background 0.18s;
-}
-.hub__head:hover { background: var(--color-card-2); }
-.hub__head:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
-
-.hub__icon {
-  flex: 0 0 auto;
-  display: grid; place-items: center;
-  width: 44px; height: 44px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-orange, #fa7000) 14%, transparent);
-  color: var(--color-orange, #fa7000);
+  background: var(--color-card);
+  color: var(--color-muted);
+  transition: border-color 0.18s;
 }
-.hub__headText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.hub__title { font-family: var(--font-heading); font-size: 21px; font-weight: 700; line-height: 1.15; }
-.hub__blurb { color: var(--color-muted); font-size: 13.5px; line-height: 1.45; }
-.hub__count {
-  flex: 0 0 auto;
+.hubbar__search:focus-within { border-color: var(--color-orange, #fa7000); }
+.hubbar__search svg { flex: none; }
+.hubbar__search input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; background: none; outline: none;
+  color: var(--color-foreground);
+  font: inherit; font-size: 15px;
+}
+.hubbar__search input::placeholder { color: var(--color-muted); }
+/* The native clear button is a light glyph on a dark field in Chrome; the Escape key and
+   selecting-all both still work. */
+.hubbar__search input::-webkit-search-cancel-button { filter: invert(1); opacity: 0.5; }
+.hubbar__count {
+  flex: none; margin: 0;
   color: var(--color-muted);
   font-family: var(--font-heading);
   font-size: 11px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
 }
-/* Points right when closed, down when open: the same chevron doing the same job as in the nav. */
-.hub__chev { flex: 0 0 auto; color: var(--color-muted); display: grid; transition: transform 0.18s; }
-.hub__chev[data-open] { transform: rotate(90deg); color: var(--color-foreground); }
+
+/* COLUMNS, not grid. The sections are 3, 4 and 7 entries long, and CSS grid puts every card in a
+   row on the same baseline — so a row containing Projects (7) leaves half a screen of dead space
+   under Event Rooms (3). Columns pack them, and `columns: 340px` picks the count from the width,
+   so it is one column on a phone and three on a wide monitor with no breakpoint to maintain. */
+.hub {
+  columns: 340px;
+  column-gap: 16px;
+}
+
+.hub__section {
+  break-inside: avoid;
+  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-card);
+  overflow: hidden;
+}
+/* The internal tools are not a website feed, so the card says so before you read a word of it. */
+.hub__section[data-section="internal"] { background: transparent; border-style: dashed; }
+.hub__section[data-section="internal"] .hub__icon {
+  background: color-mix(in srgb, var(--color-muted) 16%, transparent);
+  color: var(--color-muted);
+}
+
+.hub__head {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 18px 18px 14px;
+}
+
+.hub__icon {
+  flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-orange, #fa7000) 14%, transparent);
+  color: var(--color-orange, #fa7000);
+}
+.hub__headText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hub__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 19px; font-weight: 700; line-height: 1.15;
+}
+.hub__blurb { margin: 0; color: var(--color-muted); font-size: 13px; line-height: 1.45; }
 
 .hub__list {
   list-style: none; margin: 0;
   padding: 0 14px 14px;
   display: grid; gap: 8px;
 }
-.hub__list--flat { padding: 0; }
 
+/* One line, one destination. The description moved to the `title` attribute on 2026-08-08, which
+   is what lets the row be this short. */
 .hub__item {
-  display: flex; align-items: center; gap: 14px;
-  padding: 13px 16px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px;
   border: 1px solid var(--color-border);
   border-radius: 11px;
-  background: var(--color-card);
+  background: var(--color-card-2);
   color: inherit; text-decoration: none;
-  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+  transition: border-color 0.18s, background 0.18s;
 }
 .hub__item:hover {
   border-color: var(--color-orange, #fa7000);
-  background: var(--color-card-2);
+  background: var(--color-card);
 }
 .hub__item:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
-.hub__item > svg { flex: 0 0 auto; color: var(--color-muted); }
+.hub__item > svg { flex: 0 0 auto; margin-left: auto; color: var(--color-muted); }
 .hub__item:hover > svg { color: var(--color-orange, #fa7000); }
-.hub__itemText { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
-.hub__itemLabel { font-family: var(--font-heading); font-size: 15px; font-weight: 600; }
-.hub__itemNote { color: var(--color-muted); font-size: 12.5px; line-height: 1.45; }
+.hub__itemLabel {
+  min-width: 0;
+  font-family: var(--font-heading); font-size: 15px; font-weight: 600;
+}
 
-.hub__internal { margin-top: 34px; }
-.hub__internalHead {
-  display: flex; align-items: center; gap: 8px;
-  margin: 0 0 12px;
+/* The per-year row (NISS). Not hoverable as a whole, because the row is not a link — the years
+   are, and they have to be the thing that lights up. */
+.hub__item--years:hover { border-color: var(--color-border); background: var(--color-card-2); }
+.hub__years { margin-left: auto; display: flex; gap: 6px; }
+.hub__year {
+  padding: 3px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-card);
   color: var(--color-muted);
   font-family: var(--font-heading);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 12.5px; font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.18s, color 0.18s;
+}
+.hub__year:hover { border-color: var(--color-orange, #fa7000); color: var(--color-foreground); }
+.hub__year:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
+
+.hub__empty {
+  margin: 0; padding: 40px 20px;
+  border: 1px dashed var(--color-border);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--color-muted);
 }
 
 @media (max-width: 700px) {
-  .hub__head { padding: 16px; gap: 12px; flex-wrap: wrap; }
-  /* The count is the first thing to go: the title and the blurb both say more. */
-  .hub__count { display: none; }
+  .hub { columns: 1; }
+  .hub__section { margin-bottom: 12px; }
+  .hub__head { padding: 16px 16px 12px; gap: 12px; }
   .hub__title { font-size: 18px; }
 }
 
@@ -2199,15 +2299,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .lw-tile--text { position: relative; padding-bottom: 20px; }
 
 /* ─── THE DAILY CHECK (app/page.tsx) ───────────────────────────────────────────────────────
-   The panel at the top of the hub: one row per area, each showing the number techbbq.dk would
-   render right now. It sits above the navigation on purpose — it is the reason to open this page in
-   the morning, and the links are what you do afterwards. */
+   One TILE per area, each showing the number techbbq.dk would render right now.
+
+   It was six full-width rows above the navigation. Two changes on 2026-08-08: it moved BELOW the
+   page grid, because reading it is a once-a-morning job and getting to a page is every visit; and
+   it became a grid of tiles, because the number is the point and six numbers side by side are one
+   glance rather than one scroll. */
 .check {
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: var(--color-card);
   padding: 20px 22px;
-  margin-bottom: 28px;
+  margin: 34px 0 18px;
 }
 .check__head {
   display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
@@ -2224,50 +2327,104 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .check__title svg { color: var(--color-orange, #fa7000); }
 .check__sub { margin: 0; color: var(--color-muted); font-size: 13px; }
 
-.check__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.check__row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 11px 12px;
-  border-radius: 10px;
-  color: inherit; text-decoration: none;
-  transition: background 0.15s;
+.check__grid {
+  list-style: none; margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
 }
-.check__row:hover { background: var(--color-card-2); }
-.check__row:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; }
-.check__dot { width: 8px; height: 8px; border-radius: 9999px; }
-.check__rowText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.check__label { font-family: var(--font-heading); font-size: 14.5px; font-weight: 600; }
+.check__tile {
+  height: 100%;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 14px 15px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-card-2);
+  color: inherit; text-decoration: none;
+  transition: border-color 0.18s, background 0.18s;
+}
+.check__tile:hover { border-color: var(--color-orange, #fa7000); }
+.check__tile:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
+/* A tile that wants something is tinted, so the eye lands on it before reading a single label.
+   Amber for waiting, red for a feed that answered with nothing or did not answer at all. */
+.check__tile[data-state="todo"] { border-color: color-mix(in srgb, #fd9d04 45%, var(--color-border)); }
+.check__tile[data-state="down"] { border-color: color-mix(in srgb, #ce0f2e 45%, var(--color-border)); }
+
+.check__tileHead { display: flex; align-items: center; gap: 8px; }
+.check__tileHead > svg { flex: none; margin-left: auto; color: var(--color-muted); }
+.check__tile:hover .check__tileHead > svg { color: var(--color-orange, #fa7000); }
+.check__dot { flex: none; width: 8px; height: 8px; border-radius: 9999px; }
+.check__label {
+  min-width: 0;
+  font-family: var(--font-heading); font-size: 13.5px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The number is the tile. Everything else on it explains the number. */
+.check__value {
+  display: flex; align-items: baseline; gap: 7px;
+  font-family: var(--font-heading); font-size: 30px; font-weight: 700;
+  line-height: 1.05;
+}
+.check__unit {
+  font-family: var(--font-sans, inherit);
+  font-size: 12px; font-weight: 400;
+  color: var(--color-muted);
+}
 .check__look { color: var(--color-muted); font-size: 12.5px; line-height: 1.4; }
+.check__detail { color: var(--color-muted); font-size: 11.5px; line-height: 1.4; }
 /* The line that names an ACTION. Amber rather than red: nothing is broken, something is waiting. */
 .check__todo { color: #fd9d04; font-size: 12.5px; line-height: 1.4; }
 
-/* The number reads first, so it is aligned right and set in the heading face. */
-.check__value {
-  flex: none; text-align: right;
-  display: flex; flex-direction: column; gap: 1px;
-  font-family: var(--font-heading); font-size: 18px; font-weight: 700;
-  line-height: 1.1;
-}
-.check__detail {
-  font-family: var(--font-sans, inherit);
-  font-size: 11px; font-weight: 400; letter-spacing: 0;
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-.check__row > svg { flex: none; color: var(--color-muted); }
-.check__row:hover > svg { color: var(--color-orange, #fa7000); }
-
 .check__note {
-  margin: 14px 2px 0;
+  margin: 16px 2px 0;
   color: var(--color-muted);
   font-size: 12.5px; line-height: 1.5;
 }
 
+/* ─── HOW OFTEN THIS UPDATES (app/page.tsx) ────────────────────────────────────────────────
+   A one-line answer that opens into the detail. It was four paragraphs sitting between the reader
+   and every link on the page, which is the wrong trade for reference material you read once. */
+.cadence {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-card);
+}
+.cadence__summary {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13.5px;
+  color: var(--color-muted);
+}
+.cadence__summary::-webkit-details-marker { display: none; }
+.cadence__summary:hover { color: var(--color-foreground); }
+.cadence__summary:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: -2px; border-radius: 14px; }
+.cadence__lead { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
+.cadence__lead strong { color: var(--color-foreground); }
+.cadence__more {
+  flex: none;
+  font-family: var(--font-heading);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.cadence__summary > svg { flex: none; transition: transform 0.18s; }
+.cadence[open] .cadence__summary > svg { transform: rotate(90deg); }
+.cadence__body {
+  padding: 0 18px 18px;
+  color: var(--color-muted);
+  font-size: 13px; line-height: 1.6;
+}
+.cadence__body p { margin: 0 0 10px; }
+.cadence__body ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.cadence__body strong { color: var(--color-foreground); }
+
 @media (max-width: 700px) {
-  /* The breakdown is the first thing to go: the headline number and the action line carry it. */
-  .check__detail { display: none; }
-  .check__row { gap: 10px; padding: 10px 8px; }
-  .check__value { font-size: 16px; }
+  .check { padding: 16px; }
+  .check__grid { grid-template-columns: 1fr; }
+  .check__value { font-size: 26px; }
+  .cadence__more { display: none; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

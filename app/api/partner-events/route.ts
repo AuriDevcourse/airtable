@@ -21,10 +21,13 @@ export async function GET(req: NextRequest) {
   try {
     if (gate.fresh) invalidate(KEY);
 
-    const all = await cached(KEY, fetchPartnerEvents, feedTtlMs());
+    // KEY is passed so the per-feed cadence overrides in lib/cachePolicy.ts apply — this feed is
+    // in NEAR_LIVE_FEEDS. Without it the call gets the default and the override does nothing,
+    // silently.
+    const all = await cached(KEY, fetchPartnerEvents, feedTtlMs(KEY));
     const kind = req.nextUrl.searchParams.get("kind");
     const events = kind && KINDS.has(kind) ? all.filter((e) => e.kind === kind) : all;
-    return feedResponse({ count: events.length, events }, gate);
+    return feedResponse({ count: events.length, events }, gate, { key: KEY });
   } catch (err) {
     console.error("[/api/partner-events]", err);
     return errorResponse(err, "Something went wrong loading partner events.", gate);

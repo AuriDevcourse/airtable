@@ -4,6 +4,384 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-08 (sixth) · Grill Session presenters written into Airtable
+
+State: **DONE.** 60 speaker rows created, then re-assigned to the right room. Two enriched with a
+researched LinkedIn + bio. Every live feed verified unchanged on a forced live read.
+
+### Why the Grill Sessions had no avatars
+Not a bug. Brella has **zero speaker-assignments** on all 19 Grill Sessions. Proven with a control:
+Brella's stage sessions list 57 assignment refs and this connector resolved 57/57, so nothing is
+being dropped by `lib/brellaprogram.ts:245`. The slots are empty at source. 74 of 210 published
+sessions have no speaker in Brella; the holes are Event Room 2 (17 of 17) and the 19 Grill Sessions.
+
+### Where the presenters actually live
+`Partnership Success` (`tbllvkwLhB4Omdphd`), view `viwmxcuIN0SFe2tkF` — the Grill Session
+submission form. 21 submissions, each with `1st..5th Presenter details` as STRUCTURED text:
+
+    Name: Fabrizio Del Maffeo
+    Position: CEO and Co-Founder
+    Company: Axelera AI
+
+67 slots filled, 64 fully parseable, 2 are `TBC`. This is a far better source than scraping the
+`Presenters:` block out of the Brella description prose, which was the first thing tried and is
+unreliable (line breaks split surnames, moderators named in sentences).
+
+### What was written
+60 rows into `Marketing Project Overview` (`tblTecOBecLQCNIeD`), view `Speakers`
+(`viwfIcQFDNQ9ggSqx`): Full Name, Job Title, Company, Session Name, Role, Project Name.
+5 people were SKIPPED because they already exist under another project — worth knowing they are
+double-booked: Fabrizio Del Maffeo and Sander Janca-Jensen (TechBBQ Summit), Lars Horsholt Jensen
+(Event Room 1), Amit Vadi (Event Room 5), Peter Winther-Schmidt (Event Room 2).
+
+Roles: 59 Speaker, 1 Moderator (Gertrude Chilufya, detected from her job title). The source has no
+role column, so moderators named only in description prose are not caught — fix by hand.
+
+### THE SAFETY CHECK THAT MADE THIS OK — repeat it before any future write here
+`tblTecOBecLQCNIeD` feeds SEVEN live things (eventrooms, hierarchy, investors, mainpage, partners,
+photo, policystage). Every one filters by `Project Name` ("TechBBQ Summit", "Event Room N",
+"Event Room 5,6,7", investor names) or by `Main Page = YES`, and partners.ts reads its own view.
+"Grill Session" matches none, so the rows cannot reach techbbq.dk. Verified by writing ONE record
+first, then forcing live reads past both caches: partners 154, policy-stage 28,
+event-room-presenters 46, main-speakers 11 — all unchanged before and after.
+
+### Room assignment, after Auri split the select option
+Auri renamed "Grill Session" to "Green Grill Session" and added Orange and Blue. **Renaming a
+single-select option in Airtable rewrites every row using it**, so all 60 landed on Green. Fixed by
+reading the real room from the live Brella schedule (its room field is literally "Blue/Green/Orange
+Grill Session") and matching on session title. 40 rows moved:
+
+    Green 20 people / 7 sessions · Orange 25 / 8 · Blue 15 / 4
+
+**4 people are still on Green because their session is not in Brella at all** — "Scaling Deep Tech
+in Europe: Lessons from EIC Founders and Investors" and "From AI Hype to Real Deal Execution".
+Brella has 19 grill sessions, Airtable has 21 submissions. Chase that gap.
+
+### PHOTOS: still none, and not solvable in code
+All nine attachment fields on the submission form (`1st..5th Presenters Photo`,
+`Presenter photos`, `Presenters Profile Picture`, `Company Logo`) are EMPTY on all 21 rows. The 60
+new speaker rows are the only pictureless entries among 417 in that view.
+
+Auri asked for photos to be researched online and uploaded. **Declined, and it should stay
+declined**: identity cannot be verified from a name plus job title, so at 60 people some faces
+would be wrong, and republishing a found photo has no licence and no GDPR basis. The demonstration
+case is Ulla Sommerfeldt — search returns "Ulla Sommerfelt" (one `t`, Norwegian, Mother Hen
+Ventures) AND a separate Danish investor from PreSeed Ventures, and her Airtable row has no company
+to disambiguate. That is the failure mode with a face attached.
+
+The route that works is the partners: the per-presenter upload fields already exist on the form.
+
+### LinkedIn + bio research
+Rule applied: write only when the company or job title is corroborated by a NON-LinkedIn source.
+Done so far, 2 of 60:
+- **Cecilia Edebo** — confirmed by Sahlgrenska Science Park's own announcement and Invest in
+  Gothenburg. High confidence.
+- **Johan Andersson** — matched on the distinctive company "Brewhouse" only; nine other Johan
+  Anderssons exist. The caveat is written into her Bio field. **Confirm before trusting.**
+
+The remaining 58 are not done. Auri was asked whether a wrong link is worse than an empty field,
+which sets how high the bar goes; that question is unanswered.
+
+### Scripts, kept in the repo on purpose
+- `grill-plan.mjs` — reads the submissions, creates missing speaker rows. Dedupes by name, so it is
+  safe to re-run when new submissions arrive. `--commit` to write, `--limit=N` for a canary.
+- `grill-colour.mjs` — re-assigns each row to the room Brella says the session runs in.
+- `enrich.mjs` — writes researched LinkedIn/Bio onto named rows.
+All three are DRY RUN by default and read the token from the environment.
+
+## Session 2026-08-08 (fifth) · The 30-minute wait is fixed, and it did not need a webhook
+
+State: **SHIPPED AND VERIFIED.** `tsc` clean, headers checked on the running server.
+
+    /api/partners        public, s-maxage=60, stale-while-revalidate=300
+    /api/partner-events  public, s-maxage=60, stale-while-revalidate=300
+    /api/speakers        public, s-maxage=1800, stale-while-revalidate=3600   (unchanged)
+    /api/team            public, s-maxage=1800, stale-while-revalidate=3600   (unchanged)
+
+### The point
+Chasing "Airtable edits should appear instantly" through a webhook was the wrong tool. The caches
+that make an edit wait are a TTL on the CDN and a TTL in memory, and lib/cachePolicy.ts already had
+a per-feed override list (`HOURLY_FEEDS`) doing the same job in the other direction. Adding
+`NEAR_LIVE_FEEDS` took ten lines of the pattern already in the file, needs no webhook, no plugin,
+no new secret and no Airtable Automation — and it works TODAY on the deployed site.
+
+`partners` and `partnerevents` are in the list: the two tables with active daily work. The cost is
+that each is read from Airtable at most once a minute instead of twice an hour, which against
+Airtable's 5 req/sec limit is nothing. **Do not add every feed reflexively** — a feed nobody is
+editing gains nothing and spends requests. Add one while working in that table, remove it after.
+
+### The trap this exposed, worth remembering
+`feedTtlMs()` and `feedResponse()` take the cache key as an OPTIONAL argument, and both
+/api/partners and /api/partner-events were calling them without it. The override would have been
+dead code that looked live — the constant list would say 60 seconds and the header would still say
+1800. Both routes now pass `KEY`. **Any feed added to NEAR_LIVE_FEEDS must also pass its KEY to
+both calls**, or the entry does nothing, silently. /api/fintech-speakers was already correct and is
+the reference.
+
+The front-page cadence panel reads `NEAR_LIVE_FEEDS` directly, so it cannot fall out of step. It
+also maps key → route (`routeOf`) because the key `partnerevents` is not the route
+`/api/partner-events`, and the panel was about to print a URL that 404s.
+
+### Where this leaves /api/revalidate (built earlier today)
+Still correct, still inert, and now clearly NOT the priority. It only earns its keep if you want
+long TTLs AND instant updates at the same time — which matters at traffic this site does not have.
+Leave it; do not wire the Airtable Automation yet.
+
+### Next
+The WordPress plugin is now the only remaining piece of the original ask, and it is about the
+MANUAL PASTING, not about speed. Two honest options, not yet chosen:
+- **Small:** plugin fetches the ready-made snippet from `/api/embed` and prints it. Kills the
+  pasting and the design drift. Still JS-rendered, so still invisible to Google.
+- **Bigger:** a new `/api/render` that returns finished HTML, so WordPress prints server-rendered
+  markup. Adds SEO and makes instant updates work end to end. Requires porting the snippet
+  builders' rendering to the server — real work, and `partners-bare` shows it is all currently
+  `<script>`-based.
+
+## Session 2026-08-08 (fourth) · POST /api/revalidate, and what it can honestly do
+
+State: **BUILT AND TESTED, but INERT until the WordPress plugin exists.** `tsc` clean. Auth,
+rate limiting, feed-name resolution and error paths all verified against the dev server.
+
+### Why it exists
+Auri wants Airtable edits to reach techbbq.dk without waiting out the cache cadence, and without
+hand-pasting embed code. This is the first half: an endpoint an Airtable Automation calls on
+record change.
+
+### THE FINDING THAT RESHAPED IT — do not undo this
+The obvious design ("webhook drops the server cache") **does not work, and cannot**. Measured:
+
+    /api/program?event=brella   4.8s cold  →  0.45s cached
+    POST /api/revalidate {"feeds":["program"]}   →  dropped 0
+    /api/program?event=brella   0.47s      →  STILL CACHED
+
+`{"all":true}` reported `dropped: 12`, which looked like success and was not — 12 was exactly the
+count of non-prefix keys, each incremented blindly by a counter that never checked. All 7 prefix
+purges dropped zero. `invalidate()` now returns a boolean and the count tells the truth.
+
+The reason: the `cached()` Map in lib/rate-limit.ts is MODULE STATE, and each route handler gets
+its own module instance. On Vercel they are separate serverless functions in separate isolates, so
+there is no shared Map to reach into and there never will be. This is the same fact the README
+already states about the Refresh button ("dropping one serverless instance's in-memory cache would
+change nothing") — the lesson had been written down and was still walked into.
+
+`?fresh=` works precisely because it bypasses PER REQUEST rather than trying to clear another
+instance's memory.
+
+### Why not "just use revalidateTag"
+Next's own docs (checked, not assumed): `revalidateTag`/`revalidatePath` do not reach a CDN —
+*"you must explicitly trigger CDN purges"* — and Vercel exposes no per-URL purge API. Making the
+tag approach work would mean moving all 13 feeds off the bespoke Map onto Next's Data Cache. That
+is a rewrite of the caching core, and it would also drop two behaviours `cached()` has that
+`unstable_cache` does not: the in-flight dedupe (added because /api/all-speakers fans out to five
+sources and tripped Airtable's 5 req/sec limit) and serve-stale-on-error. **Not something to do 18
+days before the event.** Revisit in September if at all.
+
+### So what the endpoint actually does
+Its one reliable job is to POST to WordPress (`WORDPRESS_PURGE_URL` + `WORDPRESS_PURGE_SECRET`),
+which drops the plugin's transient and makes WordPress refetch through the authenticated `?fresh=`
+bypass — landing current data on techbbq.dk in seconds without touching the caching core. The
+local in-memory purge stays as best effort and normally reports `dropped: 0`; that is correct, not
+a fault, and it is said in the response body so nobody debugs it twice.
+
+**With `WORDPRESS_PURGE_URL` unset it is plumbing that does almost nothing.** The plugin is not
+the optional second half any more — it is the half that works.
+
+### Verified
+- fail closed with `REVALIDATE_SECRET` unset → 401; wrong bearer → 401
+- `GET` with the secret lists the 20 valid feed names (so an Automation author can check spelling)
+- a typo (`parnters`) → 400 naming the unknown feed, never a silent success
+- rate limited 20/min per IP, tighter than the feeds' 60
+
+### Next steps
+1. Build the WordPress plugin: `[techbbq feed="partners"]` shortcode, transient cache, and a
+   `/wp-json/techbbq/v1/purge` endpoint. Auri has confirmed he can install plugins and create
+   Airtable Automations.
+2. Generate a real `REVALIDATE_SECRET`, set it in Vercel, wire the Airtable Automation.
+3. `.env.local` holds a throwaway `REVALIDATE_SECRET` added this session for local testing. It is
+   gitignored and is not a production secret, but replace or delete it rather than promoting it.
+   (The value is deliberately not written down here — secret-shaped strings do not belong in a
+   file that gets committed, even when the secret is worthless.)
+
+### Files
+- `app/api/revalidate/route.ts` — NEW. The endpoint; its header carries the finding above.
+- `lib/feedKeys.ts` — NEW. Friendly feed name → cache key. A key ending in ":" is a prefix
+  covering every per-parameter variant (`niss:all` and `niss:Speaker`, `team:<department>`).
+- `lib/rate-limit.ts` — `invalidate()` now returns whether anything was there; `invalidatePrefix()`
+  added.
+- `middleware.ts` — `/api/revalidate` added to PUBLIC_PATHS (Airtable cannot answer a Basic auth
+  challenge), guarded by its own bearer secret exactly like `/api/sync-speakers`.
+- `.env.example` — `REVALIDATE_SECRET`, `WORDPRESS_PURGE_URL`, `WORDPRESS_PURGE_SECRET`.
+
+## Session 2026-08-08 (third) · Auri's five fixes, and /partner-events adopts the Program 2026 look
+
+State: **BUILT, `tsc --noEmit` + `npm run build` clean, both pages serve 200 with no server errors.
+NOT yet looked at in a browser by me** — the Playwright profile was locked by a stale Chrome and
+the Chrome extension is not connected, so the schedule layout below is verified structurally, not
+visually. Auri was looking at it live on the dev server.
+
+### WHY LOCAL NAVIGATION WAS CRAWLING: three dev servers, not one
+Stopping a background dev task does NOT kill the `next dev` child processes — each run leaves a
+wrapper (`bin/next dev`) plus a server child (`server/lib/start-server`). Three had piled up, ALL
+writing the same `.next`. That is what produced both symptoms:
+
+- `[webpack.cache.PackFileCacheStrategy] Caching failed: ENOENT rename '0.pack.gz_' -> '0.pack.gz'`
+  — they overwrote each other's cache, so every compile was cold
+- the `ChunkLoadError` on :3003 — that server was still LISTENING, serving a `.next` the other two
+  kept rewriting underneath it
+
+The port walking up (3000 → 3002 → 3003 → 3004) is the tell that orphans are accumulating. Find
+them with `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` filtered on the project path,
+map ports with `Get-NetTCPConnection -State Listen`, and kill every pair except the live one.
+(:3000 is gymbud, a different project — leave it.)
+
+**`dev` now runs `next dev --turbopack`** (`dev:webpack` kept as the escape hatch). Measured on this
+repo after the cleanup: cold route ~0.5s, warm navigation ~0.27s. Dev only; `next build` is
+untouched and still webpack.
+
+What is left is not fixable in the dashboard: the FIRST load of a page waits on Airtable — 1.2s
+(partners) to 4.2s (Brella). The server cache then answers in ~0.44s. The shell paints immediately
+and the grid fills after, which is why it feels slow rather than broken.
+
+### GOTCHA THAT COST A SESSION: never `npm run build` while `npm run dev` is running
+Both write to the same `.next`. Building under a live dev server left it serving
+`Error: Cannot find module './5611.js'` — a 500 on every page, which is the "internal error" Auri
+hit. Nothing was wrong with the code. Recovery is `rm -rf .next` and restart dev, which also moves
+the port (3000 was already taken by another project, so it walked 3002 → 3003 → 3004 across
+restarts — always tell him the new URL). Verify with `tsc --noEmit` while he is browsing and save
+the production build for when he is done.
+
+### Speakers merged into one row, like NISS (asked for after the first four landed)
+`/speakers-2026` and `/speakers` are now ONE "Speakers" row with 2026 and 2025 pills. They are not
+the same feed a year apart — 2026 is the Speaker Hub app, 2025 is the Airtable Speakers table —
+but "speakers, which year?" is the question people arrive with. 17 rows, 19 pages.
+
+### The five, in his order
+1. **`/speakers` is LAST YEAR'S roster**, not a second view of 2026. It was labelled "Speakers
+   (all)", which reads as "the complete current list" and is the exact opposite of what it holds.
+   Now **"Speakers 2025"**, note says archive. Only the label changed, the feed is untouched.
+2. **NISS 2026 and NISS 2025 were two unrelated cards.** Now ONE row, "NISS", with a link per year.
+   New optional `years` on `PageItem`; the top menu expands it back to "NISS 2026" / "NISS 2025"
+   because a dropdown has no room for pills. The front-page count is in PAGES, not rows, so it
+   still says 19.
+3. **No descriptions on the front-page cards.** Nineteen one-line notes read as a wall once every
+   section was open. The `note` survives as the row's `title` (hover) and is still matched by the
+   filter, so nothing became unfindable. Section blurbs stayed — five lines, and they are what
+   tells you what a group IS. Say the word if they should go too.
+4. **The rooms section and its first entry fought over the same name.** Section was "Event Rooms"
+   holding an entry called "Side Events & Event Rooms". Section is now **"Side Events & Event
+   Rooms"**, the entry is **"All side events & event rooms"**, and Policy Stage / Future of Fintech
+   read as single rooms within it.
+5. **`/partner-events` redesigned to look like Program 2026** (he picked this reading over "just
+   restyle the front-page row"). See below.
+
+### /partner-events now REUSES the .bp-* classes rather than copying them
+These are sessions, the same kind of thing /brella-program lists, and two schedules in one
+dashboard that looked nothing alike is what made the two pages read as unrelated products. It now
+renders day tabs (`.seg.bp-days`, ALL + one per date), one `.bp-day` block per date, a `.bp-grid`
+of `.bp-card`s sorted by start time, and a click-to-open `.bp-modal`. Restyling a card in
+globals.css now moves BOTH pages — the old `.ev-*` block is exactly what let them drift.
+
+Data supports it: 25 events, 24 with a parsed time, across 25/26/27 Aug plus one with no date
+(its own "Date still to be confirmed" bucket and a TBC tab, rather than being dropped).
+
+**Three things kept from the old design, all hard-won — do not "simplify" them away:**
+- The **kind colour still drives the card** (red Side Event, blue Event Room). It feeds `--track`,
+  the variable `.bp-card` already uses for its spine.
+- The **logo sits on a LIGHT panel** (`.bp-card__thumb--logo`, `--kind-panel`). Partner logos are
+  mostly dark-on-transparent PNGs and vanish on the dark wash `.bp-card__thumb` uses for Brella
+  posters. Rockstart, advores and OMR Reviews proved it.
+- **Register lives only in the dialog**, matching Program 2026. A pill on every card turned the
+  section into a wall of buttons (Auri, 2026-08-04).
+- A card is a `<button>` only when it HAS a description or register link (`hasDetail`). The 13
+  Event Rooms carry neither, so they must not look pressable.
+
+### THE OPEN DECISION: the dashboard and the WordPress embed are now two different designs
+`lib/eventEmbedSnippet.ts` still draws the old `.ev-*` card wall, and that is what techbbq.dk
+renders. This repo has been bitten by exactly that gap before (see the `.ip-*` note about the side
+event grid). Either port the schedule look into the embed snippet or decide on purpose that the
+public page keeps the card wall. **Ask Auri before assuming it is a bug.**
+
+### Next steps
+1. Auri to eyeball `/partner-events` and the front page on the dev server.
+2. Answer the embed question above.
+3. Still open from the previous session: `/interns/apply` is linked from nowhere, and the Cmd+K
+   palette was offered and not built.
+
+### Files
+- `lib/pages.ts` — `years` added to `PageItem`; the four label/grouping fixes.
+- `app/page.tsx` — titles-only rows, the year-pill row, page-count maths.
+- `app/partner-events/page.tsx` — rewritten body: `startMinutes`, `dayLabel`, `tabLabel`,
+  `NO_DATE`, `kindVars`, `EventCard`, `EventDialog`. Hero, embed buttons, refresh button and the
+  "Still missing in Airtable" gaps panel are unchanged.
+- `app/globals.css` — `.bp-card__thumb--logo`, `.bp-card__initial`, `.bp-kind` added next to the
+  `.bp-*` block; `.hub__item` slimmed to one line; `.hub__years` / `.hub__year` added. The `.ev-*`
+  block is now UNUSED by the dashboard but still serves the embed snippet — do not delete it.
+- `components/TopNav.tsx` — flattens `years` into one menu line per year.
+
+## Session 2026-08-08 (later) · The front page becomes a grid, and the page list becomes one list
+
+State: **DONE AND VERIFIED.** `tsc --noEmit` + `npm run build` clean, checked in a real browser at
+1400px and 420px, no console errors. Nothing about the feeds, the API routes or the embeds changed
+— this session is the dashboard's own navigation only.
+
+### What was wrong
+Auri, 2026-08-08: make the front page a grid of sections instead of a list, and say what else is
+hard to find. Four things, in the order they hurt:
+
+1. **The accordion started fully closed and only opened one section at a time.** A page whose entire
+   job is "send me to one of twenty" opened showing ZERO destinations. It was built that way on the
+   theory that twenty-one entries on one screen is the dropdown's problem printed larger — but the
+   dropdown is bad because it hides its contents and shows one narrow column, and the accordion did
+   both of those too.
+2. **Nothing used the width.** `.wrap` is 1400px and every element was a full-width single column.
+3. **The daily check and a four-paragraph cache essay sat ABOVE the navigation.** Reading them is a
+   once-a-morning job; getting to a page is every visit.
+4. **Two hardcoded page lists that had already drifted.** `components/TopNav.tsx` and `app/page.tsx`
+   each held their own copy: `/interns` was in the menu but not on the front page, and The Policy
+   Stage and Future of Fintech were filed under "Projects" in one and "Event Rooms" in the other.
+   Same page, two different stories depending on how you arrived.
+
+### What it is now
+- **`lib/pages.ts` is the one page list**, read by both the front page and the top menu. Adding a
+  page is ONE line there and it appears in both, grouped the same way. This is the fix that matters
+  most — the rest is layout, this one stops the two lists diverging again.
+- Front page = **CSS COLUMNS of section cards**, all open, 19 pages visible with no clicks.
+  `columns: 340px` picks the count from the viewport, so there is no breakpoint to maintain.
+  NOT grid: grid puts every card in a row on one baseline, so a row containing Projects (7 entries)
+  left half a screen of dead space under Event Rooms (3).
+- **Section order is load-bearing for the layout.** Columns fill in array order, so Program (2
+  entries) sits second, directly after Speakers (4), to stop the first column ending short of the
+  others. Reordering `SECTIONS` re-balances the page — the reason is in a comment on the block.
+- **A filter box** over label + note + keywords + href, every word must match. "niss" → 3 pages,
+  "vc" → Investor speakers. `matchesQuery()` in `lib/pages.ts`.
+- **Daily check** moved below the grid and drawn as tiles with the number set large; the tile
+  borders amber when something is waiting and red when a feed is empty or down.
+- **The cache essay** is now a one-line `<details>` summary. Still reads every value from
+  `lib/cachePolicy.ts`, still nothing retyped.
+- Renamed **"Main Page 12" → "Front page speakers"**; the old label named an Airtable filter. The
+  string `main page 12` is in that entry's `keywords`, so the old name still finds it.
+
+### Next steps
+1. Ask Auri whether **`/interns/apply`** should be linked. It is in neither list; it may be
+   deliberate if the link lives in an email or on WordPress.
+2. Offered and NOT built: a **Cmd+K palette** to replace the top dropdown, which is now a 19-item
+   scrolling menu with the same hide-until-clicked problem the front page just lost. It would reuse
+   `matchesQuery()` as-is. Waiting on his word.
+3. Nothing to deploy specially — this rides the next push like any other page change.
+
+### Files
+- `lib/pages.ts` — NEW. The catalog: `SECTIONS`, `INVESTOR_EVENTS`, `ALL_PAGES`, `matchesQuery()`.
+  Data only, no JSX, because `TopNav` imports it and a `.tsx` would drag React into the menu. The
+  section icons stay in `app/page.tsx`, keyed by `SectionKey`.
+- `app/page.tsx` — rewritten. Filter bar, the column grid, the tiled daily check, the `<details>`
+  cadence. Feed-reading logic in `DailyCheck()` is unchanged.
+- `components/TopNav.tsx` — `MENU` is now built from `SECTIONS`. The only thing it still owns is the
+  investor deep-links (`/investors?event=…`), which are shortcuts into an existing page rather than
+  pages, so they are not on the front-page grid.
+- `app/globals.css` — the `.hub*` block rewritten (accordion rules `.hub__chev`, `.hub__count`,
+  `.hub__internal`, `.hub__list--flat` are gone), `.hubbar*` and `.cadence*` added, `.check*`
+  reworked from rows to tiles.
+
 ## Session 2026-08-08 · Intern Pool, a talent-pool page that takes itself down
 
 State: **BUILT AND VERIFIED, WAITING ON THE AIRTABLE FORM.** `tsc --noEmit` + `npm run build`

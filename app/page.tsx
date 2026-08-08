@@ -1,35 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
-import { HOURLY_FEEDS, inFastWindow } from "@/lib/cachePolicy";
+import { HOURLY_FEEDS, NEAR_LIVE_FEEDS, inFastWindow } from "@/lib/cachePolicy";
+import { SECTIONS, matchesQuery, type SectionKey } from "@/lib/pages";
 
-// THE FRONT DOOR. Two steps: pick what you are looking for, then pick the page.
+// THE FRONT DOOR. Everything this dashboard holds, on one screen.
 //
-// WHY IT EXISTS. "/" used to be one specific speaker feed, which meant every other page in here
-// — twenty of them — was reachable only by opening the dropdown and already knowing its name.
-// A page called "Main Page 12" tells a newcomer nothing. So the front page now sorts everything
-// into the three things this dashboard actually holds (Auri, 2026-08-05):
+// WHY IT LOOKS LIKE THIS. "/" used to be one specific speaker feed, so every other page in here
+// was reachable only by opening the dropdown and already knowing its name. It then became four
+// accordion sections, which fixed the naming but not the finding: all four started CLOSED and
+// only one could be open at a time, so a page whose whole job is "send me somewhere" opened
+// showing zero destinations (Auri, 2026-08-08).
 //
-//   Speakers   who is on stage
-//   Projects   one feed per event around the Summit
-//   Program    the agendas
+// It is now a GRID of section cards, all open. Twenty-one pages, no clicks to see them, and the
+// 1400px container finally carries more than one column. The filter box at the top is the
+// shortcut for anyone who already knows the name — type "niss" and only NISS survives.
 //
-// The old speaker grid moved to /speakers, unchanged, and is the last entry under Speakers.
-//
-// Every line here is a LINK, so a middle-click or a bookmark works and nothing depends on the
-// step state. The step is only about how much is on screen at once.
+// The page list itself lives in lib/pages.ts and is shared with the top menu, because two copies
+// of it had already drifted apart.
 
-type Item = { href: string; label: string; note: string };
-type SectionKey = "speakers" | "projects" | "rooms" | "program";
-type Section = {
-  key: SectionKey;
-  title: string;
-  blurb: string;
-  icon: React.ReactNode;
-  items: Item[];
-};
+type SectionIconKey = SectionKey;
 
 function IconUsers() {
   return (
@@ -94,6 +86,24 @@ function IconTools() {
   );
 }
 
+function IconSearch() {
+  return (
+    <>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </>
+  );
+}
+
+// Section key to icon, so lib/pages.ts can stay data-only.
+const SECTION_ICON: Record<SectionIconKey, React.ReactNode> = {
+  speakers: <IconUsers />,
+  projects: <IconLayers />,
+  rooms: <IconDoor />,
+  program: <IconCalendar />,
+  internal: <IconTools />,
+};
+
 // One wrapper for all of them, so stroke width and joins cannot drift icon to icon.
 function Icon({ children, size = 22 }: { children: React.ReactNode; size?: number }) {
   return (
@@ -121,139 +131,6 @@ function ChevronRight({ size = 16 }: { size?: number }) {
   );
 }
 
-const SECTIONS: Section[] = [
-  {
-    key: "speakers",
-    title: "Speakers",
-    blurb: "Who is on stage. The rosters behind the speaker grids on techbbq.dk.",
-    icon: <IconUsers />,
-    items: [
-      {
-        href: "/all-speakers-2026",
-        label: "All Speakers 2026",
-        note: "Everyone speaking in 2026, stages and event rooms and investor events in one list.",
-      },
-      {
-        href: "/speakers-2026",
-        label: "Speakers 2026",
-        note: "The live roster from the Speaker Hub, the app the speakers fill in themselves.",
-      },
-      {
-        href: "/main-speakers",
-        label: "Main Page 12",
-        note: "The handful picked for the techbbq.dk front page · Airtable “Main Page = YES”.",
-      },
-      {
-        href: "/speakers",
-        label: "Speakers (all)",
-        note: "The full Airtable Speakers table, every record with “On Website?” ticked.",
-      },
-    ],
-  },
-  {
-    key: "projects",
-    title: "Projects",
-    blurb: "One feed per event around the Summit. Each team fills its own Airtable table.",
-    icon: <IconLayers />,
-    items: [
-      {
-        href: "/life-science",
-        label: "Life Science 2026",
-        note: "Life Science & Deep Tech speakers · Airtable “Speakers Library 2026”.",
-      },
-      {
-        href: "/ls-startups",
-        label: "Life Science Startups",
-        note: "The startups that applied to the Life Science & Deep Tech track.",
-      },
-      {
-        href: "/niss",
-        label: "NISS 2026",
-        note: "Nordic India Startup Summit, this year's grid.",
-      },
-      {
-        href: "/nass",
-        label: "NASS 2026",
-        note: "Nordic Africa Startup Summit, this year's grid.",
-      },
-      {
-        href: "/investors",
-        label: "Investor speakers",
-        note: "LP Forum, Investor Day and the Pension & Insurance Summit, filtered per event.",
-      },
-      {
-        href: "/partners",
-        label: "Partners 2026",
-        note: "The partner logo wall · Airtable “Partner Deliverables 2026”.",
-      },
-      {
-        href: "/niss-2025",
-        label: "NISS 2025",
-        note: "Last year's Nordic India Startup Summit, kept as an archive.",
-      },
-    ],
-  },
-  // EVENT ROOMS is a PLACE, not a theme — that is the whole point of splitting it out of
-  // Projects (Auri, 2026-08-06). Policy Stage is Rooms 5/6/7, Future of Fintech runs in a room
-  // rather than on a stage, and the partner-run sessions are the room schedule itself. Grouped
-  // by where you physically go, they stop reading as three unrelated Airtable tables.
-  {
-    key: "rooms",
-    title: "Event Rooms",
-    blurb: "What is on in the rooms, and who is in them. Grouped by where it happens.",
-    icon: <IconDoor />,
-    items: [
-      {
-        href: "/partner-events",
-        label: "Side Events & Event Rooms",
-        note: "The room schedule · what partners are running around the Summit, and where.",
-      },
-      {
-        href: "/policy-stage",
-        label: "The Policy Stage",
-        note: "Ministers, MEPs and ecosystem leaders · Event Rooms 5, 6 and 7.",
-      },
-      {
-        href: "/fintech-speakers",
-        label: "Future of Fintech",
-        note: "Speakers, moderators and keynotes for the fintech day.",
-      },
-    ],
-  },
-  {
-    key: "program",
-    title: "Program",
-    blurb: "The agendas. What is on, when, and on which stage.",
-    icon: <IconCalendar />,
-    items: [
-      {
-        href: "/brella-program",
-        label: "Program 2026",
-        note: "The live schedule from Brella, and the one installed on techbbq.dk. Start here.",
-      },
-      {
-        href: "/program",
-        label: "Project programs",
-        note: "The agendas for NISS and Future of Fintech, from each team's own Airtable view.",
-      },
-    ],
-  },
-];
-
-// Neither a roster nor an agenda: these two are for the team, not for the website.
-const INTERNAL: Item[] = [
-  {
-    href: "/team",
-    label: "Team",
-    note: "The TechBBQ staff directory · who to ask about what.",
-  },
-  {
-    href: "/lookup",
-    label: "Ticket lookup",
-    note: "Find an attendee's ticket in Tito. Password-gated.",
-  },
-];
-
 // ─── THE DAILY CHECK ────────────────────────────────────────────────────────────────────
 // What to look at each morning to know the site is showing current information (Auri, 2026-08-05).
 //
@@ -262,8 +139,11 @@ const INTERNAL: Item[] = [
 // number techbbq.dk would render, so a zero on this page is a hole on the live site.
 //
 // Six requests, all server-cached for an hour and shared with the pages themselves, so this is
-// usually warm. They run in parallel and each one fails on its own — a dead feed shows as a red row
-// instead of blanking the panel.
+// usually warm. They run in parallel and each one fails on its own — a dead feed shows as a red
+// tile instead of blanking the panel.
+//
+// Drawn as a GRID of tiles rather than six full-width rows (2026-08-08): the number is the point,
+// and six numbers side by side can be read in one glance instead of one scroll.
 type Check = {
   label: string;
   href: string;
@@ -271,14 +151,18 @@ type Check = {
   look: string;
   // The headline number, or null while loading and on failure.
   value: number | null;
-  // The breakdown under it, e.g. "197 summit · 110 event room".
+  // The unit under the number, e.g. "sessions".
+  unit?: string;
+  // The breakdown, e.g. "197 summit · 110 event room".
   detail?: string;
-  // Something a human has to DO. Its presence turns the row amber.
+  // Something a human has to DO. Its presence turns the tile amber.
   todo?: string;
   failed?: boolean;
 };
 
-function StatusDot({ state }: { state: "ok" | "todo" | "down" | "loading" }) {
+type CheckState = "ok" | "todo" | "down" | "loading";
+
+function StatusDot({ state }: { state: CheckState }) {
   const color =
     state === "down"
       ? "var(--color-red, #ce0f2e)"
@@ -288,14 +172,20 @@ function StatusDot({ state }: { state: "ok" | "todo" | "down" | "loading" }) {
           ? "#10c8a7"
           : "var(--color-border)";
   // A loading dot reads as "not answered yet" rather than as a healthy green.
-  return <span aria-hidden="true" className="check__dot" style={{ background: color, opacity: state === "loading" ? 0.5 : 1 }} />;
+  return (
+    <span
+      aria-hidden="true"
+      className="check__dot"
+      style={{ background: color, opacity: state === "loading" ? 0.5 : 1 }}
+    />
+  );
 }
 
 // Rendered while the feeds answer, so the panel has its real height immediately and nothing jumps
 // when six requests land.
 const PLACEHOLDER_CHECKS: Check[] = [
   { label: "Program 2026", href: "/brella-program", look: "Sessions, times and rooms, live from Brella.", value: null },
-  { label: "Speakers", href: "/all-speakers-2026", look: "Everyone on stage.", value: null },
+  { label: "All speakers", href: "/all-speakers-2026", look: "Everyone on stage.", value: null },
   { label: "Partner wall", href: "/partners", look: "Logos live on techbbq.dk.", value: null },
   { label: "The Policy Stage", href: "/policy-stage", look: "The roster behind the Policy Stage page.", value: null },
   { label: "Policy Stage programme", href: "/program", look: "The agenda itself.", value: null },
@@ -308,12 +198,15 @@ const PENDING_REASON: Record<string, string> = {
   "no-tier": "needing a Company Link",
 };
 
-
 /**
- * HOW OFTEN THE FEEDS UPDATE, on the front page.
+ * HOW OFTEN THE FEEDS UPDATE.
  *
  * The question that kept getting asked in chat ("how often does X refresh?"), answered where
  * anyone lands first rather than in a README nobody opens.
+ *
+ * It is a ONE-LINE summary that opens into the detail (2026-08-08). The full text was four
+ * paragraphs of reference material sitting between the reader and every link on the page, which is
+ * the wrong trade for something you read once and then know.
  *
  * Everything here is READ FROM lib/cachePolicy.ts, never retyped. A hard-coded "30 minutes"
  * would be a lie from the 28th of August onwards, and a lie the moment a feed joins
@@ -325,55 +218,64 @@ function RefreshCadence() {
   // at BUILD time. Same rule as defaultEventDay().
   const fast = inFastWindow();
   const hourly = [...HOURLY_FEEDS];
+  const nearLive = [...NEAR_LIVE_FEEDS];
+
+  // The override lists hold CACHE KEYS, and a key is not always the route: the partner-events feed
+  // caches under "partnerevents" but serves at /api/partner-events. Printing the key as a URL puts
+  // a 404 on the front page, which is precisely the kind of small lie this panel exists to avoid.
+  const routeOf = (key: string) => (key === "partnerevents" ? "partner-events" : key);
 
   return (
-    <section className="check" style={{ marginBottom: 18 }}>
-      <div className="check__head">
-        <p className="check__title">How often this updates</p>
-      </div>
-      <p className="check__sub" style={{ marginTop: 8, lineHeight: 1.55 }}>
-        Nothing here is live-read on every visit — each feed is cached twice over, once in the
-        server&rsquo;s memory and once on the CDN that actually answers techbbq.dk. So an edit in
-        Airtable reaches the public site{" "}
-        <strong style={{ color: "var(--color-foreground)" }}>
-          {fast ? "within 30 minutes" : "within the hour"}
-        </strong>
-        {fast
-          ? " — the event cadence, in force until the end of 27 August."
-          : " — the normal cadence outside the event."}
-      </p>
-      <ul
-        className="check__sub"
-        style={{ margin: "10px 0 0", paddingLeft: 18, lineHeight: 1.7 }}
-      >
-        <li>
-          <strong style={{ color: "var(--color-foreground)" }}>Most feeds</strong> ·{" "}
-          {fast ? "30 minutes now, 1 hour from 28 August" : "1 hour"}. The switch is a clock
-          comparison, not a deploy — nobody has to undo it.
-        </li>
-        <li>
-          <strong style={{ color: "var(--color-foreground)" }}>The team list</strong> ·{" "}
-          {fast ? "30 minutes now, once a day from 28 August" : "once a day"}. Staff change a few
-          times a year.
-        </li>
-        {hourly.length > 0 && (
+    <details className="cadence">
+      <summary className="cadence__summary">
+        <span className="cadence__lead">
+          Airtable edits reach techbbq.dk{" "}
+          <strong>{fast ? "within 30 minutes" : "within the hour"}</strong>
+          {fast ? " · event cadence, until end of 27 August" : " · normal cadence"}
+        </span>
+        <span className="cadence__more">How caching works</span>
+        <ChevronRight />
+      </summary>
+
+      <div className="cadence__body">
+        <p>
+          Nothing here is live-read on every visit. Each feed is cached twice over, once in the
+          server&rsquo;s memory and once on the CDN that actually answers techbbq.dk.
+        </p>
+        <ul>
+          {nearLive.length > 0 && (
+            <li>
+              <strong>{nearLive.map((k) => `/api/${routeOf(k)}`).join(", ")}</strong> · about{" "}
+              <strong>1 minute</strong>, event window or not. These are the tables somebody edits
+              while watching the site, so they are read from Airtable roughly once a minute rather
+              than twice an hour.
+            </li>
+          )}
           <li>
-            <strong style={{ color: "var(--color-foreground)" }}>
-              {hourly.map((k) => `/api/${k}`).join(", ")}
-            </strong>{" "}
-            · held at <strong style={{ color: "var(--color-foreground)" }}>1 hour</strong>, event
-            window or not, by request. That table is filled by a submission form at roughly one
-            entry every two days, so checking twice an hour mostly finds nothing.
+            <strong>Most feeds</strong> · {fast ? "30 minutes now, 1 hour from 28 August" : "1 hour"}.
+            The switch is a clock comparison, not a deploy, so nobody has to undo it.
           </li>
-        )}
-        <li>
-          <strong style={{ color: "var(--color-foreground)" }}>In a hurry?</strong> Every page has
-          a <em>Refresh from Airtable</em> button. It reads live, past both caches, and reports
-          what changed — but it cannot purge the copy techbbq.dk is already serving, so the public
-          site still waits out the cadence above.
-        </li>
-      </ul>
-    </section>
+          <li>
+            <strong>The team list</strong> ·{" "}
+            {fast ? "30 minutes now, once a day from 28 August" : "once a day"}. Staff change a few
+            times a year.
+          </li>
+          {hourly.length > 0 && (
+            <li>
+              <strong>{hourly.map((k) => `/api/${routeOf(k)}`).join(", ")}</strong> · held at{" "}
+              <strong>1 hour</strong>, event window or not, by request. That table is filled by a
+              submission form at roughly one entry every two days, so checking twice an hour mostly
+              finds nothing.
+            </li>
+          )}
+          <li>
+            <strong>In a hurry?</strong> Every page has a <em>Refresh from Airtable</em> button. It
+            reads live, past both caches, and reports what changed — but it cannot purge the copy
+            techbbq.dk is already serving, so the public site still waits out the cadence above.
+          </li>
+        </ul>
+      </div>
+    </details>
   );
 }
 
@@ -417,18 +319,22 @@ function DailyCheck() {
         {
           label: "Program 2026",
           href: "/brella-program",
-          look: "Sessions, times and rooms, live from Brella. This is the one on techbbq.dk.",
+          look: "Live from Brella. This is the one on techbbq.dk.",
           value: brella.ok ? brella.v.sessions.length : null,
-          detail: brella.ok ? "sessions" : undefined,
+          unit: "sessions",
           failed: !brella.ok,
         },
         {
-          label: "Speakers",
+          // NOT "Speakers". That word is now a row in the grid above pointing at /speakers-2026,
+          // the Summit roster of 199 — and this tile is the union of 348 across every event. One
+          // word, two destinations, on the same screen.
+          label: "All speakers",
           href: "/all-speakers-2026",
-          look: "Everyone on stage, across the Summit, the event rooms and the investor events.",
+          look: "Everyone on stage, across the whole Summit.",
           value: speakers.ok
             ? speakers.v.counts.speakers + speakers.v.counts.eventRoom + speakers.v.counts.investors
             : null,
+          unit: "speakers",
           detail: speakers.ok
             ? `${speakers.v.counts.speakers} summit · ${speakers.v.counts.eventRoom} event room · ${speakers.v.counts.investors} investor`
             : undefined,
@@ -437,9 +343,9 @@ function DailyCheck() {
         {
           label: "Partner wall",
           href: "/partners",
-          look: "Logos live on techbbq.dk, and the ones still waiting on something.",
+          look: "Logos live on techbbq.dk.",
           value: partners.ok ? all.length - waiting.length : null,
-          detail: partners.ok ? "live" : undefined,
+          unit: "live",
           todo:
             waiting.length > 0
               ? `${waiting.length} waiting · ${Object.entries(byReason)
@@ -453,6 +359,7 @@ function DailyCheck() {
           href: "/policy-stage",
           look: "The roster behind the Policy Stage page.",
           value: policy.ok ? policy.v.count : null,
+          unit: "people",
           detail: policy.ok
             ? `${policy.v.counts.Speaker} speakers · ${policy.v.counts.Moderator} moderators`
             : undefined,
@@ -461,17 +368,17 @@ function DailyCheck() {
         {
           label: "Policy Stage programme",
           href: "/program",
-          look: "The agenda itself, with who speaks and who moderates each session.",
+          look: "The agenda, with who speaks and who moderates.",
           value: policyProgram.ok ? policyProgram.v.sessions.length : null,
-          detail: policyProgram.ok ? "sessions" : undefined,
+          unit: "sessions",
           failed: !policyProgram.ok,
         },
         {
           label: "Side Events & Event Rooms",
           href: "/partner-events",
-          look: "What partners are running around the Summit, and where.",
+          look: "What partners are running, and where.",
           value: sideEvents.ok ? sideEvents.v.count : null,
-          detail: sideEvents.ok ? "events" : undefined,
+          unit: "events",
           failed: !sideEvents.ok,
         },
       ]);
@@ -502,30 +409,33 @@ function DailyCheck() {
         </p>
       </div>
 
-      <ul className="check__list">
+      <ul className="check__grid">
         {(checks ?? PLACEHOLDER_CHECKS).map((c) => {
-          const state =
+          const state: CheckState =
             checks === null ? "loading" : c.failed || c.value === 0 ? "down" : c.todo ? "todo" : "ok";
           return (
             <li key={c.label}>
-              <Link href={c.href} className="check__row">
-                <StatusDot state={state} />
-                <span className="check__rowText">
+              <Link href={c.href} className="check__tile" data-state={state}>
+                <span className="check__tileHead">
+                  <StatusDot state={state} />
                   <span className="check__label">{c.label}</span>
-                  <span className="check__look">{c.look}</span>
-                  {c.todo && <span className="check__todo">{c.todo}</span>}
-                  {c.failed && (
-                    <span className="check__todo">Could not load · the feed is down, or Airtable is slow</span>
-                  )}
-                  {!c.failed && c.value === 0 && (
-                    <span className="check__todo">Empty · nothing would render on the site</span>
-                  )}
+                  <ChevronRight size={15} />
                 </span>
+
                 <span className="check__value">
                   {c.value === null ? "—" : c.value}
-                  {c.detail && <span className="check__detail">{c.detail}</span>}
+                  {c.unit && c.value !== null && <span className="check__unit">{c.unit}</span>}
                 </span>
-                <ChevronRight />
+
+                <span className="check__look">{c.look}</span>
+                {c.detail && <span className="check__detail">{c.detail}</span>}
+                {c.todo && <span className="check__todo">{c.todo}</span>}
+                {c.failed && (
+                  <span className="check__todo">Could not load · the feed is down, or Airtable is slow</span>
+                )}
+                {!c.failed && c.value === 0 && (
+                  <span className="check__todo">Empty · nothing would render on the site</span>
+                )}
               </Link>
             </li>
           );
@@ -543,8 +453,23 @@ function DailyCheck() {
 }
 
 export default function Home() {
-  // Which section is open. null is step one, where all three are closed.
-  const [open, setOpen] = useState<SectionKey | null>(null);
+  const [query, setQuery] = useState("");
+
+  // Sections with their items narrowed by the filter. A section whose items all fail the filter is
+  // dropped entirely rather than left as an empty card.
+  const sections = useMemo(() => {
+    const q = query.trim();
+    if (!q) return SECTIONS;
+    return SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => matchesQuery(i, q)) })).filter(
+      (s) => s.items.length > 0,
+    );
+  }, [query]);
+
+  // Counted in PAGES, not rows: the NISS row is one card and two pages.
+  const hits = sections.reduce(
+    (n, s) => n + s.items.reduce((m, i) => m + (i.years?.length ?? 1), 0),
+    0,
+  );
 
   return (
     <main>
@@ -557,85 +482,89 @@ export default function Home() {
           </h1>
           <p className="lede">
             Every page in here is a live preview of one Airtable view or feed, with the embed code
-            to paste into WordPress. Pick a group, then pick the page.
+            to paste into WordPress.
           </p>
         </div>
       </section>
 
       <div className="wrap" style={{ paddingBottom: 80 }}>
-        <DailyCheck />
-        <RefreshCadence />
+        {/* NAVIGATION FIRST. The daily check is a once-a-morning read; getting to a page is every
+            visit, so the pages are what the page opens on (2026-08-08). */}
+        <div className="hubbar">
+          <label className="hubbar__search">
+            <Icon size={17}>
+              <IconSearch />
+            </Icon>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter pages · try niss, partners, program"
+              aria-label="Filter pages"
+              autoComplete="off"
+            />
+          </label>
+          <p className="hubbar__count" aria-live="polite">
+            {query.trim() ? `${hits} page${hits === 1 ? "" : "s"}` : `${hits} pages`}
+          </p>
+        </div>
 
-        <ol className="hub">
-          {SECTIONS.map((s) => {
-            const isOpen = open === s.key;
-            return (
-              <li key={s.key} className="hub__section" data-open={isOpen ? "1" : undefined}>
-                {/* The heading is the control. aria-expanded and the panel id are what tell a
-                    screen reader this press reveals the list below rather than navigating. */}
-                <button
-                  type="button"
-                  className="hub__head"
-                  aria-expanded={isOpen}
-                  aria-controls={`hub-panel-${s.key}`}
-                  onClick={() => setOpen(isOpen ? null : s.key)}
-                >
+        {sections.length === 0 ? (
+          <p className="hub__empty">
+            Nothing matches “{query.trim()}”. Try a shorter word, or clear the filter.
+          </p>
+        ) : (
+          <div className="hub">
+            {sections.map((s) => (
+              <section key={s.key} className="hub__section" data-section={s.key}>
+                <div className="hub__head">
                   <span className="hub__icon">
-                    <Icon>{s.icon}</Icon>
+                    <Icon>{SECTION_ICON[s.key]}</Icon>
                   </span>
                   <span className="hub__headText">
-                    <span className="hub__title">{s.title}</span>
-                    <span className="hub__blurb">{s.blurb}</span>
+                    <h2 className="hub__title">{s.title}</h2>
+                    <p className="hub__blurb">{s.blurb}</p>
                   </span>
-                  <span className="hub__count">
-                    {s.items.length} page{s.items.length === 1 ? "" : "s"}
-                  </span>
-                  <span className="hub__chev" data-open={isOpen ? "1" : undefined}>
-                    <ChevronRight size={18} />
-                  </span>
-                </button>
+                </div>
 
-                {isOpen && (
-                  <ul className="hub__list" id={`hub-panel-${s.key}`}>
-                    {s.items.map((it) => (
+                {/* TITLES ONLY. Every section is open at once now, so nineteen one-line
+                    descriptions read as a wall of text (Auri, 2026-08-08). The note survives as the
+                    hover title and is still matched by the filter, so nothing became unfindable. */}
+                <ul className="hub__list">
+                  {s.items.map((it) =>
+                    it.years ? (
+                      // A page that exists once per year is ONE row with a link per year. The row
+                      // itself is not a link — an <a> cannot contain another <a>, and "which year"
+                      // is the actual choice being made here.
                       <li key={it.href}>
-                        <Link href={it.href} className="hub__item">
-                          <span className="hub__itemText">
-                            <span className="hub__itemLabel">{it.label}</span>
-                            <span className="hub__itemNote">{it.note}</span>
+                        <div className="hub__item hub__item--years" title={it.note}>
+                          <span className="hub__itemLabel">{it.label}</span>
+                          <span className="hub__years">
+                            {it.years.map((y) => (
+                              <Link key={y.href} href={y.href} className="hub__year">
+                                {y.label}
+                              </Link>
+                            ))}
                           </span>
+                        </div>
+                      </li>
+                    ) : (
+                      <li key={it.href}>
+                        <Link href={it.href} className="hub__item" title={it.note}>
+                          <span className="hub__itemLabel">{it.label}</span>
                           <ChevronRight />
                         </Link>
                       </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-
-        <div className="hub__internal">
-          <p className="hub__internalHead">
-            <Icon size={15}>
-              <IconTools />
-            </Icon>
-            For the team
-          </p>
-          <ul className="hub__list hub__list--flat">
-            {INTERNAL.map((it) => (
-              <li key={it.href}>
-                <Link href={it.href} className="hub__item">
-                  <span className="hub__itemText">
-                    <span className="hub__itemLabel">{it.label}</span>
-                    <span className="hub__itemNote">{it.note}</span>
-                  </span>
-                  <ChevronRight />
-                </Link>
-              </li>
+                    ),
+                  )}
+                </ul>
+              </section>
             ))}
-          </ul>
-        </div>
+          </div>
+        )}
+
+        <DailyCheck />
+        <RefreshCadence />
       </div>
     </main>
   );

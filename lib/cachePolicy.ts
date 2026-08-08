@@ -57,8 +57,40 @@ export function isHourlyFeed(key?: string): boolean {
   return !!key && (HOURLY_FEEDS as readonly string[]).includes(key);
 }
 
-/** In-memory TTL for an ordinary feed. `key` opts a feed into the hourly override. */
+// ─── PER-FEED OVERRIDE: NEAR-LIVE ───────────────────────────────────────────────────────
+// The opposite override: a feed that is edited while someone watches the website, where "did my
+// change land?" is asked within a minute rather than within the hour.
+//
+// WHY THIS EXISTS RATHER THAN A WEBHOOK (Auri, 2026-08-08). The obvious answer to "my edit takes
+// 30 minutes to appear" is an Airtable webhook that clears the caches. It cannot work here: the
+// server cache is module state that route handlers do not share (see app/api/revalidate), and the
+// CDN copy is only invalidated by its own TTL — Next's docs are explicit that revalidateTag does
+// not reach a CDN. Lowering the TTL is the mechanism that actually exists. One minute of CDN
+// cache still absorbs essentially all the traffic a page gets, and the in-memory copy still stops
+// a burst from becoming a burst of Airtable calls.
+//
+// COST, so it is a choice and not a surprise: a feed in this list is read from Airtable at most
+// once a minute instead of at most twice an hour. Against Airtable's 5 requests/second limit that
+// is nothing, but do not put ALL of them in here reflexively — a feed nobody edits gains nothing
+// and spends requests. Add one when you are actively working in that table, take it out after.
+//
+// Keyed by the same cache key the routes use (`const KEY = "..."`), same as HOURLY_FEEDS.
+export const NEAR_LIVE_FEEDS = ["partners", "partnerevents"] as const;
+export type NearLiveFeed = (typeof NEAR_LIVE_FEEDS)[number];
+
+export function isNearLiveFeed(key?: string): boolean {
+  return !!key && (NEAR_LIVE_FEEDS as readonly string[]).includes(key);
+}
+
+const NEAR_LIVE_TTL_MS = 60_000; // 1 minute in memory
+// 60s fresh, then servable stale for 5 more while it refetches behind the visitor's back. The
+// stale window matters more here than usual: with a TTL this short, a visitor would otherwise
+// wait on Airtable every single minute.
+const NEAR_LIVE_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300";
+
+/** In-memory TTL for an ordinary feed. `key` opts a feed into one of the overrides. */
 export function feedTtlMs(key?: string): number {
+  if (isNearLiveFeed(key)) return NEAR_LIVE_TTL_MS;
   if (isHourlyFeed(key)) return CALM_TTL_MS;
   return inFastWindow() ? FAST_TTL_MS : CALM_TTL_MS;
 }
@@ -74,6 +106,7 @@ export function dailyTtlMs(): number {
 
 /** CDN Cache-Control for an ordinary feed. `key` opts a feed into the hourly override. */
 export function feedCacheControl(key?: string): string {
+  if (isNearLiveFeed(key)) return NEAR_LIVE_CACHE_CONTROL;
   if (isHourlyFeed(key)) return CALM_CACHE_CONTROL;
   return inFastWindow() ? FAST_CACHE_CONTROL : CALM_CACHE_CONTROL;
 }

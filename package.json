@@ -4,8 +4,9 @@
   "private": true,
   "description": "Server-side proxy that exposes a safe, allow-listed slice of the TechBBQ Airtable (speakers, etc.) as clean JSON for WordPress/Elementor to render.",
   "scripts": {
-    "dev": "sops exec-env secrets.enc.env \"next dev\"",
-    "dev:plain": "next dev",
+    "dev": "sops exec-env secrets.enc.env \"next dev --turbopack\"",
+    "dev:plain": "next dev --turbopack",
+    "dev:webpack": "sops exec-env secrets.enc.env \"next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

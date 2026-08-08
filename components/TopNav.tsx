@@ -3,68 +3,36 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { INVESTOR_EVENTS, SECTIONS } from "@/lib/pages";
 
-// Top menu shared across pages, rendered as a grouped dropdown. The flat list outgrew
-// itself once the page count passed a dozen, so entries are grouped by what they are:
+// Top menu shared across pages, rendered as a grouped dropdown, BUILT FROM lib/pages.ts.
 //
-//   Speakers            the main 2026 rosters
-//   Projects            the per-event speaker feeds (Life Science, NISS, NASS, Fintech)
-//   Investors           the investor roster plus one entry per investor event
-//   Program & internal  agendas, the staff directory, and the ticket lookup
+// It used to hold its own hardcoded copy of the page list, and by 2026-08-08 that copy and the
+// front page's had drifted: /interns was here but not there, and The Policy Stage and Future of
+// Fintech sat under "Projects" here and under "Event Rooms" there. Same page, two stories
+// depending on how you arrived. Adding a page is now one line in lib/pages.ts and it lands in
+// both places with the same grouping.
 //
-// Investor-event entries deep-link into /investors with ?event=… preselected; that page
-// reads the param on mount (see app/investors/page.tsx).
-//
-// Adding a page = one line in the right group.
+// The only thing this menu adds is the investor deep-links: /investors?event=… preselects an
+// event on a page that already exists (see app/investors/page.tsx), so they are shortcuts rather
+// than pages and are not on the front-page grid.
 type MenuItem = { href: string; label: string };
 type MenuGroup = { heading: string; items: MenuItem[] };
 
 const MENU: MenuGroup[] = [
+  ...SECTIONS.map((s) => ({
+    heading: s.title,
+    // A per-year entry is ONE card on the front page with a link per year, but a dropdown has no
+    // room for that, so it expands back into one line per year: "NISS 2026", "NISS 2025".
+    items: s.items.flatMap((i) =>
+      i.years
+        ? i.years.map((y) => ({ href: y.href, label: `${i.label} ${y.label}` }))
+        : [{ href: i.href, label: i.label }],
+    ),
+  })),
   {
-    heading: "Speakers",
-    items: [
-      { href: "/all-speakers-2026", label: "All Speakers 2026" },
-      { href: "/speakers-2026", label: "Speakers 2026" },
-      { href: "/main-speakers", label: "Main Page 12" },
-      // Moved off "/" on 2026-08-05: the front page is now the hub that groups every page in
-      // here (app/page.tsx). The feed and the embed snippet are unchanged.
-      { href: "/speakers", label: "Speakers (all)" },
-    ],
-  },
-  {
-    heading: "Projects",
-    items: [
-      { href: "/life-science", label: "Life Science 2026" },
-      { href: "/ls-startups", label: "Life Science Startups" },
-      { href: "/niss", label: "NISS 2026" },
-      { href: "/nass", label: "NASS 2026" },
-      { href: "/fintech-speakers", label: "Fintech Speakers" },
-      { href: "/policy-stage", label: "The Policy Stage" },
-      { href: "/niss-2025", label: "NISS 2025" },
-    ],
-  },
-  {
-    heading: "Investors",
-    items: [
-      { href: "/investors", label: "All investor speakers" },
-      { href: "/investors?event=lp-forum", label: "LP Forum" },
-      { href: "/investors?event=investor-day", label: "TechBBQ Investor Day" },
-      { href: "/investors?event=pension-summit", label: "Pension & Insurance Summit" },
-    ],
-  },
-  {
-    heading: "Program & internal",
-    items: [
-      // /brella-program is THE TechBBQ program (Brella, the one on techbbq.dk). /program is
-      // the other events' agendas, so it no longer competes for the "Program 2026" name.
-      { href: "/brella-program", label: "Program 2026" },
-      { href: "/program", label: "TechBBQ Project Programs" },
-      { href: "/partner-events", label: "Side Events & Event Rooms" },
-      { href: "/partners", label: "Partners 2026" },
-      { href: "/team", label: "Team" },
-      { href: "/interns", label: "Intern Pool" },
-      { href: "/lookup", label: "Ticket lookup" },
-    ],
+    heading: "Investor events",
+    items: INVESTOR_EVENTS.map((i) => ({ href: i.href, label: i.label })),
   },
 ];
 
