@@ -4,6 +4,147 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-08 · Intern Pool, a talent-pool page that takes itself down
+
+State: **BUILT AND VERIFIED, WAITING ON THE AIRTABLE FORM.** `tsc --noEmit` + `npm run build`
+clean. Everything below was exercised end to end against two seeded records that have since been
+deleted — the table is empty on purpose.
+
+### What it is, and why it is not /team with different data
+Auri, 2026-08-08: "a page dedicated to our interns, like Intern Pool, to promote them from August to
+September, because we receive quite a lot of traction to the website." Asked what the page was FOR,
+he chose **talent pool · help them get hired** over "meet the team".
+
+That answer is what shaped the card. The PITCH is the largest text, not the job title. "Looking for"
+gets its own boxed line rather than being buried in the pitch, because a recruiter skimming twenty
+cards reads only those. LinkedIn is a button, not an icon. Pitch capped at **220 characters**, his
+choice, enforced in `lib/interns.ts` because Airtable long-text cannot enforce a length.
+
+### THE PART TO NOT UNPICK: this feed publishes private individuals
+Every other feed in `lib/` publishes a company's marketing asset or a speaker who agreed to be on a
+stage. An intern is a private person, usually early-career, on an indexed public page. Three rules,
+all enforced in code rather than left to a process (see the header of `lib/interns.ts`):
+
+1. **Consent is a gate.** `Consent to publish` unticked means the record is reduced to a bare name
+   before it leaves the server — no pitch, no photo, no LinkedIn — **including on the authenticated
+   `?pending=1` read**, because the dashboard is where somebody would copy a pitch out of. Verified:
+   a seeded record whose pitch read "THIS MUST NEVER APPEAR" was absent from both responses.
+2. **`Email` and `Manager (internal)` are not in `SAFE_FIELDS`**, so they never reach the process,
+   let alone the JSON. Recruiters go through LinkedIn, a channel the intern can close. An address on
+   an indexed page is a spam magnet and the intern is the one who pays for it.
+3. **It expires by itself.** See below.
+
+### `Show until` — the month runs out with no deploy and nothing to remember
+Auri picked a per-intern date over one global window. Last day INCLUSIVE, read from the clock on
+every call and never captured at module load — the frozen-`TODAY` bug that bit the AI Workshop
+dashboard, and the same rule as `HIDDEN_UNTIL` in `lib/partners.ts`. Compared as a DATE STRING in
+UTC, not as a parsed instant: `"2026-09-30"` parses to UTC midnight, which is still the 29th in a
+negative offset. Boundary verified against a real clock of 2026-08-08:
+
+    Show until 2026-08-08 (today)      → public count 1, state LIVE
+    Show until 2026-08-07 (yesterday)  → public count 0, state "expired"
+
+### Files
+- `lib/interns.ts` — the feed, the gates, the 220-char clamp, the expiry.
+- `lib/internDepartments.ts` — the nine departments, in a module with NO server imports. The
+  "Copy embed code" button is a client component; importing the list from `lib/interns.ts` would
+  drag `process.env.AIRTABLE_TOKEN` and the Airtable fetcher into the browser bundle. The other
+  option, a second copy of the list, is how a page and its embed start disagreeing.
+- `app/api/interns/route.ts` — public strict read; `?pending=1` is password-checked and never
+  CDN-cached, same posture as `/api/partners?pending=1`.
+- `app/interns/page.tsx` + the `.ip-*` block in `app/globals.css` — the dashboard worklist.
+- `lib/internsEmbedSnippet.ts` + `components/CopyInternsEmbed.tsx` — the WordPress embed,
+  `/api/embed?kind=interns[&department=…]`. Three across, 2 at 1024px, 1 at 640px.
+- `lib/photo.ts` — `interns` photo source. `middleware.ts` — `/api/interns` made public.
+- `components/TopNav.tsx` — nav entry under Program.
+
+### The Airtable table was the stock template, and now is not
+`tbl5VhWYQ6FeXfoJy` arrived as Airtable's default (Name / Notes / Assignee / Department / Photo)
+with three empty rows. Rebuilt over the metadata API:
+
+- `Department` LINKED TO #TechBBCuties, which is a manager pointer, not a department. Renamed to
+  **`Manager (internal)`** and a real `Department` singleSelect created with the nine options.
+  The link field could not be retyped and Airtable has no delete-field API, so it stays, unread.
+- Added: `Role`, `Responsibilities`, `Pitch`, `Looking for`, `Available from`, `LinkedIn`, `Email`,
+  `Show until`, `Consent to publish`, `Put on web`.
+- `_perm probe`, the field used to test whether the token could write schema, was RENAMED into
+  `Role` rather than left as junk — again, no delete-field API.
+
+Rows with no `Name` are skipped, which is what makes the three template rows invisible.
+
+### There are now TWO doors into this table. Share one, not both
+`/interns/apply` (ours, below) and an Airtable form view Auri builds by hand. Both write the same
+fields and every gate is server-side or on the record, so neither can publish anybody. Pick one to
+send out — two links means two sets of half-answers.
+
+**The Airtable form has to be built in the UI. This was verified, not assumed** (2026-08-08):
+`POST /meta/bases/{base}/tables/{table}/views` exists but 422s on every body shape, including a
+bare `{name}` — that path is there for DELETE only. There is no create-view API.
+
+What WAS automated for it: Airtable prints a field's DESCRIPTION as the help text under the question
+in a form view, so all 13 descriptions were rewritten as help text addressed to the intern rather
+than to whoever maintains the table. `Pitch` names the 220-character cap; `Show until` and
+`Put on web` say "TechBBQ fills this in, leave blank"; `Consent to publish` carries the full consent
+sentence. So building the form is picking fields and marking two of them required.
+
+### The form is OURS as well, because Airtable cannot make one over the API
+Form views are UI-only — the metadata API creates tables and fields and stops there. Rather than
+leave the last step as an instruction nobody would follow exactly, `/interns/apply` is a real page
+in this app with `POST /api/interns/apply` behind it. That bought two things an Airtable form could
+not have done anyway:
+
+  * A LIVE COUNTER on the 220-character pitch, so the cap is something you watch while typing
+    instead of a truncation you discover after the fact.
+  * CONSENT WORDING THAT SAYS WHAT IT MEANS: "my name, photo, pitch and LinkedIn link appear on a
+    public page on techbbq.dk for about a month, and anyone can see them", with the removal address
+    in the sentence. A required tick against the word "Consent" is not informed consent.
+
+### THIS IS THE ONLY WRITE ROUTE IN THE PROJECT. Read this before touching it
+Everything else here is a read-only proxy. This one takes a POST from an unauthenticated stranger
+and creates a record, and the interns filling it in have no dashboard password, so it cannot sit
+behind the Basic auth gate. It is in `PUBLIC_PATHS` along with its page — the only non-`/api` entry
+in that list. What stands in for the password:
+
+  * Per-IP rate limit of 5 per minute (the feeds get 60). SECURITY r1.
+  * Every field length-capped, and the BODY size-capped before it is parsed. SECURITY r4.
+  * The photo is identified by MAGIC BYTES, not by `contentType` or the filename — the sender writes
+    both of those. JPEG/PNG/WebP only, 4 MB.
+  * LinkedIn is an ALLOW-LIST, not lib/linkedin.ts's lenient normaliser: https, host is
+    `linkedin.com` or `*.linkedin.com`, query and hash stripped. That lenient version is for data
+    TechBBQ staff typed; this value comes off the open internet and becomes an href under an
+    intern's name, which is how `javascript:` and `linkedin.com.evil.tld` would have got there.
+  * A honeypot answered with 200, so a bot records a success and does not retry with a new shape.
+  * **`Put on web` and `Show until` are not read from the request at all.** No JSON key can set
+    them, so a submission cannot publish itself or extend its own stay. This is the one that
+    matters; the rest is depth behind it.
+  * Fails CLOSED on a missing token — 503, never a form that silently accepts and discards.
+
+Verified against the running route, one line per gate:
+
+    no consent      → 400   bad department → 400   empty pitch    → 400
+    linkedin.com.evil.tld → 400            javascript: url → 400
+    honeypot        → 200 AND NO RECORD CREATED (checked the table, not just the status)
+    MZ header named image/png → 400        real PNG → 200, record created, photo attached
+
+The photo is uploaded as a SECOND call, after the record exists, because Airtable addresses
+attachment uploads by record and field id. A failure there is deliberately not fatal: the answers
+are already saved, and the dashboard already says "Needs a photo".
+
+### Two real people seeded, and what was deliberately left blank
+Auri sent `recAWFFcbpO35YI1S` (#TechBBCuties) and `recCsR1fL1jvO6jpS` (NISS) to fill the pool a
+little. Both created with name, role, department, photo, LinkedIn and internal email copied across:
+
+    reczXwhX9ZvKBygfi  Lennert Jessen         AI & Automation Intern            Management
+    recIGz3DaxTvmgRbt  Supritha Nachiyappan   Partnerships & Marketing Coord.   Partnerships
+
+`Pitch`, `Looking for` and `Consent to publish` were left EMPTY on both, on purpose and not as an
+oversight. The pitch is the one thing nobody can write for you — that is the entire point of the
+page. And consent is not transferable: Supritha's NISS record has "Confirm TechBBQ Usage of
+Information" ticked, but that was consent for a NISS speaker listing, not for a talent-pool page
+with a different audience and a different purpose. Reusing it would be exactly the purpose-creep
+GDPR is about. Both therefore show on the dashboard as "Waiting on their consent" and neither is on
+techbbq.dk. Send them the form.
+
 ## Session 2026-08-07 · Prime band filled, Policy Stage rebuilt, side event artwork
 
 State: **ONE CHECKBOX FROM DONE.** On branch `partner-industriens-fond-prime`, not merged.
@@ -182,6 +323,46 @@ Left for Auri, with the reason, because the CRM cannot answer them:
 
 Still short of the wall after all this: **Symbion and SISP need `Put on web` ticked** (both have a
 white SVG and now a tier). BETA.HEALTH has no logo in Airtable.
+
+### 2026-08-08 · Side event artwork: three drawn banners, and one that was never missing
+Auri drew Luma-style banners for the side events with no thumbnail and asked for them to go up.
+Checking first turned four "missing" images into three:
+
+    CTO Connect                                     no og:image at all (rsvp.withgoogle.com)  → banner
+    TechBBQ BioTech University Spinouts Discussion  no scrapeable artwork                     → banner
+    The Nordic Paradox: From Mapping to Action      no scrapeable artwork                     → banner
+    BSR Go-abroad Co-ceation Seminar                HAD one, and it was MANGLED               → fixed
+
+**The BSR bug, which is the useful part of this.** Eventbrite advertises its og:image as a Next.js
+image-proxy URL whose query string is joined with `&amp;` — correct HTML, broken URL. `ogImage()` was
+using the attribute value raw, so the request asked the proxy for a parameter literally called
+`amp;w`, Eventbrite answered **400**, the browser fired `onerror` and the snippet hid the figure. The
+card therefore looked like an event with no artwork rather than one with a broken link, which is why
+it ended up on the list of things to draw. `lib/eventPages.ts` now decodes the five XML entities
+(`&amp;` LAST, so `&amp;amp;` collapses correctly) and re-validates the scheme AFTER decoding.
+Verified: 400 → **200 image/jpeg, 70,848 bytes**. This will have been silently costing artwork on any
+Eventbrite-hosted event, not just this one.
+
+**So the BSR banner is deliberately NOT used.** Its date and venue were guesses — the folder's own
+notes say so — and a wrong venue on techbbq.dk is worse than no picture. Eventbrite's real artwork is
+better on both counts.
+
+**The three banners are LOCAL FILES**, the same call `LOGO_FILE_OVERRIDES` makes for the Erhvervshus
+frieze: this artwork exists nowhere upstream, so there is no upstream to read it from. Converted from
+1600x840 PNG to 1200x630 WebP on the way in — 783 KB → 57 KB, 749 → 51, 646 → 38, so all three cost
+less than one of the originals. `ARTWORK_OVERRIDES` in `lib/sideEvents.ts` is keyed on `titleKey()`,
+not the raw title, because these names disagree across Airtable and Brella (Airtable spells it
+"Co-ceation", typo included) and an exact-match key would silently match nothing.
+
+**The partner's own artwork always wins** over an override — see the `??` order at the call site. A
+hand-drawn banner is a stand-in, not a preference, so the day one of these pages publishes a real
+og:image theirs appears and the line becomes dead weight to delete.
+
+URLs are absolute via `baseUrl()`. A bare `/side-events/...` works on the dashboard and 404s inside
+the embed, where the browser resolves it against techbbq.dk — the mistake that once produced 104
+empty tiles on the partner wall.
+
+Verified in the browser: **15 of 15 thumbnails load, 0 broken**, ours decoding at 1200x630.
 
 ### 2026-08-08 · Side event cards: four across in the EMBED too, and thumbnails no longer cropped
 Auri: "in program, we want to have 4 in one row for side events, and I can see some of the thumbnails

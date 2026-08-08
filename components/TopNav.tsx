@@ -62,6 +62,7 @@ const MENU: MenuGroup[] = [
       { href: "/partner-events", label: "Side Events & Event Rooms" },
       { href: "/partners", label: "Partners 2026" },
       { href: "/team", label: "Team" },
+      { href: "/interns", label: "Intern Pool" },
       { href: "/lookup", label: "Ticket lookup" },
     ],
   },

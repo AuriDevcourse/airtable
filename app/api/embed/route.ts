@@ -25,6 +25,8 @@ import { buildBrellaEmbedSnippet } from "@/lib/brellaEmbedSnippet";
 import { buildPartnersEmbedSnippet } from "@/lib/partnersEmbedSnippet";
 import { buildPartnersBareEmbedSnippet } from "@/lib/partnersBareEmbedSnippet";
 import { buildLsStartupsEmbedSnippet } from "@/lib/lsStartupsEmbedSnippet";
+import { buildInternsEmbedSnippet } from "@/lib/internsEmbedSnippet";
+import { INTERN_DEPARTMENTS } from "@/lib/internDepartments";
 import { columnSlug, findTimelineColumn, isBrellaSection, TIMELINE_COLUMNS } from "@/lib/brellaSections";
 import { baseUrl } from "@/lib/photo";
 
@@ -86,10 +88,22 @@ export async function GET(req: NextRequest) {
       });
     } else if (kind === "ls-startups") {
       snippet = buildLsStartupsEmbedSnippet({ uid: uid("tbbq-lsw") });
+    } else if (kind === "interns") {
+      // ?department=Marketing gives a page about one team its own wall. Validated against the
+      // known list, and an unknown value builds the WHOLE pool rather than a snippet that fetches
+      // a department nobody is in and renders an empty box on techbbq.dk.
+      const deptParam = q.get("department");
+      const department =
+        deptParam && INTERN_DEPARTMENTS.includes(deptParam) ? deptParam : undefined;
+      snippet = buildInternsEmbedSnippet({
+        uid: uid("tbbq-ip"),
+        department,
+        departments: INTERN_DEPARTMENTS,
+      });
     } else {
       return withCors(
         NextResponse.json(
-          { error: "Unknown kind. Use brella, partners, partners-bare or ls-startups." },
+          { error: "Unknown kind. Use brella, partners, partners-bare, ls-startups or interns." },
           { status: 400 }
         ),
         reqOrigin

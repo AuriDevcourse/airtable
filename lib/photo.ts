@@ -56,6 +56,11 @@ export const PHOTO_SOURCES: Record<string, PhotoSource> = {
   niss: { table: "tblfIPjV4t1c1628h", fields: ["Self Portrait"] },
   "niss-2025": { table: "tblyWVASxceyLRCaL", fields: ["Photo"] },
   team: { table: "tbldWne3PnvebIwif", fields: ["Picture"] },
+  // The Intern Pool's headshots (lib/interns.ts). One photo per cell, so first-wins is right.
+  // The proxy is doubly load-bearing here: these are private individuals' faces, and routing them
+  // through this server means the public JSON never carries a raw airtableusercontent.com URL that
+  // would keep resolving for anyone who saved it.
+  interns: { table: "tbl5VhWYQ6FeXfoJy", fields: ["Photo"] },
   // Partnership Success again, but the session-level logo rather than a presenter photo
   // (lib/partnerevents.ts). Separate key because the field list differs; "Company Logo"
   // is NOT one of the duplicated names in that table, so it is safe to request by name.

@@ -38,6 +38,21 @@ const PUBLIC_PATHS = new Set([
   "/api/ls-startups",
   "/api/partners",
   "/api/team",
+  // Public by the same reasoning as the rest: the WordPress embed fetches it cross-origin and a
+  // browser fetch() cannot answer a Basic auth challenge. What makes it safe is that the strict
+  // read only ever contains interns who ticked "Consent to publish" — the ?pending=1 variant that
+  // shows the unfinished ones IS password-checked, inside the route.
+  "/api/interns",
+  // THE ONLY WRITE ROUTE IN THIS PROJECT, and the only PAGE in this list.
+  //
+  // The interns filling this in are not TechBBQ staff and have no dashboard password, so the form
+  // and the endpoint behind it have to be reachable without one. That is a deliberate hole and it
+  // is defended where a password would have been: a hard per-IP rate limit, every field length-
+  // capped, the photo checked against its magic bytes, a honeypot, and — the part that matters —
+  // `Put on web` and `Show until` are never read from the request, so a submission cannot publish
+  // itself. See app/api/interns/apply/route.ts.
+  "/api/interns/apply",
+  "/interns/apply",
   "/api/sync-speakers", // guarded by CRON_SECRET instead
   // Returns embed markup, not data. Every byte of it is already public in the source of any
   // page that has pasted the snippet, it reads no protected feed and it calls no paid API,
