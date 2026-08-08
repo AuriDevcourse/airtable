@@ -168,27 +168,36 @@ function noContractTier(company: string): string | null {
 //
 // The money is real, the column it would be measured in is the wrong column. That is the bar below.
 //
-// Danish Business Authority — Prime, by Auri's explicit call (2026-08-07). Same shape as Industriens
-// Fond and it needs the extra sentence, because this one has a REAL, CONFIRMED deal beside it and so
-// looks at first glance like the thing this table must never do.
+// Erhvervsfremmebestyrelsen — Prime, by Auri's explicit call (2026-08-08). Same shape as Industriens
+// Fond: it funds TechBBQ by GRANT, so its money never lands in `Deal 2026 inc. VAT %` and the
+// deal-size formula has nothing to read. Prime starts at 751,000 on that ladder and no commercial row
+// in the base reaches it, so without this entry the grant funder sits in no band at all.
 //
-// Erhvervsstyrelsen's `Deal 2026` is 81,250 (Confirmed), which computes to Core, and the wall showed
-// it there. What that figure prices is the VIRKSOMHEDSGUIDEN work. The Danish Business Authority
-// partnership is separate and is funded outside that column entirely, so no number in `Deal 2026`
-// will ever describe it — the deal is not wrong, it is answering a different question.
+// ─── THIS ENTRY REPLACED A WRONG ONE, WHICH IS WHY THE NAMES ARE SPELT OUT ──────────────
+// Between 2026-08-07 and 2026-08-08 the Prime slot was held by "danish business authority", on the
+// same grant argument. That was the WRONG ORGANISATION. Two Danish agencies are involved and the
+// English names blur them:
 //
-// One organisation, one row: `recicegSWL1fgCvqZ` is renamed from "Erhvervsstyrelsen /
-// Virksomhedsguiden" to "Danish Business Authority" and carries the DBA mark, so the wall shows it
-// once, in Prime. Virksomhedsguiden no longer appears as its own tile. The KEY BELOW DEPENDS ON THAT
-// RENAME: this table is keyed on `Company`, so if the row goes back to the old name the entry
-// silently matches nothing and the partner drops to Core.
+//   Erhvervsstyrelsen         = Danish Business Authority. Commercial partner. `Deal 2026` 81,250
+//                               (Confirmed) for the VIRKSOMHEDSGUIDEN work, which computes to Core.
+//                               `recicegSWL1fgCvqZ`, still on the wall, now in the band its deal says.
+//   Erhvervsfremmebestyrelsen = Danish Board of Business Development. The GRANT funder, and the one
+//                               this entry is for. `recHE7XwVZgNPqtlP`.
+//
+// So Erhvervsstyrelsen never needed an exception — its deal describes its partnership perfectly well.
+// Removing its entry is not overruling the earlier call, it is pointing the call at the right body.
+//
+// THE KEY DEPENDS ON THE `Company` CELL reading exactly "Erhvervsfremmebestyrelsen": this table is
+// keyed on that name, so a rename (to the English "Danish Board of Business Development", say)
+// silently matches nothing and drops the partner off the wall entirely, since it has no deal tier to
+// fall back to.
 //
 // THE BAR FOR ADDING HERE: the deal cannot express the tier, not the deal disagrees with someone.
 // If Skytek's deal is ever priced, delete this entry — the deal wins.
 const TIER_EXCEPTIONS: Record<string, string> = {
   "skytek nordics aps": "Core",
   "industriens fond": "Prime",
-  "danish business authority": "Prime",
+  "erhvervsfremmebestyrelsen": "Prime",
 };
 
 function tierException(company: string): string | null {
