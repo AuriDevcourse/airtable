@@ -4,6 +4,31 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (l) · Board Summit, and an Airtable view that stopped filtering
+
+New `/api/program?event=board`: the Board Summit (hosted by Boardway), 14 sessions on Day 2, read
+from the same Sessions table as the Policy Stage. Dark blue rather than the fire gradient — the
+`navy` theme in lib/agendaSnippet.ts. Tab + copy-embed button live at /program. Deployed, both
+feeds verified in production.
+
+### A VIEW IS NOT A CONTRACT
+
+The Sessions table now holds THREE programmes: The Policy Stage (15), Board Summit (14), Defence &
+Dual Use (7). `viwrTVxvTBucbJW7S` was pinned as "The Policy Stage" and had since been widened to the
+whole table, so `?event=policy` was quietly serving **36 sessions** with all three agendas
+interleaved by start time — the Policy Stage embed on techbbq.dk showed the Board Summit inside it.
+Nothing in this repo changed; somebody edited a view in the Airtable UI.
+
+Both sources now carry an optional `filter` (filterByFormula) on `{Name of the Event}`. Filter on
+the CELL, not on a view, whenever one table holds several things. Defence & Dual Use is the obvious
+third source when it is wanted; it needs one entry in `PROGRAM_SOURCES` and one tab.
+
+Also: `parsePeople` drops TBC/TBA/TBD. Four Board Summit rows have "TBC" in the moderator cell while
+the booking is open, and the embed drew a circle with a "T" in it and billed TBC as the moderator.
+
+`heading: "August 27th"` on the Board tab is HAND-SET (every row says only "Day 2"). The Policy tab
+says August 26th for rows that also say Day 2, so one of the two is wrong — check before the summit.
+
 ## Session 2026-08-10 (k) · Event Rooms in the pasted embed is the programme board
 
 The embed's two tabs now match the dashboard. Side Events is the Airtable card grid; Event Rooms is
