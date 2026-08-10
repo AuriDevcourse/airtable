@@ -126,6 +126,15 @@ type AirtableSource = {
    * programme to a CELL VALUE, which nobody can widen by editing a view in the Airtable UI.
    */
   filter?: string;
+  /**
+   * Fill missing faces from the speaker CRM, by name, out of this `Project Name`.
+   *
+   * For a programme typed in from a document: the photo cells on the session rows have to be filled
+   * per session in the same order as the names, while the CRM holds one headshot per person. Setting
+   * this joins the two, so a photo uploaded once in Marketing Project Overview reaches the agenda.
+   * See lib/programFaces.ts — including why it is opt-in rather than on for every source.
+   */
+  facesFrom?: string;
   fields: {
     name: string;
     day?: string;
@@ -202,6 +211,11 @@ export const PROGRAM_SOURCES = {
     kind: "airtable",
     table: "tblSlpTzDi2oVYwqv", // Sessions
     filter: '{Name of the Event}="Board Summit"',
+    // The 27 people were written into Marketing Project Overview under this project on 2026-08-10,
+    // because Brella carries the Board Summit as a single all-day row with no speakers on it and
+    // had no faces to give. Event Room 1 is where Brella places the Board Summit; the six older
+    // rows under the same project belong to "Beyond Unicorns" and simply never match a name here.
+    facesFrom: "Event Room 1",
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
@@ -382,5 +396,19 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
       startMinutes(a.timeSlot) - startMinutes(b.timeSlot) ||
       a.name.localeCompare(b.name)
   );
+
+  // Faces from the CRM for anyone the session rows left without one. Done HERE rather than in the
+  // route so it lands inside the same `cached("program:<source>")` entry: one extra Airtable read
+  // per cache fill, not one per request. A failure is logged and swallowed — an agenda with
+  // initials in it is a working agenda, and this must never be what takes the programme down.
+  if (cfg.facesFrom) {
+    try {
+      const { fetchProjectFaces, applyFaces } = await import("@/lib/programFaces");
+      return applyFaces(sessions, await fetchProjectFaces(cfg.facesFrom));
+    } catch (err) {
+      console.error(`[program:${source}] faces unavailable, keeping initials`, err);
+    }
+  }
+
   return sessions;
 }
