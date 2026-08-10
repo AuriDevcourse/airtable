@@ -4,6 +4,46 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (m) · Board Summit speakers, and faces by name
+
+### 27 rows written into Marketing Project Overview
+
+Under `Project Name = "Event Room 1"`, `Session Name` = the session title (or "Board Summit" for the
+four people billed on several). 23 Speakers, 4 Moderators. Deduped by name across the 14 sessions:
+Henriette Divert moderates three, Stine Colding Alstrup and Victoria Bager open and close.
+
+WHY THERE: Brella carries the Board Summit as ONE all-day row in Event Room 1 with **zero speakers
+attached**, and only 2 of the 27 exist anywhere in Brella's 356 speakers (for other sessions). There
+were no faces to import and nothing to link to. `Project Name` has no "Board Summit" option and
+adding one edits the schema of a 3,670-row live CRM, so the existing Event Room 1 option was used —
+the six older rows there are the "Beyond Unicorns" session and never collide by name.
+
+Titles were parsed at the FIRST comma of "Name, Title, Company". Last-comma reads
+"CEO, The Lundbeck Foundation & Chair, Ørsted" as a job title. Five people legitimately have no
+company ("Board Professional", "Olympic Champion", "Neuroscientist & Author").
+
+### Faces come from the CRM now, matched by name
+
+lib/programFaces.ts, opt-in per source via `facesFrom`, set only on `board`. Upload a headshot once
+on the person's CRM row and it appears in the agenda; the Sessions row's own photo cell still wins
+where it is filled. The alternative was 27 uploads into `Speaker Photo` cells in the same order as
+the typed names, with no way to check the pairing by looking at it.
+
+Three headshots already existed elsewhere in the CRM (Erik Balck Sørensen, Sander Janca-Jensen, Ken
+Villum Klausen) and were copied onto the new rows, which is what proved the join. **The remaining 24
+need a photo uploaded in Airtable** — nothing in code is waiting on anything.
+
+The name match is the whole limitation: a duplicate name is left faceless on purpose, and a name
+spelled differently in the two tables silently keeps its initial. If a face is missing, check the
+spelling in Marketing Project Overview against the Sessions cell before suspecting the code.
+
+### Still open
+
+- The embed says "Event Room 1 & 2" because Auri asked for it. **Brella says Event Room 1** only.
+- August 27th is confirmed by Brella ("Day 3 · 27 August"). The Policy Stage tab still says
+  August 26th for rows whose `When Is it` also reads "Day 2" — the two Airtable day numberings do
+  not agree with Brella's, so check the Policy date the same way before the summit.
+
 ## Session 2026-08-10 (l) · Board Summit, and an Airtable view that stopped filtering
 
 New `/api/program?event=board`: the Board Summit (hosted by Boardway), 14 sessions on Day 2, read
