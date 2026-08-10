@@ -4,6 +4,52 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (i) · Embed origins audited, event embed brought up to date
+
+### Every embed on techbbq.dk, audited
+Fetched all 56 pages in page-sitemap.xml and grepped the SOURCE for pasted snippets, which is
+enough to spot a bad origin without rendering anything. 15 pages carry an embed.
+
+**0 pages point at a local machine.** Partners is fixed. The other 14 were always correct — the
+localhost bug only ever affected the one snippet that happened to be copied from a dev server.
+All 15 predate the self-repair guard, which is harmless: their origins are right, and the guard
+only matters if one is hand-edited or re-pasted from an old copy.
+
+CORRECTION to session (e): `/side-events/` is NOT an empty page any more. It carries
+`tbbq-ev-2qxnhu` against /api/partner-events and renders 27 cards with the three-pill row. Auri
+added the widget after that entry was written.
+
+### The event embed was still the old card wall
+Auri: "/partner-events copy embed has old code." The deploy had landed (the live embed carries the
+guard), so this was the DESIGN, not the origin. Brought in line with the dashboard:
+
+- **Poster first, logo second, initial last**, the same order the dashboard uses. A poster gets
+  `.tbbq-ev-card__media--art`: full-bleed on a dark ground with no padding, because artwork is not
+  a mark to be letterboxed. The logo keeps the light panel, since partner logos are mostly
+  dark-on-transparent PNGs that vanish on a dark ground.
+- **"Hosted by X"** on the company line and a **venue line** under it, with the same rule as
+  lib/venueLabel.ts reimplemented in the snippet's own vanilla JS (the builders emit standalone
+  strings and cannot import).
+- **Two pills, no "All events"**, each carrying its kind's colour as a dot on the outer edge, and
+  the board opens on the first pill's kind so pills and content agree on load.
+
+Verified against the generated snippet: 2 pills with 2 dots, 17 cards on load, **17 posters and 0
+logo fallbacks**, "Hosted by Rockstart", venue "København" (host correctly suppressed), and
+switching to Event Rooms gives 10.
+
+NOT done: the embed's Event Rooms is still CARDS, not the room timeline the dashboard now shows.
+A vanilla-JS timeline already exists in lib/brellaEmbedSnippet.ts, so the website route to a room
+schedule is that embed's Event Rooms section rather than rebuilding one inside this snippet.
+
+### Gotcha worth keeping
+lib/eventEmbedSnippet.ts is ONE BIG TEMPLATE LITERAL. A backtick in a comment inside it
+terminates the literal and produces a syntax error hundreds of lines away. The partners snippet
+already carried a warning about this; now this one does too.
+
+The self-repair guard also makes the old local test impossible on purpose: injecting
+localhost into a copied snippet is now overridden by the guard, so a local render test has to
+rewrite the guard's fallback as well.
+
 ## Session 2026-08-10 (h) · /partner-events brought up to the Program 2026 design
 
 The page was already sharing `.bp-*` cards and the modal since 2026-08-08, but three things still

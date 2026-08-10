@@ -68,6 +68,7 @@ export function buildEventEmbedSnippet({
   /* The selected pill takes that KIND's colour (red / blue); "All" falls back to white. */
   #${id} .tbbq-ev-tabs button[aria-selected="true"]{background:var(--pill,#f2f2f2)!important;color:#fff!important}
   #${id} .tbbq-ev-tabs button[aria-selected="true"][data-k="all"]{background:#f2f2f2!important;color:#0d0d0d!important}
+  #${id} .tbbq-ev-tabs__dot{display:inline-block!important;width:7px!important;height:7px!important;border-radius:9999px!important;margin:0 7px!important;vertical-align:middle!important}
   #${id} .tbbq-ev-tabs button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px}
   /* Mobile: one swipeable line. justify-content MUST return to flex-start — a centered
      overflowing strip clips its first pills with no way to scroll back to them. */
@@ -113,6 +114,12 @@ export function buildEventEmbedSnippet({
      drop-shadow traces glyph edges so the minority of WHITE logos stay discernible. */
   /* z-index keeps the logo above the hover glow, so the glow stays in the bottom band. */
   #${id} .tbbq-ev-card__media{position:relative!important;z-index:1!important;aspect-ratio:16/9;border-radius:12px!important;overflow:hidden!important;background:var(--panel)!important;display:grid!important;place-items:center!important;padding:20px!important}
+  /* THE EVENT'S OWN POSTER, when the partner published one. Full-bleed on a dark ground and no
+     padding, the way the dashboard shows it — a poster is artwork, not a mark to be letterboxed
+     on a light panel. The logo keeps the panel below, because partner logos are mostly
+     dark-on-transparent PNGs that vanish on a dark ground. */
+  #${id} .tbbq-ev-card__media--art{background:#0d0d0d!important;padding:0!important}
+  #${id} .tbbq-ev-card__media--art img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;filter:none!important}
   #${id} .tbbq-ev-card__media img{max-width:100%!important;max-height:100%!important;width:auto!important;height:auto!important;object-fit:contain!important;display:block!important;margin:0!important;border-radius:0!important;box-shadow:none!important;filter:drop-shadow(0 0 1px rgba(0,0,0,.45))}
   #${id} .tbbq-ev-card__initial{font-family:var(--head)!important;font-size:34px!important;font-weight:700!important;color:var(--kind)!important;letter-spacing:-.02em}
 
@@ -137,6 +144,7 @@ export function buildEventEmbedSnippet({
   #${id} .tbbq-ev-card__company{margin:5px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:var(--muted)!important;font-size:13px!important;line-height:1.4!important}
   /* Clamped to 3 lines rather than truncated in the feed, so the full text stays available
      to other consumers of the JSON. */
+  #${id} .tbbq-ev-card__venue{margin:3px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:var(--muted)!important;font-size:12.5px!important;line-height:1.4!important}
   #${id} .tbbq-ev-card__desc{margin:10px 0 0!important;font-family:var(--sans)!important;text-shadow:0 1px 6px rgba(0,0,0,.5)!important;padding:0!important;color:rgba(255,255,255,.78)!important;font-size:13px!important;line-height:1.5!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
   /* margin-top:auto so cards with and without a blurb line their buttons up. */
@@ -189,12 +197,31 @@ ${endpointDecl(path, "  ")}
   var GLOW2={"side-event":"#FA7000","event-room":"#2BB4E1"};
   function light(hex,amt){var n=parseInt(String(hex).replace("#",""),16);function m(c){return Math.round(255*(1-amt)+c*amt);}return "rgb("+m((n>>16)&255)+","+m((n>>8)&255)+","+m(n&255)+")";}
 
+  /* Mirrors lib/venueLabel.ts. A host running the event at their own office puts their own name
+     in Luma's location field, which would print "Hosted by Rockstart" and then "Rockstart ·
+     København" underneath. */
+  function venue(e){
+    function fold(x){return String(x==null?"":x).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();}
+    var v=String(e.venue==null?"":e.venue).trim(), c=String(e.city==null?"":e.city).trim();
+    if(!v)return c;
+    if(e.company&&fold(v)===fold(e.company))v="";
+    if(v&&c&&fold(v).indexOf(fold(c))>=0)c="";
+    return [v,c].filter(Boolean).join(" · ");
+  }
+
   function card(e){
     /* The feed supplies the colour, but fall back per kind so a snippet pasted against an
        older deploy still renders red/blue instead of an unstyled card. */
     var color=e.color||(e.kind==="side-event"?"#CE0F2E":"#1B6CA8");
+    /* Poster first, logo second, initial last — the same order the dashboard uses. The feed
+       supplies e.image from the og:image on the partner's own registration page, or one of the
+       hand-drawn banners for the three events that publish none (lib/eventArtwork.ts). */
+    var art=safeUrl(e.image);
     var logo=safeUrl(e.logo);
-    var media=logo
+    var mediaClass="tbbq-ev-card__media"+(art?" tbbq-ev-card__media--art":"");
+    var media=art
+      ? '<img src="'+esc(art)+'" alt="" loading="lazy">'
+      : logo
       ? '<img src="'+esc(logo)+'" alt="'+esc(e.company?e.company+" logo":"")+'" loading="lazy">'
       : '<span class="tbbq-ev-card__initial" aria-hidden="true">'+esc(String(e.company||e.title||"?").trim().charAt(0).toUpperCase())+'</span>';
     var access=e.accessLabel
@@ -208,11 +235,12 @@ ${endpointDecl(path, "  ")}
     var reg=safeUrl(e.registerUrl);
     return '<article class="tbbq-ev-card" style="--kind:'+esc(color)+';--soft:'+mixOn(color,.18,"#131313")+';--panel:'+light(color,.1)
       +';--glow-a:'+tint(color,.92)+';--glow-b:'+tint(GLOW2[e.kind]||color,.6)+'">'
-      +'<div class="tbbq-ev-card__media">'+media+'</div>'
+      +'<div class="'+mediaClass+'">'+media+'</div>'
       +'<div class="tbbq-ev-card__body">'
       +'<div class="tbbq-ev-card__tags"><span class="tbbq-ev-card__kind">'+esc(e.kindLabel||"")+'</span>'+access+'<span class="tbbq-ev-card__when">'+date+time+'</span></div>'
       +'<h3 class="tbbq-ev-card__title">'+esc(e.title)+'</h3>'
-      +(e.company?'<p class="tbbq-ev-card__company">'+esc(e.company)+'</p>':'')
+      +(e.company?'<p class="tbbq-ev-card__company">Hosted by '+esc(e.company)+'</p>':'')
+      +(venue(e)?'<p class="tbbq-ev-card__venue">'+esc(venue(e))+'</p>':'')
       +(e.description?'<p class="tbbq-ev-card__desc">'+esc(e.description)+'</p>':'')
       +(reg?'<div class="tbbq-ev-card__cta"><a href="'+esc(reg)+'" target="_blank" rel="noopener noreferrer">Register</a></div>':'')
       +'</div></article>';
@@ -237,11 +265,17 @@ ${endpointDecl(path, "  ")}
        when only one kind is present (a single-kind embed has nothing to filter). */
     var present=ORDER.filter(function(o){return all.some(function(e){return e.kind===o.k;});});
     if(KINDTABS&&pills&&present.length>1){
-      var defs=[{k:"all",label:"All events",color:null}].concat(present);
+      /* TWO pills, no "All events" (Auri, 2026-08-10). The mixed view is what forced a kind
+         badge onto every card, and one kind per tab is how the dashboard reads. Side Events
+         first and selected, because that is the section a visitor comes for. Each pill carries
+         its kind's colour as a dot, on the outer edge of the pair. */
+      var defs=present;
       pills.innerHTML=defs.map(function(d,i){
-        var n=d.k==="all"?all.length:all.filter(function(e){return e.kind===d.k;}).length;
+        var n=all.filter(function(e){return e.kind===d.k;}).length;
+        var dot='<span class="tbbq-ev-tabs__dot" style="background:'+d.color+'" aria-hidden="true"></span>';
         return '<button type="button" role="tab" data-k="'+d.k+'" aria-selected="'+(i===0?"true":"false")+'"'
-          +(d.color?' style="--pill:'+d.color+'"':'')+'>'+esc(d.label)+' ('+n+')</button>';
+          +' style="--pill:'+d.color+'">'
+          +(i===0?dot:'')+esc(d.label)+' ('+n+')'+(i===0?'':dot)+'</button>';
       }).join("");
       pills.addEventListener("click",function(ev){
         var b=ev.target.closest("button[data-k]");
@@ -258,7 +292,9 @@ ${endpointDecl(path, "  ")}
       if(wrap)wrap.style.display="none";
     }
 
-    render(all);
+    /* Open on whatever the first pill is, so the board and the pills agree on load. Falls back
+       to the whole list when there is only one kind and no pill row was built. */
+    render(present.length>1?all.filter(function(e){return e.kind===present[0].k;}):all);
   }).catch(function(err){
     grid.innerHTML='<p class="tbbq-ev__empty">Could not load right now.</p>';
     if(window.console&&console.error)console.error("[tbbq-events]",err);
