@@ -4,6 +4,57 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (k) · Event Rooms in the pasted embed is the programme board
+
+The embed's two tabs now match the dashboard. Side Events is the Airtable card grid; Event Rooms is
+the Brella timeline, with room columns, topic filters, search, all-day bands, faces and the session
+dialog. Auri's call when shown the three options (2026-08-10). Commit `c819c66`.
+
+### Composed, not reimplemented
+
+`buildBrellaEmbedSnippet({section:"rooms"})` already builds that board, so `eventEmbedSnippet`
+mounts it in a second panel behind the Event Rooms pill and toggles which panel is shown. One
+timeline exists, in one file. The board's own section pill row is empty in single-section mode, so
+nothing duplicates the host's pills.
+
+### Three things it needed
+
+1. `[hidden]` is the lowest-specificity UA rule there is, and both panels declare `display` with
+   `!important`, so the attribute alone did NOTHING: the timeline rendered below the cards with both
+   visible. Two explicit `!important` rules are what make the tabs work.
+2. The board now hands a host `relayout()` and its session total through `window.__tbbqBp[id]`.
+   Card geometry is arithmetic from minutes, so it lays out correctly while hidden, but
+   `applyFloor()` measures children and a `display:none` panel measures zero, so the scroll floor is
+   retaken when the panel is revealed.
+3. The total listener is attached AT PARSE TIME, not inside the event snippet's fetch. Both
+   snippets fetch; the board's request is fired first (its script is above), so its loaded event
+   beat a listener registered in our own `.then` every single time and the pill stayed blank.
+
+### The pill counts sessions
+
+Event Rooms shows the Brella SESSION count (79), not the Airtable row count (10), because sessions
+are what that tab holds and what can be clicked. No number at all until the board answers. If Auri
+wants the 10 back, it is `COUNTS["event-room"]` in lib/eventEmbedSnippet.ts.
+
+### How it was verified
+
+By rendering the COPIED snippet the way a widget does, not by reading the source: a throwaway page
+under `public/` re-created each `<script>` (innerHTML does not execute them) and rewrote the deployed
+origin to the dev server, since the API echoes an Origin only on an exact allow-list match. Fresh
+load opens Side Events with 17 cards and 17 posters and the board hidden; the pill switches both
+ways; the board draws 7 columns, 30 sessions on day 1 and 68 on day 2; a session dialog opens with
+its room, host and four speaker photos. Harness deleted after.
+
+Gotcha for the next test: many `.tbbq-bp__ev` cards are plain `div`s with no `data-id` and open
+nothing, by design. Clicking the first one and concluding the dialog is broken wasted a pass here.
+Click `button.tbbq-bp__ev[data-id]`.
+
+### Left as cards on purpose
+
+The single-kind `?kind=event-room` copy (`kindTabs={false}`) is still a card grid: there is no tab to
+hang a second layout off, and a page that wants only the schedule has the dedicated Brella rooms
+embed on /brella-program. Pass `roomsBoard={false}` to force cards on the combined one.
+
 ## Session 2026-08-10 (j) · Two regexes eaten by the snippet template literals
 
 The snippet builders return one big template literal. `\s` is not a valid escape there, so JS drops
