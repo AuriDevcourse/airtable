@@ -129,6 +129,7 @@ const EVENTS: {
   label: string;
   heading?: string;
   note?: string;
+  sub?: string;
   theme?: "orange" | "blue" | "navy";
   icons?: boolean;
   bigOpening?: boolean;
@@ -159,6 +160,7 @@ const EVENTS: {
     key: "board",
     label: "Board Summit",
     heading: "August 27th",
+    sub: "Event Room 1 & 2",
     theme: "navy",
     people: true,
   },
@@ -170,6 +172,7 @@ function CopyAgendaEmbed({
   path,
   heading,
   note,
+  sub,
   theme,
   icons,
   bigOpening,
@@ -178,6 +181,7 @@ function CopyAgendaEmbed({
   path: string;
   heading?: string;
   note?: string;
+  sub?: string;
   theme?: "orange" | "blue" | "navy";
   icons?: boolean;
   bigOpening?: boolean;
@@ -187,7 +191,7 @@ function CopyAgendaEmbed({
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, embedOrigin());
+    const code = buildAgendaSnippet({ uid, path, heading, note, sub, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -272,6 +276,7 @@ export default function ProgramPage() {
               path={base}
               heading={EVENTS.find((e) => e.key === event)?.heading}
               note={EVENTS.find((e) => e.key === event)?.note}
+              sub={EVENTS.find((e) => e.key === event)?.sub}
               theme={EVENTS.find((e) => e.key === event)?.theme}
               icons={EVENTS.find((e) => e.key === event)?.icons}
               bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}

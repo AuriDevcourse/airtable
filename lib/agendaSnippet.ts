@@ -16,6 +16,10 @@ export type AgendaOptions = {
   heading?: string;
   // Small pill note under the heading (e.g. the tickets-only notice).
   note?: string;
+  // WHERE IT HAPPENS, beside the date rather than under it (e.g. "Event Room 1 & 2"). Muted and at
+  // a third of the date's size, because a room is an answer to "where do I go", not a headline —
+  // painting it with the same gradient would give it equal weight to the day itself.
+  sub?: string;
   // Color theme. "orange" = the TechBBQ fire look (default, used by NISS/TechBBQ).
   // "blue" = the Future of Fintech look (blue border/tags on #111827).
   // "navy" = the Board Summit look: a deeper blue ground with a blue gradient.
@@ -123,6 +127,7 @@ export function buildAgendaSnippet({
   path = "/api/program",
   heading,
   note,
+  sub,
   theme = "orange",
   icons = true,
   bigOpening = true,
@@ -145,6 +150,11 @@ export function buildAgendaSnippet({
      text (it would draw behind the glyphs and show through), so the glow moves to a drop-shadow. */
   #${id} .tbbq-agenda__date{font-family:"Onest",sans-serif;font-weight:700;font-size:clamp(30px,4vw,42px);line-height:1.1;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 26px ${t.glow});margin:2px 6px 16px}
   #${id} .tbbq-agenda__date:not(:first-child){margin-top:34px}
+  /* The room sits on the date's baseline. It is a SIBLING span inside the same block rather than a
+     second line, so "August 27th · Event Room 1 & 2" reads as one answer. It must NOT inherit the
+     clipped-gradient fill above, hence its own solid colour. */
+  #${id} .tbbq-agenda__where{font-family:"Inter",ui-sans-serif,system-ui,sans-serif;font-weight:500;font-size:clamp(13px,1.4vw,16px);letter-spacing:.01em;background:none;color:${t.muted};-webkit-text-fill-color:${t.muted};white-space:nowrap}
+  #${id} .tbbq-agenda__where::before{content:"·";margin:0 10px;opacity:.6}
   #${id} .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:${t.noteInk};border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
   #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background-image:var(--grad)}
   #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
@@ -177,6 +187,7 @@ export function buildAgendaSnippet({
 ${endpointDecl(path, "  ")}
   var HEADING = ${JSON.stringify(heading || "")};
   var NOTE = ${JSON.stringify(note || "")};
+  var SUB = ${JSON.stringify(sub || "")};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var BIG_OPENING = ${bigOpening ? "true" : "false"};
   var PEOPLE = ${people ? "true" : "false"};
@@ -219,7 +230,10 @@ ${endpointDecl(path, "  ")}
     var list=(data&&data.sessions)||[];
     if(!list.length){root.innerHTML='<p class="tbbq-agenda__loading">Program coming soon.</p>';return;}
     var html="";
-    if(HEADING)html+='<div class="tbbq-agenda__date">'+esc(HEADING)+'</div>';
+    // SUB rides on the fixed HEADING only. A multi-day feed draws one date per day from the data,
+    // and a room repeated under every one of them would be noise — the rooms differ per day anyway.
+    var where = SUB ? '<span class="tbbq-agenda__where">'+esc(SUB)+'</span>' : '';
+    if(HEADING)html+='<div class="tbbq-agenda__date">'+esc(HEADING)+where+'</div>';
     if(NOTE)html+='<div class="tbbq-agenda__note">'+esc(NOTE)+'</div>';
     var day="";
     for(var i=0;i<list.length;i++){
