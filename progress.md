@@ -43,6 +43,56 @@ The name match is the whole limitation: a duplicate name is left faceless on pur
 spelled differently in the two tables silently keeps its initial. If a face is missing, check the
 spelling in Marketing Project Overview against the Sessions cell before suspecting the code.
 
+### NEXT SESSION (2026-08-11) · headshots + LinkedIn for 24 Board Summit people
+
+The only thing standing between the Board Summit embed and a finished page. No code is waiting on
+this: drop a photo into `Profile Picture` on the person's row and it appears in the agenda on the
+next cache fill (or press Refresh on /program). The three who already have one are done.
+
+Where to fill it in: Marketing Project Overview `tblTecOBecLQCNIeD`, filter
+`Project Name = "Event Room 1"` AND `Session Name = "Board Summit"` (27 rows).
+
+- **Photo** → `Profile Picture`. This is what the agenda reads, through the name join.
+- **LinkedIn** → `LinkedIn Handle` (a URL field) or `Link to LinkedIn` (text). All 27 are empty.
+  `linkedinUrl()` in lib/fields.ts already reads both and normalises them. NOTE: the agenda embed
+  does NOT link names to LinkedIn today — the speaker GRIDS do (/policy-stage and friends). If the
+  Board Summit names should be clickable, that is a change to lib/agendaSnippet.ts, not data.
+
+Every name is spelled here exactly as the Sessions table spells it. **Do not "fix" a name on one
+side only** — the face join matches on the name, and a one-sided correction silently drops the face.
+
+- [ ] Anja Monrad · Board Professional
+- [ ] Anne Malberg Horsager · DTU Board Education & Certificates
+- [ ] Bianca Bruhn · CEO, Google Denmark
+- [ ] Bjarne Corydon · Director General, DR – Danmarks Radio
+- [ ] Bodil Sidén · General Partner, Kost Capital
+- [ ] Camilla Ley Valentin · Board Professional
+- [ ] Christian Thrane · CEO, TDC Brands
+- [ ] Christina Kjær · Head of Research, Erhvervslivets Tænketank
+- [ ] Helle Uth · General Partner & Co-founder, PSV Tech
+- [ ] Henriette Divert · Executive Advisor, Bcc
+- [ ] Jakob Beck Thomsen · Head of Business Banking Denmark, Nordea
+- [ ] Jakob Riis · CEO & President, Falck
+- [ ] Jan C. Olsen · CEO, EY Denmark
+- [ ] Karina Wellendorph · CEO, Visma e-conomic
+- [ ] Katarina Gospic · Neuroscientist & Author
+- [ ] Keld Reinicke · Co-founder, Veo Technologies
+- [ ] Lars Rasmussen · Chair, Committee on Corporate Governance
+- [ ] Lene Skole · CEO, The Lundbeck Foundation & Chair, Ørsted
+- [ ] Ossi Lindroos · President & CEO, Solita
+- [ ] Søren Pind · CEO, Association of Active Ownership
+- [ ] Stine Colding Alstrup · CEO & Co-founder, Boardway
+- [ ] Thomas Koefoed · Partner, Netcompany
+- [ ] Victoria Bager · CCO & Co-founder, Boardway
+- [ ] Viktor Axelsen · Olympic Champion
+
+Done: Erik Balck Sørensen, Ken Villum Klausen, Sander Janca-Jensen (photo carried over from their
+existing TechBBQ Summit / Event Room 3 rows; still no LinkedIn).
+
+Two of these have a title where a company belongs and no company at all, which is correct for
+"Board Professional" and "Olympic Champion" but worth a second look on Anne Malberg Horsager, whose
+source cell gave one value with no comma to say which it was.
+
 ### Still open
 
 - The embed says "Event Room 1 & 2" because Auri asked for it. **Brella says Event Room 1** only.
