@@ -1,4 +1,7 @@
 import { endpointDecl } from "@/lib/embedOriginGuard";
+// The Event Rooms tab mounts the REAL programme board, not a second card grid — see the
+// roomsBoard option below. Composed rather than reimplemented: one timeline, one place.
+import { buildBrellaEmbedSnippet } from "@/lib/brellaEmbedSnippet";
 // WordPress/Elementor embed snippet for the Side Events & Event Rooms grid.
 //
 // A SEPARATE builder from lib/embedSnippet.ts on purpose. That one renders a person card
@@ -33,6 +36,21 @@ export type EventEmbedOptions = {
   transparent?: boolean;
   // Fixed desktop column count. Default (undefined) is the responsive auto-fill grid.
   columns?: number;
+  /**
+   * Render the Event Rooms tab as the Brella PROGRAMME BOARD instead of a card grid: room
+   * columns against a clock, speaker faces, a session dialog. What /partner-events shows,
+   * and what Auri asked the pasted embed to show too (2026-08-10).
+   *
+   * WHY THE TWO TABS READ DIFFERENT SOURCES. A timeline needs a column per room and a start
+   * and end time. Airtable has neither for these rows: of 16 event-room records, 2 carry a
+   * Location and those two disagree on format. Brella has every one on a proper "Event Room N"
+   * track. Side Events stay on Airtable, which is the source that knows them all and holds the
+   * sign-up links. Same split the dashboard makes, for the same reason.
+   *
+   * Only takes effect with `kindTabs`: a ?kind=event-room single-block embed has no tab to
+   * hang a second layout off, and stays a card grid.
+   */
+  roomsBoard?: boolean;
 };
 
 export function buildEventEmbedSnippet({
@@ -41,8 +59,27 @@ export function buildEventEmbedSnippet({
   kindTabs = true,
   transparent = false,
   columns,
+  roomsBoard = true,
 }: EventEmbedOptions): string {
   const id = uid || "tbbq-events";
+  // The board only exists where there is a tab to put it behind.
+  const board = Boolean(kindTabs && roomsBoard);
+  const boardId = `${id}-rooms`;
+  // Sliced from the first tag: the builder prefixes a paste-me comment and the Google Fonts
+  // link, and this snippet already carries both. A duplicate <link> to the same href is
+  // harmless but reads as a copy-paste accident to whoever opens the widget next.
+  const boardSnippet = board
+    ? (() => {
+        const full = buildBrellaEmbedSnippet({ section: "rooms", uid: boardId, transparent: true });
+        return full.slice(full.indexOf("<div id="));
+      })()
+    : "";
+  // hidden, so Side Events is what opens. The board still lays itself out correctly in there:
+  // card geometry is arithmetic from minutes, not measured. Only its scroll floor needs the
+  // panel to be visible, which is what relayout() on reveal is for.
+  const boardHtml = board
+    ? `<div class="tbbq-ev-board" data-panel="event-room" hidden>${boardSnippet}</div>`
+    : "";
 
   const columnsCss =
     columns && columns > 0
@@ -84,7 +121,7 @@ export function buildEventEmbedSnippet({
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-<section id="${id}" class="tbbq-events">${tabsHtml}<div class="tbbq-ev-grid"><p class="tbbq-ev__loading">Loading…</p></div></section>
+<section id="${id}" class="tbbq-events">${tabsHtml}<div class="tbbq-ev-grid"><p class="tbbq-ev__loading">Loading…</p></div>${boardHtml}</section>
 
 <style>
   #${id}.tbbq-events{--bg:${transparent ? "transparent" : "#0d0d0d"};--card:#131313;--fg:#f2f2f2;--muted:#9a9a9c;--border:#2a2a2a;--sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--head:"Onest",var(--sans);background:var(--bg);color:var(--fg);font-family:var(--sans)!important;padding:${transparent ? "0" : "clamp(24px,4vw,48px)"};border-radius:${transparent ? "0" : "20px"}}
@@ -95,6 +132,13 @@ export function buildEventEmbedSnippet({
      section's inherited font, which is how the company + description text ended up
      rendering in the host theme's Georgia serif. (No backticks in these comments — this
      whole block is inside a JS template literal, so one would terminate the string.) */
+  /* THE PANEL SWITCH. [hidden] is a UA rule of the lowest possible specificity and both
+     panels declare their display with !important, so the attribute alone does nothing at all
+     — the grid stays visible underneath the board. These two lines are what make the tabs
+     work; without them the Event Rooms tab renders the timeline BELOW the cards. */
+  #${id} .tbbq-ev-grid[hidden]{display:none!important}
+  #${id} .tbbq-ev-board[hidden]{display:none!important}
+  #${id} .tbbq-ev-board{display:block!important;margin:0!important;padding:0!important}
   #${id} .tbbq-ev__loading{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
   #${id} .tbbq-ev__empty{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
 
@@ -174,6 +218,30 @@ export function buildEventEmbedSnippet({
   var grid=root.querySelector(".tbbq-ev-grid");
 ${endpointDecl(path, "  ")}
   var KINDTABS=${kindTabs ? "true" : "false"};
+  /* The Event Rooms tab is the Brella board rather than a card grid. Its id, so the pill can
+     reach the board's relayout() hook and its session count (lib/brellaEmbedSnippet.ts). */
+  var BOARD=${board ? "true" : "false"};
+  var BOARD_ID=${JSON.stringify(boardId)};
+  /* The board's session total, for the Event Rooms pill.
+     ATTACHED HERE, AT PARSE TIME, NOT INSIDE THE FETCH. Both snippets fetch, and whichever
+     answers first wins: registering this listener inside our own .then lost the race every
+     time, because the board's request is fired earlier (its script is above ours in the
+     document) and its "loaded" event arrived while we were still waiting on Airtable. The
+     pill then kept its placeholder for good. The registry read below is the belt to this
+     brace — if the event is somehow missed, the number is still there to be found. */
+  var BOARD_TOTAL=null,onBoardTotal=null;
+  function boardTotal(){
+    if(BOARD_TOTAL!=null)return BOARD_TOTAL;
+    var api=window.__tbbqBp&&window.__tbbqBp[BOARD_ID];
+    return api&&api.total!=null?api.total:null;
+  }
+  if(BOARD){
+    document.addEventListener("tbbq-bp:loaded",function(ev){
+      if(!ev.detail||ev.detail.id!==BOARD_ID)return;
+      BOARD_TOTAL=ev.detail.total;
+      if(onBoardTotal)onBoardTotal();
+    });
+  }
   /* Pill order is fixed even though the pills themselves are built from the data. */
   var ORDER=[{k:"side-event",label:"Side Events",color:"#CE0F2E"},{k:"event-room",label:"Event Rooms",color:"#1B6CA8"}];
 
@@ -258,47 +326,89 @@ ${endpointDecl(path, "  ")}
     return r.json();
   }).then(function(data){
     var all=(data&&data.events)||[];
-    if(!all.length){grid.innerHTML='<p class="tbbq-ev__empty">No events to show yet.</p>';return;}
+    /* An empty feed is only fatal WITHOUT the board: the Event Rooms tab reads Brella, so it
+       still has something to show when Airtable answers with nothing. */
+    if(!all.length&&!BOARD){grid.innerHTML='<p class="tbbq-ev__empty">No events to show yet.</p>';return;}
+    if(!all.length)grid.innerHTML='<p class="tbbq-ev__empty">No events to show yet.</p>';
 
     function render(list){
       grid.innerHTML=list.length?list.map(card).join(""):'<p class="tbbq-ev__empty">Nothing in this category yet.</p>';
     }
 
     var pills=root.querySelector(".tbbq-ev-tabs__pills");
+    var boardEl=root.querySelector(".tbbq-ev-board");
     /* Built from the DATA: a kind nobody has gets no pill, and the whole row is dropped
-       when only one kind is present (a single-kind embed has nothing to filter). */
-    var present=ORDER.filter(function(o){return all.some(function(e){return e.kind===o.k;});});
+       when only one kind is present (a single-kind embed has nothing to filter). Event Rooms
+       is the exception once the board is mounted — its tab does not come from this feed, so
+       an Airtable table with no event-room rows must not remove it. */
+    var present=ORDER.filter(function(o){
+      return all.some(function(e){return e.kind===o.k;})||(BOARD&&o.k==="event-room");
+    });
     if(KINDTABS&&pills&&present.length>1){
       /* TWO pills, no "All events" (Auri, 2026-08-10). The mixed view is what forced a kind
          badge onto every card, and one kind per tab is how the dashboard reads. Side Events
          first and selected, because that is the section a visitor comes for. Each pill carries
          its kind's colour as a dot, on the outer edge of the pair. */
       var defs=present;
-      pills.innerHTML=defs.map(function(d,i){
-        var n=all.filter(function(e){return e.kind===d.k;}).length;
-        var dot='<span class="tbbq-ev-tabs__dot" style="background:'+d.color+'" aria-hidden="true"></span>';
-        return '<button type="button" role="tab" data-k="'+d.k+'" aria-selected="'+(i===0?"true":"false")+'"'
-          +' style="--pill:'+d.color+'">'
-          +(i===0?dot:'')+esc(d.label)+' ('+n+')'+(i===0?'':dot)+'</button>';
-      }).join("");
+      var active=defs[0].k;
+      /* Each pill counts THE THINGS ON ITS OWN TAB. Side Events counts cards from Airtable.
+         Event Rooms counts sessions from Brella, because that is what the timeline holds and
+         what a visitor can click — the Airtable row count (10 room programmes) would name
+         nothing visible on that tab. Null until the board answers, and a pill with no number
+         beats a pill with the wrong one. */
+      var COUNTS={};
+      defs.forEach(function(d){
+        COUNTS[d.k]=(BOARD&&d.k==="event-room")?null:all.filter(function(e){return e.kind===d.k;}).length;
+      });
+      /* Repainted rather than patched, so the count and the selected state can never disagree.
+         Safe because the click handler is delegated on the CONTAINER, which survives. */
+      function paintPills(){
+        pills.innerHTML=defs.map(function(d,i){
+          var n=COUNTS[d.k];
+          if(n==null&&BOARD&&d.k==="event-room")n=boardTotal();
+          var dot='<span class="tbbq-ev-tabs__dot" style="background:'+d.color+'" aria-hidden="true"></span>';
+          return '<button type="button" role="tab" data-k="'+d.k+'" aria-selected="'+(d.k===active?"true":"false")+'"'
+            +' style="--pill:'+d.color+'">'
+            +(i===0?dot:'')+esc(d.label)+(n==null?'':' ('+n+')')+(i===0?'':dot)+'</button>';
+        }).join("");
+      }
+      /* One place decides what each tab shows, so the pills, the grid and the board cannot
+         drift apart. */
+      function show(k){
+        active=k;
+        paintPills();
+        var onBoard=BOARD&&k==="event-room";
+        grid.hidden=onBoard;
+        if(boardEl){
+          boardEl.hidden=!onBoard;
+          /* Retake the scroll floor now the panel has a size. applyFloor() inside the board
+             measures its children, and a display:none panel measures zero, so the floor taken
+             at load is 0 and switching days would let the page jump. Absent if the board has
+             not finished loading, in which case its own first render does the right thing. */
+          if(onBoard&&window.__tbbqBp&&window.__tbbqBp[BOARD_ID]&&window.__tbbqBp[BOARD_ID].relayout){
+            window.__tbbqBp[BOARD_ID].relayout();
+          }
+        }
+        if(!onBoard)render(k==="all"?all:all.filter(function(e){return e.kind===k;}));
+      }
       pills.addEventListener("click",function(ev){
         var b=ev.target.closest("button[data-k]");
         if(!b)return;
-        var k=b.getAttribute("data-k");
-        Array.prototype.forEach.call(pills.querySelectorAll("button"),function(x){
-          x.setAttribute("aria-selected",x===b?"true":"false");
-        });
-        render(k==="all"?all:all.filter(function(e){return e.kind===k;}));
+        show(b.getAttribute("data-k"));
       });
+      /* Repaint if the board answers after the pills are drawn. The listener itself lives at
+         the top of this snippet, for the race described there. */
+      onBoardTotal=paintPills;
+      /* Side Events opens, which is the tab a visitor comes for. */
+      show(defs[0].k);
     } else if(pills){
       /* Hide the empty container so it cannot leave a stray dark bar above the grid. */
       var wrap=root.querySelector(".tbbq-ev-tabs");
       if(wrap)wrap.style.display="none";
+      render(all);
+    } else {
+      render(all);
     }
-
-    /* Open on whatever the first pill is, so the board and the pills agree on load. Falls back
-       to the whole list when there is only one kind and no pill row was built. */
-    render(present.length>1?all.filter(function(e){return e.kind===present[0].k;}):all);
   }).catch(function(err){
     grid.innerHTML='<p class="tbbq-ev__empty">Could not load right now.</p>';
     if(window.console&&console.error)console.error("[tbbq-events]",err);

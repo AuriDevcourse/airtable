@@ -1538,6 +1538,22 @@ ${originDecl("  ")}
        looks like it might not do anything. */
     paintHint();
     var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(syncNarrow,150);});
+    /* HOSTED MODE. This board can be mounted inside another snippet's hidden panel — the
+       Event Rooms tab of the events grid does exactly that (lib/eventEmbedSnippet.ts). Two
+       things only the host can do are handed to it here:
+         - relayout(), because applyFloor() measures its children and a display:none panel
+           measures zero, so the scroll floor has to be taken again once the panel is shown.
+           Card geometry itself is arithmetic from minutes and is correct while hidden.
+         - the session total, so the host's pill can carry a number that comes from THIS
+           board rather than from whatever list the host fetched for its other tab.
+       A plain global keyed by element id, not a framework: both sides are strings pasted
+       into a WordPress widget with no module system between them. */
+    window.__tbbqBp=window.__tbbqBp||{};
+    window.__tbbqBp[root.id]={relayout:render,total:ALL.length};
+    try{
+      document.dispatchEvent(new CustomEvent("tbbq-bp:loaded",{detail:{id:root.id,total:ALL.length}}));
+    }catch(e){/* CustomEvent constructor missing on a very old browser: the host just keeps
+                 its fallback count, which is not worth a polyfill. */}
   }).catch(function(err){
     outEl.innerHTML='<p class="tbbq-bp__empty">Could not load the program.</p>';
     if(window.console)console.error("[tbbq brella embed]",err);

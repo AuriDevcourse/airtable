@@ -13,6 +13,7 @@ export function CopyEventEmbed({
   kindTabs,
   transparent,
   columns,
+  roomsBoard,
   label,
 }: EventEmbedOptions & { label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -20,7 +21,14 @@ export function CopyEventEmbed({
   function copy() {
     // Fresh id per copy so this block can sit on the same WordPress page as another one.
     const uid = "tbbq-ev-" + Math.random().toString(36).slice(2, 8);
-    const code = buildEventEmbedSnippet({ path, uid, kindTabs, transparent, columns }).replace(
+    const code = buildEventEmbedSnippet({
+      path,
+      uid,
+      kindTabs,
+      transparent,
+      columns,
+      roomsBoard,
+    }).replace(
       /__ORIGIN__/g,
       embedOrigin()
     );
