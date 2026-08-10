@@ -1421,10 +1421,10 @@ export function buildBrellaEmbedSnippet({
          pills stay: a single stage still runs on two days. */
       if(COLS.length>1){
         pillsEl.innerHTML='<button type="button" role="tab" aria-selected="true" data-t="">'
-          +(SECTION==="grills"?"All grills":SECTION==="rooms"?"All rooms":"All stages")+'</button>'
+          +(SECTION==="grills"?"All Grill Sessions":SECTION==="rooms"?"All rooms":"All stages")+'</button>'
           +COLS.map(function(c){return '<button type="button" role="tab" aria-selected="false" data-t="'+esc(c.label)+'">'+esc(c.label)+'</button>';}).join("");
         fillPicker(SECTION==="grills"?"Grill":SECTION==="rooms"?"Room":"Stage",
-                   SECTION==="grills"?"All grills":SECTION==="rooms"?"All rooms":"All stages",
+                   SECTION==="grills"?"All Grill Sessions":SECTION==="rooms"?"All rooms":"All stages",
                    COLS.map(function(c){return c.label;}));
       } else {
         fillPicker("Stage","",[]);

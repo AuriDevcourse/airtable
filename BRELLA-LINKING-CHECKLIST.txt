@@ -1,0 +1,122 @@
+MANUAL LINKING CHECKLIST — in Brella, open each session and add these people.
+Ordered by day and start time, so it can be worked straight down.
+
+
+ 1. BLUE GRILL · The Future of AI in Education & Learning
+    Wed 26 Aug, 10:00  ·  timeslot #973301
+    [ ] Speaker   Isabella Vahdati        Brighteye Ventures
+    [ ] Speaker   Kim Rants               Alice Tech
+    [ ] Speaker   Bue Fisker              LEGO Foundation
+    [ ] Speaker   Kasper Hulthin          SAGA
+    [ ] Speaker   Victoria Throen Longhi  Owl Ventures
+
+ 2. GREEN GRILL · The Unexpected Side of Innovation
+    Wed 26 Aug, 11:00  ·  timeslot #973303
+    [ ] Speaker   Annelie Rådhall         Borås ink
+    [ ] Speaker   Michael Yngfors         AI Gothenburg
+    [ ] Speaker   Cecilia Edebo           Sahlgrenska Science park
+    [ ] Speaker   Johan Andersson         Brewhouse
+    [ ] Speaker   Mårten Skogh            Chalmers Next Labs
+
+ 3. ORANGE GRILL · Five Fuck-ups in Early Stage Finance
+    Wed 26 Aug, 11:00  ·  timeslot #973348
+    [ ] Speaker   Louise Lachmann         Ugly Duckling Venture
+    [ ] Speaker   Ulla Sommerfeldt        Danish Business Angels
+
+ 4. GREEN GRILL · What Happens When Discovery Runs at GPU Speed? Why the next scientific revolution won’t happen in a lab alone.
+    Wed 26 Aug, 11:50  ·  timeslot #973336
+    [ ] Speaker   Dr. Ilya Burkov         Nebius
+    [ ] Speaker   Pia Hardy               NVIDIA
+
+ 5. GREEN GRILL · Scaling Deep Tech in Europe: Lessons from EIC Founders and Investors
+    Wed 26 Aug, 12:40  ·  timeslot #984464
+    [ ] Speaker   Andreas Schwarz         European Commission
+    [ ] Speaker   Agnieszka Chlad         European Innovation Council an
+    [ ] Speaker   Frank Kjerstein         Reblade
+
+ 6. ORANGE GRILL · Will we be the first generation to live to 150? China’s Race to Redefine Healthy Ageing
+    Wed 26 Aug, 12:40  ·  timeslot #973356
+    [ ] Speaker   Teis Nilou Nørgaard     Innovation Centre Denmark Shan
+
+ 7. ORANGE GRILL · InvestEU at TechBBQ 2026: Opportunities start here
+    Wed 26 Aug, 13:30  ·  timeslot #973349
+    [ ] Speaker   Ramona Ocak             European Commission – DG GROW
+    [ ] Speaker   Marie Adam              European Commission – DG GROW
+
+ 8. GREEN GRILL · Swiss Life Science: Startup & Scaleup Pitches
+    Wed 26 Aug, 13:30  ·  timeslot #975686
+    [ ] Speaker   Guillaume Petit-Pierre  Artiria Medical
+    [ ] Speaker   Roxana Belciu Kerns     Amarastesia
+    [ ] Speaker   Martin Keller           Acodis
+    [ ] Speaker   Thomas Eaton            Limula
+    [ ] Speaker   Olgac Ergeneman         Magnes
+
+ 9. ORANGE GRILL · The Bridge Effect: Why Top Talent is Choosing the Øresund Region
+    Wed 26 Aug, 14:20  ·  timeslot #973352
+    [ ] Moderator Gertrude Chilufya       Founder | Reframe Tech
+    [ ] Speaker   Lisa Nyman              The Swedish Institute
+    [ ] Speaker   Daniel Nordin Baker     European Spallation Source - E
+    [ ] Speaker   Vahid Sohrabpour        Orchestrable
+    [ ] Speaker   Fabio Cavaliere         Ideon Science Park - fabio.cav
+
+10. ORANGE GRILL · The Future of GTM: How AI Is Changing the Way B2B Companies Grow
+    Wed 26 Aug, 15:10  ·  timeslot #973354
+    [ ] Speaker   Katrine Rasmussen       Pexelz
+    [ ] Speaker   Jennifer Monatgue       Cerivo
+    [ ] Speaker   George Storm            N.Rich
+    [ ] Speaker   Jillian Als             Leadfeeder
+    [ ] Speaker   Sara Storm              N.Rich
+
+11. GREEN GRILL · Supernovas of Tomorrow - Pitch event
+    Wed 26 Aug, 15:10  ·  timeslot #975685
+    [ ] Speaker   Magnus Dadi Eyjolfsson  KLAK - Icelandic Startups
+
+12. ORANGE GRILL · Discover Dutch Tech - Science, Circularity and Security
+    Thu 27 Aug, 10:00  ·  timeslot #980700
+    [ ] Speaker   Vincent van der Holst   VNYX
+    [ ] Speaker   Manuel Mejia            Hayden Biotech
+    [ ] Speaker   Maarten Everts          Linksight
+    [ ] Speaker   Catarina Mendonça       New Dawn Bio
+
+13. ORANGE GRILL · Agentic AI – From prompting to doing
+    Thu 27 Aug, 11:00  ·  timeslot #973353
+    [ ] Speaker   Monika Kanda            Innovation Centre Denmark Sili
+
+14. GREEN GRILL · Employees Answer: What's It Like Having Founders as Leaders?
+    Thu 27 Aug, 11:00  ·  timeslot #973302
+    [ ] Speaker   Moritz Hartmann         Ento
+    [ ] Speaker   Gaia Balossi            kapa.ai
+    [ ] Speaker   Yohanna Gustafsson      Founder to Leader, CBS
+
+15. BLUE GRILL · Breakthrough Medical Devices: Pathway to Market
+    Thu 27 Aug, 11:50  ·  timeslot #973347
+    [ ] Speaker   Richard Holborow        BSI
+
+16. GREEN GRILL · From AI Hype to Real Deal Execution
+    Thu 27 Aug, 12:40  ·  timeslot #984465
+    [ ] Speaker   Carl Carell             GetAccept
+
+17. BLUE GRILL · Life science & deep tech ecosystem in Turku, Finland.
+    Thu 27 Aug, 12:40  ·  timeslot #973350
+    [ ] Speaker   Olli Huhtinen           Evogence Biologics Oy Ltd
+    [ ] Speaker   Jussi Pyysalo           Turku Startup Hub
+    [ ] Speaker   Juuso Juhila            Thestra Oy
+    [ ] Speaker   Juuso Blomster          Precordior Oy - CardioSigna
+    [ ] Speaker   Anna Kivinen            City of Turku
+
+18. ORANGE GRILL · Discover Dutch Tech - Navigating Security, Infrastructure and Capital
+    Thu 27 Aug, 13:30  ·  timeslot #980701
+    [ ] Speaker   Rogier Brakshoofden     NextNextYear
+    [ ] Speaker   Maarten Kas             Remotik
+    [ ] Speaker   Yuval Temam             Lighthouse Lab
+    [ ] Speaker   Laurie Lancee           AtVenture Platform
+    [ ] Speaker   Raymond Alves           Magic Lane
+
+19. BLUE GRILL · Secure & Optimize Your AI Enterprise Future: Building the Governed Engine
+    Thu 27 Aug, 13:30  ·  timeslot #973351
+    [ ] Speaker   Anders Rosenqvist       A.P. Moller - Maersk
+    [ ] Speaker   Jens Sonnenborg         Skytek Nordics ApS
+    [ ] Speaker   Olivia Stokholm         Amplitude
+    [ ] Speaker   Nadia Lodroman          Skytek Nordics ApS
+
+19 sessions, 60 people to link.

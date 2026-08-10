@@ -5,6 +5,7 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildEmbedSnippet } from "@/lib/embedSnippet";
+import { embedOrigin } from "@/lib/embedOrigin";
 
 // The full Speakers table preview. It used to be the front page; the front page is now the hub
 // that sorts every page in this dashboard into Speakers / Projects / Program (app/page.tsx),
@@ -75,7 +76,7 @@ export default function SpeakersPage() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
     const code = buildEmbedSnippet({ path: "/api/speakers", listKey: "speakers", uid }).replace(
       /__ORIGIN__/g,
-      window.location.origin
+      embedOrigin()
     );
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);

@@ -5,6 +5,17 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEventEmbed } from "@/components/CopyEventEmbed";
+import { venueLabel } from "@/lib/venueLabel";
+// The Event Rooms board is Program 2026's OWN timeline, not a lookalike. Extracted to
+// components/ProgramTimeline.tsx so both pages mount the same component (Auri, 2026-08-10).
+import { StageTimeline, SessionDialog, type Session } from "@/components/ProgramTimeline";
+import {
+  EVENT_DAYS,
+  TIMELINE_COLUMNS,
+  columnOf,
+  inBrellaSection,
+  brellaDayLabel,
+} from "@/lib/brellaSections";
 
 // One card per partner-hosted event: Side Events in red, Event Rooms in blue.
 // Fed by /api/partner-events — see lib/partnerevents.ts for why that lib addresses
@@ -48,6 +59,9 @@ type PartnerEvent = {
   description: string | null;
   registerUrl: string | null;
   logo: string | null;
+  image?: string | null;
+  venue?: string | null;
+  city?: string | null;
 };
 
 // The kind colour drives the spine, badge and button. Computed here rather than with CSS
@@ -79,10 +93,16 @@ function lightTint(hex: string, amount: number): string {
   return mix(hex, amount, "#ffffff");
 }
 
+// TWO tabs, no "All events" (Auri, 2026-08-10). The mixed view was the reason the cards needed a
+// "Side Event" / "Event Room" badge at all, and the reason a day block could hold two different
+// layouts. With the kinds always separated, each tab shows one thing one way.
+//
+// `dot` is which side the kind's colour sits on: red to the LEFT of Side Events, blue to the RIGHT
+// of Event Rooms, so the two markers land on the outer edges of the pair rather than pointing at
+// each other.
 const FILTERS = [
-  { key: "all", label: "All events", color: null },
-  { key: "side-event", label: "Side Events", color: "#CE0F2E" },
-  { key: "event-room", label: "Event Rooms", color: "#1B6CA8" },
+  { key: "side-event", label: "Side Events", color: "#CE0F2E", dot: "left" },
+  { key: "event-room", label: "Event Rooms", color: "#1B6CA8", dot: "right" },
 ] as const;
 
 // Same sentence as /brella-program, character for character. Two pages telling a visitor the same
@@ -101,15 +121,15 @@ function startMinutes(slot: string | null): number {
 
 // "2026-08-26" → "Wednesday 26 August", the day heading. UTC for the same reason the feed
 // formats in UTC: these are date-only cells, and a zone west of UTC renders them a day early.
+// "25 AUG", the same short form Program 2026 prints above each day block. It used to read
+// "TUESDAY 25 AUGUST", which was the loudest line on the page and made the two schedules look
+// like different products (Auri, 2026-08-10).
 function dayLabel(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;
-  return new Intl.DateTimeFormat("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  }).format(d);
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })
+    .format(d)
+    .toUpperCase();
 }
 
 // The two lines inside a day tab: "WED" over "26 Aug".
@@ -152,13 +172,54 @@ function kindVars(ev: PartnerEvent): React.CSSProperties {
 }
 
 // The kind is a kicker above the title, exactly where Program 2026 puts its Breathwork and
-// Opening badges — that is the slot on this card that answers "what kind of thing is this".
+// The "Side Event" / "Event Room" badge. Off the CARDS since the mixed tab went away
+// (Auri, 2026-08-10): with one kind per tab it only repeated the heading above it, and Program
+// 2026's cards carry no such badge. Kept in the DIALOG, which is a standalone context — once it is
+// open over the page, nothing else on screen says which kind you are looking at.
 function KindBadge({ ev }: { ev: PartnerEvent }) {
   return <span className="bp-kind">{ev.kindLabel}</span>;
 }
 
+/**
+ * The card's picture. THE EVENT'S OWN ARTWORK WHERE IT EXISTS, the company logo where it does not.
+ *
+ * Program 2026 has always shown the poster a partner made for their event, scraped from og:image
+ * on the registration page (lib/eventPages.ts). This page only ever had the Airtable company
+ * logo, and that single difference is what still made the two look like different products even
+ * once they shared a card (Auri, 2026-08-10).
+ *
+ * The two need OPPOSITE backgrounds, which is why this is one component and not two:
+ *   artwork  full-bleed on the dark wash `.bp-card__thumb` uses on Program 2026
+ *   logo     contained on a LIGHT panel, because partner logos are mostly dark-on-transparent
+ *            PNGs that vanish on a dark ground. Hard-won; see lightTint() above.
+ *
+ * A logo is only reached for when there is no artwork, so Event Rooms (no register link, nothing
+ * to scrape) look exactly as they did before.
+ */
 function PartnerLogo({ ev }: { ev: PartnerEvent }) {
   const [loaded, setLoaded] = useState(false);
+  const art = ev.image || null;
+  if (art) {
+    return (
+      <figure className={"bp-card__thumb" + (loaded ? "" : " shimmer")}>
+        {/* eslint-disable-next-line @next/next/no-img-element */
+        }
+        <img
+          src={art}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setLoaded(true)}
+          // A partner can change or unpublish their page at any time. On a broken poster the
+          // figure is emptied rather than left showing a browser's torn-image icon.
+          onError={(e) => {
+            setLoaded(true);
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </figure>
+    );
+  }
   return (
     <figure className={"bp-card__thumb bp-card__thumb--logo" + (ev.logo && !loaded ? " shimmer" : "")}>
       {ev.logo ? (
@@ -196,12 +257,22 @@ function EventCard({ ev, onOpen }: { ev: PartnerEvent; onOpen: (ev: PartnerEvent
           no time yet and a grid of italic placeholders reads as broken data rather than as a
           schedule. The gaps panel above already names the ones that are missing. */}
       <p className="bp-card__time">{ev.timeSlot ?? ev.dateLabel ?? "Date TBC"}</p>
-      <KindBadge ev={ev} />
       <h3 className="bp-card__title">{ev.title}</h3>
       {ev.company && (
         <p className="bp-card__room">
           <HostIcon />
           Hosted by {ev.company}
+        </p>
+      )}
+      {/* WHERE it is, on its own line under WHO runs it — the two answer different questions, so
+          Program 2026 gives them a line each and this now matches. Comes from the same
+          registration-page lookup as the artwork, so it is present on the Luma events and absent
+          on the Event Rooms; the line only renders when there is something true to put in it.
+          Airtable has no address column at all, which is why it cannot come from there. */}
+      {venueLabel(ev.venue, ev.city, ev.company) && (
+        <p className="bp-card__room">
+          <PinIcon />
+          {venueLabel(ev.venue, ev.city, ev.company)}
         </p>
       )}
       {ev.description && <p className="bp-card__desc">{ev.description}</p>}
@@ -230,6 +301,28 @@ function EventCard({ ev, onOpen }: { ev: PartnerEvent; onOpen: (ev: PartnerEvent
   );
 }
 
+// Lucide "map-pin", inlined the same way Program 2026 does it — this repo has no lucide-react
+// and one icon does not justify adding it.
+function PinIcon() {
+  return (
+    <svg
+      className="bp-card__pin"
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
 // Lucide "building-2": the host is a company, not a venue. Same icon Program 2026 uses on a
 // side event's host line.
 function HostIcon() {
@@ -251,6 +344,67 @@ function HostIcon() {
       <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
       <path d="M10 6h4M10 10h4M10 14h4M10 18h4" />
     </svg>
+  );
+}
+
+// The magnifier from Program 2026's search box, same size and stroke.
+function SearchIcon() {
+  return (
+    <svg
+      className="bp-search__icon"
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+/**
+ * Search across host, title and description.
+ *
+ * No speaker suggestions like Program 2026's box, because these events carry no speakers — the
+ * useful thing to type here is a partner's name. It FILTERS rather than dims: this is a grid of
+ * cards with no clock to keep aligned, so removing what does not match is the honest answer and
+ * the layout simply reflows.
+ */
+function EventSearch({ q, setQ, matches }: { q: string; setQ: (v: string) => void; matches: number }) {
+  const active = q.trim().length > 0;
+  return (
+    <div className="bp-search">
+      <div className="bp-search__box">
+        <SearchIcon />
+        <input
+          type="search"
+          className="bp-search__input"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by host, title or description…"
+          aria-label="Search events"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        {active && (
+          <button type="button" className="bp-search__clear" onClick={() => setQ("")} aria-label="Clear search">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+      {/* Empty at rest and hidden by :empty, the same rule Program 2026 uses. */}
+      <p className="bp-search__hint" aria-live="polite">
+        {active ? (matches > 0 ? `${matches} event${matches === 1 ? "" : "s"} match` : "No event matches that") : ""}
+      </p>
+    </div>
   );
 }
 
@@ -331,25 +485,59 @@ function EventDialog({ ev, onClose }: { ev: PartnerEvent; onClose: () => void })
 
 export default function PartnerEventsPage() {
   const { url, refresh } = useFreshUrl("/api/partner-events");
+  // AND the Brella programme, for the Event Rooms board only.
+  //
+  // WHY A SECOND SOURCE ON AN AIRTABLE PAGE. Program 2026's Event Rooms is a timeline with a
+  // column per room, and Airtable cannot fill those columns: of 16 event-room rows, 2 carry a
+  // Location and the two disagree in format. Brella has every one of them on a proper
+  // `Event Room N` track, so the board is read from there. Auri's call, after being shown the
+  // alternative of filling that column (2026-08-10).
+  //
+  // Side Events stay on Airtable, which is the source that knows all of them and carries the
+  // sign-up links. So this page reads Airtable for one tab and Brella for the other, on purpose.
+  const brella = useCachedList<Session>("brellaprogram", "/api/program?event=brella", "sessions");
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
     useCachedList<PartnerEvent>("partnerevents", url, "events");
   const all = data ?? [];
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("side-event");
   // "" is the ALL tab, which lists every day down the page — the same shape as the Side Events
   // day tabs on /brella-program.
   const [day, setDay] = useState("");
   const [open, setOpen] = useState<PartnerEvent | null>(null);
+  const [q, setQ] = useState("");
+  // Which day the Event Rooms board shows. Its own state, because that board is a timeline
+  // against a clock and can only ever draw ONE day — unlike the Side Events cards, whose "ALL"
+  // tab lists every day down the page.
+  const [roomDay, setRoomDay] = useState(0);
+  const [openSession, setOpenSession] = useState<Session | null>(null);
 
   // Filtered client-side so switching kinds never refetches — the whole list is 15 rows,
   // and /api/partner-events?kind=… exists for consumers that want it server-side.
   const events = useMemo(
-    () => (filter === "all" ? all : all.filter((e) => e.kind === filter)),
+    () => all.filter((e) => e.kind === filter),
     [all, filter]
   );
 
+  // Host, title and description, accent-folded so "Erhvervshus" is found by typing "erhvervshus"
+  // and Danish spelling is not a trap. Applied AFTER the kind filter and BEFORE the day split,
+  // so a search that empties a day removes that day's heading with it rather than leaving a bare
+  // date above nothing.
+  const searched = useMemo(() => {
+    const needle = q.trim().normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    if (!needle) return events;
+    return events.filter((e) =>
+      [e.title, e.company, e.description, e.kindLabel]
+        .filter(Boolean)
+        .join(" ")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toLowerCase()
+        .includes(needle)
+    );
+  }, [events, q]);
+
   const counts = useMemo(
     () => ({
-      all: all.length,
       "side-event": all.filter((e) => e.kind === "side-event").length,
       "event-room": all.filter((e) => e.kind === "event-room").length,
     }),
@@ -359,22 +547,50 @@ export default function PartnerEventsPage() {
   // Every date present in the CURRENT kind filter, so switching to Side Events cannot leave a tab
   // selected that now holds nothing.
   const dayKeys = useMemo(() => {
-    const keys = new Set(events.map((e) => e.date ?? NO_DATE));
+    const keys = new Set(searched.map((e) => e.date ?? NO_DATE));
     return [...keys].sort();
-  }, [events]);
+  }, [searched]);
 
   // The days actually rendered, each with its events sorted by start time.
   const days = useMemo(() => {
     const wanted = day && dayKeys.includes(day) ? [day] : dayKeys;
     return wanted.map((k) => ({
       key: k,
-      events: events
+      events: searched
         .filter((e) => (e.date ?? NO_DATE) === k)
         .sort((a, b) => startMinutes(a.timeSlot) - startMinutes(b.timeSlot)),
     }));
-  }, [events, dayKeys, day]);
+  }, [searched, dayKeys, day]);
 
   const shown = days.reduce((n, d) => n + d.events.length, 0);
+
+  // ── the Event Rooms board, straight from Brella ───────────────────────────────────────────
+  const roomColumns = TIMELINE_COLUMNS.rooms ?? [];
+  const roomSessions = useMemo(() => {
+    const date = EVENT_DAYS[roomDay]?.date;
+    if (!date) return [];
+    return (brella.data ?? []).filter(
+      (s) => inBrellaSection(s, "rooms") && s.day.includes(date)
+    );
+  }, [brella.data, roomDay]);
+
+  // Column → how many sessions the search lit up, for the marker on each heading. Empty when
+  // nothing is typed, which is what tells the timeline not to dim anything.
+  const roomMatches = useMemo(() => {
+    const m = new Map<string, number>();
+    const needle = q.trim().toLowerCase();
+    if (!needle) return m;
+    for (const s of roomSessions) {
+      const hay = [s.name, s.room, s.description, ...(s.speakers ?? []).map((p) => p.name)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (!hay.includes(needle)) continue;
+      const col = columnOf(s.room, roomColumns) ?? s.room;
+      m.set(col, (m.get(col) ?? 0) + 1);
+    }
+    return m;
+  }, [roomSessions, q, roomColumns]);
 
   return (
     <main>
@@ -481,27 +697,60 @@ export default function PartnerEventsPage() {
           <p className="count-line">Loading…</p>
         ) : (
           <>
-            {/* Two rows of tabs inside one control block, the Program 2026 arrangement: WHAT
-                (kind) above WHEN (day). Both are `.seg`, so they are the same control as the
-                track and day switchers on that page rather than a second tab style. */}
-            <div className="bp-controls">
-              <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by kind">
-                {FILTERS.map((f) => (
-                  <button
-                    key={f.key}
-                    role="tab"
-                    aria-selected={filter === f.key}
-                    onClick={() => setFilter(f.key)}
-                  >
-                    {f.label} ({counts[f.key]})
-                  </button>
-                ))}
-              </div>
+            {/* WHAT you are looking at, as the page's masthead control — the same `.bp-sections`
+                headings Program 2026 uses for Stages / Event Rooms / Grill Sessions / Side
+                Events. These were small `.seg` pills, which is what still made the two schedules
+                read as different products even after they shared a card (Auri, 2026-08-10).
+                The count rides along as a small superscript so nothing is lost to the restyle. */}
+            <div className="bp-sections" role="tablist" aria-label="Filter by kind">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  role="tab"
+                  type="button"
+                  aria-selected={filter === f.key}
+                  disabled={counts[f.key] === 0}
+                  onClick={() => setFilter(f.key)}
+                  title={`${counts[f.key]} ${f.label.toLowerCase()}`}
+                >
+                  {/* The kind's colour, as a dot. Decorative — the word beside it already says
+                      which kind this is, so it must not be announced twice. */}
+                  {f.dot === "left" && (
+                    <span className="bp-sections__dot" style={{ background: f.color }} aria-hidden="true" />
+                  )}
+                  {f.label}
+                  {f.dot === "right" && (
+                    <span className="bp-sections__dot" style={{ background: f.color }} aria-hidden="true" />
+                  )}
+                </button>
+              ))}
+            </div>
 
+            {/* DAY PILLS. The Event Rooms board draws one day at a time against a clock, so it
+                gets the two-day switcher Program 2026 uses. Side Events keeps its own ALL + per-day
+                tabs, which can list every day down the page because it is a card grid. */}
+            {filter === "event-room" ? (
+              <div className="bp-controls">
+                <div className="seg bp-days" role="tablist" aria-label="Programme day">
+                  {EVENT_DAYS.map((d, i) => (
+                    <button
+                      key={d.date}
+                      role="tab"
+                      aria-selected={roomDay === i}
+                      onClick={() => setRoomDay(i)}
+                    >
+                      <span className="bp-days__n">DAY {i + 1}</span>
+                      <span className="bp-days__date">{d.date}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+            <div className="bp-controls">
               <div className="seg bp-days" role="tablist" aria-label="Event day">
                 <button role="tab" aria-selected={day === ""} onClick={() => setDay("")}>
                   <span className="bp-days__n">ALL</span>
-                  <span className="bp-days__date">{events.length} events</span>
+                  <span className="bp-days__date">{searched.length} events</span>
                 </button>
                 {dayKeys.map((k) => {
                   const t = tabLabel(k);
@@ -521,6 +770,13 @@ export default function PartnerEventsPage() {
                 })}
               </div>
             </div>
+            )}
+
+            <EventSearch
+              q={q}
+              setQ={setQ}
+              matches={filter === "event-room" ? [...roomMatches.values()].reduce((a, b) => a + b, 0) : shown}
+            />
 
             <p className="count-line" style={{ textAlign: "center" }}>
               {shown} event(s).
@@ -528,13 +784,32 @@ export default function PartnerEventsPage() {
               {updated && <span className="reval"> · updated</span>}
             </p>
 
-            {days.length === 0 ? (
-              <p className="count-line">Nothing scheduled here yet.</p>
+            {filter === "event-room" ? (
+              roomSessions.length === 0 ? (
+                <p className="count-line">Nothing on this day yet.</p>
+              ) : (
+                <StageTimeline
+                  columns={roomColumns.map((c) => c.label)}
+                  columnSet={roomColumns}
+                  sessions={roomSessions}
+                  onOpen={setOpenSession}
+                  terms={q.trim() ? [q.trim().toLowerCase()] : []}
+                  tags={[]}
+                  stageMatches={roomMatches}
+                  // Room boards open early enough for the whole-day band to announce itself
+                  // above the first session, same as Program 2026 passes.
+                  openAt={9 * 60}
+                />
+              )
+            ) : days.length === 0 ? (
+              <p className="count-line">
+                {q.trim() ? "No event matches that search." : "Nothing scheduled here yet."}
+              </p>
             ) : (
               days.map((d) => (
                 <section key={d.key} className="bp-day">
                   <h2 className="bp-day__label">
-                    {d.key === NO_DATE ? "Date still to be confirmed" : dayLabel(d.key)}
+                    {d.key === NO_DATE ? "DATE TBC" : dayLabel(d.key)}
                   </h2>
                   <div className="bp-grid">
                     {d.events.map((ev) => (
@@ -549,6 +824,9 @@ export default function PartnerEventsPage() {
       </div>
 
       {open && <EventDialog ev={open} onClose={() => setOpen(null)} />}
+      {/* The Brella board's own dialog, the same one Program 2026 opens — a room session has
+          speakers and a description this page has no Airtable row for. */}
+      {openSession && <SessionDialog s={openSession} onClose={() => setOpenSession(null)} />}
     </main>
   );
 }

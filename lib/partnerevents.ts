@@ -100,6 +100,18 @@ export type PartnerEvent = {
   description: string | null;
   registerUrl: string | null;
   logo: string | null; // /api/photo proxy URL (raw Airtable URLs 410 after ~2h)
+  // The EVENT's own artwork, scraped from og:image on its registration page, not the company
+  // logo. Attached by the route rather than here: it means reaching out to Luma/Eventbrite, which
+  // wants its own long cache, and this function must stay a plain Airtable read.
+  //
+  // Program 2026 has shown these posters on its Side Events cards all along, which is exactly
+  // what made the two pages look unrelated even after they shared a card component
+  // (Auri, 2026-08-10). Null for Event Rooms, which carry no register link to scrape.
+  image?: string | null;
+  // The venue from the same lookup, so a card can say where it is. Airtable has no address
+  // column at all — see the gaps panel on /partner-events.
+  venue?: string | null;
+  city?: string | null;
 };
 
 type AirtableRecord = { id: string; createdTime: string; fields: Record<string, unknown> };

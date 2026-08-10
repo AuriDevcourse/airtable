@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildEventEmbedSnippet, type EventEmbedOptions } from "@/lib/eventEmbedSnippet";
 
 // "Copy embed code" button for the Side Events & Event Rooms grid. Separate from
@@ -21,7 +22,7 @@ export function CopyEventEmbed({
     const uid = "tbbq-ev-" + Math.random().toString(36).slice(2, 8);
     const code = buildEventEmbedSnippet({ path, uid, kindTabs, transparent, columns }).replace(
       /__ORIGIN__/g,
-      window.location.origin
+      embedOrigin()
     );
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);

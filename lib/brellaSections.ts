@@ -245,6 +245,11 @@ export function roomAlias(room: string): string {
 // stale entry would be harmless but misleading.
 const ROOM_DAY_PROGRAMMES: { room: string; date: string; programme: string }[] = [
   { room: "Event Room 2", date: "27 August", programme: "Nordic Africa Startup Summit" },
+  // NISS lost its own Brella track at some point: all twelve of its sessions now sit on the
+  // plain "Event Room 2" track, exactly as Nordic Africa's do, so programmeOf() finds nothing
+  // and the room went unlabelled — taking the derived all-day band with it, since that band is
+  // built from the programme name. Same fix as its sibling above (Auri, 2026-08-10).
+  { room: "Event Room 2", date: "26 August", programme: "Nordic India Startup Summit" },
 ];
 
 /** The programme running in a room on a given day, when only the room and date can say. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildPartnersEmbedSnippet } from "@/lib/partnersEmbedSnippet";
 import { buildPartnersBareEmbedSnippet } from "@/lib/partnersBareEmbedSnippet";
 
@@ -11,8 +12,9 @@ import { buildPartnersBareEmbedSnippet } from "@/lib/partnersBareEmbedSnippet";
 // `bare` swaps in the unstyled builder — same data, no TechBBQ design — for handing to an
 // outside agency who will write their own CSS. See lib/partnersBareEmbedSnippet.ts.
 //
-// __ORIGIN__ is swapped for the live URL here, so copy from the DEPLOYED dashboard: from
-// localhost it bakes in localhost and the embed fetches nothing on techbbq.dk.
+// __ORIGIN__ is swapped for the live URL here. It used to be window.location.origin, which
+// baked in http://localhost:3000 when copied locally and left the wall on techbbq.dk stuck on
+// "Loading…" forever. embedOrigin() refuses to hand out a loopback origin.
 export function CopyPartnersEmbed({ label, bare }: { label?: string; bare?: boolean }) {
   const [copied, setCopied] = useState(false);
 
@@ -23,7 +25,7 @@ export function CopyPartnersEmbed({ label, bare }: { label?: string; bare?: bool
     const uid =
       (bare ? "tbbq-pb-" : "tbbq-pw-") + Math.random().toString(36).slice(2, 8);
     const build = bare ? buildPartnersBareEmbedSnippet : buildPartnersEmbedSnippet;
-    const code = build({ uid }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = build({ uid }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

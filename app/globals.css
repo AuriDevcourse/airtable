@@ -667,6 +667,82 @@ a { color: inherit; }
   margin: 6px 0 0;
   font-size: 12.5px; color: var(--color-muted); text-align: center;
 }
+/* The hint lines only exist while they are saying something. Hidden with :empty rather than
+   unmounted, so the aria-live regions stay in the DOM and announce when they fill. */
+.bp-tags__hint:empty,
+.bp-search__hint:empty { display: none; margin: 0; }
+/* The × on a chosen topic. Decorative: the whole chip is the remove button and carries the
+   title, so this must not be announced twice. */
+.bp-tags__x { font-size: 13px; line-height: 1; color: var(--color-muted); }
+.bp-tags__chip[aria-pressed="true"] .bp-tags__x { color: var(--color-orange); }
+
+/* ── TOPIC TYPE-AHEAD ──────────────────────────────────────────────────────────────────
+   Positioned relative so the suggestion list can hang under the input. The list IS absolute
+   here, unlike the predicted-people panel below: it is at most eight short rows and it opens
+   only while typing, so it never sits over anything the visitor is mid-way through reading. */
+.bp-tagbox {
+  position: relative;
+  display: flex; gap: 6px; justify-content: center;
+  margin: 8px auto 0; max-width: 420px;
+}
+.bp-tagbox__input {
+  flex: 1 1 auto; min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  font-family: inherit; font-size: 13px;
+}
+.bp-tagbox__input::placeholder { color: var(--color-muted); }
+.bp-tagbox__input:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 1px; }
+.bp-tagbox__input:disabled { opacity: 0.5; cursor: not-allowed; }
+.bp-tagbox__add {
+  padding: 7px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.bp-tagbox__add:hover:not(:disabled) { border-color: var(--color-orange); color: var(--color-orange); }
+.bp-tagbox__add:disabled { opacity: 0.35; cursor: not-allowed; }
+.bp-tagbox__add:focus-visible { outline: 2px solid var(--color-orange); outline-offset: 1px; }
+.bp-tagbox__list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+  margin: 0; padding: 4px; list-style: none;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  max-height: 260px; overflow-y: auto;
+}
+.bp-tagbox__list button {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 7px 10px;
+  border: 0; border-radius: 7px;
+  background: none;
+  color: var(--color-foreground);
+  font-family: inherit; font-size: 13px; text-align: left;
+  cursor: pointer;
+}
+.bp-tagbox__list button.is-hi { background: color-mix(in srgb, var(--color-orange) 16%, transparent); }
+.bp-tagbox__list button:focus-visible { outline: 2px solid var(--color-orange); outline-offset: -2px; }
+.bp-tagbox__none {
+  padding: 8px 10px;
+  font-size: 12.5px; color: var(--color-muted);
+}
+/* The busiest topics, one click away under the box. */
+.bp-tags__quick {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px;
+  margin: 8px auto 0; max-width: 720px;
+}
+.bp-tags__quicklabel {
+  font-family: var(--font-heading);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--color-muted);
+}
 
 /* ── PREDICTED PEOPLE ──────────────────────────────────────────────────────────────────
    In FLOW, not absolutely positioned. A dropdown floating over the board would cover the very
@@ -1336,6 +1412,32 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    shift around as the schedule fills up. */
 .bp-sections button:disabled { opacity: 0.35; cursor: default; }
 .bp-sections button:focus-visible { outline: 2px solid var(--color-red); outline-offset: 4px; }
+/* A kind's colour as a dot beside its heading — /partner-events, where the two tabs ARE the two
+   kinds and the red/blue is the page's whole vocabulary. Sized off the font so it scales with the
+   clamp() on the heading rather than becoming a speck at 40px. The count moved to the button's
+   title attribute: Program 2026 prints no counts here and these have to match it. */
+.bp-sections__dot {
+  display: inline-block;
+  width: 0.30em; height: 0.30em;
+  border-radius: 50%;
+  margin: 0 0.34em;
+  vertical-align: 0.28em;
+}
+/* Unselected headings are muted, so their dot mutes with them rather than shouting from a grey
+   word. */
+.bp-sections button:not([aria-selected="true"]) .bp-sections__dot { opacity: 0.45; }
+
+/* The count on a section heading. Superscripted and small on purpose: /partner-events needs to
+   say how many Side Events there are without the number competing with the word. Program 2026
+   has no counts here, so this only appears where a button renders one. */
+.bp-sections__n {
+  margin-left: 6px;
+  font-size: 0.42em; font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: super;
+  color: var(--color-muted);
+}
+.bp-sections button[aria-selected="true"] .bp-sections__n { color: var(--color-red); }
 
 /* Inherits .seg for the pill look; this only lets a long track list wrap instead of
    overflowing, which .seg's single row does not do. */
@@ -1908,6 +2010,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   font-family: var(--font-heading);
   font-size: 10px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em;
+}
+/* The full topic list. Wraps, because three long tags do not fit one line on a phone. */
+.bp-modal__tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 10px 0 0;
+  color: var(--color-muted);
 }
 .bp-modal__desc p {
   margin: 12px 0 0;
@@ -2627,3 +2735,5 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   width: 1px; height: 1px;
   overflow: hidden;
 }
+
+

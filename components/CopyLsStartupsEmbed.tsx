@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildLsStartupsEmbedSnippet } from "@/lib/lsStartupsEmbedSnippet";
 
 // "Copy embed code" for the Life Science startup logo wall. Its own builder rather than a
@@ -18,7 +19,7 @@ export function CopyLsStartupsEmbed({ label }: { label?: string }) {
     const uid = "tbbq-lsw-" + Math.random().toString(36).slice(2, 8);
     const code = buildLsStartupsEmbedSnippet({ uid }).replace(
       /__ORIGIN__/g,
-      window.location.origin
+      embedOrigin()
     );
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);

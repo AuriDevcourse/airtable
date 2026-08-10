@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildBrellaEmbedSnippet } from "@/lib/brellaEmbedSnippet";
 import type { BrellaSection } from "@/lib/brellaSections";
 
@@ -33,7 +34,7 @@ export function CopyBrellaEmbed({
     const uid = "tbbq-bp-" + Math.random().toString(36).slice(2, 8);
     const code = buildBrellaEmbedSnippet({ section, uid, stage }).replace(
       /__ORIGIN__/g,
-      window.location.origin
+      embedOrigin()
     );
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);

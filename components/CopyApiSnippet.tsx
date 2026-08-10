@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import {
   API_SNIPPETS,
   buildAllSpeakersSnippet,
@@ -10,9 +11,9 @@ import {
 // "Copy API code" — a few lines of fetch JavaScript for whoever is building the front end,
 // as opposed to "Copy embed code", which ships finished markup for an Elementor widget.
 //
-// Same origin rule as the embeds: __ORIGIN__ becomes window.location.origin at copy time, so
-// copying from localhost hands someone a snippet pointing at localhost. Copy from the deployed
-// dashboard.
+// Same origin rule as the embeds: __ORIGIN__ becomes embedOrigin() at copy time, which is
+// this page's origin on the deployed dashboard and the deployed connector when you copy from
+// localhost. See lib/embedOrigin.ts.
 export function CopyApiSnippet({
   feed,
   label,
@@ -24,7 +25,7 @@ export function CopyApiSnippet({
   const [copied, setCopied] = useState(false);
 
   function copy() {
-    const origin = window.location.origin;
+    const origin = embedOrigin();
     const code =
       feed === "all-speakers"
         ? buildAllSpeakersSnippet(origin)

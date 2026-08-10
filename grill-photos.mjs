@@ -61,6 +61,44 @@ const PHOTOS = [
   { name: "Juuso Blomster", verified: "page-match",
     src: "https://images.squarespace-cdn.com/content/v1/612cd2833850b4741fea579d/f4f91bd2-4fbe-401a-a73f-488e84e1037a/Juuso+Blomster.png",
     from: "cardiosignal.com own team page, filename is his name" },
+
+  // --- 2026-08-10 pass. Same rules. Found with a real browser (JS-rendered team pages are
+  // invisible to a plain fetch) and each one opened and looked at before being listed here.
+  { name: "Kasper Hulthin", verified: "looked at it", src: "__FROM_SPEAKERS__",
+    from: "already in THIS base - the Speakers table has his headshot. Own asset, best source" },
+  { name: "Andreas Schwarz", verified: "looked at it",
+    src: "https://commission.europa.eu/sites/default/files/styles/oe_theme_medium_2x_no_crop/public/2025-03/andreas-schwarz.jpg",
+    from: "commission.europa.eu, Commissioner Zaharieva's own cabinet page. filename+alt both match" },
+  { name: "Mårten Skogh", verified: "looked at it",
+    src: "https://www.chalmers.se/api/media/?url=https://cms.www.chalmers.se/Media/2kfl1pxs/skoghm.jpeg",
+    from: "chalmers.se staff profile, alt='Profile photo of Mårten Skogh'. NOTE: use this /api/media/ URL - cms.www.chalmers.se refuses a plain server-side fetch, so the direct .jpeg 502s" },
+  { name: "Martin Keller", verified: "looked at it",
+    src: "https://www.acodis.io/hs-fs/hubfs/Websites%20Page/Martin_Keller_copy-removebg-preview.png",
+    from: "acodis.io own about-us page (acodis.IO, not .com - .com is a different company)" },
+  { name: "Rogier Brakshoofden", verified: "looked at it",
+    src: "https://www.nextnextyear.com/assets/rogier.png",
+    from: "nextnextyear.com own about page, alt is his full name" },
+  { name: "Juuso Juhila", verified: "looked at it",
+    src: "https://thestra.fi/wp-content/uploads/juuso_juhila.jpg",
+    from: "thestra.fi own front page. The earlier reject was of their og:image (a logo) - this is the real portrait, filename is his name" },
+  { name: "Thomas Eaton", verified: "looked at it",
+    src: "https://limula.ch/wp-content/uploads/2025/08/Tom_LIM4471.jpg",
+    from: "limula.ch own about page. Filename is 'Tom_...', so matched by the caption instead: the image sits under the heading THOMAS EATON. Their page says Founder and CEO where the row says CFO - same person, one of the two titles is stale" },
+  { name: "Olli Huhtinen", verified: "looked at it",
+    src: "https://www.evogencebio.com/assets/team-olli-D2mtnqhZ.png",
+    from: "evogencebio.com own team section, alt is his full name" },
+  { name: "Maarten Everts", verified: "looked at it",
+    src: "https://files.gotocon.com/uploads/portraits/1409/square_medium/maarten_everts_1677146261.jpg",
+    from: "GOTO conference speaker page, filename+alt match and the page states 'CTO & co-founder Linksight', which matches the row" },
+  { name: "Pia Hardy", verified: "looked at it",
+    src: "https://womenintech.se/wp-content/uploads/2025/04/pia_.jpg",
+    from: "Women in Tech Sweden speaker page. Filename is only 'pia_', so corroborated on the page text: 'Head of Healthcare & Life Sciences Nordics, Nvidia' - the row's title word for word" },
+  { name: "Richard Holborow", verified: "looked at it",
+    src: "https://www.conferenceharvester.com/uploads/harvester/photos/cropZZLBVRUB-Presenter-HolborowR.jpg",
+    from: "RAPS Convergence 2025 presenter page, which states 'Global Head of Clinical Compliance, BSI, United Kingdom'" },
+  { name: "Frank Kjerstein", verified: "looked at it",
+    src: "https://www.gitexeurope.com/images/Frank-Kjerstein-Reblade-CEO-BW.jpg",
+    from: "GITEX Europe speaker asset. Filename carries name+company+role; their alt text says 'Geoffrey Hinton', which is scrambled - same trap as boras-ink. Black and white" },
 ];
 
 // REJECTED, and why - do not silently re-add these:
@@ -78,6 +116,52 @@ const PHOTOS = [
 //   Louise Lachmann        uglyduckling.ventures only has a 147x74 blurred thumbnail
 //   Isabella Vahdati       brighteyevc.com/team renders its portraits in JS, nothing in the HTML
 //   Mårten Skogh           chalmersnextlabs.se team page has no per-person image
+//                          SUPERSEDED 2026-08-10: chalmers.se, his university, does have one
+//
+// Rejected in the 2026-08-10 pass, same rules:
+//   Louise Lachmann        evalyze.ai is a third-party investor directory, not her own org, 200x200
+//   Katrine Rasmussen      only muraena.ai / clay.earth contact-scraper avatars, 200x200
+//   Michael Yngfors        the aigothenburg.com shot names five people in it (rule 4)
+//   Laurie Lancee          the photo on her OWN site is captioned as her AND Tessa de Flines
+//   Fabio Cavaliere        achucarro.org has a Fabio Cavaliere, but a Basque neuroscientist. The
+//                          row is Ideon Science Park, Sweden. Different person, do not re-add
+//   Moritz Hartmann        only a XING profile photo, same auth-walled social class as LinkedIn
+//   Yuval Temam            ru.nl profile is a Radboud University "Y. Temam", unconfirmed as the
+//                          Lighthouse Lab one, and the URL is a hashed short-lived link
+//   Gaia Balossi           confirmed her by the name badge in the shot, but it is a candid with
+//                          another person's head in frame, not a portrait
+//   Vincent van der Holst  emeaentrepreneur.com photo is genuinely him, but it is a stunt pose
+//                          (hand shielding eyes) and the row says VNYX where the piece says BOAS
+//   Jennifer Montague      helloretail.com podcast still is one person, but nothing outside
+//                          LinkedIn ties that Jennifer Montague to Cerivo
+//   Kim Rants              only the Y Combinator avatar: 200x200 behind a 1-hour presigned S3 URL
+//   Sara Storm, Bue Fisker, Daniel Nordin Baker, Vahid Sohrabpour, Maarten Kas, Raymond Alves,
+//   Monika Kanda, Lisa Nyman, Anna Kivinen, Catarina Mendonça, Agnieszka Chlad, Ramona Ocak,
+//   Marie Adam, Ulla Sommerfeldt, Andreas Rosenqvist, Nadia Lodroman
+//                          searched, nothing fetchable that is provably them
+
+// One entry takes its photo from elsewhere in this same base rather than the open web. Resolved
+// live so the link cannot go stale: Airtable attachment URLs are signed and expire.
+async function resolveFromSpeakers(fullName) {
+  let out = [], offset;
+  do {
+    const u = new URL(`https://api.airtable.com/v0/${BASE}/Speakers`);
+    u.searchParams.set("pageSize", "100");
+    if (offset) u.searchParams.set("offset", offset);
+    const j = await (await fetch(u, { headers: h })).json();
+    if (j.error) return null;
+    out = out.concat(j.records || []); offset = j.offset;
+  } while (offset);
+  const norm = s => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const hit = out.find(r => norm(r.fields["Full Name"] || r.fields["Name"]) === norm(fullName));
+  const att = hit && Object.values(hit.fields).find(v => Array.isArray(v) && v[0] && /^image\//.test(v[0].type || ""));
+  return att ? att[0].url : null;
+}
+for (const p of PHOTOS) {
+  if (p.src !== "__FROM_SPEAKERS__") continue;
+  p.src = await resolveFromSpeakers(p.name);
+  if (!p.src) console.log(`could not resolve from Speakers table: ${p.name}`);
+}
 
 let recs = [], offset;
 do {

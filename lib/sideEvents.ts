@@ -33,22 +33,11 @@ import { PartnerEvent } from "@/lib/partnerevents";
 import { ProgramSession } from "@/lib/program";
 import { EventPageDetail } from "@/lib/eventPages";
 import { baseUrl } from "@/lib/photo";
-
-/**
- * Titles do not match exactly across the two systems, so compare them loosely: lowercase,
- * punctuation and accents out, one containing the other counts as a match. That is what
- * pairs Brella's "The Next Generation of Finance: CFO Round Table Dinner" with Airtable's
- * "CFO Round Table Dinner". Verified: all 6 Brella side events pair this way.
- */
-function titleKey(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9 ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// Moved to its own module so /partner-events can print the identical second line. It used to
+// live here, which is how that page ended up with a near-copy missing the same-as-host rule.
+import { venueLabel } from "@/lib/venueLabel";
+// Both moved out so /partner-events can resolve the identical banner and title key.
+import { artworkOverride, titleKey } from "@/lib/eventArtwork";
 
 function sameEvent(a: string, b: string): boolean {
   if (!a || !b) return false;
@@ -88,18 +77,6 @@ function dayStrings(events: PartnerEvent[]): Map<string, string> {
   return out;
 }
 
-/**
- * The venue line, or undefined when there is nothing worth printing.
- *
- * A host who runs the event at their own office puts their own name in Luma's location, so the
- * card would read "Hosted by Rockstart" and then "Rockstart · København" underneath. When the
- * venue only repeats the host, the city carries the line on its own.
- */
-function venueLabel(venue: string | undefined, city: string | undefined, company: string): string | undefined {
-  const sameAsHost = venue && company && titleKey(venue) === titleKey(company);
-  return [sameAsHost ? "" : venue, city].filter(Boolean).join(" · ") || undefined;
-}
-
 // Sorts "09:30-11:00" and "09:00 - 11:00" alike; anything unreadable goes last within its day
 // rather than to midnight, so a timeless event does not lead the list.
 function startMinutes(slot: string): number {
@@ -118,41 +95,6 @@ function dayRank(day: string): number {
 // scrapeable artwork either. A row of cards where three are text-only reads as a broken page rather
 // than as a page missing three images, so Auri drew Luma-style banners for them (2026-08-08).
 //
-// LOCAL FILES, and that is the same call `LOGO_FILE_OVERRIDES` makes in lib/partners.ts for the
-// Erhvervshus frieze: this artwork exists NOWHERE upstream, so there is no upstream to read it
-// from. Airtable would only be a second place to keep a file nobody else maintains.
-//
-// THE PARTNER'S OWN ARTWORK ALWAYS WINS over an entry here — see the `??` order at the call site.
-// So the day one of these events publishes a real og:image, theirs appears and the line below
-// becomes dead weight to delete. That direction matters: a hand-drawn banner is a stand-in, not a
-// preference, and it carries whatever the date and venue were on the day it was drawn.
-//
-// KEYED ON titleKey(), not on the raw title, because these names are inconsistent across the two
-// sources ("BSR Go-abroad Co-ceation Seminar" is spelt that way in Airtable, typo included). An
-// exact-match key would silently match nothing and show no banner, which is indistinguishable from
-// not having added one.
-//
-// NOT IN HERE, deliberately: BSR Go-abroad. It looked like a fourth missing image and was actually
-// a MANGLED URL — Eventbrite writes its og:image with `&amp;` and the scraper was not decoding
-// entities, so the proxy answered 400 and the card hid its own figure. Fixed properly in
-// lib/eventPages.ts, so BSR shows Eventbrite's real artwork. The hand-drawn BSR banner is not used
-// and should not be: its date and venue were guesses, and a wrong venue on techbbq.dk is worse than
-// no picture.
-const ARTWORK_OVERRIDES: Record<string, string> = {
-  "cto connect": "cto-connect.webp",
-  "techbbq biotech university spinouts discussion 2026": "biotech-spinouts.webp",
-  "the nordic paradox from mapping to action": "nordic-paradox.webp",
-};
-
-function artworkOverride(key: string): string | null {
-  const file = ARTWORK_OVERRIDES[key];
-  if (!file) return null;
-  // ABSOLUTE, via the same baseUrl() every other feed uses. A bare "/side-events/..." works on the
-  // dashboard and silently 404s inside the embed, where the browser resolves it against techbbq.dk.
-  // That exact mistake shipped once on the partner wall and produced 104 empty tiles.
-  return `${baseUrl()}/side-events/${file}`;
-}
-
 /**
  * Merge the two sources into the program's Side Events section.
  *

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildInternsEmbedSnippet } from "@/lib/internsEmbedSnippet";
 import { INTERN_DEPARTMENTS } from "@/lib/internDepartments";
 
@@ -21,7 +22,7 @@ export function CopyInternsEmbed({ department }: { department?: string }) {
       uid,
       department,
       departments: INTERN_DEPARTMENTS,
-    }).replace(/__ORIGIN__/g, window.location.origin);
+    }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

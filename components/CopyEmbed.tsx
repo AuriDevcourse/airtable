@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { embedOrigin } from "@/lib/embedOrigin";
 import { buildEmbedSnippet, type EmbedOptions } from "@/lib/embedSnippet";
 
 // Reusable "Copy embed code" button. Give it the feed path + list key and it copies a
@@ -30,7 +31,7 @@ export function CopyEmbed({
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
     const code = buildEmbedSnippet({ path, listKey, uid, loadMore, mobileLayout, gradient, modal, shuffle, pageSize, columns, transparent, email, deptTabs, tagTabs, tabs }).replace(
       /__ORIGIN__/g,
-      window.location.origin
+      embedOrigin()
     );
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);

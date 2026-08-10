@@ -6,6 +6,7 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildAgendaSnippet } from "@/lib/agendaSnippet";
+import { embedOrigin } from "@/lib/embedOrigin";
 
 type Session = {
   id: string;
@@ -176,7 +177,7 @@ function CopyAgendaEmbed({
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, window.location.origin);
+    const code = buildAgendaSnippet({ uid, path, heading, note, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

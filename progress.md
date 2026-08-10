@@ -4,6 +4,512 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (h) · /partner-events brought up to the Program 2026 design
+
+The page was already sharing `.bp-*` cards and the modal since 2026-08-08, but three things still
+made it read as a different product:
+
+1. **Kind tabs were small `.seg` pills.** Now the same `.bp-sections` big headings Program 2026
+   uses for Stages / Event Rooms / Grill Sessions / Side Events, with the count carried as a
+   small superscript (`.bp-sections__n`, new) so the restyle loses no information. A kind with
+   zero events is disabled rather than hidden, matching that page.
+2. **No search.** Added `EventSearch`, the same `.bp-search` box, magnifier and clear button.
+   It searches host, title, description and kind label, accent-folded so "Erhvervshus" is found
+   by typing without the Danish spelling. It FILTERS rather than dims, unlike Program 2026:
+   there is no clock to keep aligned in a card grid, so removing non-matches is the honest
+   answer. The hint line is empty at rest and hidden by the same `:empty` rule.
+3. **Day headings read "TUESDAY 25 AUGUST".** Now "25 AUG", and the undated bucket is "DATE TBC"
+   rather than a sentence, so the headings read as one set.
+
+The search is applied after the kind filter and before the day split, so a search that empties a
+day removes that day's heading with it instead of leaving a bare date above nothing. Verified:
+mesh, euvc, erhvervshus and board each return their one event; a miss says "No event matches
+that search." rather than "Nothing scheduled here yet."
+
+### Then the thumbnails, which was the real difference
+Program 2026 shows the POSTER a partner made for their event; this page only ever had the Airtable
+company logo. That one thing is what still made them look unrelated (Auri, 2026-08-10).
+
+The artwork already existed in `lib/eventPages.ts`, scraped from `og:image` on each registration
+page — `/api/program` used it, `/api/partner-events` did not. Now the route attaches `image`,
+`venue` and `city` on its OWN six-hour cache (`luma:side-events`, the same key and TTL the program
+route uses, so the two share one warm entry) rather than this feed's one-minute cadence: a poster
+does not change, and a near-live feed hammering third-party sites every minute is rude.
+
+The whole lookup is wrapped in try/catch. Artwork is a nice-to-have and must never take the feed
+down; on failure the cards fall back to logos, which is what they showed before.
+
+`PartnerLogo` now picks: artwork full-bleed on the dark `.bp-card__thumb`, logo contained on the
+LIGHT panel. The two need opposite grounds, which is why it is one component — partner logos are
+dark-on-transparent PNGs that vanish on a dark wash. Event Rooms carry no register link, so
+nothing to scrape, so they look exactly as before. Result: 14 of 27 events show their own poster,
+13 fall back to a logo, 0 show nothing. All 14 URLs verified 200 + image/*.
+
+Venue came free with the same lookup, so the card now has Program 2026's second line: host with a
+building icon, venue with a pin. `venueLine()` drops the city when the venue already contains it —
+one Luma page gives "København, Denmark" and joining printed "København, Denmark · København".
+
+### Making it EXACTLY the same, which took two more fixes
+Auri compared the two side by side. The posters were right; two smaller things were not.
+
+**1. The venue line printed the host twice.** Program 2026 read "Hosted by Rockstart" then
+"København"; this page read "Rockstart · København". Program 2026 had a `venueLabel()` inside
+lib/sideEvents.ts that suppresses the venue when it only repeats the host — a host running the
+event at their own office puts their own name in Luma's location field. This page had grown a
+near-copy of that helper without the rule.
+
+Fixed by EXTRACTING it: new `lib/venueLabel.ts`, pure and dependency-free so a client component
+can import it, now used by both lib/sideEvents.ts and the page. One function, so the rule cannot
+change on one page and not the other — the near-copy is exactly how they diverged.
+
+**2. The "Side Event" / "Event Room" badge does not exist on Program 2026's cards.** Now shown
+only on the mixed "All events" tab, where it is the only thing naming the kind in words. Filtered
+to one kind it repeated the heading above it, so the card matches Program 2026 exactly there.
+
+Verified by reading the first card's lines off both pages: "09:00-11:00" / "Amplify Europe Jam
+Session" / "Hosted by Rockstart" / "København" — identical. Badges: 0 on the Side Events tab,
+27 on All events.
+
+### The three hand-drawn banners, and a THIRD near-copy avoided
+Three side events publish no artwork of their own: CTO Connect, TechBBQ BioTech University
+Spinouts Discussion 2026, The Nordic Paradox. Auri pointed at the progress.md in
+`Desktop\Side Events\` to have banners made — but they were already built (2026-08-08,
+`make_banner.py`), already converted to webp in `public/side-events/`, and already wired into
+Program 2026 by an `ARTWORK_OVERRIDES` table inside lib/sideEvents.ts.
+
+They were invisible on /partner-events only because that override was not reachable from there.
+So, third extraction of the day: new `lib/eventArtwork.ts` holds `titleKey()` and the override
+table, imported by lib/sideEvents.ts and the /api/partner-events route. All 17 side events now
+carry artwork, 0 logo fallbacks.
+
+Precedence preserved at both call sites: `d?.image ?? artworkOverride(...)`. The partner's own
+og:image always wins, because a hand-drawn banner is a stand-in carrying whatever date and venue
+were true the day it was drawn. If the scrape fails entirely the route still resolves the local
+banners rather than dropping all the way to logos.
+
+BSR Go-abroad stays deliberately absent from that table even though a banner for it exists on the
+Desktop: its date and venue were guesses, and Eventbrite's real artwork works now that
+lib/eventPages.ts decodes `&amp;`.
+
+### Event Rooms as a schedule: BLOCKED on the source data
+Auri asked for the Event Rooms tab to look like Program 2026's, which is a TIMELINE with a column
+per room. That cannot be built from this table: of 16 event-room rows, **2 carry a Location** and
+those two disagree in format ("Event Room 1" vs "Event Room 6, Bella Center, Copenhagen"). Room
+columns need a room on every row.
+
+Program 2026 can draw it because it reads BRELLA, where every one of these sits on a proper
+`Event Room N` track. Auri chose the honest option over mirroring Brella: a time-ordered
+single-column schedule built from what Airtable actually knows.
+
+Built as `ScheduleRow` + the `.bp-sched` block in globals.css. Fixed 104px time column so every
+title starts on the same line — a ragged left edge is a list, not a schedule — tabular-nums so
+09:30 and 13:00 do not drift, the same `--track` spine and tokens as `.bp-card` so the two views
+read as one design, and the clock stacks above the title under 560px.
+
+No poster column on purpose: these rooms publish no artwork at all, so it would be a column of
+company logos, and a logo repeats the host line directly beside it.
+
+### Then the tabs were cut to two (Auri, 2026-08-10)
+"All events" is gone. Two headings only, `● Side Events` and `Event Rooms ●`, the kind's colour as
+a dot on the OUTER edge of each so the markers do not point at each other. Default is Side Events.
+Counts moved off the heading into the button's `title`, because Program 2026 prints none there.
+
+Killing the mixed tab removed two pieces of scaffolding it had needed: the "Side Event" /
+"Event Room" badge is off the cards entirely (with one kind per tab it repeated the heading), and
+a day block can no longer hold two layouts at once. The badge survives in the DIALOG, which is a
+standalone context — once open, nothing else on screen says which kind you are looking at.
+
+WHICH VIEW WHERE, matching how Program 2026 splits them:
+  Event Rooms tab   schedule
+  Side Events tab   poster cards
+Verified: 10 schedule rows and 0 cards on Event Rooms, 17 cards and 0 rows on Side Events.
+Sorting restarts per day and "Time TBC" sorts last within its day.
+
+### Then the Event Rooms tab became Program 2026's ACTUAL board
+Auri chose the Brella route. So the timeline is no longer approximated — it is the same component.
+
+**`components/ProgramTimeline.tsx` is new and holds ~1100 lines lifted out of
+app/brella-program/page.tsx**: the `Session`/`Speaker` types, the card/timeline vocabulary
+(sessionVars, trackVars, withLanes, layOutColumn, Avatars, hhmm, matchesSpeaker, matchesTags,
+peopleSummary, the icons, the badges), `StageTimeline` itself, `PersonRow` and `SessionDialog`.
+Both pages import from it. Nothing in it fetches — it renders whatever `Session[]` it is handed,
+so the caller decides where that came from.
+
+/partner-events now reads TWO sources on purpose, and the file says so at the call site:
+  Side Events tab   Airtable — the only source that knows all of them and carries the sign-up links
+  Event Rooms tab   Brella  — the only source that knows which ROOM each one is in
+Its own day pills for the board (DAY 1 / DAY 2, since a timeline draws one day), the existing
+search box feeds `terms`, and clicking a session opens the same `SessionDialog`.
+
+Verified after the move: Program 2026 unchanged on all four tabs (7 room columns, 30 timeline
+cards, the NISS all-day band, tag box, popular row, dialog opens with its tags) and zero console
+errors on either page. The new board draws 7 room columns, 30 cards on day 1 and 68 on day 2, with
+the Nordic India band on day 1 and Board Summit / Nordic Africa / Roundtables on day 2.
+
+`ScheduleRow` and the `.bp-sched` CSS block are deleted — that single-column schedule was the
+stopgap this replaced.
+
+REFACTOR HAZARD, recorded because it cost real time: extracting by brace-matching a
+`function Foo({ size = 12 }: {...})` signature matches the DESTRUCTURED PARAMETER's brace, not the
+body, and a `/**...*/` doc-comment regex with `(?:.|\n)*?` will happily start at a comment hundreds
+of lines earlier. Both fired, which scattered TagSearch, SpeakerSearch and the page header into the
+new module. Recovered by reassembling both files from explicit line ranges. Cut by DECLARATION
+BOUNDARIES (the line of the next top-level decl), never by brace counting.
+
+NOT changed, still true from the earlier entry: the WordPress embed (`lib/eventEmbedSnippet.ts`)
+draws the OLD card wall. The dashboard and the embed are two different designs by decision.
+
+## Session 2026-08-10 (g) · NISS schedule reconciled, whole-day band restored
+
+Auri pasted the Nordic India Startup Summit schedule and asked whether it matched. It did not:
+the NISS Airtable feed had all 13 rows, Brella had 11, and the two disagreed on a time.
+
+| | before | after |
+| --- | --- | --- |
+| Opening title | Brella: "The Nordic–India Startup Bridge" | "Opening: Why the Nordic–India Startup Bridge" |
+| Lunch & Networking 12:20-13:20 | missing from Brella | created, `#984583`, Hall C, Event Room 2 |
+| From Research to Market | Brella 16:00-16:25 vs Airtable 15:40-16:00 | Brella wins; Airtable corrected to match |
+
+Auri's call was that Brella is authoritative for that session, so the NISS Airtable row was
+corrected rather than Brella. That also removed a real clash: at 15:40 it overlapped the Nordic
+Founder Pitch (14:55-15:55) in the same room.
+
+Still missing from Brella by choice: the 09:00-09:30 Arrival, Registration & Networking Breakfast.
+
+### `tags` on a timeslot takes NAMES, not ids
+Setting the tag by id created a NEW tag literally named "345379" and attached it. `tag_ids` in
+any form is accepted with a 200 and silently ignored. The working call is:
+
+    PATCH /timeslots/<id>   {"timeslot": {"tags": ["Nordic-India"]}}
+
+Anything not already a tag on the event is CREATED by that call, so a typo here invents a tag.
+The junk one was detached (it now belongs to nothing and has left the API's tag list); there is
+no DELETE route for tags, both candidates 404, so an orphan row may still sit in the Brella UI.
+
+### The whole-day band was not broken, its input was
+`.bp-tl__allDayCard--prog` derives an all-day band for a room whose sessions span morning to
+evening, and the comment in the page says it was built for NISS specifically. It had stopped
+appearing because `programme` was null: NISS lost its own Brella track and its sessions now sit
+on the plain "Event Room 2" track, which `programmeOf()` cannot match. Nordic Africa already had
+this exact problem and was solved with `ROOM_DAY_PROGRAMMES`, keyed on room + date. Added NISS
+to the same table:
+
+    { room: "Event Room 2", date: "26 August", programme: "Nordic India Startup Summit" }
+
+Event Room 2 on the 26th now shows "All day · Nordic India Startup Summit" with its twelve
+sessions drawn inside the band. Day 2's Nordic Africa band still renders, unchanged.
+
+## Session 2026-08-10 (f) · Duplicate speakers across ALL of Brella
+
+`brella-duplicate-speakers.mjs` (read-only) checks all 403 speakers five ways: EXACT name,
+SAME-FILE (Brella stores photos as `/uploads/speaker/photo/<id>/<hash>.jpg` and the hash is
+per-FILE, so a shared hash is the same image uploaded twice — the strongest signal, no downloads
+needed), SUBSET, TYPO (whole-name edit distance, company ignored) and INITIAL (Nick/Nicholas).
+
+**5 duplicate people** once photos were compared pixel-wise (see the re-run below). Both uncertain pairs were confirmed by looking at the
+photographs, not by name alone.
+
+| people | records | verdict |
+| --- | --- | --- |
+| Stina Lantz | `#418781` 1 session · `#418637` 0 | delete `#418637`, identical photo hash |
+| Nick / Nicholas Sando | `#417792` 1 session · `#420553` 0 | delete `#420553`, same man, Molten |
+| Ulla Sommerfeldt / Sommerfelt | `#421568` 1 · `#418069` 1 | MERGE, both on sessions |
+| Sander Janca-Jensen | `#418009` 1 · `#422264` 1 | MERGE, both on sessions |
+| Lars Jensen vs Lars Horsholt Jensen | `#417765` Scale Capital · `#417007` EIFO | NOT duplicates, leave |
+
+### One of them is mine, and it shows the limit of the guard
+`#421568` Ulla Sommerfeldt was created by this session's grill push. Brella already held her as
+"Ulla Sommerfel**t**" (`#418069`, Femtech Studios, with a real bio). The `sameHuman` guard needs
+every word of the Airtable name to appear in the Brella name, and `sommerfeldt` != `sommerfelt`,
+so it read as a different person. Word matching cannot survive a one-letter surname difference —
+the SAME-FILE and TYPO passes above are what catch that class, and they belong in the push script
+as a pre-flight, not only in an audit run afterwards.
+
+
+### Re-run with photo pixels + company/title (Auri asked for a wider net)
+Comparing photo FILE hashes only catches the same upload twice. Downloading all 403 and reducing
+each to a 16x16 greyscale signature catches the same person uploaded from two different files,
+which is what found the fifth:
+
+**Safa Sharif** `#419004` (2 sessions) vs **"Sara Serif"** `#417512` (0 sessions) — photo diff 5.5,
+same company (WSI Consulting), same role. The name is simply mistyped on the spare. Neither name
+matching nor file hashing would ever have paired those two strings.
+
+The company+title pass mostly produces false positives and is tiered REVIEW for that reason: two
+Policy Officers at DG GROW, two MEPs at EPP and two Founding Partners at Navisalma are all real
+distinct people. Same-surname-only is tiered WEAK, 32 pairs, all coincidence.
+
+CONFIRMED NOT duplicates, do not re-flag: George Storm / Sara Storm (N.Rich, both on the GTM
+panel), Robert Falck / Linnéa Kornehed Falck / Robert Westerdahl (Navisalma), Anders Thorup-Jensen
+/ Lars Horsholt Jensen (EIFO), Lars Jensen (Scale Capital) / Lars Horsholt Jensen (EIFO),
+Marie Adam / Ramona Ocak, Henrik Dahl / Arba Kokalari.
+
+Merging needs the Brella UI: assignments have no API endpoint, so the sessions have to be moved
+by hand before the spare record can be deleted.
+
+## Session 2026-08-10 (e) · Side events, tag search, dashboard polish
+
+### Side events: how often they refresh
+Three sources, three cadences, which is the thing to know before anyone asks "why has my edit
+not appeared":
+  Airtable spine (`partnerevents`)  ~1 min   near-live override, 60s memory + 60s CDN
+  Brella times   (`program:brella`) 30 min   fast window until 27 Aug, hourly after
+  Luma venue/artwork lookups        6 hours  fixed, third-party politeness
+A GitHub Action warms every feed every 30 min so nobody lands on a cold copy.
+
+### The duplicate BSR side event, and what actually caused it
+The programme showed "BSR Go-abroad Co-**ce**ation Seminar" (no link) next to the real one.
+The linkless copy was BRELLA's, not an Airtable row, so DELETING it would have pulled the
+session out of the attendee app. `lib/sideEvents.ts` pairs the two systems by title
+containment and a missing letter defeats that. Fixed the typo in Brella instead: the two merged
+into one entry carrying Brella's time AND Airtable's link. 16 side events -> 15.
+
+### Side events audit
+- All 15 Airtable side events are published. Nothing missing, N.Rich's GTM Secret Dinner included.
+- **`techbbq.dk/side-events/` is an EMPTY PAGE.** No embed root, no connector reference, no
+  endpoint — the widget was never put on it. The data is fine and renders on /program2026.
+- Airtable duplicates, all Event Rooms so they do not reach the programme: Nordic IPO
+  (`recROMbxfKGI1OMNi` / `recQCNnYwH3jz1Z09`), Beyond Unicorns (`recJAbHydrQRAGFll` /
+  `recBCZc0pJNZL37HF`), plus 4 empty rows (`recTF4eqJAOiV8Kbe`, `recQN1NRvJAgMhUfS`,
+  `recx6Rm1yKr8Th3xd`, `recIWYxWn89otvbsr`). Untouched, awaiting Auri.
+
+### Side-event card artwork comes from the PARTNER, not from us
+`lib/eventPages.ts` scrapes `og:image` off each registration page. N.Rich's card shows their own
+HubSpot thumbnail and we cannot change it without an override. Auri chose to leave it. The panel
+graphic he supplied went on the Brella session cover instead (`#977272`), only the 2nd of 280
+sessions to have one. Route used: park the file on an Airtable attachment for a moment, hand the
+URL to Brella, which re-hosts it, then remove the parked copy. Write key is `cover_image`.
+
+### Grill descriptions
+Auri stripped the presenter blurbs. Verified across all 21: zero descriptions still name their
+own speakers. Found and fixed a gap of my own making — the two sessions created earlier had
+EMPTY descriptions, because they were built from title/time/track only. Backfilled both from
+Partnership Success (`recYHWaiGLLyYtRTR`, `recTJv4z1EQItWHqd`).
+
+### Tags
+The feed already caps at 3 and strips room/hall labels, so 54 Brella tags become 45 real topics
+and no published session exceeds three. **Brella itself has one session with 4**: `#973349`
+InvestEU. The website drops the fourth silently, so app and web disagree. Left alone: which of
+the four InvestEU policy windows to drop is an editorial call.
+
+### Dashboard changes (localhost only — techbbq.dk needs the embed re-pasted)
+- **"All grills" -> "All Grill Sessions"** in `lib/brellaEmbedSnippet.ts` (x2, tab row and phone
+  picker) and the dashboard page. Siblings are still "All rooms"/"All stages".
+- **Topic type-ahead** replaces the row-of-45-chips: type, arrow, Enter or Add. Chosen tags are
+  removable chips, hard cap of 3 (input disables at three), live match count, suggestions scoped
+  to the board on screen. Now on ALL boards, not just Event Rooms. Multi-select is ANY not ALL,
+  as before — three disjoint tags ANDed returns nothing.
+- **Popular row** under the box: the six busiest topics on that board, one click to add.
+- **The board is remembered across a refresh** (`bp-section-v1` in localStorage, validated with
+  `isBrellaSection`). Ctrl+R on Grill Sessions used to dump you back on Stages.
+Note: Side Events carries no tags, so the tag box correctly does not render there. Auri's call:
+leave it, nothing to sync from, revisit another way later.
+
+### Dashboard, second pass (same day)
+- **Popular row** under the topic box: the six busiest topics on that board, one click to add.
+- **One hint block, not two.** The speaker box's line ("Type a name to spotlight…") moved down to
+  sit with the topic hint; `speakerHintText()` is now a module-level function so both renderers
+  print identical wording, and `SpeakerSearch` takes `showHint` (still true in the list view and
+  on Side Events, where there is no topic block to move it into).
+- **The modal lists every tag**, up to three, in `.bp-modal__tags`. The meta line used to print
+  `s.type`, which IS the first tag, so a session tagged Panel / Business Building / Founder
+  Stories showed one third of itself. The single meta chip now renders only when there is no tag
+  list, so the first tag is never printed twice.
+
+## Session 2026-08-10 (d) · Grill work finished end to end
+
+Auri did the linking in the Brella UI. Final state, verified on the live site:
+
+- **All 60 grill presenters are in Brella**, 0 missing, 0 duplicates, 58 with a photo.
+  The last two, held back over bad Airtable data, went in once he fixed the rows:
+  Gertrude Chilufya `#422259`, Fabio Cavaliere `#422260`. `HOLD` in `brella-push.mjs` is now empty.
+- **19 of 19 grill sessions have their speakers attached.** The only two grill timeslots still empty
+  are `From Research to Reality` and `The "Third Way" of Digital Sovereignty`, which have no
+  Airtable submission at all, so nobody knows who speaks at them.
+- **techbbq.dk/program2026 renders it**, Grill Sessions tab: three colour columns, sessions with
+  speaker avatars, including the two timeslots created today. Chain confirmed end to end:
+  Brella -> `/api/program?event=brella` -> the Elementor embed.
+
+### Name typo that nearly created a duplicate
+Airtable says **"Jennifer Monatgue"**; Brella has her correctly as "Jennifer Montague" `#421576`.
+Word matching cannot bridge a transposition, so the script wanted to create her a second time.
+There is now an `ALIAS` map at the top of `brella-push.mjs` holding exactly that one mapping.
+**Fix the Airtable cell** and the alias becomes dead weight. Also `Gertrude Chilufya`'s Company has
+a leading space; the script trims, Airtable is still untidy.
+
+### The real remaining gap: moderators
+Airtable records **59 Speaker and 1 Moderator** across all 60, and the one is Gertrude on The Bridge
+Effect. Ten of the nineteen sessions are panels of 3+ with nobody marked as moderating, which is
+the submission form defaulting rather than the truth. For contrast the rest of TechBBQ 2026 has 88
+Moderator assignments. Brella also offers `Panelist` (44 in use), which fits a grill panel better
+than `Speaker`. Nothing here can be derived — it needs asking the partners.
+
+### Speaker Hub cross-check (asked for mid-session)
+The Hub (`speaker_public_profiles`, Supabase) holds 195 public speakers, all with photos, and
+**overlaps the grill presenters by zero** — grill people come in through partner forms, Hub people
+onboard themselves. `grill-hub-photos.mjs` fills Airtable from the Hub and is dry-run by default;
+today it had nothing to do.
+
+Separately, of the **205** rows in this view that DO exist in the Hub, 194 are byte-identical and
+**11 differ**. Seven are genuinely new photographs the speaker uploaded; the rest are re-crops.
+Every Hub photo is normalised to 800x800, so it never wins on resolution, only on being current.
+Not acted on — see the table in the chat log. Notable: Tina Tarighian's "new" Hub photo is the same
+polaroid Airtable already holds at 1960x2412, so Airtable's copy is the better one.
+
+## Session 2026-08-10 (c) · Grill presenters pushed into BRELLA
+
+Auri filled the remaining photos in Airtable (57/60), then asked to get the grill presenters into
+Brella. **This is the first code in this repo that WRITES to Brella.** Everything before it was
+GET-only. `brella-push.mjs` is the script; it is idempotent, dry-run by default.
+
+### Done, verified live
+- **2 timeslots created**: `#984464` Scaling Deep Tech in Europe (EIC), Green, 26 Aug 10:40Z ·
+  `#984465` From AI Hype to Real Deal Execution (GetAccept), Green, 27 Aug 10:40Z.
+  All 19 grill sessions now exist in Brella.
+- **54 speaker records created**, on top of 4 already there. 56 of the 60 presenters now carry a
+  photo that Brella has re-hosted onto `brella-assets.brella.io`.
+
+### THE THING TO KNOW: Brella reads JSON:API and writes Rails
+Every write is `Content-Type: application/json` with a snake_case wrapper. A JSON:API body is
+rejected with an **empty 400** (speakers) or an **empty 500** (timeslots), which tells you nothing.
+This cost most of the session to find.
+
+    POST /speakers    {"speaker":  {"first_name","job_title","company_name","photo"}}
+    POST /timeslots   {"timeslot": {"title","start_time","duration","location","track_id"}}
+
+- The photo key is **`photo`**, and it takes a URL. `photo_url` and `remote_photo_url` both 400.
+  Brella downloads the image and re-hosts it, so the source URL only has to be alive at that moment.
+- Photos are passed as `/api/photo/marketing/<recordId>` on the deployed connector, never as raw
+  Airtable attachment URLs — those are signed and dead within ~2 hours.
+- Grill track ids: Green `43273`, Orange `43274`, Blue `43275`. Airtable's `Project Name` colour
+  and the Brella track agree on all 19 sessions, checked.
+
+### NOT done, and why: speaker → session links
+The integration API has **no speaker-assignment route**. Not `/speaker-assignments`, not nested
+under a speaker, not nested under a timeslot; all 404. The only remaining candidate is a PATCH on
+the live timeslot embedding the assignment, and whether that merges or REPLACES the row is unknown.
+Not worth risking a live session's title and description 16 days out.
+
+So the 60 links are done by hand in the Brella UI. `BRELLA-LINKING-CHECKLIST.txt` (regenerate with
+`node brella-push.mjs --plan`) lists every session with its Brella timeslot id and the people to
+add, moderator first.
+
+### Two bugs caught mid-run, both worth remembering
+1. **Duplicate speaker.** Existing-speaker detection first read the `included` of `/timeslots`,
+   which only contains speakers ALREADY ATTACHED to a session. A speaker created but not yet
+   linked is invisible there, so the script created a second Andreas Schwarz. Deleted `#421560`,
+   kept `#421562`. Detection now pages the full `/speakers` collection. Do not change that back.
+2. **Middle names.** Airtable's "Jussi Pyysalo" is "Jussi Petteri Pyysalo" in Brella. Exact-name
+   matching would have duplicated a real person. Matching now requires every word of the Airtable
+   name to appear in the Brella name.
+
+`DELETE /speakers/{id}` works and returns the deleted record, which is how the duplicate was undone.
+
+### Held back on purpose · 2 people
+In the `HOLD` map in `brella-push.mjs`. Fix the Airtable cell and re-run; the script picks them up.
+- **Fabio Cavaliere** · Company is `Ideon Science Park - fabio.cavaliere@ideonsciencepark.se`.
+  Creating that publishes his email address to every attendee. Should be `Ideon Science Park`.
+- **Gertrude Chilufya** · Job Title is `Moderator`, Company is `Founder | Reframe Tech`. The fields
+  are swapped. Moderator is her ROLE and is already carried separately.
+
+### PICK UP HERE
+1. Link the 60 speakers to their sessions in Brella, from `BRELLA-LINKING-CHECKLIST.txt`.
+2. Fix the two Airtable rows above, then `node brella-push.mjs --commit --only-speakers`.
+3. Confirm with the programme team: the planning sheet puts **GetAccept in two consecutive Green
+   slots on day 2** (12:40-13:20 and 13:30-14:10). One 40-minute slot was created. If it is really
+   an 80-minute booking, widen it in Brella.
+4. Fix the mangled Brella title `The Bridge Effect: Why Top Talent is Choosing the Øresund Region
+   Discover Dutch Tech at the Orange Stage` — two session names run together.
+5. Three grill timeslots exist in Brella with NO Airtable form submitted, so nobody knows who
+   speaks: `From Research to Reality` (Blue, 27th 09:00), `The "Third Way" of Digital Sovereignty`
+   (Orange, 27th 10:40), and the Bridge Effect row. Chase those partners.
+6. Still no photo anywhere: Maarten Kas, Yuval Temam. Created in Brella without one.
+
+### Pre-existing, not ours
+`Stina Lantz` has two speaker records in Brella (`#418781`, `#418637`). Predates this session.
+
+## Session 2026-08-10 (b) · Grill Session photos: 15 → 27 of 60
+
+Twelve portraits written to `Profile Picture` on the Grill Session rows. `grill-photos.mjs`
+carries all twelve with a per-person source note; the reject list at the top of that file now
+also records what was looked at and thrown away, so nobody re-finds the same dead ends.
+
+Written: Kasper Hulthin, Andreas Schwarz, Mårten Skogh, Martin Keller, Rogier Brakshoofden,
+Juuso Juhila, Thomas Eaton, Olli Huhtinen, Maarten Everts, Pia Hardy, Richard Holborow,
+Frank Kjerstein.
+
+### What actually moved the needle
+1. **Check this base first.** New `grill-crossref.mjs` walks every table in the base and asks
+   whether a photo-less person already has an attachment somewhere else. It found Kasper
+   Hulthin's headshot sitting in the `Speakers` table. Own asset, best possible source. Run this
+   before any web hunting.
+2. **A real browser, not `fetch`.** Most of these team pages are Webflow/Next/HubSpot and render
+   portraits in JS, so a server-side fetch sees an empty page. Driving Playwright and reading
+   `img.currentSrc` after paint is what surfaced Acodis, Limula, evogencebio and NextNextYear.
+3. **Match on the caption when the filename is useless.** Limula files their CFO's portrait as
+   `Tom_LIM4471.jpg`; the only thing tying it to Thomas Eaton is the heading directly above it.
+   Same for Pia Hardy (`pia_.jpg`), corroborated instead by the page text repeating her exact
+   NVIDIA title.
+
+### Traps hit this round, all avoided
+- `businessturku.fi` offers `mari-kivinen-...jpg` for **Anna** Kivinen. Different person.
+- `achucarro.org` has a Fabio Cavaliere: a Basque neuroscientist, not the Ideon one.
+- Domain guessing by company name lands on impostors: pexelz.com vs pixelz.com, alicetech.com
+  vs alice.tech, nrich.com vs n.rich, linksight.com vs linksight.nl. Never trust a guessed
+  domain without checking the page identifies the right company.
+- DuckDuckGo's HTML endpoint now serves a bot challenge to scripted fetches. Bing still returns
+  parseable results in a real browser, but wraps every href in `bing.com/ck/a?...&u=a1<base64>`,
+  so the real URL has to be base64-decoded out of `u=a1`.
+
+### Safety check, same ritual as the previous write
+Hashed all 11 live feeds before and after: byte-identical. These rows stay out of every public
+feed. Verified after the write: grill rows with a photo went 15 → 27, missing 45 → 33.
+
+### PICK UP HERE
+The remaining 33 are genuinely not findable from open sources. Per-person reasons are in the
+reject block in `grill-photos.mjs`, including several where a photo exists but should not be
+used (group shots, candids, a stunt pose, one identity nobody can confirm off LinkedIn). The
+only route that closes the rest is the partner chase-list: the submission form already has a
+per-presenter upload field, so ask the ~15 partner orgs to fill it in.
+
+## Session 2026-08-10 (a) · Partner wall dead on techbbq.dk/partners · localhost baked into the embed
+
+### What was broken
+`https://techbbq.dk/partners/` showed the partner wall stuck on "Loading…", zero logos.
+Nothing was wrong with the connector: `/api/partners` returns 200 with 154 partners in 8
+tiers both locally and on `airtable-woad.vercel.app`, and a cross-origin fetch to it *from
+techbbq.dk* succeeds (CORS fine).
+
+The pasted Elementor snippet itself carried the bug:
+
+    var ORIGIN="http://localhost:3000";
+    var ENDPOINT=ORIGIN+"/api/partners";
+
+The wall was copied from the dashboard while it ran on localhost, so every visitor's browser
+tried to fetch the feed from their own machine. Swept all 56 pages in `page-sitemap.xml` for
+`localhost:` — `/partners/` is the only page affected.
+
+### Fix in this repo
+New `lib/embedOrigin.ts`. `embedOrigin()` returns `window.location.origin` normally and the
+deployed connector (`NEXT_PUBLIC_EMBED_ORIGIN`, default `https://airtable-woad.vercel.app`)
+whenever the dashboard is on localhost/127.0.0.1/::1. Every copy button now calls it instead
+of `window.location.origin` — the 9 sites were CopyApiSnippet, CopyBrellaEmbed, CopyEmbed,
+CopyEventEmbed, CopyInternsEmbed, CopyLsStartupsEmbed, CopyPartnersEmbed, `app/program/page.tsx`,
+`app/speakers/page.tsx`. Copying from a local dashboard can no longer produce a dead embed.
+
+Verified: `npx tsc --noEmit` clean, and clicking Copy embed code on `localhost:3000/partners`
+now yields `var ORIGIN="https://airtable-woad.vercel.app"` with no `localhost` anywhere in the
+15KB snippet.
+
+### PICK UP HERE · the WordPress side is NOT fixed
+This repo change does not touch the live page. In Elementor on `techbbq.dk/partners/`, open the
+HTML widget holding `#tbbq-pw-op1o1m` and change the one line to:
+
+    var ORIGIN="https://airtable-woad.vercel.app";
+
+then Update. Re-pasting a fresh snippet from the deployed dashboard works too, but the one-line
+edit keeps the existing widget id and styling.
+
 ## Session 2026-08-09 · Grill Session presenters: LinkedIn handles + photos
 
 State: **PARTIAL, and honestly so.** LinkedIn 51/60. Photos 15/60. The gaps are documented
