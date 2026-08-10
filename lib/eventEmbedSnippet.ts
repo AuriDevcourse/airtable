@@ -198,10 +198,14 @@ ${endpointDecl(path, "  ")}
   function light(hex,amt){var n=parseInt(String(hex).replace("#",""),16);function m(c){return Math.round(255*(1-amt)+c*amt);}return "rgb("+m((n>>16)&255)+","+m((n>>8)&255)+","+m(n&255)+")";}
 
   /* Mirrors lib/venueLabel.ts. A host running the event at their own office puts their own name
+     ESCAPING: this file is one template literal, so a regex written here needs its backslashes
+     DOUBLED. \s emits a bare "s" and silently collapses the letter instead of whitespace —
+     which is what shipped in the first version of this function (2026-08-10). Same family as the
+     backtick trap the comments above warn about.
      in Luma's location field, which would print "Hosted by Rockstart" and then "Rockstart ·
      København" underneath. */
   function venue(e){
-    function fold(x){return String(x==null?"":x).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();}
+    function fold(x){return String(x==null?"":x).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]+/g," ").replace(/\\s+/g," ").trim();}
     var v=String(e.venue==null?"":e.venue).trim(), c=String(e.city==null?"":e.city).trim();
     if(!v)return c;
     if(e.company&&fold(v)===fold(e.company))v="";

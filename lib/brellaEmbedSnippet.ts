@@ -672,10 +672,14 @@ ${originDecl("  ")}
   /* ── SPEAKER SEARCH ── Same rules as the dashboard, in plain ES5 for a pasted snippet.
      Accents stripped so "Jose" finds "Jose\u0301"; every term must hit, so adding a word
      narrows; the session NAME is not searched, or "opening" lights ten unrelated cards. */
+  /* ESCAPING: this runs inside a template literal, so a regex needs its backslashes DOUBLED.
+     Written singly it reaches the browser stripped: \s becomes a bare "s" and the query split
+     on the letter instead of on whitespace. That shipped here, so the embed's search tokenised
+     differently from the dashboard's until 2026-08-10. Line 670 had it right all along. */
   function norm(v){
     return String(v==null?"":v).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
   }
-  function toTerms(q){var t=norm(q).split(/\s+/),o=[],i;for(i=0;i<t.length;i++)if(t[i])o.push(t[i]);return o;}
+  function toTerms(q){var t=norm(q).split(/\\s+/),o=[],i;for(i=0;i<t.length;i++)if(t[i])o.push(t[i]);return o;}
   function hayOf(s){
     var sp=s&&s.speakers||[],i,out=[];
     for(i=0;i<sp.length;i++)out.push((sp[i].name||"")+" "+(sp[i].company||"")+" "+(sp[i].title||""));
