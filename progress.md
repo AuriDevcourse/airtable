@@ -4,6 +4,34 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-10 (j) · Two regexes eaten by the snippet template literals
+
+The snippet builders return one big template literal. `\s` is not a valid escape there, so JS drops
+the backslash and the browser receives a bare `s`. Two regexes shipped that way:
+
+- `lib/eventEmbedSnippet.ts` `venue()` - `fold()` collapsed the letter "s" instead of whitespace,
+  so "Sankt Petri Passage" folded to "ankt petri pa age". Both sides of a comparison were mangled
+  identically so the same-as-host suppression usually still agreed, which is why it went unnoticed.
+- `lib/brellaEmbedSnippet.ts` `toTerms()`: the pasted program embed split search queries on "s"
+  rather than on whitespace, so its search tokenised differently from the dashboard's. Line 670 of
+  the same file already had the doubled form, and that inconsistency is what exposed it.
+
+Both doubled and verified against the GENERATED snippet, not the source. The source reads correctly
+either way, which is the whole trap: `\s` and `\\s` look equally plausible in the editor.
+Commit `a848dec`.
+
+### Rule for this repo
+
+Inside a snippet template literal, DOUBLE every regex backslash. Same family as the backtick trap
+already documented at the top of those files. Verify by reading the copied snippet, never the source.
+Suspect any line matching `\[sdwbSDW]` that has no `\\` in it.
+
+### Still to do
+
+Paste the re-copied snippets into the techbbq.dk widgets. `/side-events/` still runs the OLD widget
+(`tbbq-ev-2qxnhu`, three pills, no posters). The code is deployed; the widget is a frozen copy and
+changes nothing until it is replaced by hand.
+
 ## Session 2026-08-10 (i) · Embed origins audited, event embed brought up to date
 
 ### Every embed on techbbq.dk, audited
