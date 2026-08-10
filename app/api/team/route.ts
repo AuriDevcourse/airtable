@@ -24,12 +24,42 @@ export async function GET(req: NextRequest) {
   const deptParam = req.nextUrl.searchParams.get("department");
   const department = deptParam && DEPARTMENTS.includes(deptParam) ? deptParam : undefined;
 
-  const key = `team:${department || "all"}`;
+  // ?ids=recA,recB — a HAND-PICKED team, for a page that wants six named people rather than a
+  // department. Auri's ask (2026-08-10): the six on the Side Events crew do not share a
+  // Department value, so no ?department= can express them.
+  //
+  // RECORD IDS, NOT NAMES. A name arrives spelled three ways (Schiøtt / Schiott / Schiot),
+  // changes when someone marries, and would have to be matched fuzzily on every request. A rec
+  // id is stable, opaque and safe to put in a URL that gets pasted into WordPress and forgotten.
+  //
+  // Validated to the exact Airtable shape and capped, per the input rules: an id list is the one
+  // part of this feed a stranger can make arbitrarily long, and an unbounded one is free work.
+  // Unknown ids are dropped silently rather than 404ing — a snippet on techbbq.dk must not go
+  // blank because one person left the team.
+  const idParam = req.nextUrl.searchParams.get("ids");
+  const ids = idParam
+    ? idParam
+        .split(",")
+        .map((x) => x.trim())
+        .filter((x) => /^rec[A-Za-z0-9]{14}$/.test(x))
+        .slice(0, 60)
+    : [];
+
+  // A hand-picked list reads the WHOLE team and filters in memory, so it shares the one cache
+  // entry every other variant uses. Keying the cache per id combination instead would mint a
+  // fresh Airtable read for every distinct selection anyone ever pastes.
+  const key = `team:${ids.length ? "all" : department || "all"}`;
 
   try {
     if (gate.fresh) invalidate(key);
 
-    const members = await cached(key, () => fetchTeam(department), dailyTtlMs());
+    const all = await cached(key, () => fetchTeam(ids.length ? undefined : department), dailyTtlMs());
+    // IN THE ORDER ASKED FOR, not the order Airtable returns. Whoever picks six people is
+    // choosing a layout, so the first name should be the first card. This also means the
+    // snippet must not shuffle a custom list, which is why /team passes shuffle={false} there.
+    const members = ids.length
+      ? ids.map((id) => all.find((m) => m.id === id)).filter((m): m is (typeof all)[number] => Boolean(m))
+      : all;
 
     // ?email=0 — the addresses never leave the server.
     //
@@ -45,7 +75,16 @@ export async function GET(req: NextRequest) {
     const team = withEmail ? members : members.map(({ email: _drop, ...rest }) => rest);
 
     return feedResponse(
-      { count: team.length, department: department || "all", team },
+      {
+        count: team.length,
+        // "custom" rather than a department name: a consumer reading this JSON should not be
+        // told it is looking at Marketing when it asked for six named people.
+        department: ids.length ? "custom" : department || "all",
+        // Echoed so a snippet that came back short can be diagnosed without guessing: asked 6,
+        // got 5, means one of those people is no longer an active team member.
+        ...(ids.length ? { requested: ids.length } : {}),
+        team,
+      },
       gate,
       { daily: true }
     );

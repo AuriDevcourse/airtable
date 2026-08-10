@@ -119,6 +119,11 @@ const TABS_ALL = "all";
 
 export default function TeamPage() {
   const [active, setActive] = useState<string>(TABS_ALL);
+  // A HAND-PICKED team, as record ids IN CLICK ORDER. Auri's ask (2026-08-10): a page wanted six
+  // named people who sit in Management, Partnerships and Marketing, so no ?department= could
+  // express them. Click order, not page order, because whoever picks six people is choosing the
+  // order the cards appear in — the feed honours the order it is given.
+  const [picked, setPicked] = useState<string[]>([]);
 
   const { url, refresh } = useFreshUrl("/api/team");
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
@@ -150,6 +155,13 @@ export default function TeamPage() {
     shuffle(chiefs).sort((a, b) => (a.hierarchy as number) - (b.hierarchy as number));
     return [...chiefs, ...shuffle(rest)];
   }, [members, seed]);
+
+  function togglePick(id: string) {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+  // Name lookup for the "who is selected" line, so it reads as names rather than rec ids.
+  const byId = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+  const customUrl = `/api/team?ids=${picked.join(",")}`;
 
   // Embed snippet targets the plain feed for the website. On "All" it carries the same
   // chiefs-first random order: the snippet's shuffle exempts anyone with a numeric hierarchy,
@@ -194,9 +206,15 @@ export default function TeamPage() {
               loadMore={false}
               email
               deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
+              // The label names the tab, because the button ALWAYS copied the selected
+              // department and nothing said so — it read as one generic "copy the team" and
+              // the per-department embeds went unnoticed (Auri asked for them, 2026-08-10).
+              label={active === TABS_ALL ? "Copy embed (all + tabs)" : `Copy embed (${active})`}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
-              Cards with a mailto link under each name.
+              {active === TABS_ALL
+                ? "Everyone, with a centered department filter · mailto under each name."
+                : `${active} only, no filter row · mailto under each name.`}
             </span>
           </div>
 
@@ -214,12 +232,119 @@ export default function TeamPage() {
               loadMore={false}
               email={false}
               deptTabs={active === TABS_ALL ? DEPARTMENT_ORDER : undefined}
-              label="Copy embed (no emails)"
+              label={
+                active === TABS_ALL
+                  ? "Copy embed (no emails)"
+                  : `Copy embed (${active}, no emails)`
+              }
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Name, photo, job title and LinkedIn · addresses never reach the page.
             </span>
           </div>
+
+          {/* A TEAM THAT IS NOT A DEPARTMENT. The six people Auri wanted on one block sit in
+              Management, Partnerships and Marketing, so ?department= cannot express them and the
+              only honest answer is to name them (2026-08-10).
+
+              Picked by CLICK ORDER, and the feed returns them in that order — choosing six people
+              is choosing a layout, so shuffle is off here and the first name is the first card.
+
+              Grouped by department rather than alphabetically, because that is how someone thinks
+              about who to include. Chips reuse .bp-tags__chip from the programme board's topic
+              filter, so this introduces no new toggle style. */}
+          {members.length > 0 && (
+            <div style={{ marginTop: 26, borderTop: "1px solid rgba(255,255,255,0.12)", paddingTop: 20 }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                <h2 style={{ margin: 0, fontSize: 20 }}>Build a custom team</h2>
+                <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+                  Pick anyone from any department · the cards keep the order you click.
+                </span>
+              </div>
+
+              <div className="bp-tags" style={{ maxWidth: "none", margin: "14px 0 0" }}>
+                {allSections.map(([dept, list]) => (
+                  <div key={dept} style={{ marginTop: 10 }}>
+                    <p
+                      className="eyebrow"
+                      style={{ margin: "0 0 6px", textAlign: "left", fontSize: 11, opacity: 0.75 }}
+                    >
+                      {dept}
+                    </p>
+                    <div className="bp-tags__row" style={{ justifyContent: "flex-start" }}>
+                      {list.map((m) => {
+                        const at = picked.indexOf(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className="bp-tags__chip"
+                            aria-pressed={at >= 0}
+                            onClick={() => togglePick(m.id)}
+                            title={m.title}
+                          >
+                            {/* The position, so the order being built is visible while building
+                                it — without it a click reorders nothing you can see. */}
+                            {at >= 0 && (
+                              <span style={{ opacity: 0.75, fontVariantNumeric: "tabular-nums" }}>
+                                {at + 1}
+                              </span>
+                            )}
+                            {m.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                {/* Disabled until something is picked: an empty ?ids= would copy a snippet that
+                    renders the WHOLE team, which is the opposite of what the button says. */}
+                {picked.length === 0 ? (
+                  <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+                    Nobody picked yet.
+                  </span>
+                ) : (
+                  <>
+                    <CopyEmbed
+                      path={customUrl}
+                      listKey="team"
+                      shuffle={false}
+                      loadMore={false}
+                      email
+                      label={`Copy embed (${picked.length} picked)`}
+                    />
+                    {/* Same two promises as above: the flag stops the snippet DRAWING an
+                        address, ?email=0 stops the feed sending one. */}
+                    <CopyEmbed
+                      path={`${customUrl}&email=0`}
+                      listKey="team"
+                      shuffle={false}
+                      loadMore={false}
+                      email={false}
+                      label={`Copy embed (${picked.length} picked, no emails)`}
+                    />
+                    <button type="button" className="copy-embed" onClick={() => setPicked([])}>
+                      Clear
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {picked.length > 0 && (
+                <p className="lede" style={{ margin: "10px 0 0", fontSize: 13 }}>
+                  {picked.map((id, i) => (
+                    <span key={id}>
+                      {i > 0 && " · "}
+                      {byId.get(id)?.name ?? id}
+                    </span>
+                  ))}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* This feed is the slowest to refresh on its own — daily outside the event window
               — so the manual read matters most here. */}
