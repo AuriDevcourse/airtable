@@ -4,6 +4,125 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-09 · Grill Session presenters: LinkedIn handles + photos
+
+State: **PARTIAL, and honestly so.** LinkedIn 51/60. Photos 15/60. The gaps are documented
+below with the reason for each - they are not "not tried yet".
+
+### PICK UP HERE
+Two scripts do the writing, both idempotent, both dry-run by default (`--commit` to write):
+
+    sops exec-env secrets.enc.env "node enrich.mjs"        # LinkedIn Handle + Bio
+    sops exec-env secrets.enc.env "node grill-photos.mjs"  # Profile Picture
+
+To add people: append to the `FOUND` / `PHOTOS` array. **Match `name` to the Airtable Full Name
+BYTE-FOR-BYTE** - it is an exact string compare, and three rows are booby-trapped:
+`Dr. Ilya Burkov` (title prefix), `MONIKA KANDA` (all caps), `Manuel\tMejia` (literal TAB).
+A mismatch prints "NOT FOUND in grill rows" rather than failing loudly, so read the dry run.
+
+Before any write, repeat the feed check - it is the thing that makes writing to this table safe:
+
+    for f in partners policy-stage event-room-presenters main-speakers investor-speakers \
+             life-science all-speakers speakers-2026 program niss-speakers team; do
+      printf "%-24s %s\n" "$f" "$(curl -s http://localhost:3001/api/$f | md5 -q)"
+    done
+
+Hash before, hash after, diff. All 11 must be byte-identical. Dev server: `npm run dev` (it
+takes port 3001 when 3000 is busy).
+
+Remaining work, in the order I would do it:
+1. **The photo chase-list** - 45 people, ~15 partner orgs. This is the only route that actually
+   closes the gap; the per-presenter upload fields already exist on the submission form.
+2. **The row-level data errors below** - several are wrong facts about real people and should be
+   fixed before any of this is published.
+3. The 9 missing handles, but see the per-person reasons - most genuinely have no public LinkedIn.
+
+### Rule kept from yesterday
+Only write a handle when the company or job title is corroborated by a NON-LinkedIn source.
+Where only LinkedIn itself corroborated it, the handle was still written but a caveat went into
+the Bio field, so the doubt is visible at the row and not just in a chat log.
+
+### Safety check repeated before EVERY batch, 4 batches
+Hashed all 11 live feeds before and after each write: byte-identical every time. Also grepped
+`all-speakers`, `speakers-2026` and `life-science` for Grill names and for the string "Grill" -
+zero hits, which proves those feeds genuinely exclude these rows rather than being cache-stale.
+
+### Two bugs fixed in enrich.mjs (both would have fired on this run)
+- `{"Bio": f.bio}` sent `undefined` for anyone with no bio, which **blanks an existing Bio**.
+  Now only researched fields are sent.
+- Airtable PATCH caps at 10 records; batch 1 was 13. Now chunked. Also added an idempotency
+  guard so re-running is safe and prints OVERWRITE + the old value if a handle ever changes.
+
+### PHOTOS - the route that works, and the one that does not
+Airtable ingests attachments by **fetching a public URL server-side**. LinkedIn's image CDN is
+auth-gated with expiring tokens, so LinkedIn photos cannot be filled in that way even in
+principle. Everything here came from org team pages, press releases and conference speaker pages.
+
+Automated matching is genuinely dangerous and this run proved it FOUR times:
+- boras-ink.se serves `Mats-Ekman_1.1.jpg` with `alt="Annelie Rådhall"`. **Alt text is scrambled
+  on that site.** Trust the filename, never the alt.
+- klak.is's only "Magnus" image is `KLAK_VMS_portrett_magnus_ingi_oskarsson` - a different Magnus.
+- Dealfront's press-release og:image is a stock 3D cartoon ID card, not Jillian Als.
+All three would have put a wrong face on a speaker. Every photo written was eyeballed first or
+came from a dedicated single-person page where filename AND alt agree. See grill-photos.mjs,
+which carries the rules and a REJECTED list with reasons - do not silently re-add those.
+
+### Row-level data problems found (NOT fixed - they are yours or the submitters' to correct)
+- **Maarten Everts is CTO, not CEO.** Linksight's CEO is Martine van de Gaar.
+- **Bue Fisker** - every source puts him at KIRKBI as Senior Investment Manager, not LEGO
+  Foundation as Director of Investments. Separate legal entities.
+- **"Pexelz" is a typo for Pixelz Inc** (Katrine Rasmussen).
+- **"Jennifer Monatgue" is a typo for Jennifer Montague.**
+- **Nadia Lodroman** is a Dublin-based independent Oracle EPM consultant (lodroman.com), not a
+  Skytek Nordics employee. The Company field looks like it inherited the SUBMITTING PARTNER's
+  name - worth checking whether other rows have the same artifact.
+- **Fabio Cavaliere's row is form noise**: Job Title "POINT OF CONTACT", Company field contains
+  his email address. Probably the submitting contact, not someone on stage.
+- **`Manuel	Mejia`** has a literal TAB inside Full Name. **Anders Rosenqvist**'s company is in
+  Unicode mathematical-bold characters, not letters - breaks matching and screen readers.
+- Title mismatches, softer: Mårten Skogh (row says Head of Quantum Technology, sources say
+  Development Engineer / WACQT Project Leader), Anna Kivinen (Project Director / Liaison Manager),
+  Thomas Eaton (row says CFO, sources say CEO), Gertrude Chilufya (row says Founder of Reframe
+  Tech; sources say she runs their AI Fluency Circles), Vahid Sohrabpour (sources tie him to
+  Saveggy, not Orchestrable).
+
+### The 9 with no LinkedIn, with the reason
+- **Ramona Ocak** - no public LinkedIn exists. Verified as a real EU official via an InvestEU PDF,
+  which puts her at DG ECFIN, not DG GROW as the row says.
+- **Andreas Schwarz** - title confirmed exactly by the Commission's own CV PDF and ZEW. No LinkedIn.
+- **Agnieszka Chlad** - correct spelling is **Agnieszka Chłąd**. Verified at EISMEA/EU Commission
+  in Brussels, but her public presence is X (@aga_chlad), not LinkedIn.
+- **Marie Adam** - name too common to disambiguate against DG GROW.
+- **Catarina Mendonça** - two candidate profiles, neither says New Dawn Bio. Common PT name.
+- **Manuel Mejia** - many profiles, none at Hayden Biotech. Their site shows first names only.
+- **Lisa Nyman** - role confirmed exactly (si.se, sharingsweden.se) but no handle surfaced.
+- **Yuval Temam** - a Netherlands profile exists but its headline reads SES, not Lighthouse Lab.
+  Not written; that is a guess, not a match.
+- **Ulla Sommerfeldt** - the known unresolvable. No Company on the row, and the search splits
+  between Ulla Sommerfelt (one t, Norwegian, Mother Hen Ventures) and a Danish PreSeed investor.
+
+### The Chrome extension pass (what it did and did not fix)
+Used it for exactly the class of failure a server-side fetch cannot handle: JS-rendered team
+pages and bot-blocked hosts. Results:
+- **Isabella Vahdati FOUND** on brighteyevc.com/team, which renders portraits in JS. Matched by
+  **DOM adjacency** - the img sitting next to the text "Isabella Vahdati / Principal" - because
+  that site files portraits by INITIALS (`IV_blue.avif`), so no filename or alt match was ever
+  going to hit it. DOM adjacency is the stronger technique; prefer it.
+- **Yohanna Gustafsson: confirmed negative.** Opened cse.cbs.dk/team/yohanna-gustafsson/ in a real
+  browser - the page genuinely carries no portrait, only her name. That is an answer, not a failure.
+- **Anders Rosenqvist rejected.** seoday.dk now redirects to s360digital.com and its only "Anders"
+  image is anders-lynggaard-poulsen.jpeg. A loose first-name match would have written a stranger.
+- n.rich/about-us redirects to nrich.io and lists no team at all.
+Airtable accepts `.avif` and `.webp` on ingest, so no format conversion is needed.
+
+### Photos: 45 still missing, and why
+The org-page route is now exhausted for everyone researched. The remaining people mostly have no
+public portrait on any page their org controls - several are EU officials, and several work at
+companies whose sites render team photos in JS or publish none at all. **This is where the
+partner-chase is the only real answer**, and the per-presenter upload fields already exist on the
+Grill Session submission form. The chase-list groups to roughly 15 partner orgs, which is 15
+emails rather than 60 lookups.
+
 ## Session 2026-08-08 (sixth) · Grill Session presenters written into Airtable
 
 State: **DONE.** 60 speaker rows created, then re-assigned to the right room. Two enriched with a
