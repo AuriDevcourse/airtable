@@ -123,13 +123,13 @@ function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
 // and the bare `/api/program` still serve both, so nothing that already fetches them broke.
 //
 // heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "niss" | "fintech" | "policy";
+type EventKey = "niss" | "fintech" | "policy" | "board";
 const EVENTS: {
   key: EventKey;
   label: string;
   heading?: string;
   note?: string;
-  theme?: "orange" | "blue";
+  theme?: "orange" | "blue" | "navy";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
@@ -152,6 +152,16 @@ const EVENTS: {
     heading: "August 26th",
     people: true,
   },
+  // THE BOARD SUMMIT (Boardway), out of the same Sessions table as the Policy Stage. Dark blue
+  // rather than the fire gradient (Auri, 2026-08-10) — see the `navy` theme in lib/agendaSnippet.ts.
+  // Every row is Day 2, so the heading is fixed here instead of coming from the data.
+  {
+    key: "board",
+    label: "Board Summit",
+    heading: "August 27th",
+    theme: "navy",
+    people: true,
+  },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -168,7 +178,7 @@ function CopyAgendaEmbed({
   path: string;
   heading?: string;
   note?: string;
-  theme?: "orange" | "blue";
+  theme?: "orange" | "blue" | "navy";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;

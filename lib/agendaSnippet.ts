@@ -18,7 +18,8 @@ export type AgendaOptions = {
   note?: string;
   // Color theme. "orange" = the TechBBQ fire look (default, used by NISS/TechBBQ).
   // "blue" = the Future of Fintech look (blue border/tags on #111827).
-  theme?: "orange" | "blue";
+  // "navy" = the Board Summit look: a deeper blue ground with a blue gradient.
+  theme?: "orange" | "blue" | "navy";
   // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
   icons?: boolean;
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
@@ -68,6 +69,27 @@ const THEMES = {
     time: "#CBD5E1",
     noteInk: "#CBD5E1",
   },
+  // THE BOARD SUMMIT. Fintech's blue reads as a slide deck; a boardroom agenda wants weight, so the
+  // ground drops to a near-black navy and the accent becomes a three-stop gradient like the orange
+  // theme rather than the flat #2563EB. Same structure as the other two — only the values differ.
+  //
+  // `bg` is SOLID here, not transparent: the panel has to hold its own dark ground on techbbq.dk,
+  // whose sections are light. The orange theme can be transparent because it is pasted onto a dark
+  // section; this one cannot borrow.
+  navy: {
+    ink: "#EAF0FA",
+    muted: "#8FA3C2",
+    acc: "#60A5FA",
+    grad: "linear-gradient(120deg,#7DB0FF 0%,#3B82F6 50%,#1E40AF 100%)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(96,165,250,.32)",
+    glow: "rgba(59,130,246,.16)",
+    bg: "#0B1220",
+    rowBorder: "rgba(147,180,232,.14)",
+    time: "#C3D4EE",
+    noteInk: "#C3D4EE",
+  },
 } as const;
 
 // Lucide icon paths per session type (stroke icons, inherit currentColor).
@@ -81,6 +103,19 @@ const ICONS: Record<string, string> = {
     '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   showcase: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
   pitch: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  // The hand-typed programmes (Policy Stage, Board Summit) use these four types. Without them a
+  // 14-row agenda showed an icon on the two Break rows and nothing else, which reads as a bug
+  // rather than as a design. Lucide: flame, mic, megaphone, flag.
+  "fireside chat":
+    '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+  keynote:
+    '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/>',
+  "opening remarks":
+    '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  "closing remarks":
+    '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+  "closing remarks & reflections":
+    '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
 };
 
 export function buildAgendaSnippet({

@@ -116,6 +116,16 @@ type AirtableSource = {
   kind: "airtable";
   table: string;
   view?: string;
+  /**
+   * An Airtable filterByFormula, applied server-side on top of `view`.
+   *
+   * Needed because a VIEW IS NOT A CONTRACT. The Sessions table now holds three programmes — the
+   * Policy Stage, the Board Summit and Defence & Dual Use — and the view pinned below stopped
+   * filtering at some point, so /api/program?event=policy was serving all 36 rows of the table
+   * with the three agendas interleaved by start time (caught 2026-08-10). The formula pins the
+   * programme to a CELL VALUE, which nobody can widen by editing a view in the Airtable UI.
+   */
+  filter?: string;
   fields: {
     name: string;
     day?: string;
@@ -173,6 +183,25 @@ export const PROGRAM_SOURCES = {
     kind: "airtable",
     table: "tblSlpTzDi2oVYwqv", // Sessions
     view: "viwrTVxvTBucbJW7S", // The Policy Stage
+    filter: '{Name of the Event}="The Policy Stage"',
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  // THE BOARD SUMMIT (hosted by Boardway), 14 sessions on Day 2. Same Sessions table and the same
+  // hand-typed people fields as the Policy Stage above — it arrived the same way, as a document
+  // rather than as linked speaker records — so it needs no new parsing, only its own filter.
+  board: {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Board Summit"',
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
@@ -225,7 +254,11 @@ function parsePeople(details: string, photos: unknown, feed: string, recordId: s
   const entries = details
     .split("·")
     .map((x) => x.trim())
-    .filter(Boolean);
+    // A PLACEHOLDER IS NOT A PERSON. Several Board Summit rows carry "TBC" in the moderator cell
+    // while the booking is open, and without this the embed draws a circle with a "T" in it and
+    // announces TBC as the moderator. Dropping the entry leaves the group empty, which the
+    // renderers already handle by omitting the heading.
+    .filter((x) => x && !/^(tbc|tba|tbd|to be (confirmed|announced))\.?$/i.test(x));
   if (!entries.length) return [];
 
   const atts = Array.isArray(photos)
@@ -295,6 +328,7 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   do {
     const params = new URLSearchParams();
     if (cfg.view) params.set("view", cfg.view);
+    if (cfg.filter) params.set("filterByFormula", cfg.filter);
     params.set("pageSize", "100");
     for (const field of wanted) params.append("fields[]", field);
     if (offset) params.set("offset", offset);
