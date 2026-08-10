@@ -125,6 +125,59 @@ the booking is open, and the embed drew a circle with a "T" in it and billed TBC
 `heading: "August 27th"` on the Board tab is HAND-SET (every row says only "Day 2"). The Policy tab
 says August 26th for rows that also say Day 2, so one of the two is wrong — check before the summit.
 
+## Session 2026-08-10 (m) · Team: a hand-picked embed, and department embeds that say so
+
+### Per-department embeds already existed
+
+The copy button on /team always targeted the selected tab. Nothing on the button said so, so it read
+as one generic "copy the team" and Auri never noticed it (2026-08-10). The label now names the tab:
+`Copy embed (Marketing)`, `Copy embed (Marketing, no emails)`, with the line beside it saying whether
+a filter row travels along. No behaviour change, only a discoverable one.
+
+### New: ?ids= on /api/team, plus a picker
+
+Auri wanted one block for six people who sit in Management, Partnerships AND Marketing, so no
+`?department=` can express them and naming them is the only honest answer. Commit `d6d84d2`.
+
+- **Record ids, not names.** "Schiott" arrives spelled three ways and a name changes when someone
+  marries. A rec id is stable and safe in a URL pasted into WordPress and forgotten.
+- Validated to `/^rec[A-Za-z0-9]{14}$/`, capped at 60. An id list is the one part of this feed a
+  stranger can make arbitrarily long.
+- Unknown ids are DROPPED, not 404'd: a block on techbbq.dk must not go blank because one person
+  left the team. The response echoes `requested`, so "asked 6, got 5" is readable from the JSON.
+- Filters the WHOLE cached team in memory. Keying the cache per id combination would mint an
+  Airtable read for every distinct selection anyone ever pastes.
+- Returned IN THE ORDER ASKED FOR, and the picker records CLICK order. Choosing six people is
+  choosing a layout, so the first name is the first card and shuffle is off for a custom list.
+
+The picker groups all 27 by department, numbers each picked chip with its position so the order is
+visible while it is built, and reuses `.bp-tags__chip` rather than inventing a toggle style. Both
+email variants, because `?email=0` (do not send) and the snippet flag (do not draw) are different
+promises.
+
+Verified by rendering the copied snippet as a widget would: exactly the six, in click order, photos
+and titles, no addresses, no filter row. Junk ids rejected; a well-formed unknown id counts toward
+`requested` and draws nothing.
+
+## Session 2026-08-10 (l) · Embed tabs are the masthead headings, not small pills
+
+The dashboard had moved its kind switcher to `.bp-sections` (the oversized Onest headings Program
+2026 uses) and the embed kept the small dark pill row. That was the last thing making the two read as
+different products: Auri's "missing the top word" (2026-08-10). Commit `48425f6`.
+
+Ported one-for-one from app/globals.css: `clamp(26px,4.2vw,40px)`, weight 600, `-.02em`, muted until
+selected, transparent, wrapping and centred, each kind's colour as an em-sized dot on the OUTER edge
+of the pair (red left of Side Events, blue right of Event Rooms) at .45 opacity while muted. Still
+buttons, not styled text, so the control stays tabbable and announced.
+
+The bracketed counts moved into `title=`, which is what the dashboard does, because Program 2026
+prints no numbers on these words. It also retired a bad comparison: 17 Side Event cards against 79
+Brella sessions are not the same unit, and printing both invited reading one tab as 4x the other.
+To bring numbers back, it is `COUNTS` in lib/eventEmbedSnippet.ts.
+
+Two headings WRAP on a phone rather than becoming a swipeable strip: at 40px a horizontal scroller
+puts half the control off-screen with nothing to say it moves.
+
 ## Session 2026-08-10 (k) · Event Rooms in the pasted embed is the programme board
 
 The embed's two tabs now match the dashboard. Side Events is the Airtable card grid; Event Rooms is
