@@ -8,9 +8,15 @@ reaching the browser.
 
 ### 27 rows written into Marketing Project Overview
 
-Under `Project Name = "Event Room 1"`, `Session Name` = the session title (or "Board Summit" for the
-four people billed on several). 23 Speakers, 4 Moderators. Deduped by name across the 14 sessions:
-Henriette Divert moderates three, Stine Colding Alstrup and Victoria Bager open and close.
+Under `Project Name = "Event Room 1"`, `Session Name = "Board Summit"` on all 27. 23 Speakers,
+4 Moderators. Deduped by name across the 14 sessions: Henriette Divert moderates three, Stine
+Colding Alstrup and Victoria Bager open and close.
+
+They first went in with the individual session title in `Session Name` and Auri had them retitled
+the same day: in a CRM row the useful fact is WHICH PROGRAMME this person belongs to, not which of
+fourteen panels — the panel is already in the Sessions table and a person on three of them cannot be
+one row. Nothing in code reads this field for the Board Summit; the face match keys on `Project
+Name` + `Full Name`, so the rename needed no deploy.
 
 WHY THERE: Brella carries the Board Summit as ONE all-day row in Event Room 1 with **zero speakers
 attached**, and only 2 of the 27 exist anywhere in Brella's 356 speakers (for other sessions). There
