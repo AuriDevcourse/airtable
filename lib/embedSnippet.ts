@@ -1,3 +1,4 @@
+import { endpointDecl } from "@/lib/embedOriginGuard";
 // Single source of truth for the WordPress/Elementor embed snippet. Every feed uses the
 // same card grid (frame, hover glow, per-image shimmer); only two things vary per table:
 //   - path:    which API route to fetch (that's how you target a specific table/role)
@@ -273,7 +274,7 @@ export function buildEmbedSnippet({
 
 <script>
 (function(){
-  var ENDPOINT = "__ORIGIN__${path}";
+${endpointDecl(path, "  ")}
   var STEP = ${loadMore ? String(pageSize) : "1000000"};
   var LOADMORE = ${loadMore ? "true" : "false"};
   var root = document.getElementById("${id}");

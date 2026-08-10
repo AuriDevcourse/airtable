@@ -1,3 +1,4 @@
+import { endpointDecl } from "@/lib/embedOriginGuard";
 // Elementor snippet for the program/agenda — the schedule equivalent of
 // lib/embedSnippet.ts. Fetches /api/program, renders rows: time · type pill · title.
 // Design (Auri, 2026-07-29): glow border around the block, uppercase outlined tags
@@ -138,7 +139,7 @@ export function buildAgendaSnippet({
 
 <script>
 (function(){
-  var ENDPOINT = "__ORIGIN__${path}";
+${endpointDecl(path, "  ")}
   var HEADING = ${JSON.stringify(heading || "")};
   var NOTE = ${JSON.stringify(note || "")};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};

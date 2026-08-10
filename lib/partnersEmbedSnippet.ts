@@ -1,3 +1,4 @@
+import { originDecl } from "@/lib/embedOriginGuard";
 // Self-contained Elementor snippet for the TechBBQ partner logo wall.
 //
 // Same contract as the other builders in this folder: one HTML block with #id-scoped styles
@@ -112,7 +113,7 @@ export function buildPartnersEmbedSnippet({
 (function(){
   var root=document.getElementById("${id}");
   if(!root)return;
-  var ORIGIN="__ORIGIN__";
+${originDecl("  ")}
   var ENDPOINT=ORIGIN+"${path}";
   var ROWS=${JSON.stringify(ROWS)};
   var rowsEl=root.querySelector(".tbbq-pw__rows");

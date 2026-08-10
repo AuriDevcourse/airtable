@@ -1,3 +1,4 @@
+import { originDecl } from "@/lib/embedOriginGuard";
 // Self-contained Elementor snippet for the Intern Pool.
 //
 // Same contract as the other builders in this folder: one HTML block with #id-scoped styles and a
@@ -116,7 +117,7 @@ export function buildInternsEmbedSnippet({
   if(!root||root.dataset.tbbqInit)return;
   root.dataset.tbbqInit="1";
 
-  var ORIGIN="__ORIGIN__";
+${originDecl("  ")}
   var PATH=${JSON.stringify(path)};
   var DEPTS=${JSON.stringify(depts)};
   var status=root.querySelector(".tbbq-ip__status");

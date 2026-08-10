@@ -19,6 +19,7 @@
 // Five columns in 360px is unreadable, and a native select is the one dropdown that behaves
 // correctly inside an arbitrary WordPress theme.
 
+import { originDecl } from "@/lib/embedOriginGuard";
 import {
   BRELLA_SECTIONS,
   roomProgrammes,
@@ -511,7 +512,7 @@ export function buildBrellaEmbedSnippet({
 (function(){
   var root=document.getElementById("${id}");
   if(!root)return;
-  var ORIGIN="__ORIGIN__";
+${originDecl("  ")}
   var ENDPOINT=ORIGIN+"${path}";
   var outEl=root.querySelector(".tbbq-bp__out");
   var pillsEl=root.querySelector(".tbbq-bp__tracks");

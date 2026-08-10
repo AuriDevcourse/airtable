@@ -1,3 +1,4 @@
+import { endpointDecl } from "@/lib/embedOriginGuard";
 // WordPress/Elementor embed snippet for the Side Events & Event Rooms grid.
 //
 // A SEPARATE builder from lib/embedSnippet.ts on purpose. That one renders a person card
@@ -163,7 +164,7 @@ export function buildEventEmbedSnippet({
   var root=document.getElementById("${id}");
   if(!root)return;
   var grid=root.querySelector(".tbbq-ev-grid");
-  var ENDPOINT="__ORIGIN__${path}";
+${endpointDecl(path, "  ")}
   var KINDTABS=${kindTabs ? "true" : "false"};
   /* Pill order is fixed even though the pills themselves are built from the data. */
   var ORDER=[{k:"side-event",label:"Side Events",color:"#CE0F2E"},{k:"event-room",label:"Event Rooms",color:"#1B6CA8"}];

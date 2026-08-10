@@ -1,3 +1,4 @@
+import { originDecl } from "@/lib/embedOriginGuard";
 // The partner wall with the design taken out — for a THIRD PARTY to style themselves.
 //
 // buildPartnersEmbedSnippet() is the TechBBQ-branded wall: fonts, tier colours, a 5:3 tile, the
@@ -80,7 +81,7 @@ ${style}
 (function(){
   var root=document.getElementById("${id}");
   if(!root)return;
-  var ORIGIN="__ORIGIN__";
+${originDecl("  ")}
   var ENDPOINT=ORIGIN+"${path}";
   var TIER_ORDER=${JSON.stringify(TIER_ORDER)};
   var GROUP_BY_TIER=${tiers ? "true" : "false"};
