@@ -96,24 +96,29 @@ export function buildEventEmbedSnippet({
 
   const tabsStyles = kindTabs
     ? `
-  #${id} .tbbq-ev-tabs{display:flex!important;justify-content:center!important;margin:0 0 24px!important;padding:0!important;width:100%!important}
-  /* radius 22px, not 9999px: one 36px row still reads as a pill, but a wrapped block with a
-     9999px radius renders as a giant ellipse (exactly what the team pills did on mobile). */
-  #${id} .tbbq-ev-tabs__pills{display:inline-flex!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;justify-content:center!important;border-radius:22px!important;background:#131313!important;padding:4px!important;margin:0 auto!important;max-width:100%!important;box-shadow:none!important}
-  #${id} .tbbq-ev-tabs button{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;height:36px!important;line-height:1!important;padding:0 16px!important;margin:0!important;border:0!important;border-radius:9999px!important;background:transparent!important;color:#9a9a9c!important;font-family:var(--head)!important;font-size:14px!important;font-weight:500!important;letter-spacing:normal!important;text-transform:none!important;text-decoration:none!important;box-shadow:none!important;cursor:pointer!important;transition:color .15s,background .15s}
-  #${id} .tbbq-ev-tabs button:hover{color:#f2f2f2!important;background:transparent!important}
-  /* The selected pill takes that KIND's colour (red / blue); "All" falls back to white. */
-  #${id} .tbbq-ev-tabs button[aria-selected="true"]{background:var(--pill,#f2f2f2)!important;color:#fff!important}
-  #${id} .tbbq-ev-tabs button[aria-selected="true"][data-k="all"]{background:#f2f2f2!important;color:#0d0d0d!important}
-  #${id} .tbbq-ev-tabs__dot{display:inline-block!important;width:7px!important;height:7px!important;border-radius:9999px!important;margin:0 7px!important;vertical-align:middle!important}
-  #${id} .tbbq-ev-tabs button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:2px}
-  /* Mobile: one swipeable line. justify-content MUST return to flex-start — a centered
-     overflowing strip clips its first pills with no way to scroll back to them. */
+  /* THE PAGE'S MASTHEAD, NOT A PILL ROW. Ported from .bp-sections in app/globals.css, which is
+     the control Program 2026 uses for Stages / Event Rooms / Grill Sessions / Side Events. The
+     embed kept the small dark pills long after the dashboard moved on, and that is what still
+     made the two read as different products (Auri, 2026-08-10: "missing the top word").
+     Buttons, not styled text: this is the primary control, so it stays tabbable and announced.
+     The unselected one reads as a muted heading, which IS the look. */
+  #${id} .tbbq-ev-tabs{display:flex!important;justify-content:center!important;margin:0!important;padding:0!important;width:100%!important;background:none!important}
+  #${id} .tbbq-ev-tabs__pills{display:flex!important;flex-wrap:wrap!important;align-items:baseline!important;justify-content:center!important;gap:8px 28px!important;margin:8px 0 24px!important;padding:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;max-width:100%!important}
+  /* clamp() so the heading scales with the column it lands in: a real Elementor container is
+     narrower than any local preview, and a fixed 40px broke mid-word there. */
+  #${id} .tbbq-ev-tabs button{display:inline!important;width:auto!important;min-width:0!important;height:auto!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;cursor:pointer!important;font-family:var(--head)!important;font-size:clamp(26px,4.2vw,40px)!important;font-weight:600!important;letter-spacing:-.02em!important;line-height:1.1!important;text-transform:none!important;text-decoration:none!important;color:var(--muted)!important;transition:color .18s ease}
+  #${id} .tbbq-ev-tabs button:hover{color:var(--fg)!important;background:none!important}
+  #${id} .tbbq-ev-tabs button[aria-selected="true"]{color:var(--fg)!important;background:none!important}
+  #${id} .tbbq-ev-tabs button:focus-visible{outline:2px solid #ce0f2e!important;outline-offset:4px}
+  /* Sized in em off the heading so it scales with the clamp() instead of becoming a speck at
+     40px. Left of Side Events, right of Event Rooms: the outer edge of the pair. */
+  #${id} .tbbq-ev-tabs__dot{display:inline-block!important;width:.30em!important;height:.30em!important;border-radius:50%!important;margin:0 .34em!important;vertical-align:.28em!important}
+  /* A muted heading must not carry a shouting dot. */
+  #${id} .tbbq-ev-tabs button:not([aria-selected="true"]) .tbbq-ev-tabs__dot{opacity:.45!important}
+  /* Two headings WRAP on a phone rather than becoming a swipeable strip: at this size a
+     horizontal scroller puts half the control off-screen with nothing to say it moves. */
   @media(max-width:600px){
-    #${id} .tbbq-ev-tabs{margin:0 0 16px!important;justify-content:flex-start!important}
-    #${id} .tbbq-ev-tabs__pills{display:flex!important;flex-wrap:nowrap!important;justify-content:flex-start!important;overflow-x:auto!important;overscroll-behavior-x:contain;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:22px!important;width:100%!important}
-    #${id} .tbbq-ev-tabs__pills::-webkit-scrollbar{display:none}
-    #${id} .tbbq-ev-tabs button{flex:0 0 auto!important;scroll-snap-align:start}
+    #${id} .tbbq-ev-tabs__pills{gap:2px 18px!important;margin:4px 0 18px!important}
   }`
     : "";
 
@@ -366,10 +371,16 @@ ${endpointDecl(path, "  ")}
         pills.innerHTML=defs.map(function(d,i){
           var n=COUNTS[d.k];
           if(n==null&&BOARD&&d.k==="event-room")n=boardTotal();
+          /* THE COUNT RIDES IN title=, NOT IN THE HEADING. Program 2026 prints no numbers on
+             these words and the dashboard follows it, so a bracketed count here would be the
+             one thing left making the embed look like a different product. It also retires an
+             awkward comparison: 17 Side Event cards against 79 Brella SESSIONS are not the
+             same unit, and printing both invited the reading that one tab has 4x the other. */
           var dot='<span class="tbbq-ev-tabs__dot" style="background:'+d.color+'" aria-hidden="true"></span>';
           return '<button type="button" role="tab" data-k="'+d.k+'" aria-selected="'+(d.k===active?"true":"false")+'"'
+            +(n==null?'':' title="'+esc(n+" "+d.label.toLowerCase())+'"')
             +' style="--pill:'+d.color+'">'
-            +(i===0?dot:'')+esc(d.label)+(n==null?'':' ('+n+')')+(i===0?'':dot)+'</button>';
+            +(i===0?dot:'')+esc(d.label)+(i===0?'':dot)+'</button>';
         }).join("");
       }
       /* One place decides what each tab shows, so the pills, the grid and the board cannot
