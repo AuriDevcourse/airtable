@@ -68,6 +68,43 @@ Mårten Skogh's title was never wrong. chalmersnextlabs.se says "Head of Quantum
 "Head of Quantum Technology". My earlier "sources say Development Engineer" flag was stale search
 data - disregard it.
 
+### The two stuck rows, chased properly this time via the SOURCE submission
+Went back to the Grill submission form (`Partnership Success` / `viwmxcuIN0SFe2tkF`) instead of
+searching the web again, which settled both:
+
+- **Yuval Temam** - the submission says Lighthouse Lab "helps business validate and audit AI
+  systems". That is AI assurance, so the one public "Yuval Temam" profile in the Netherlands -
+  headline **SES**, the satellite operator - is almost certainly a DIFFERENT PERSON. Positive
+  evidence against the match, not just absent evidence for it. Do not write it. "Lighthouse Lab"
+  in that sense has no findable public web presence at all.
+- **Maarten Kas** - Remotik "assists companies in securely managing and protecting their systems
+  from one dashboard". Confirms the role, but Remotik has no reachable public site (remotik.nl does
+  not resolve) and no team page anywhere. His only public presence is LinkedIn.
+
+**Both are the same phone call.** That session was submitted by **atle.sommer@minbuza.nl** - the
+Dutch Ministry of Foreign Affairs - who is the single contact for all five Dutch presenters
+(Yuval Temam, Raymond Alves, Rogier Brakshoofden, Maarten Kas, Laurie Lancee). One email covers
+both remaining gaps.
+
+### A MISSING PERSON, which matters more than the two photos
+**Rune Theill (CEO & Co-founder, Rockstart) moderates TWO Grill Sessions and has no row anywhere.**
+He is named only in the Session Description prose - "moderated by CEO of Rockstart, Rune Theill" -
+and the 2026-08-08 import only parsed the `1st..5th Presenter details` fields. That session's own
+note predicted exactly this ("moderators named only in description prose are not caught").
+
+Sessions: "Discover Dutch Tech - Science, Circularity and Security" and "Discover Dutch Tech -
+Navigating Security, Infrastructure and Capital".
+
+He is fully researched - handle `/in/runetheill` (the only Rune/Theill LinkedIn URL on
+rockstart.com/team, with Crunchbase and The Org both naming him Co-founder & CEO) and a confirmed
+portrait on Rockstart's own team page. `grill-add-moderator.mjs` will create him and **refuses to
+run without `--mode=`**, because there is a real decision to make: every existing row carries ONE
+Session Name and he moderates two, so it is either two rows or one. Not guessed on purpose.
+Also verify the `Project Name` stage colour in that file before committing.
+
+Worth re-running that prose scan against the OTHER event tables - if the Grill import missed a
+moderator this way, the Event Room and side-event imports probably did too.
+
 ### What is actually left: two rows, both blocked
 - **Maarten Kas** - photo only. No public portrait outside LinkedIn; remotik.nl does not resolve,
   and the EDIH / Enterprise Europe Network pieces that confirm "Maarten Kas, CEO van Remotik" carry
