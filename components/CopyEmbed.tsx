@@ -23,7 +23,8 @@ export function CopyEmbed({
   tagTabs,
   tabs,
   label,
-}: EmbedOptions & { label?: string }) {
+  className,
+}: EmbedOptions & { label?: string; className?: string }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
@@ -40,7 +41,7 @@ export function CopyEmbed({
   }
 
   return (
-    <button type="button" className="copy-embed" onClick={copy}>
+    <button type="button" className={"copy-embed" + (className ? " " + className : "")} onClick={copy}>
       {copied ? "Copied" : label || "Copy embed code"}
     </button>
   );

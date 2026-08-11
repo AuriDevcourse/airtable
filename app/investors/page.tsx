@@ -137,12 +137,38 @@ function InvestorsView() {
           </div>
 
           <div style={{ marginTop: 20, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {/* Mobile defaults to the list-rows layout for every filter. */}
-            <CopyEmbed path={base} listKey="people" shuffle />
+            {/* Mobile defaults to the list-rows layout for every filter. `key` forces a fresh
+                CopyEmbed per tab so its internal "Copied" state cannot carry over and claim the
+                previous filter's snippet was the one copied. */}
+            <CopyEmbed key={event} path={base} listKey="people" shuffle />
             <CopyApiSnippet feed="investor-speakers" label="Copy API code" />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet for the current filter (<code>{eventLabel(event)}</code>).
             </span>
+          </div>
+
+          {/* One button per event, so any single event's snippet can be grabbed without
+              switching tabs to it first — three events means three separate Elementor widgets
+              on techbbq.dk, and switching tab / copy / switch back for each was the slow way.
+              Each button carries its OWN path, so what it copies is fixed by the button and not
+              by whichever tab happens to be active. Secondary styling: the gradient button above
+              stays the primary action. */}
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span className="lede" style={{ margin: 0, fontSize: 13 }}>
+              Or copy one event directly:
+            </span>
+            {EVENTS.map((e) => (
+              <CopyEmbed
+                key={e}
+                path={
+                  e === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${e}`
+                }
+                listKey="people"
+                shuffle
+                className="copy-embed--api"
+                label={eventLabel(e)}
+              />
+            ))}
           </div>
 
           <div style={{ marginTop: 14 }}>
