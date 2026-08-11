@@ -192,12 +192,23 @@ function noContractTier(company: string): string | null {
 // silently matches nothing and drops the partner off the wall entirely, since it has no deal tier to
 // fall back to.
 //
+// Humandone — Challenger, by Auri's explicit call (2026-08-11). They built the TechBBQ website, and
+// that work was never invoiced: `Deal 2026 inc. VAT %` on `recAbOhyaZ0HV5pAj` is 0, as is every
+// other year, so the deal-size formula resolves them to Community and can never say anything else.
+// Their `Partnership Type 2026` reads "Community Challenger Partnership" and the view's own column
+// says Challenger — the same judgement, recorded where the wall stopped reading on 2026-08-05.
+//
+// NOTE THIS IS NOT A NO_CONTRACT_TIERS CASE, despite there being no contract. That table only fills
+// a MISSING tier, and Humandone's is not missing: the formula produces "Community" from a zero deal.
+// Overriding a resolved tier is the stronger claim, so the entry belongs here, under the bar below.
+//
 // THE BAR FOR ADDING HERE: the deal cannot express the tier, not the deal disagrees with someone.
 // If Skytek's deal is ever priced, delete this entry — the deal wins.
 const TIER_EXCEPTIONS: Record<string, string> = {
   "skytek nordics aps": "Core",
   "industriens fond": "Prime",
   "erhvervsfremmebestyrelsen": "Prime",
+  humandone: "Challenger",
 };
 
 function tierException(company: string): string | null {
