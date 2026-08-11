@@ -547,6 +547,12 @@ ${originDecl("  ")}
   /* One column to spare, so the two days sit side by side instead of behind a switcher. Only a
      single-stage snippet does this; the five-stage board already spends its width on stages. */
   var SPLIT_DAYS=${single ? "true" : "false"};
+  /* A ONE-DAY PROGRAMME HAS NOTHING TO SPLIT. Deep Tech Event Day is Event Room 6 on 26 August
+     and nothing else, so the split above would spend half the embed on a column reading
+     "Nothing on this day", and the day pills on a phone would offer a day that is empty
+     (Auri, 2026-08-11). Set from the DATA after load, never hardcoded: the day a room gains a
+     second day it goes back to splitting on its own. -1 means "more than one day". */
+  var ONE_DAY=-1;
   var COLDEFS=${JSON.stringify(isAll ? columnsBySection["stages"] : columns)};
   var STYLES=${JSON.stringify(TRACK_STYLES)};
   var SECTION_COLORS=${JSON.stringify(SECTION_COLORS)};
@@ -807,6 +813,24 @@ ${originDecl("  ")}
     return (n.getMonth()===d.monthDay[0]&&n.getDate()>=d.monthDay[1])?1:0;
   }
 
+  /* Which event days this snippet's single column actually has sessions on. Only meaningful in
+     single-column mode, which is the only mode that can be a one-day programme. */
+  function daysWithSessions(){
+    var stage=COLS.length?COLS[0].label:"",out=[];
+    for(var i=0;i<EVENT_DAYS.length;i++){
+      var date=EVENT_DAYS[i].date;
+      for(var j=0;j<ALL.length;j++){
+        var s=ALL[j];
+        if(String(s.day||"").indexOf(date)>=0&&(columnOf(s.room)||s.room)===stage){out.push(i);break;}
+      }
+    }
+    return out;
+  }
+  /* Are the two days being drawn side by side right now? Not on a phone, and not when there is
+     only one day to draw. Every day-aware branch below asks this rather than SPLIT_DAYS, so the
+     three of them cannot disagree about what the board is showing. */
+  function splitting(){return SPLIT_DAYS&&!narrow&&ONE_DAY<0;}
+
   /* ── TIMELINE ── */
   function renderTimeline(){
     var date=EVENT_DAYS[dayIdx]?EVENT_DAYS[dayIdx].date:"";
@@ -815,7 +839,7 @@ ${originDecl("  ")}
        is how a two-day programme is read (Auri, 2026-08-04). Not on a phone: two columns in
        360px is the unreadability the five-stage board already avoids, so there the day pills come
        back and it shows one day at a time. */
-    var SPLIT=SPLIT_DAYS&&!narrow;
+    var SPLIT=splitting();
     var cols,colKey;
     if(SPLIT){
       cols=EVENT_DAYS.map(function(d){return d.label;});
@@ -898,9 +922,16 @@ ${originDecl("  ")}
         /* A day column has no track name to draw an icon from, so it prints the day and its date;
            the date is inline-styled rather than classed because a theme cannot lose an inline
            style (the same reasoning as the geometry below). */
+        /* A ONE-DAY BOARD SAYS WHEN. It has neither day columns nor day pills, so without this
+           the date is nowhere on the embed at all — and "Event Room 6" alone does not tell a
+           reader on techbbq.dk which of the two days to turn up (Auri, 2026-08-11). */
+        var when=(!SPLIT&&ONE_DAY>=0&&EVENT_DAYS[ONE_DAY])
+          ? '<span style="opacity:.62;font-weight:500;font-size:12px;margin-left:7px">'
+            +esc(EVENT_DAYS[ONE_DAY].label+" · "+EVENT_DAYS[ONE_DAY].date)+'</span>'
+          : '';
         var inner=SPLIT
           ? '<span>'+esc(c)+'</span><span style="opacity:.62;font-weight:500;font-size:12px;margin-left:7px">'+esc((EVENT_DAYS[i]||{}).date||"")+'</span>'
-          : iconFor(c)+'<span>'+esc(c)+'</span>';
+          : iconFor(c)+'<span>'+esc(c)+'</span>'+when;
         /* The heading row is the one part of the board always on screen — the timeline is tall
            and scrolls sideways on a phone — so a match far down a column you are not looking at
            is otherwise invisible. */
@@ -1192,7 +1223,7 @@ ${originDecl("  ")}
     for(i=0;i<ALL.length;i++){
       var s=ALL[i];
       if(!matchesQ(s))continue;
-      if(IS_TL&&!SPLIT_DAYS){var date=(EVENT_DAYS[dayIdx]||{}).date||"";if(String(s.day).indexOf(date)<0)continue;}
+      if(IS_TL&&!splitting()){var date=(EVENT_DAYS[dayIdx]||{}).date||"";if(String(s.day).indexOf(date)<0)continue;}
       n++;
     }
     hintEl.textContent=n>0
@@ -1205,11 +1236,15 @@ ${originDecl("  ")}
      without warning. Rooms only: a stage is a named programme and the tag adds little. */
   function renderTags(){
     if(!tagsEl)return;
-    if(SECTION!=="rooms"){tagsEl.hidden=true;tagRowEl.innerHTML="";TAGS=[];return;}
+    /* NOT ON A SINGLE-ROOM EMBED (Auri, 2026-08-11). The tags are for choosing between rooms;
+       once the snippet IS one room running one programme, a chip row above it is a filter over
+       a list you can already read end to end, and it competes with the one thing the board has
+       to say — which room, and which day. */
+    if(SECTION!=="rooms"||SPLIT_DAYS){tagsEl.hidden=true;tagRowEl.innerHTML="";TAGS=[];return;}
     var date=(EVENT_DAYS[dayIdx]||{}).date||"",counts={},order=[],i,j;
     for(i=0;i<ALL.length;i++){
       var s=ALL[i];
-      if(IS_TL&&!SPLIT_DAYS&&String(s.day||"").indexOf(date)<0)continue;
+      if(IS_TL&&!splitting()&&String(s.day||"").indexOf(date)<0)continue;
       /* columnOf, not colKey: colKey is a local of renderTimeline and invisible here. Reaching
          for it threw a ReferenceError that aborted the pill handler before render() ran, so
          choosing a room appeared to do nothing at all. */
@@ -1264,7 +1299,9 @@ ${originDecl("  ")}
       if(!row)return;
       searchEl.value=row.getAttribute("data-name")||"";
       var days=(row.getAttribute("data-days")||"").split("|");
-      if(IS_TL&&!(SPLIT_DAYS&&!narrow)){
+      /* ONE_DAY: there is no other day to be sent to, so the switch is skipped rather than
+         quietly leaving dayIdx pointing at a day this board does not draw. */
+      if(IS_TL&&!splitting()&&ONE_DAY<0){
         var here=(EVENT_DAYS[dayIdx]||{}).date||"",onThisDay=false,i;
         for(i=0;i<days.length;i++)if(here&&days[i].indexOf(here)>=0)onThisDay=true;
         if(!onThisDay){
@@ -1435,8 +1472,9 @@ ${originDecl("  ")}
         fillPicker("Stage","",[]);
       }
       /* Both days are already columns in split mode, so a day switcher would switch nothing.
-         On a phone split mode is off and these come back. */
-      daysEl.innerHTML=(SPLIT_DAYS&&!narrow)?"":EVENT_DAYS.map(function(d,i){
+         On a phone split mode is off and these come back — unless the programme runs on ONE
+         day, where a two-tab switcher offers a tab that is empty by definition. */
+      daysEl.innerHTML=(splitting()||ONE_DAY>=0)?"":EVENT_DAYS.map(function(d,i){
         return '<button type="button" role="tab" aria-selected="'+(i===dayIdx)+'" data-d="'+i+'">'
           +'<span class="tbbq-bp__dnum">'+esc(d.label)+'</span>'
           +'<span class="tbbq-bp__ddate">'+esc(d.date)+'</span></button>';
@@ -1529,6 +1567,12 @@ ${originDecl("  ")}
     }
     if(!ALL.length&&!IS_ALL){outEl.innerHTML='<p class="tbbq-bp__empty">No sessions to show yet.</p>';return;}
     dayIdx=defaultDay();
+    /* Before the controls are built, since it decides whether they carry day pills at all. */
+    if(SPLIT_DAYS){
+      var ds=daysWithSessions();
+      ONE_DAY=(ds.length===1)?ds[0]:-1;
+      if(ONE_DAY>=0)dayIdx=ONE_DAY;
+    }
     buildSectionControls();
     wireControls();
     syncNarrow();

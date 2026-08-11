@@ -548,6 +548,13 @@ export default function BrellaProgramPage() {
   const [tags, setTags] = useState<string[]>([]);
   // Which stage column set to show. "" = all five.
   const [stage, setStage] = useState("");
+  // Picking a column also drops any chosen topics. The topic filter is hidden on a single
+  // column, so a tag left on from the whole-board view would go on dimming cards with nothing
+  // on screen to say why or to turn it off.
+  const changeStage = useCallback((s: string) => {
+    setStage(s);
+    setTags([]);
+  }, []);
   // Side Events is filtered by day rather than by track. Declared up here with the other
   // state because the `days` memo below reads it.
   const [sideDay, setSideDay] = useState("");
@@ -679,6 +686,34 @@ export default function BrellaProgramPage() {
     [columnSet, stage]
   );
 
+  // WHICH DAYS THE CHOSEN COLUMN ACTUALLY RUNS ON. Only meaningful once one column is picked:
+  // the whole-board view always spans both days. Deep Tech Event Day is Event Room 6 on 26
+  // August and nothing else, so a DAY 2 tab there is a tab onto an empty board (Auri,
+  // 2026-08-11). Derived from the data, so a room that gains a second day gets its tab back
+  // without an edit here.
+  const columnDays = useMemo(() => {
+    const every = EVENT_DAYS.map((_, i) => i);
+    if (!columnSet || !stage) return every;
+    const has = every.filter((i) =>
+      all.some(
+        (s) =>
+          inBrellaSection(s, section) &&
+          s.day.includes(EVENT_DAYS[i].date) &&
+          (columnOf(s.room, columnSet) ?? s.room) === stage
+      )
+    );
+    // A column with nothing on it at all keeps both tabs rather than showing none: an empty
+    // board with a day on it reads as "nothing scheduled", an empty board with no day reads
+    // as broken.
+    return has.length ? has : every;
+  }, [all, section, columnSet, stage]);
+
+  // Follow the column onto a day it actually runs. Without this, picking Event Room 6 on the
+  // 27th leaves dayIdx on DAY 2, whose tab has just disappeared, and the board goes blank.
+  useEffect(() => {
+    if (!columnDays.includes(dayIdx)) setDayIdx(columnDays[0]);
+  }, [columnDays, dayIdx]);
+
   const timelineSessions = useMemo(() => {
     if (!columnSet) return [];
     const date = EVENT_DAYS[dayIdx].date;
@@ -714,6 +749,9 @@ export default function BrellaProgramPage() {
     () => (tags.length ? timelineSessions.filter((s) => matchesTags(s, tags)).length : timelineSessions.length),
     [timelineSessions, tags]
   );
+
+  // The topic filter, and with it the speaker box's hint line, which is rendered inside it.
+  const showTags = tagCounts.length > 0 && !stage;
 
   const terms = useMemo(() => searchTerms(q), [q]);
   // Counted over what is CURRENTLY ON SCREEN, so "0 sessions" is answerable: the speaker is
@@ -825,7 +863,11 @@ export default function BrellaProgramPage() {
                 key={stage}
                 section={section}
                 stage={stage}
-                label={`Copy embed (${stage})`}
+                // The programme, when the column has one. "Copy embed (Event Room 6)" is the
+                // right snippet under a name nobody uses — the page it is going on is about
+                // Deep Tech Event Day, and that is what has to be on the button (Auri,
+                // 2026-08-11). Room number kept alongside it: it is what the pill above says.
+                label={`Copy embed (${[stage, ...roomProgrammes(stage)].join(" · ")})`}
               />
             )}
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
@@ -882,7 +924,7 @@ export default function BrellaProgramPage() {
               <>
                 <div className="bp-controls">
                 <div className="seg bp-tracks bp-tracks--center" role="tablist" aria-label="Filter by column">
-                  <button role="tab" aria-selected={stage === ""} onClick={() => setStage("")}>
+                  <button role="tab" aria-selected={stage === ""} onClick={() => changeStage("")}>
                     {section === "grills"
                       ? "All Grill Sessions"
                       : section === "rooms"
@@ -894,7 +936,7 @@ export default function BrellaProgramPage() {
                       key={c.label}
                       role="tab"
                       aria-selected={stage === c.label}
-                      onClick={() => setStage(c.label)}
+                      onClick={() => changeStage(c.label)}
                     >
                       {c.label}
                     </button>
@@ -902,7 +944,9 @@ export default function BrellaProgramPage() {
                 </div>
 
                 <div className="seg bp-days" role="tablist" aria-label="Event day">
-                  {EVENT_DAYS.map((d, i) => (
+                  {columnDays.map((i) => EVENT_DAYS[i]).map((d, n) => {
+                    const i = columnDays[n];
+                    return (
                     <button
                       key={d.date}
                       role="tab"
@@ -919,7 +963,8 @@ export default function BrellaProgramPage() {
                         <span className="bp-days__badge">{dayMatches[i]}</span>
                       )}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
                 </div>
 
@@ -931,14 +976,20 @@ export default function BrellaProgramPage() {
                   onPick={pickSpeaker}
                   // The hint moves down to the topic block below. Kept here only when there is
                   // no topic block to move it into, which is Side Events: it carries no tags.
-                  showHint={tagCounts.length === 0}
+                  showHint={!showTags}
                 />
 
                 {/* TAG FILTER. On every board that has tags, not just Event Rooms as before
                     (Auri, 2026-08-10). The old row-of-every-chip was too heavy for the stages
                     board; a type-to-complete box is not, and "show me the FinTech sessions"
-                    is a fair question to ask of any of them. */}
-                {tagCounts.length > 0 && (
+                    is a fair question to ask of any of them.
+
+                    GONE ONCE ONE COLUMN IS CHOSEN (Auri, 2026-08-11). Topics are how you choose
+                    BETWEEN rooms; on a single room running a single programme they filter a list
+                    short enough to read straight through, and they crowd out the two facts the
+                    board exists to state — which room, and which day. This mirrors the embed,
+                    where a single-column snippet drops them for the same reason. */}
+                {showTags && (
                   <TagSearch
                     counts={tagCounts}
                     chosen={tags}
