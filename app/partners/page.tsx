@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
@@ -83,15 +83,41 @@ function Mark({ p }: { p: Partner }) {
 }
 
 function LogoWall({ items }: { items: Partner[] }) {
-  // A wide logo is a STRIP of several marks (the EU co-funding frieze is 13:1). It spans the
-  // whole row and goes first, which is both how techbbq.dk shows it and the only way it stays
-  // legible: dropped into a normal 5:3 cell it would render at a fraction of the height.
+  // ORDER WITHIN A BAND IS RANDOM, re-rolled per page load — the same approach as the speaker
+  // pages. The feed arrives alphabetically, which meant the same handful of companies owned the
+  // top-left of their band on every render forever: a ranking inside a tier that nobody agreed
+  // to and that the tier itself is supposed to express.
   //
-  // Anything unfinished sorts LAST inside its band, so each row reads as the live wall first and
-  // the to-do list after it.
-  const ordered = [...items].sort(
-    (a, b) => Number(!!b.wide) - Number(!!a.wide) || Number(!!a.pending) - Number(!!b.pending)
-  );
+  // The seed is fixed for this mount, so a background revalidation cannot reshuffle the wall
+  // under the reader's eyes mid-scroll.
+  //
+  // CLIENT-SIDE ON PURPOSE — shuffling in the feed instead would be defeated by caching, twice
+  // over: the response is memoised server-side and CDN-cached, so everyone inside one cache
+  // window would get the SAME "random" order; and useCachedList compares the fetched JSON as a
+  // STRING, so a reshuffled payload reads as changed and every revalidation would repaint the
+  // wall and light up the "updated" badge over an unchanged partner list.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const ordered = useMemo(() => {
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    const arr = [...items];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    // Shuffle THEN sort, because Array.sort is stable: both rules below still hold exactly, and
+    // only the ties between them — which is most of the band — come out random.
+    //
+    // A wide logo is a STRIP of several marks (the EU co-funding frieze is 13:1). It spans the
+    // whole row and goes first, which is both how techbbq.dk shows it and the only way it stays
+    // legible: dropped into a normal 5:3 cell it would render at a fraction of the height.
+    //
+    // Anything unfinished sorts LAST inside its band, so each row reads as the live wall first
+    // and the to-do list after it.
+    return arr.sort(
+      (a, b) => Number(!!b.wide) - Number(!!a.wide) || Number(!!a.pending) - Number(!!b.pending)
+    );
+  }, [items, seed]);
   return (
     <div className="lw-grid lw-grid--fixed">
       {ordered.map((p) =>

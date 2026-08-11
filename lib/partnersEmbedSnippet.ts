@@ -237,7 +237,16 @@ ${originDecl("  ")}
     rowsEl.innerHTML=ROWS.map(function(row){
       /* One tier per partner, unlike the Life Science wall where LS Type is a multi-select. */
       var items=all.filter(function(s){return s.tier===row.name&&safeUrl(s.logo);});
-      /* A row-spanning frieze goes FIRST, matching the dashboard and techbbq.dk. Anywhere
+      /* RANDOM ORDER WITHIN THE BAND, re-rolled on every page load. The feed is alphabetical,
+         so without this the same companies sat top-left of their tier on every visit — a
+         ranking inside a tier that the tier is already there to express. Fisher-Yates over one
+         band (62 at the largest), once, and it runs here rather than in the feed because the
+         feed is CDN-cached: shuffling there would hand every visitor in a cache window the
+         same "random" order. */
+      for(var i=items.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=items[i];items[i]=items[j];items[j]=t;}
+      /* Shuffle THEN sort — Array.sort is stable, so the rule below still holds exactly and
+         only the ties, which is the whole band, stay random.
+         A row-spanning frieze goes FIRST, matching the dashboard and techbbq.dk. Anywhere
          else it would cut the grid in half and strand the tiles after it. */
       items.sort(function(a,b){return (b.wide?1:0)-(a.wide?1:0);});
       /* SKIP an empty tier. The dashboard drops rows with no partners, and without this the

@@ -131,6 +131,15 @@ ${originDecl("  ")}
     if(!all.length){statusEl.textContent="No partners to show yet.";return;}
     statusEl.remove();
 
+    /* RANDOM ORDER WITHIN A TIER, re-rolled on every page load. The feed is alphabetical, so
+       without this the same companies led their tier on every visit. Shuffled ONCE here, before
+       either mode runs, because every sort downstream is stable and therefore preserves this as
+       the tie-break: the flat mode's tier sort keeps it inside each tier, the grouped mode's
+       per-tier filter keeps it as-is, and list()'s wide-first sort only lifts the frieze. It
+       runs here rather than in the feed because the feed is CDN-cached — shuffling there would
+       give every visitor in a cache window the same "random" order. */
+    for(var i=all.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=all[i];all[i]=all[j];all[j]=t;}
+
     if(!GROUP_BY_TIER){
       /* Flat list, still in tier order: highest tier first is the only ranking left once the
          headings are gone. list() then lifts the wide strip to the front, so it can lead the
