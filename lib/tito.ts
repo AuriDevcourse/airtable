@@ -23,10 +23,16 @@ const API = "https://api.tito.io/v3";
 const ACCOUNT = "techbbq";
 
 // The events a lookup covers. A ticket holder writing in could hold any of these, and
-// the answer changes per event, so all four are searched and every hit says which one.
+// the answer changes per event, so every one is searched and every hit says which one.
 // Add a slug here when a new Tito event opens.
+// A MISSING SLUG IS A SILENT WRONG ANSWER, not an error: the other events are searched, nothing
+// matches, and support tells a real ticket holder they have no ticket. `investor-day-2026` was
+// absent here until 2026-08-11 while holding 227 tickets. Check this list against
+// `GET /v3/techbbq/events` whenever a new event opens, and note that Tito's slug and its title
+// differ (slug `investor-dinner-2026` is titled "TechBBQ Investor x Founder Dinner").
 export const TITO_EVENTS: { slug: string; label: string }[] = [
   { slug: "2026", label: "TechBBQ 2026" },
+  { slug: "investor-day-2026", label: "Investor Day 2026" },
   { slug: "lp-forum-2026", label: "LP Forum 2026" },
   { slug: "lp-dinner-2026", label: "LP Dinner 2026" },
   { slug: "investor-dinner-2026", label: "Investor Dinner 2026" },

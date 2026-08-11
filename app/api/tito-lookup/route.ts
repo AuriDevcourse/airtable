@@ -11,7 +11,9 @@ import { rateLimit } from "@/lib/rate-limit";
 // Tito rows contain attendee email addresses. Keep it that way.
 
 export const dynamic = "force-dynamic";
-// Four Tito events are searched in parallel, each with a 12s budget.
+// Every event in TITO_EVENTS is searched in parallel, each with its own 12s budget, so the wall
+// clock is one search rather than the sum. Deliberately not a count: this said "Four" while the
+// list held four and stayed wrong when the fifth was added.
 export const maxDuration = 20;
 
 export async function GET(req: NextRequest) {
