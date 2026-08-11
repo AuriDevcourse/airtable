@@ -196,33 +196,74 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     throw new BrellaError("Brella env var is not set on the server (BRELLA_API_KEY).", 503);
   }
 
-  // One call returns the schedule plus its tracks and tags via `included`.
-  const params = new URLSearchParams();
-  params.set("page[size]", "500");
-
-  const res = await fetchWithTimeout(
-    `${API}/organizations/${ORG_ID}/events/${EVENT_ID}/timeslots?${params.toString()}`,
-    {
-      headers: {
-        "Brella-API-Access-Token": key,
-        Accept: "application/vnd.brella.v4+json",
-      },
-      cache: "no-store",
-    },
-    TIMEOUT_MS
-  );
-
-  if (!res.ok) {
-    console.error("[brella-program] fetch failed", res.status);
-    throw new BrellaError("Could not reach the Brella program.", 502);
-  }
-
-  const body = (await res.json()) as { data?: RawTimeslot[]; included?: Resource[] };
-  const rows = Array.isArray(body.data) ? body.data : [];
-
-  // included is a flat list of every related record; index it by type + id.
+  // PAGED, because a single call silently truncates. This used to be one request with
+  // `page[size]=500` and no loop: fine at 281 timeslots, but the 501st would have vanished with no
+  // error anywhere — the feed would just be short, which nobody would notice until a session was
+  // missing from techbbq.dk. Brella honours page sizes up to at least 500 and reports
+  // `meta.total_pages`, so the loop below asks for 500 at a time and today still finishes in ONE
+  // request, exactly as before.
+  //
+  // `included` DIFFERS PER PAGE (page 1 carried 344 related records, page 2 360, page 3 252) and the
+  // union across pages is what the single big call returned. So every page's `included` is merged
+  // into one index before anything is resolved — indexing only the last page would leave most
+  // timeslots without their track, tags or speakers.
+  const rows: RawTimeslot[] = [];
   const byId = new Map<string, Resource>();
-  for (const inc of body.included ?? []) byId.set(`${inc.type}:${inc.id}`, inc);
+
+  // Brella answers a page past the end with 200 and an empty `data`, so the loop has a natural
+  // terminator. This cap is the backstop against a paginator that never says "done": at 500 a page
+  // it allows 20,000 timeslots, far past any real event.
+  const PAGE_SIZE = 500;
+  const MAX_PAGES = 40;
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const params = new URLSearchParams();
+    params.set("page[size]", String(PAGE_SIZE));
+    params.set("page[number]", String(page));
+
+    const res = await fetchWithTimeout(
+      `${API}/organizations/${ORG_ID}/events/${EVENT_ID}/timeslots?${params.toString()}`,
+      {
+        headers: {
+          "Brella-API-Access-Token": key,
+          Accept: "application/vnd.brella.v4+json",
+        },
+        cache: "no-store",
+      },
+      TIMEOUT_MS
+    );
+
+    if (!res.ok) {
+      // Throws on ANY page, including a later one. A partial programme is worse than an error: the
+      // page would render as if complete while missing sessions, and the cache would then hold that
+      // short version for its whole TTL.
+      console.error("[brella-program] fetch failed", res.status, "page", page);
+      throw new BrellaError("Could not reach the Brella program.", 502);
+    }
+
+    const body = (await res.json()) as {
+      data?: RawTimeslot[];
+      included?: Resource[];
+      meta?: { total_pages?: unknown };
+    };
+    const batch = Array.isArray(body.data) ? body.data : [];
+    rows.push(...batch);
+    // Later pages win on a duplicate key, which is harmless: the same record repeated across pages
+    // is the same record.
+    for (const inc of body.included ?? []) byId.set(`${inc.type}:${inc.id}`, inc);
+
+    // Stop on the first short or empty page. `total_pages` is checked too, so a full last page
+    // that happens to divide exactly does not cost a wasted extra request.
+    const totalPages = typeof body.meta?.total_pages === "number" ? body.meta.total_pages : null;
+    if (batch.length < PAGE_SIZE) break;
+    if (totalPages !== null && page >= totalPages) break;
+
+    if (page === MAX_PAGES) {
+      // Never silently: if this ever fires, the programme really is 20,000 rows and the cap needs
+      // raising rather than the truncation going unnoticed.
+      console.error(`[brella-program] hit the ${MAX_PAGES}-page cap; the feed may be truncated.`);
+    }
+  }
 
   const nameOf = (type: string, id: string | undefined): string =>
     id ? label(byId.get(`${type}:${id}`)?.attributes?.name) : "";
