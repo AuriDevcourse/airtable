@@ -149,6 +149,18 @@ const PHOTOS = [
 //   Monika Kanda, Lisa Nyman, Anna Kivinen, Catarina Mendonça, Agnieszka Chlad, Ramona Ocak,
 //   Marie Adam, Ulla Sommerfeldt, Nadia Lodroman
 //                          searched, nothing fetchable that is provably them
+//   Maarten Kas            EXHAUSTED 2026-08-11, every non-LinkedIn avenue named so nobody re-walks
+//                          them: remotik.nl does not resolve; DVR Solutions (his other company)
+//                          /over-ons/ returns 403 even in a real browser, so that page is gone not
+//                          bot-blocked; the EDIH and Enterprise Europe Network pieces that confirm
+//                          "Maarten Kas, CEO van Remotik" carry no photo of him; and his F6S
+//                          self-made profile avatar is A LOGO (a yellow play-button mark), not a
+//                          face - largest variant 192x192, under the bar anyway. LinkedIn only.
+//   Yuval Temam            EXHAUSTED, and deliberately blank. The submission form says Lighthouse
+//                          Lab "helps business validate and audit AI systems"; the only public
+//                          Yuval Temam in NL has an SES (satellite operator) headline. That is
+//                          positive evidence of a DIFFERENT PERSON, not absent evidence. There is
+//                          no confirmed identity to attach a face to. Needs the partner, not search.
 //   Sara Storm             FOUND 2026-08-11 on funnelemea.com - now in the list above
 //   Anders Rosenqvist      FOUND 2026-08-11 on whitepress.com - now in the list above
 //   Kim Rants              left rejected. The YC avatar IS provably him (alt='Kim Rants') but the
