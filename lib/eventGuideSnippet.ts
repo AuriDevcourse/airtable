@@ -41,47 +41,121 @@ export function buildEventGuideSnippet({
 <section id="${id}" class="tbbq-eg"><p class="tbbq-eg__loading">Loading the event guide…</p></section>
 
 <style>
-  #${id}.tbbq-eg{--fg:#f2f2f2;--muted:#9a9a9c;--card:#131313;--card2:#191919;--border:#2a2a2a;--acc:#ff2600;font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:760px;margin:0 auto;color:var(--fg)}
+  /* ═══ ELEMENTOR HARDENING ═══════════════════════════════════════════════════════════════
+     Everything in this block exists because of what happened on techbbq.dk the first time this
+     was pasted (2026-08-11). The widget does not get to assume anything about the page around it.
+
+     1. IT PAINTS ITS OWN GROUND. The guide was dropped into an Elementor section with a WHITE
+        background. Every colour here is built for a dark page, so the section headings (#f2f2f2)
+        and the un-selected pills went invisible — white text on white. The widget now carries
+        --ground itself and stops depending on the section's background entirely.
+     2. IT SIZES TO ITS CONTAINER, NOT THE VIEWPORT. The Elementor column was about 370px wide on
+        a 1440px screen, so the @media (max-width:720px) collapse never fired and the two-column
+        panel stayed two columns inside 370px — a 170px text column beside a 150px photo. The
+        collapse is now a CONTAINER query, which asks how wide THIS widget is. The old media query
+        is kept underneath for browsers without container query support.
+     3. IT RESETS WHAT THE THEME STYLES. A WordPress theme has opinions about h2, h3, p, ul, li,
+        button, figure and img — margins, uppercase headings, list bullets, button chrome. Each of
+        those is neutralised below before the real rules, so the guide looks the same whatever
+        theme it lands in.
+     4. IT IS FULL WIDTH AND CENTRES ITSELF. The dark ground spans the whole column; the content
+        inside is what stops at 760px.
+     ═══════════════════════════════════════════════════════════════════════════════════════ */
+  #${id}.tbbq-eg{
+    --fg:#f2f2f2;--muted:#9a9a9c;--card:#131313;--card2:#191919;--border:#2a2a2a;--acc:#ff2600;--ground:#0d0d0d;
+    font-family:"Inter",ui-sans-serif,system-ui,sans-serif!important;
+    /* Absolute, not inherited: a theme that scales its root font would otherwise resize the
+       whole guide. Every size below is in px, clamp() or cqi for the same reason.
+       !important throughout this block is not defensiveness for its own sake: the techbbq.dk
+       theme sets h2,h3 font-family with !important, and !important is the only thing that
+       outranks !important. Every one of these is scoped to this widget's own id. */
+    font-size:16px!important;line-height:1.5!important;font-weight:400;font-style:normal;text-align:left;
+    color:var(--fg)!important;background:var(--ground)!important;
+    width:100%;max-width:none;margin:0;
+    padding:clamp(28px,5vw,56px) clamp(16px,4vw,24px);
+    /* Makes this element the thing @container measures. */
+    container-type:inline-size;
+  }
+  #${id}.tbbq-eg,#${id} *,#${id} *:before,#${id} *:after{box-sizing:border-box}
+  /* Theme reset. Deliberately element selectors so every rule with a class below outranks it. */
+  #${id} h2,#${id} h3,#${id} p,#${id} ul,#${id} li,#${id} figure{
+    margin:0!important;padding:0!important;border:0;background:none;color:inherit;
+    font-family:inherit!important;text-transform:none!important;letter-spacing:normal!important;
+    text-align:left!important;font-style:normal;
+    /* Inherited, not fixed: every real size comes from a class below, which outranks this. A
+       theme rule like p{font-size:19px} lands ON the element and would otherwise beat the 13px
+       this inherits from .eg-body. */
+    font-size:inherit;line-height:inherit;font-weight:inherit;
+  }
+  /* 2. NOTHING PAINTS A BACKGROUND UNLESS IT ASKS TO. The first paste landed under a theme with
+     section,div{background:#fff}, which put a white block behind the copy inside an otherwise
+     dark panel — the computed styles on the root and the panel were all correct and it still
+     looked broken. The three elements that DO want a colour re-assert it with !important. */
+  #${id} div,#${id} section,#${id} span{background:none!important}
+  #${id} ul{list-style:none!important}
+  #${id} li:before{content:none}
+  #${id} img{max-width:100%!important;border:0!important;border-radius:0!important;box-shadow:none!important;display:block}
+  #${id} a{background:none;box-shadow:none;border:0}
+  #${id} button{
+    -webkit-appearance:none;appearance:none;
+    margin:0;font-family:inherit;text-transform:none;letter-spacing:normal;
+    box-shadow:none;min-height:0;min-width:0;width:auto;height:auto;text-align:center;
+  }
   #${id} .tbbq-eg__loading{color:var(--muted);margin:0;text-align:center;padding:40px 0}
-  #${id} *{box-sizing:border-box}
-  #${id} .eg-h,#${id} .eg-panel__title{font-family:"Onest",ui-sans-serif,system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;color:var(--fg)}
-  #${id} .eg-section{margin:0 0 88px}
+  #${id} .eg-h,#${id} .eg-panel__title{font-family:"Onest",ui-sans-serif,system-ui,sans-serif!important;font-weight:600!important;letter-spacing:-.02em!important;color:var(--fg)!important;text-transform:none!important}
+  /* The dark ground is full width; the CONTENT is what stops at 760px. */
+  #${id} .eg-section{max-width:760px;margin:0 auto 88px}
   #${id} .eg-section:last-of-type{margin-bottom:0}
-  #${id} .eg-h{font-size:clamp(26px,4vw,38px);line-height:1.1;text-align:center;margin:0 0 22px}
-  #${id} .eg-tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;padding:0}
-  #${id} .eg-tab{font:500 13px/1 "Inter",ui-sans-serif,system-ui,sans-serif;color:var(--fg);background:transparent;border:1px solid var(--border);border-radius:999px;padding:9px 15px;cursor:pointer;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
-  #${id} .eg-tab:hover{background:var(--card2)}
-  #${id} .eg-tab[aria-selected="true"]{background:#f2f2f2;border-color:#f2f2f2;color:#0d0d0d}
+  /* TWO font-size declarations on purpose. The first is the fallback for browsers with no
+     container query support; the second uses cqi (1% of THIS widget's width) and overrides it
+     where supported. A viewport-based clamp printed a 38px heading inside a 370px Elementor
+     column, which is how this was found. */
+  #${id} .eg-h{font-size:clamp(26px,4vw,38px);font-size:clamp(23px,5.4cqi,38px);line-height:1.1!important;text-align:center!important;margin:0 0 22px!important}
+  #${id} .eg-tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;padding:0;list-style:none}
+  #${id} .eg-tab{font:500 13px/1 "Inter",ui-sans-serif,system-ui,sans-serif!important;color:var(--fg)!important;background:transparent!important;border:1px solid var(--border)!important;border-radius:999px!important;padding:9px 15px!important;width:auto!important;height:auto!important;cursor:pointer;text-transform:none!important;letter-spacing:normal!important;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+  #${id} .eg-tab:hover{background:var(--card2)!important}
+  #${id} .eg-tab[aria-selected="true"]{background:#f2f2f2!important;border-color:#f2f2f2!important;color:#0d0d0d!important}
   #${id} .eg-tab:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
   /* THE STACK. Every panel is here, but only the ACTIVE one is in normal flow, so the slot is
      exactly as tall as the panel being read — no reserved space under a short one. The height is
      ANIMATED between panels (see select()) so a longer tab grows rather than snapping; the heading
      and the tabs sit above it and never move. inert keeps hidden links off the keyboard. */
-  #${id} .eg-slot{position:relative;transition:height 260ms ease}
+  #${id} .eg-slot{background:none!important;position:relative;transition:height 260ms ease}
   #${id} .eg-slot>.eg-panel{position:absolute;top:0;left:0;width:100%;visibility:hidden}
   #${id} .eg-slot>.eg-panel[data-active="true"]{position:relative;visibility:visible}
-  #${id} .eg-panel{background:var(--card);border-radius:16px;padding:clamp(18px,3vw,26px);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(18px,3vw,28px);align-items:start}
+  #${id} .eg-panel{background:var(--card)!important;border-radius:16px;padding:clamp(18px,3vw,26px);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(18px,3vw,28px);align-items:start}
   /* aspect-ratio, not a height: it reserves the photo's space before the <img> exists, which is
      what lets an unvisited panel measure the same as a visited one. */
-  #${id} .eg-panel__media{margin:0;border-radius:12px;overflow:hidden;background:var(--card2);aspect-ratio:5/4}
-  #${id} .eg-panel__media img{width:100%;height:100%;display:block;object-fit:cover;object-position:50% 30%}
-  #${id} .eg-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg);margin:0 0 18px}
+  #${id} .eg-panel__media{margin:0!important;border-radius:12px;overflow:hidden;background:var(--card2)!important;aspect-ratio:5/4}
+  #${id} .eg-panel__media img{width:100%!important;height:100%!important;max-width:none!important;display:block;object-fit:cover;object-position:50% 30%}
+  #${id} .eg-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--fg);margin:0 0 18px!important}
   #${id} .eg-eyebrow:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--acc);flex:0 0 auto}
-  #${id} .eg-panel__title{font-size:clamp(19px,2.4vw,24px);line-height:1.2;margin:0 0 12px}
+  #${id} .eg-panel__title{font-size:clamp(19px,2.4vw,24px);font-size:clamp(18px,3.4cqi,24px);line-height:1.2!important;margin:0 0 12px!important}
   #${id} .eg-body{font-size:13px;line-height:1.6;color:var(--muted)}
-  #${id} .eg-body>*+*{margin-top:10px}
+  #${id} .eg-body>*+*{margin-top:10px!important}
   #${id} .eg-body p{margin:0}
   #${id} .eg-lead{color:var(--fg);font-weight:600}
-  #${id} .eg-body a{color:var(--fg);text-decoration:underline;text-underline-offset:2px}
+  #${id} .eg-body a{color:var(--fg)!important;background:none!important;box-shadow:none!important;text-decoration:underline;text-underline-offset:2px}
   #${id} .eg-body a:hover{opacity:.75}
   #${id} .eg-list{margin:0;padding:0;list-style:none}
-  #${id} .eg-list li{position:relative;padding-left:13px}
-  #${id} .eg-list li+li{margin-top:4px}
+  #${id} .eg-list li{position:relative;padding-left:13px!important}
+  #${id} .eg-list li+li{margin-top:4px!important}
   #${id} .eg-list li:before{content:"";position:absolute;left:2px;top:.62em;width:3px;height:3px;border-radius:50%;background:var(--muted)}
-  #${id} .eg-day{color:var(--fg);font-weight:600;margin:0 0 4px}
-  #${id} .eg-schedule+.eg-schedule{margin-top:14px}
-  #${id} .eg-tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
-  #${id} .eg-tags li{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#d0d0d0;border:1px solid var(--border);border-radius:4px;padding:4px 7px;line-height:1}
+  #${id} .eg-day{color:var(--fg);font-weight:600;margin:0 0 4px!important}
+  #${id} .eg-schedule+.eg-schedule{margin-top:14px!important}
+  #${id} .eg-tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0!important;padding:0;list-style:none!important}
+  #${id} .eg-tags li{font-size:9px;font-weight:600;letter-spacing:.09em!important;text-transform:uppercase!important;color:#d0d0d0;border:1px solid var(--border)!important;border-radius:4px;padding:4px 7px!important;line-height:1}
+  #${id} .eg-tags li:before{content:none}
+  /* THE COLLAPSE, asked of the WIDGET's width rather than the screen's. This is the rule that a
+     narrow Elementor column needs and a viewport media query cannot give. */
+  @container (max-width:720px){
+    #${id} .eg-panel{grid-template-columns:1fr}
+    #${id} .eg-panel__media{grid-row:1;aspect-ratio:16/10}
+    #${id} .eg-tabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding-bottom:4px;scrollbar-width:none}
+    #${id} .eg-tabs::-webkit-scrollbar{display:none}
+    #${id} .eg-tab{flex:0 0 auto}
+  }
+  /* Fallback for browsers with no container query support. Same values, asked of the viewport. */
   @media (max-width:720px){
     #${id} .eg-panel{grid-template-columns:1fr}
     #${id} .eg-panel__media{grid-row:1;aspect-ratio:16/10}

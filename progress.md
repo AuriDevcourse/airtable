@@ -4,6 +4,121 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-11 (e) · One Event Room on its own: Deep Tech Event Day
+
+**State:** working locally, not deployed. Copying a single Event Room as its own embed now names
+the programme and draws it as one day.
+
+Auri needed Deep Tech Event Room copied on its own and pasted onto a page. The single-column
+embed already existed (`?stage=`), so this was three gaps around it rather than a new feature.
+
+### What changed
+
+1. `lib/brellaSections.ts` · `ROOM_DAY_PROGRAMMES` += `{ Event Room 6, 26 August, Deep Tech Event
+   Day }`. Brella files all 13 sessions on the plain "Event Room 6" track, so `programmeOf()`
+   found nothing and the column was an unlabelled room number. Same fix NISS and NASS already
+   have. It also restores the derived "All day · Deep Tech Event Day" band, which is built from
+   the programme name. The `ROOM_ALIASES` entry stays for the day a real track appears.
+2. `lib/brellaEmbedSnippet.ts` · A single-column snippet splits Day 1 / Day 2 side by side. Deep
+   Tech runs 26 August only, so half the embed read "Nothing on this day". New `ONE_DAY`, set
+   from the DATA after load (never hardcoded), plus one `splitting()` helper every day-aware
+   branch now asks. In one-day mode: no split, no day pills, and the date moves into the column
+   heading, which is otherwise the only place it could appear.
+3. `app/brella-program/page.tsx` · Copy button reads `Copy embed (Event Room 6 · Deep Tech Event
+   Day)` instead of the room number alone.
+
+### Verified
+
+Built the real snippet, served it from `public/`, loaded it in Chrome: one column, heading
+"Event Room 6 · DAY 1 · 26 August" with "Deep Tech Event Day" under it, all-day band, 13 sessions
+in sequence, topic filter and speaker search intact, no empty second day. `tsc --noEmit` clean.
+Dashboard preview shows the same. Temp files removed.
+
+### Gotchas
+
+- Testing an embed from localhost does NOT hit localhost. `lib/embedOrigin.ts` rewrites a
+  loopback origin to `https://airtable-woad.vercel.app` on purpose, and the snippet repeats the
+  check at runtime. To test locally, patch that constant in the GENERATED file, not in the lib.
+- Playwright MCP was locked by another session all session ("Browser is already in use"). Chrome
+  MCP worked instead.
+
+### Next steps
+
+1. Deploy, then copy the snippet from the deployed dashboard (not localhost) and paste it on the
+   Deep Tech page.
+2. Open question for Auri: heading is "Event Room 6" with "Deep Tech Event Day" underneath. If
+   the target page is purely about Deep Tech, flip them so the programme leads.
+3. Same one-day path now applies to any room that gains a single-day programme — check Event
+   Room 4 (one session, 27 Aug) if it is ever copied on its own.
+
+## Session 2026-08-11 (f) · ELEMENTOR HARDENING · the embed defends itself
+
+Pasted onto techbbq.dk and it did not look like the dashboard. Four separate causes, all now fixed
+IN THE SNIPPET rather than by asking someone to configure Elementor correctly.
+
+### What the host page did to it
+
+1. **The section was WHITE.** Every colour here is built for a dark page, so the section headings
+   (#f2f2f2) and the un-selected pills went invisible — white on white. **Fix: the widget paints
+   its own `--ground` (#0d0d0d) and no longer depends on the section's background at all.** Same
+   reasoning as the `navy` theme in lib/agendaSnippet.ts: a panel on techbbq.dk cannot borrow a
+   dark ground it might not get.
+2. **The Elementor column was ~370px wide on a 1440px screen.** So `@media (max-width:720px)`
+   never fired and the two-column panel stayed two columns inside 370px — a 170px text column
+   beside a 150px photo. **Fix: the collapse is a CONTAINER query** (`container-type:inline-size`
+   on the widget, `@container (max-width:720px)`), which asks how wide THIS WIDGET is. The viewport
+   media query is kept underneath as the no-support fallback.
+3. **Heading sizes were viewport-based**, so `clamp(26px,4vw,38px)` printed a 38px heading inside a
+   370px column. **Fix: a second `font-size` using `cqi`** (1% of the widget's own width), declared
+   after the vw version so old browsers keep the fallback and new ones override it.
+4. **The theme restyled everything.** Uppercase right-aligned Georgia headings, 2em margins, disc
+   bullets with 40px indent, button chrome, bordered rounded images, `p{font-size:19px}`,
+   `section,div{background:#fff}`. **Fix: a reset block scoped to the widget's id**, before the real
+   rules.
+
+### !important, deliberately
+
+The techbbq.dk theme declares `h2,h3{font-family:...!important}`, and **nothing but !important
+outranks !important**. So the properties a theme realistically forces carry it here: font-family,
+font-size on the root, text-transform, letter-spacing, text-align, margin/padding on text elements,
+list-style, background, and border/radius/shadow on images. All of it is scoped to `#<uid>`, so it
+cannot leak into the host page.
+
+Two traps this created, both found by looking at a screenshot rather than at computed styles:
+- `li{padding:0!important}` in the reset killed `.eg-list li{padding-left:13px}`, so every bullet
+  sat on top of its text. The list indent needs !important too.
+- `text-align:left` without !important lost to the theme, so panel titles were right-aligned.
+
+### THE LESSON: computed styles said 25/26 PASS while the page looked broken
+
+An assertion pass is not a working page. The check suite was green on the root and the panel while
+a theme rule `section,div{background:#fff}` painted a white block behind the copy inside a dark
+panel, and `p{font-size:19px}` inflated the body text. Neither element was in the suite.
+**Screenshot the hostile case, then write the assertion for what the picture shows.**
+
+### How it was verified
+
+A deliberately hostile host page: white background, a 370px column, and a stylesheet that forces
+`!important` on h2, h3, p, ul, li, button, img, figure, a, section and div. Against that:
+- **30 of 30 property checks pass** (own ground, Onest headings, un-uppercased, centred section
+  headings, pill shape/colour/width, image with no border/radius/shadow, no disc bullets, no list
+  indent, eyebrow still uppercase, single column, no horizontal overflow).
+- Behaviour intact in the narrow column: 8 distinct panel heights, slot hugs its panel exactly,
+  inline height always cleared, section heading and tab row move **0**, 18 photos still deferred.
+- Generated embed script passed `node --check` at every step.
+
+### Elementor settings that still help (but are no longer required)
+
+The snippet now survives the defaults. These just make it nicer: put it in a **full-width**
+container, set the container's own padding to 0 (the widget brings its own), and there is no need
+to set a background colour any more.
+
+### Still open
+
+Unchanged: review the look, and decide whether Brella and Online Event Platform stay two tabs.
+`app/globals.css` got the same container query so the dashboard preview and the embed behave alike;
+the dashboard does NOT carry the theme reset, because nothing there is fighting it.
+
 ## Session 2026-08-11 (d) · The box hugs its content AND the page still holds still
 
 Correction to (c). Fixing the layout shift by stacking every panel in one grid cell made each
