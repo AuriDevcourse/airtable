@@ -690,6 +690,28 @@ export function StageTimeline({
           // BEHIND the timed cards rather than as a lane beside them: Event Room 1 runs nine
           // sessions inside its all-day Board Summit, so the two are nested, not competing.
           const alldayHere = allDay.filter(inCol);
+          // A SESSION THAT CONTAINS THE OTHERS IS A SHELL, NOT A NEIGHBOUR (Auri, 2026-08-11).
+          //
+          // Event Room 3 carries "Future of Fintech" 09:30-13:00 as a real Brella row AND the
+          // seven talks that run inside it. Both are timed, so layOutColumn saw an overlap and did
+          // what it is supposed to do: gave them a lane each. The result read as two things
+          // running at once in one room, when it is one half-day programme with its own agenda —
+          // the same fact the derived band below draws for NISS and Nordic India.
+          //
+          // So an umbrella is drawn as the BAND and dropped from the lane pass, which is what
+          // nests the talks inside it instead of beside it. Unlike the derived band this one has a
+          // real session behind it, so it stays clickable and opens its own detail.
+          //
+          // DERIVED FROM THE SHAPE OF THE DATA, not from a list of names: a session is an umbrella
+          // when it contains at least two STRICTLY SHORTER sessions in its own column. Strictly
+          // shorter is what stops two identical spans from each swallowing the other, and two is
+          // what stops an ordinary back-to-back pair from being reinterpreted. Measured across all
+          // 247 sessions on 2026-08-11, this matches Future of Fintech and nothing else — the rule
+          // describes the one case rather than inventing a category.
+          const isInside = (c: Placed, u: Placed) =>
+            c.id !== u.id && c.start >= u.start && c.end <= u.end && c.end - c.start < u.end - u.start;
+          const umbrellas = mine.filter((u) => mine.filter((c) => isInside(c, u)).length >= 2);
+          const umbrellaIds = new Set(umbrellas.map((u) => u.id));
           // A PROGRAMME THAT RUNS THE WHOLE DAY, with no umbrella session to say so.
           //
           // NISS occupies Event Room 2 from 09:30 to 17:30 — it has taken the room for the day
@@ -709,14 +731,22 @@ export function StageTimeline({
             mine.length > 1
               ? [Math.min(...mine.map((x) => x.start)), Math.max(...mine.map((x) => x.end))]
               : null;
+          // Also skipped when an umbrella is already drawing a band here: two nested dashed
+          // shells over the same sessions say the same thing twice.
           const progBand =
             progs.length > 0 &&
             alldayHere.length === 0 &&
+            umbrellas.length === 0 &&
             bandSpan !== null &&
             spansMorningToEvening(bandSpan[0], bandSpan[1])
               ? progs.join(" · ")
               : null;
-          const laid = layOutColumn(withLanes(mine), from);
+          // The umbrellas come out before the lane pass — that is the whole point, since it is
+          // their presence in it that produced the second lane.
+          const laid = layOutColumn(
+            withLanes(mine.filter((s) => !umbrellaIds.has(s.id))),
+            from
+          );
           return (
             <div key={col} className="bp-tl__col">
               {progBand && (
@@ -729,6 +759,35 @@ export function StageTimeline({
                   <span className="bp-tl__allDayTitle">{progBand}</span>
                 </div>
               )}
+              {/* The half-day shell. Same dashed band as the all-day one, but positioned against
+                  the clock instead of spanning the column, because it only owns part of the day —
+                  drawing it full height would claim an afternoon it does not have. Its label is
+                  the time range rather than "All day", since how long it runs is the thing the
+                  band exists to say. */}
+              {umbrellas.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="bp-tl__allDayCard"
+                  style={
+                    {
+                      ...sessionVars(s),
+                      top: (s.start - from) * PX_PER_MIN,
+                      height: (s.end - s.start) * PX_PER_MIN,
+                    } as React.CSSProperties
+                  }
+                  data-dim={
+                    (terms.length > 0 && !matchesSpeaker(s, terms)) || !matchesTags(s, tags)
+                      ? "1"
+                      : undefined
+                  }
+                  title={s.name}
+                  onClick={() => onOpen(s)}
+                >
+                  <span className="bp-tl__allDayLabel">{s.timeSlot}</span>
+                  <span className="bp-tl__allDayTitle">{s.name}</span>
+                </button>
+              ))}
               {alldayHere.map((s) => (
                 <button
                   key={s.id}
@@ -747,7 +806,7 @@ export function StageTimeline({
                   <span className="bp-tl__allDayTitle">{s.name}</span>
                 </button>
               ))}
-              {laid.length === 0 && alldayHere.length === 0 && (
+              {laid.length === 0 && alldayHere.length === 0 && umbrellas.length === 0 && (
                 <p className="bp-tl__empty">
                   {/* An empty ROOM is not the same as an empty stage. A stage with nothing on
                       it has a gap in its day; a room column that is empty usually means the

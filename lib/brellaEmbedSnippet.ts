@@ -937,8 +937,24 @@ ${originDecl("  ")}
       +ticks.map(function(x){return '<span class="tbbq-bp__line"'+((x%60===0)?' data-hour="1"':'')+' style="position:absolute;left:'+GUT+'px;right:0;top:'+((x-from)*PXN)+'px"></span>';}).join("");
 
     cols.forEach(function(c,ci){
-      var items=timed.filter(function(x){return colKey(x.s)===c;})
+      var itemsAll=timed.filter(function(x){return colKey(x.s)===c;})
         .sort(function(a,b){return a.start-b.start||String(a.s.name).localeCompare(String(b.s.name));});
+      /* A SESSION THAT CONTAINS THE OTHERS IS A SHELL, NOT A NEIGHBOUR. Event Room 3 carries
+         "Future of Fintech" 09:30-13:00 as a real Brella row AND the seven talks inside it. Both
+         are timed, so the lane pass below gave them a lane each and the room read as two things
+         at once, when it is one half-day programme with its own agenda. So an umbrella is drawn
+         as a BAND and dropped from the lane pass, which nests the talks inside it — the same
+         shape the derived all-day band gives NISS, just bounded by its own clock.
+         Derived from the shape of the data, not a list of names: at least two STRICTLY SHORTER
+         sessions inside it. Strictly shorter stops two identical spans swallowing each other,
+         and two stops an ordinary back-to-back pair being reinterpreted. */
+      var umb=itemsAll.filter(function(u){
+        return itemsAll.filter(function(k){
+          return k.s.id!==u.s.id&&k.start>=u.start&&k.end<=u.end&&(k.end-k.start)<(u.end-u.start);
+        }).length>=2;
+      });
+      var umbIds={};umb.forEach(function(u){umbIds[u.s.id]=1;});
+      var items=itemsAll.filter(function(x){return !umbIds[x.s.id];});
       /* No padding on the column: the cards inside are absolutely positioned, and an
          abs-positioned child resolves left/width against the PADDING box — padding included —
          so padding here moves nothing. The inset is applied to each card below instead. */
@@ -956,7 +972,9 @@ ${originDecl("  ")}
       var adC=allday.filter(function(x){return colKey(x)===c;});
       var prog2=[];
       mineC.forEach(function(x){if(x.s.programme&&prog2.indexOf(x.s.programme)<0)prog2.push(x.s.programme);});
-      if(prog2.length&&!adC.length&&mineC.length>1){
+      /* Also skipped when an umbrella already draws a band here: two nested dashed shells over
+         the same sessions say the same thing twice. */
+      if(prog2.length&&!adC.length&&!umb.length&&mineC.length>1){
         var lo=Math.min.apply(null,mineC.map(function(x){return x.start;}));
         var hi=Math.max.apply(null,mineC.map(function(x){return x.end;}));
         if(lo<=MORNING_BY&&hi>=EVENING_FROM){
@@ -975,10 +993,24 @@ ${originDecl("  ")}
           +'<span class="tbbq-bp__allDayTitle">'+esc(s.name)+'</span>'
           +'</button>';
       });
+      /* The half-day shell. Same dashed band, positioned against the clock instead of spanning
+         the column, because it only owns part of the day — full height would claim an afternoon
+         it does not have. Labelled with its time range rather than "All day", since how long it
+         runs is what the band is there to say. Still a button: unlike the derived band there is
+         a real session behind this one to open. */
+      umb.forEach(function(u){
+        var s=u.s;
+        html+='<button type="button" class="tbbq-bp__allDay" data-id="'+esc(s.id)+'"'
+          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:'+((u.start-from)*PXN)+'px;height:'+((u.end-u.start)*PXN)+'px;z-index:0;'+sessionVars(s)+'"'
+          +' title="'+esc(s.name)+'">'
+          +'<span class="tbbq-bp__allDayLabel">'+esc(s.timeSlot||"")+'</span>'
+          +'<span class="tbbq-bp__allDayTitle">'+esc(s.name)+'</span>'
+          +'</button>';
+      });
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline
          because place-items does nothing once a theme blockifies the grid. */
-      if(!items.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(SPLIT?"Nothing on this day":(/^event room/i.test(c)?"Information coming soon":(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled")))+'</p>';
+      if(!items.length&&!umb.length)html+='<p class="tbbq-bp__none" style="position:absolute;left:0;right:0;top:14px;text-align:center;margin:0">'+(SPLIT?"Nothing on this day":(/^event room/i.test(c)?"Information coming soon":(/campfire/i.test(c)?"Program coming soon":"Nothing scheduled")))+'</p>';
       /* Lanes per CLUSTER of overlapping sessions, compared on the DRAWN extent: a 5-minute
          slot is floored to a minimum height and so covers the next card even though the clock
          says it has finished. Counting per column would halve every card on the stage. */
