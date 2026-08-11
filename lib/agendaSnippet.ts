@@ -23,7 +23,9 @@ export type AgendaOptions = {
   // Color theme. "orange" = the TechBBQ fire look (default, used by NISS/TechBBQ).
   // "blue" = the Future of Fintech look (blue border/tags on #111827).
   // "navy" = the Board Summit look: a deeper blue ground with a blue gradient.
-  theme?: "orange" | "blue" | "navy";
+  // "gold" = the Day 0 look: the fire gradient on a SOLID near-black, from the designed pages.
+  // "beam" = the same, on Investor Day's blue-black ground.
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
   // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
   icons?: boolean;
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
@@ -94,6 +96,47 @@ const THEMES = {
     time: "#C3D4EE",
     noteInk: "#C3D4EE",
   },
+  // THE DAY 0 PROGRAMMES — LP Forum, the Pension & Insurance Summit and the Nordic Family Office
+  // Summit. Their designed pages (program.css, `body.is-forum` / `is-pension` / `is-family`) are all
+  // one look: the brand fire gradient over the gold-fluid backdrop on --garage #0a0a0a. So the accent
+  // values here are the orange theme's, and the ink/rule values are lifted from that stylesheet's
+  // --ink, --ink-muted and --rule tokens.
+  //
+  // What differs from `orange` is the GROUND. That theme is transparent, which works because it is
+  // pasted into a section that is already dark; these four are their own dark panel and must bring
+  // the black with them.
+  gold: {
+    ink: "#f5f5f5",
+    muted: "#a29a94",
+    acc: "#ff2600",
+    grad: "linear-gradient(120deg,#fa7000 0%,#ff2600 45%,#ce0f2e 100%)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(255,255,255,.14)",
+    glow: "rgba(255,38,0,.12)",
+    bg: "#0a0a0a",
+    rowBorder: "rgba(255,255,255,.12)",
+    time: "#e8ded3",
+    noteInk: "#cfc6bd",
+  },
+  // TECHBBQ INVESTOR DAY, the one Day 0 page with a different backdrop: the blue beam
+  // (`body.is-investor` swaps bg-program.jpg for bg-beam.jpg and scrims it with #04060e/#020308), so
+  // its black reads cool rather than warm. Only the ground and the rules move — the accent stays the
+  // fire gradient, because the brand does not change per venue.
+  beam: {
+    ink: "#f2f4f8",
+    muted: "#98a0ae",
+    acc: "#ff2600",
+    grad: "linear-gradient(120deg,#fa7000 0%,#ff2600 45%,#ce0f2e 100%)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(160,180,220,.18)",
+    glow: "rgba(255,38,0,.12)",
+    bg: "#04060e",
+    rowBorder: "rgba(160,180,220,.14)",
+    time: "#dfe4ec",
+    noteInk: "#c6ccd8",
+  },
 } as const;
 
 // Lucide icon paths per session type (stroke icons, inherit currentColor).
@@ -101,6 +144,10 @@ const THEMES = {
 const ICONS: Record<string, string> = {
   networking:
     '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/>',
+  // The Sessions table's own option is spelled "Networking & Drinks", and the lookup is on the exact
+  // lowercased type — the bare "networking" above never matched it. Lucide: martini.
+  "networking & drinks":
+    '<path d="M8 22h8"/><path d="M12 11v11"/><path d="m19 3-7 8-7-8Z"/>',
   break:
     '<path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/>',
   panel:

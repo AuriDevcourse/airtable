@@ -4,7 +4,17 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## WORKING TREE, as of 2026-08-11 12:00 · READ THIS FIRST
+## WORKING TREE, as of 2026-08-11 16:30 · READ THIS FIRST
+
+The Deep Tech note below is resolved — the tree was clean when session (h) started. What is
+uncommitted now is session (h), the four Day 0 programmes: `lib/program.ts`, `lib/programFaces.ts`,
+`lib/agendaSnippet.ts`, `app/program/page.tsx`, `scripts/seed-day0-programs.mjs`, this file.
+`tsc --noEmit` passes; `npm run build` has NOT been run (the dev server holds `.next`). Verified in
+a browser: all eight tabs, and both new themes rendered from the real snippet. **The 39 Airtable
+rows are already live** — the code is what is still local, so until it is pushed, a copied embed
+points at the deployed connector and gets a 400 for these four events.
+
+## SUPERSEDED · WORKING TREE, as of 2026-08-11 12:00
 
 `main` is pushed and deployed through `2838660` (Tito Investor Day, Brella paging, the Event Guide,
 Elementor hardening). Verified in production.
@@ -25,6 +35,76 @@ Do not assume a clean tree.
 Two entries below are both labelled 2026-08-11: (e) is the Deep Tech work, (f) is the Elementor
 hardening. They were written by different sessions on the same day and (f) was renamed from (e) to
 break the collision.
+
+## Session 2026-08-11 (h) · The four Day 0 programmes, and faces that cross a project line
+
+`/program` had four tabs; it now has eight. LP Forum, TechBBQ Investor Day, the European Growth
+Pension & Insurance Summit and the Nordic Family Office Summit — the 25 August programmes, the day
+before TechBBQ opens — each with its own copy-embed button.
+
+**The agendas came from four designed HTML pages, and now live in Airtable.** Auri handed over
+`lp-forum.html`, `investor-day.html`, `pension-summit.html` and `family-office.html` (plus their
+shared `program.css`). Those were transcribed into 39 rows in the Sessions table — the same table
+the Policy Stage and the Board Summit already use, under four new `Name of the Event` values — by
+`scripts/seed-day0-programs.mjs`, which keeps the transcription and refuses to run twice. Nothing
+existing was touched, and no field's options were changed.
+
+Two decisions inside that transcription, both Auri's call:
+
+- **The designed pages carry a START time per slot; the `Time Slot` cell wants a range.** Each row's
+  end is the next row's start, which is the shape the Board Summit rows already have.
+- **Two rows fit none of the seven `Session Type` options** — the LP Forum's 09:00 bridge line and
+  the Pension Summit's "Building Tomorrow's Europe Award". They are left blank, which renders as a
+  row with no pill. The alternative was widening a shared single-select for two rows.
+
+**Two new themes, because a Day 0 embed cannot borrow a dark section.** The four pages are one look
+in `program.css`: the brand fire gradient on `--garage` #0a0a0a. `orange` already paints that
+gradient but is transparent — it is pasted into a section that is already dark. These four are their
+own panel and must bring the black with them, so `gold` is the orange accents on a solid #0a0a0a.
+Investor Day gets `beam`: the same accents on the cooler #04060e its `bg-beam.jpg` backdrop scrims
+to. Only the ground and the rules move; the accent does not change per venue.
+
+Also: `"Networking & Drinks"` had no icon. The `ICONS` map keys on the exact lowercased type and
+only held a bare `"networking"`, which the Sessions table's actual option never matched.
+
+### FACES NOW CROSS A PROJECT LINE, first-match-wins
+
+`facesFrom` took one `Project Name`. That is wrong for these four, because a speaker's CRM row is
+filed under one project and it is not always the one whose agenda they are on:
+
+- Yoram Wijngaarde is filed under the LP Forum and keynotes at all three investor events
+- Erik Balck Sørensen moderates at the LP Forum, filed under the main programme
+- **"Nordic Family Office" has no rows at all** — the only two of its ten speakers in the CRM are
+  filed under Event Rooms 1 and 2
+
+So `facesFrom` now takes an ordered list. The event's own project is first, which is what makes it
+safe: a fallback can only fill a gap, never override, and a name under two projects resolves to the
+first rather than being dropped as ambiguous. Ambiguity is still detected PER PROJECT — two rows for
+one person inside one project is a duplicate to fix in Airtable, and an arbitrary pick would hide it.
+The family-office fallbacks are a stopgap and say so in the config; delete them once the ten are
+filed under their own project.
+
+`key()` also strips a leading honorific. "Prof. Philippe Tibi" on the agenda and "Philippe Tibi" in
+the CRM never met before this.
+
+Coverage after: pension-summit 17/22, lp-forum 17/20, investor-day 4/8, family-office 3/10. The
+remainder are **not in Marketing Project Overview at all** and cannot be found by any join:
+
+> Marianne Dahl · Anne Marie Kindberg · Anja Bach Eriksson · Hrönn Greipsdóttir ·
+> Frederik von Bennigsen · Margrethe Vestager · Lars Frølund · Alexis Horowitz-Burdick ·
+> Rene Rechtman · Robert Westerdahl · Marek Kiisa · Linnéa Kornehed Falck · Victor Pancic ·
+> Jesper Søgaard
+
+Two more are near-misses that only Airtable can settle, not code:
+
+- **Torben M. Andersen has TWO rows under the Pension Summit** ("Professor, University of Aarhus"
+  and "Chairman, ATP"). Same person, two jobs, so the ambiguity guard drops him. Merge the rows.
+- **"Micha Breakstone"** on the LP Forum agenda vs **"Micha Y. Breakstone"** in the CRM. Either
+  spelling can move; they just have to agree.
+
+Unrelated and pre-existing, noted because it looks like this work: **the Board Summit is 3/31 faces**
+on production too, unchanged by any of the above. The 27 people its config says were written under
+"Event Room 1" mostly do not match by name.
 
 ## Session 2026-08-11 (g) · Grill Sessions: 58/60 both, merged with the parallel photo pass
 

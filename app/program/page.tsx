@@ -123,14 +123,22 @@ function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
 // and the bare `/api/program` still serve both, so nothing that already fetches them broke.
 //
 // heading/note bake a fixed date line + ticket notice into that event's embed.
-type EventKey = "niss" | "fintech" | "policy" | "board";
+type EventKey =
+  | "niss"
+  | "fintech"
+  | "policy"
+  | "board"
+  | "pension-summit"
+  | "family-office"
+  | "lp-forum"
+  | "investor-day";
 const EVENTS: {
   key: EventKey;
   label: string;
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
@@ -164,6 +172,45 @@ const EVENTS: {
     theme: "navy",
     people: true,
   },
+  // THE FOUR DAY 0 PROGRAMMES, 25 August — the day before TechBBQ opens, so none of them is a "Day 1"
+  // or "Day 2" and each carries a fixed heading rather than one drawn from the data.
+  //
+  // They were designed as four standalone pages, and those pages share ONE look: the brand fire
+  // gradient on the near-black --garage ground (theme "gold"). Investor Day is the exception — its
+  // backdrop is the blue beam, so its ground is the cooler "beam" black. `sub` carries the venue,
+  // which is the thing an attendee actually needs: all four happen away from Bella Center.
+  {
+    key: "pension-summit",
+    label: "Pension & Insurance Summit",
+    heading: "August 25th",
+    sub: "Hotel d'Angleterre, Louis XVI",
+    theme: "gold",
+    people: true,
+  },
+  {
+    key: "family-office",
+    label: "Nordic Family Office Summit",
+    heading: "August 25th",
+    sub: "Hotel d'Angleterre, Palm Court",
+    theme: "gold",
+    people: true,
+  },
+  {
+    key: "lp-forum",
+    label: "LP Forum",
+    heading: "August 25th",
+    sub: "Hotel d'Angleterre",
+    theme: "gold",
+    people: true,
+  },
+  {
+    key: "investor-day",
+    label: "TechBBQ Investor Day",
+    heading: "August 25th",
+    sub: "The Maersk Tower · Main Stage",
+    theme: "beam",
+    people: true,
+  },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -182,7 +229,7 @@ function CopyAgendaEmbed({
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;

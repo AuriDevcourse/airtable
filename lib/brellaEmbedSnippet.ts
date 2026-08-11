@@ -229,6 +229,7 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__allDay{display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important;padding:8px 10px!important;border:1px dashed color-mix(in srgb,var(--track) 45%,transparent)!important;border-radius:8px!important;background:color-mix(in srgb,var(--track) 9%,transparent)!important;color:var(--fg)!important;text-align:left!important;font:inherit!important;cursor:pointer!important;overflow:hidden!important;box-shadow:none!important;appearance:none!important}
   #${id} .tbbq-bp__allDay:hover{background:color-mix(in srgb,var(--track) 16%,transparent)!important}
   /* The DERIVED band has nothing to open, so it takes no pointer and no hover. */
+  #${id} .tbbq-bp__allDayHead{display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important}
   #${id} .tbbq-bp__allDayProg{cursor:default!important;pointer-events:none!important}
   #${id} .tbbq-bp__allDayProg:hover{background:color-mix(in srgb,var(--track) 9%,transparent)!important}
   #${id} .tbbq-bp__allDay:focus-visible{outline:2px solid var(--track)!important;outline-offset:-2px!important}
@@ -847,6 +848,10 @@ ${originDecl("  ")}
        the minute scale gives that text somewhere to go, and leaves room to label every half
        hour instead of every hour, which a phone has space for once the rows are this tall. */
     var PXN=narrow?4.2:PX;
+    /* Minutes of clear band a shell's caption needs above the first card inside it: label line +
+       title line + padding, about 36px. Derived from PXN rather than hard-coded, because the
+       narrow layout draws the same minute taller. */
+    var BAND_LABEL_MIN=Math.ceil(36/PXN);
     /* START WHERE THE PROGRAMME STARTS. This used to floor at 09:00, which drew nearly two hours
        of empty grid above a stage that opens at 10:45 — that reads as a broken embed, not as a
        free morning (Auri, 2026-08-04). 09:00 survives only as the fallback for a column with
@@ -1000,11 +1005,27 @@ ${originDecl("  ")}
          a real session behind this one to open. */
       umb.forEach(function(u){
         var s=u.s;
+        /* WHERE THE SHELL'S NAME GOES when a session starts on its own first minute. Future of
+           Fintech opens 09:30 and so does its Networking Breakfast, so the card landed exactly on
+           the caption and the shell lost the one thing that made it a shell. The all-day bands
+           never hit this — the column's 09:00 floor guarantees them clear grid — but a band
+           bounded by its own clock gets whatever its agenda leaves it. So the caption moves ABOVE
+           the band's top edge into the empty grid already there; the rectangle does not move, so
+           the clock stays honest. Only when short of headroom AND there is room above. */
+        var kids=itemsAll.filter(function(k){
+          return k.s.id!==s.id&&k.start>=u.start&&k.end<=u.end&&(k.end-k.start)<(u.end-u.start);
+        });
+        var head=1e9;
+        kids.forEach(function(k){if(k.start-u.start<head)head=k.start-u.start;});
+        var above=(head<BAND_LABEL_MIN&&(u.start-from)>=BAND_LABEL_MIN);
         html+='<button type="button" class="tbbq-bp__allDay" data-id="'+esc(s.id)+'"'
-          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:'+((u.start-from)*PXN)+'px;height:'+((u.end-u.start)*PXN)+'px;z-index:0;'+sessionVars(s)+'"'
+          +(above?' data-labelabove="1"':'')
+          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:'+((u.start-from)*PXN)+'px;height:'+((u.end-u.start)*PXN)+'px;z-index:0;'+(above?'overflow:visible;':'')+sessionVars(s)+'"'
           +' title="'+esc(s.name)+'">'
+          +'<span class="tbbq-bp__allDayHead"'+(above?' style="position:absolute;bottom:100%;left:0;right:0;padding:0 10px 5px"':'')+'>'
           +'<span class="tbbq-bp__allDayLabel">'+esc(s.timeSlot||"")+'</span>'
           +'<span class="tbbq-bp__allDayTitle">'+esc(s.name)+'</span>'
+          +'</span>'
           +'</button>';
       });
       /* Near the top rather than vertically centred: the column is as tall as the whole day,

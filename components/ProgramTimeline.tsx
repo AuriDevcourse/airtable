@@ -259,6 +259,10 @@ export function startMinutes(slot: string): number {
 // column on techbbq.dk is ~270px wide, so titles wrap onto two lines far more often while the
 // card's height still comes from its duration.
 const PX_PER_MIN = 3;
+// Minutes of clear band a shell's caption needs above the first card inside it: the label line
+// plus the title line plus their padding, ~36px, which at 3px a minute is twelve. Expressed in
+// MINUTES rather than pixels because it is compared against the clock.
+const BAND_LABEL_MIN = 12;
 const SLOT_MIN = 30; // gridline interval
 // Floor for a card's height, so a three-minute session is still readable.
 const MIN_CARD_PX = 26;
@@ -764,30 +768,51 @@ export function StageTimeline({
                   drawing it full height would claim an afternoon it does not have. Its label is
                   the time range rather than "All day", since how long it runs is the thing the
                   band exists to say. */}
-              {umbrellas.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="bp-tl__allDayCard"
-                  style={
-                    {
-                      ...sessionVars(s),
-                      top: (s.start - from) * PX_PER_MIN,
-                      height: (s.end - s.start) * PX_PER_MIN,
-                    } as React.CSSProperties
-                  }
-                  data-dim={
-                    (terms.length > 0 && !matchesSpeaker(s, terms)) || !matchesTags(s, tags)
-                      ? "1"
-                      : undefined
-                  }
-                  title={s.name}
-                  onClick={() => onOpen(s)}
-                >
-                  <span className="bp-tl__allDayLabel">{s.timeSlot}</span>
-                  <span className="bp-tl__allDayTitle">{s.name}</span>
-                </button>
-              ))}
+              {umbrellas.map((s) => {
+                // WHERE THE SHELL'S NAME GOES when a session starts on its own first minute.
+                //
+                // Future of Fintech opens 09:30 and so does its Networking Breakfast, so the card
+                // landed exactly on the band's caption and the shell lost the one thing that made
+                // it a shell — a dashed rectangle with no name in it. The all-day bands never hit
+                // this because `openAt` guarantees them half an hour of clear grid; a band bounded
+                // by its own clock has whatever its agenda leaves it, which here is nothing.
+                //
+                // So the caption moves ABOVE the band's top edge, into the empty grid the column
+                // already has above it. The rectangle still marks 09:30-13:00 to the minute —
+                // only the caption floats — which keeps the clock honest. Done only when the band
+                // is short of headroom AND there is room above to move into; otherwise it stays
+                // inside, where it reads better.
+                const kids = mine.filter((c) => isInside(c, s));
+                const headroom = kids.length ? Math.min(...kids.map((c) => c.start)) - s.start : Infinity;
+                const labelAbove = headroom < BAND_LABEL_MIN && s.start - from >= BAND_LABEL_MIN;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="bp-tl__allDayCard"
+                    style={
+                      {
+                        ...sessionVars(s),
+                        top: (s.start - from) * PX_PER_MIN,
+                        height: (s.end - s.start) * PX_PER_MIN,
+                      } as React.CSSProperties
+                    }
+                    data-labelabove={labelAbove ? "1" : undefined}
+                    data-dim={
+                      (terms.length > 0 && !matchesSpeaker(s, terms)) || !matchesTags(s, tags)
+                        ? "1"
+                        : undefined
+                    }
+                    title={s.name}
+                    onClick={() => onOpen(s)}
+                  >
+                    <span className="bp-tl__allDayHead">
+                      <span className="bp-tl__allDayLabel">{s.timeSlot}</span>
+                      <span className="bp-tl__allDayTitle">{s.name}</span>
+                    </span>
+                  </button>
+                );
+              })}
               {alldayHere.map((s) => (
                 <button
                   key={s.id}

@@ -7,8 +7,15 @@
 //
 // WHAT THIS DELIBERATELY DOES NOT DO: link speakers to sessions. The integration API exposes no
 // speaker-assignment route (no collection, nothing nested under a speaker or a timeslot), and the
-// only candidate left is a PATCH on the live timeslot whose merge-vs-replace behaviour is unknown.
+// only candidate left is a PATCH on the live timeslot.
 // Auri links them by hand in the Brella UI. `--plan` prints the checklist for that.
+//
+// PATCH ON A TIMESLOT MERGES — measured 2026-08-11, so this line no longer says "unknown".
+// `PATCH /timeslots/978531` with `{timeslot:{title}}` changed the title and NOTHING else: every
+// other attribute, and the tags/locations/speaker-assignments relationships, came back identical
+// on a re-read. So a narrow field edit is safe to send. That is NOT yet a licence to assign
+// speakers this way — a merge on a scalar says nothing about how a relationship array would be
+// treated, and that is the case still worth probing on a throwaway timeslot before trusting it.
 //
 // Photos come from the connector's own proxy, not from Airtable directly: Airtable attachment
 // URLs are signed and die after ~2 hours, so a raw one would be dead before anyone imported it.

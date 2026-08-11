@@ -1503,6 +1503,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    to open, so it takes no pointer and no hover: a band that highlights but does not respond is
    worse than one that plainly is not a control. */
 .bp-tl__allDayCard--prog { cursor: default; pointer-events: none; }
+/* The shell's caption. Normally sits inside the band, at the top; when a session starts on the
+   band's own first minute there is nothing to sit on top OF, so it moves into the empty grid
+   just above the band instead of being covered — see the note in ProgramTimeline. The band's
+   rectangle does not move, so the clock stays honest. */
+.bp-tl__allDayHead { display: flex; flex-direction: column; gap: 4px; }
+.bp-tl__allDayCard[data-labelabove="1"] { overflow: visible; }
+.bp-tl__allDayCard[data-labelabove="1"] .bp-tl__allDayHead {
+  position: absolute;
+  bottom: 100%;
+  left: 0; right: 0;
+  padding: 0 10px 5px;
+}
 .bp-tl__allDayCard:focus-visible { outline: 2px solid var(--track); outline-offset: -2px; }
 .bp-tl__allDayLabel {
   font-family: var(--font-heading);

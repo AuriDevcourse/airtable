@@ -42,7 +42,14 @@ const TIMEOUT_MS = 10_000;
 /**
  * Fold a name to a comparison key: lowercase, accents stripped, punctuation dropped, spaces
  * collapsed. "Bodil Sidén" and "bodil siden" agree; "Jan C. Olsen" and "Jan C Olsen" agree.
+ *
+ * A LEADING TITLE IS NOT PART OF THE NAME. An agenda typed from a document writes "Prof. Philippe
+ * Tibi" where the CRM row is filed as "Philippe Tibi", and without this the two never meet — which
+ * is exactly what happened to him on the Pension & Insurance Summit. Only stripped from the FRONT,
+ * so a surname that happens to be one of these words survives.
  */
+const HONORIFIC = /^(prof|professor|dr|doctor|mr|mrs|ms|sir|hon|rt hon)\s+/;
+
 function key(name: string): string {
   return name
     .toLowerCase()
@@ -50,7 +57,8 @@ function key(name: string): string {
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9 ]/g, " ")
     .replace(/\s+/g, " ")
-    .trim();
+    .trim()
+    .replace(HONORIFIC, "");
 }
 
 /**
@@ -60,7 +68,7 @@ function key(name: string): string {
  * back first: an arbitrary face is worse than an initial, because nobody looking at the page can
  * tell it is wrong.
  */
-export async function fetchProjectFaces(project: string): Promise<Map<string, string>> {
+async function fetchOneProject(project: string): Promise<Map<string, string>> {
   const faces = new Map<string, string>();
   if (!TOKEN || !BASE_ID) return faces;
 
@@ -116,6 +124,34 @@ export async function fetchProjectFaces(project: string): Promise<Map<string, st
     );
   }
   return faces;
+}
+
+/**
+ * name-key → photo, across one project or an ORDERED FALLBACK LIST of them.
+ *
+ * Why a list. A speaker's CRM row is filed under one `Project Name`, and that is not always the
+ * project whose agenda they appear on: Yoram Wijngaarde is filed under the LP Forum but keynotes on
+ * Investor Day too, and every Nordic Family Office Summit speaker who exists in the CRM at all is
+ * filed under an Event Room. Restricted to the programme's own project, those agendas render
+ * initials next to people whose headshot is already in the table.
+ *
+ * FIRST PROJECT WINS, which is what makes this safe to widen. The event's own project is listed
+ * first, so a fallback can only fill a gap, never override a face the event itself provides — and
+ * one name appearing under two projects (Yoram) resolves to the first rather than being dropped as
+ * ambiguous. Ambiguity is still per-project: two rows for the same person inside ONE project is a
+ * duplicate to fix in Airtable, and an arbitrary pick would hide it.
+ */
+export async function fetchProjectFaces(
+  project: string | readonly string[]
+): Promise<Map<string, string>> {
+  const projects = typeof project === "string" ? [project] : project;
+  const merged = new Map<string, string>();
+  for (const p of projects) {
+    for (const [k, url] of await fetchOneProject(p)) {
+      if (!merged.has(k)) merged.set(k, url);
+    }
+  }
+  return merged;
 }
 
 /**

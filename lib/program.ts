@@ -133,8 +133,11 @@ type AirtableSource = {
    * per session in the same order as the names, while the CRM holds one headshot per person. Setting
    * this joins the two, so a photo uploaded once in Marketing Project Overview reaches the agenda.
    * See lib/programFaces.ts — including why it is opt-in rather than on for every source.
+   *
+   * A LIST is an ordered fallback: the programme's own project first, then projects a speaker might
+   * be filed under instead. Earlier entries win, so a fallback can only fill a gap.
    */
-  facesFrom?: string;
+  facesFrom?: string | readonly string[];
   fields: {
     name: string;
     day?: string;
@@ -216,6 +219,92 @@ export const PROGRAM_SOURCES = {
     // had no faces to give. Event Room 1 is where Brella places the Board Summit; the six older
     // rows under the same project belong to "Beyond Unicorns" and simply never match a name here.
     facesFrom: "Event Room 1",
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  // THE FOUR DAY 0 PROGRAMMES — 25 August, the day before TechBBQ opens. Same Sessions table and the
+  // same hand-typed people fields as the Policy Stage and the Board Summit above; they arrived the
+  // same way, as designed pages rather than linked speaker records, so they need no new parsing.
+  //
+  // NO `view` on any of them, deliberately. The Sessions table's two views (Event Rooms, Side Events)
+  // are edited in the Airtable UI and have already widened once — see the note on AirtableSource.filter
+  // for what that did to ?event=policy. The filter pins each programme to its `Name of the Event` cell,
+  // which no view edit can widen.
+  //
+  // `facesFrom` names the matching `Project Name` in Marketing Project Overview, where these speakers
+  // already have one headshot each from the /investors pages. The session rows carry no photo cells at
+  // all, so every face on these four comes from that join (lib/programFaces.ts). The CRM's option is
+  // "Nordic Family Office" — shorter than the event's own name, and it is the option string that has
+  // to match, not the title.
+  "pension-summit": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="European Growth Pension & Insurance Summit"',
+    facesFrom: ["European Growth Pension & Insurance Summit", "TechBBQ Summit"],
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  "family-office": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Nordic Family Office Summit"',
+    // "Nordic Family Office" HAS NO ROWS YET (checked 2026-08-11), so every face on this agenda comes
+    // from the two fallbacks — Zenia W. Francker is filed under Event Room 2, Adrian Larsen under
+    // Event Room 1. That is a stopgap, not the design: the other eight speakers are not in the CRM at
+    // all and cannot be found anywhere. Once the ten are filed under their own project, drop the
+    // Event Room entries.
+    facesFrom: ["Nordic Family Office", "Event Room 2", "Event Room 1"],
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  "lp-forum": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="LP Forum"',
+    // Erik Balck Sørensen moderates here but is filed under the main programme, not the LP Forum.
+    facesFrom: ["LP Forum", "TechBBQ Summit", "Event Room 1"],
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  "investor-day": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="TechBBQ Investor Day"',
+    // Only three people are filed under Investor Day. Yoram Wijngaarde keynotes here as well as at
+    // the LP Forum and the Pension Summit, and is filed under those.
+    facesFrom: ["TechBBQ Investor Day", "LP Forum", "European Growth Pension & Insurance Summit"],
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
