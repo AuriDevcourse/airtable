@@ -99,6 +99,16 @@ const PHOTOS = [
   { name: "Frank Kjerstein", verified: "looked at it",
     src: "https://www.gitexeurope.com/images/Frank-Kjerstein-Reblade-CEO-BW.jpg",
     from: "GITEX Europe speaker asset. Filename carries name+company+role; their alt text says 'Geoffrey Hinton', which is scrambled - same trap as boras-ink. Black and white" },
+  // --- 2026-08-11. Two that the 2026-08-10 pass concluded were unfindable, but are not.
+  // Both sit on MULTI-PERSON pages, where taking the nearest image by character distance in the
+  // raw HTML is unsafe - it hands you the neighbour's face. Both confirmed instead by DOM
+  // ADJACENCY in a real browser: the image inside the same card as the person's own name.
+  { name: "Sara Storm", verified: "looked at it",
+    src: "https://funnelemea.com/__l5e/assets-v1/e339193a-82f2-4cff-adb9-d9262e76c5ea/sara-storm.png",
+    from: "funnelemea.com speaker page - filename AND alt independently both read 'Sara Storm'" },
+  { name: "Anders Rosenqvist", verified: "looked at it",
+    src: "https://www.whitepress.com/userfiles/int_seovibes_ontour_agendas/174764673377344300.png",
+    from: "whitepress.com SEO Vibes Copenhagen agenda. Numeric filename and NO alt, so confirmed by DOM adjacency to 'Anders Rosenqvist / Marketing Performance Manager, A.P. Moller - Maersk' - the row's title AND company word for word" },
 ];
 
 // REJECTED, and why - do not silently re-add these:
@@ -135,10 +145,16 @@ const PHOTOS = [
 //   Jennifer Montague      helloretail.com podcast still is one person, but nothing outside
 //                          LinkedIn ties that Jennifer Montague to Cerivo
 //   Kim Rants              only the Y Combinator avatar: 200x200 behind a 1-hour presigned S3 URL
-//   Sara Storm, Bue Fisker, Daniel Nordin Baker, Vahid Sohrabpour, Maarten Kas, Raymond Alves,
+//   Bue Fisker, Daniel Nordin Baker, Vahid Sohrabpour, Maarten Kas, Raymond Alves,
 //   Monika Kanda, Lisa Nyman, Anna Kivinen, Catarina Mendonça, Agnieszka Chlad, Ramona Ocak,
-//   Marie Adam, Ulla Sommerfeldt, Andreas Rosenqvist, Nadia Lodroman
+//   Marie Adam, Ulla Sommerfeldt, Nadia Lodroman
 //                          searched, nothing fetchable that is provably them
+//   Sara Storm             FOUND 2026-08-11 on funnelemea.com - now in the list above
+//   Anders Rosenqvist      FOUND 2026-08-11 on whitepress.com - now in the list above
+//   Kim Rants              left rejected. The YC avatar IS provably him (alt='Kim Rants') but the
+//                          200x200 bar is a fair call, and it is a 1-hour presigned S3 URL. If you
+//                          ever want it, resolve it live like resolveFromSpeakers does - do NOT
+//                          hardcode a signed URL, it will rot
 
 // One entry takes its photo from elsewhere in this same base rather than the open web. Resolved
 // live so the link cannot go stale: Airtable attachment URLs are signed and expire.

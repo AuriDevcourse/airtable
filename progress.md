@@ -26,6 +26,61 @@ Two entries below are both labelled 2026-08-11: (e) is the Deep Tech work, (f) i
 hardening. They were written by different sessions on the same day and (f) was renamed from (e) to
 break the collision.
 
+## Session 2026-08-11 (g) · Grill Sessions: 58/60 both, merged with the parallel photo pass
+
+This session ran in parallel with the 2026-08-10 photo pass and rebased onto it. **Their photo
+sourcing was better than mine and is the one that survived** - where we both had a source for the
+same person, theirs won:
+- **Mårten Skogh** - chalmers.se (alt reads "Profile photo of Mårten Skogh") supersedes my
+  chalmersnextlabs.se screenshot-named PNG. Their own note already says so.
+- **Maarten Everts** - their GOTO speaker page corroborates "CTO & co-founder Linksight", which
+  also confirms the title correction. Mine was only his utwente staff page.
+- **Kim Rants** - left rejected. The YC avatar IS provably him (alt='Kim Rants'), but the 200x200
+  bar is a fair call and it is a 1-hour presigned S3 URL. If it is ever wanted, resolve it live the
+  way `resolveFromSpeakers` does. Do not hardcode a signed URL.
+
+Two of their "nothing fetchable that is provably them" calls were wrong and are now filled:
+- **Sara Storm** - funnelemea.com, filename AND alt independently both read "Sara Storm".
+- **Anders Rosenqvist** - whitepress.com SEO Vibes Copenhagen agenda.
+Both sit on multi-person pages. Nearest-image-by-character-distance is NOT safe there; it hands you
+the neighbour's face. Both were confirmed by **DOM adjacency in a real browser** - the image inside
+the same card as the person's own name - and Anders's card states his title and company word for
+word. Use that technique, not proximity.
+
+### Auri edited the table underneath both sessions - read the dry run
+Rows were renamed by hand, and exact-name matching turns a rename into a SILENT
+"NOT FOUND in grill rows". Keys resynced:
+
+    MONIKA KANDA      -> Monika Kanda
+    Jennifer Monatgue -> Jennifer Montague
+    Ulla Sommerfeldt  -> Ulla Sommerfelt      (she now has a handle: /in/ullasommerfelt/)
+
+### The OVERWRITE guard paid for itself
+The dry run flagged `will OVERWRITE: Fabio Cavaliere`. The handle was identical - the only
+difference was that **Auri had deliberately cleared his Bio by hand**, and re-running would have
+silently re-added my caveat over that decision. The caveat is gone from the script; the concern
+still stands here (Job Title "POINT OF CONTACT", an email address in the Company field, so the row
+is probably the session's submitting contact and not a speaker at all).
+Also: **Maarten Kas's handle had vanished** from the row since it was written. Re-applied.
+
+### Correction to my own earlier note
+Mårten Skogh's title was never wrong. chalmersnextlabs.se says "Head of Quantum Lab", the row says
+"Head of Quantum Technology". My earlier "sources say Development Engineer" flag was stale search
+data - disregard it.
+
+### What is actually left: two rows, both blocked
+- **Maarten Kas** - photo only. No public portrait outside LinkedIn; remotik.nl does not resolve,
+  and the EDIH / Enterprise Europe Network pieces that confirm "Maarten Kas, CEO van Remotik" carry
+  no photo of him.
+- **Yuval Temam** - handle AND photo. His identity is still unconfirmed, so there is nothing to
+  attach a face to. The one NL profile with that name has a headline reading SES, not Lighthouse
+  Lab; lighthouselab.io does not mention him; the ru.nl "Y. Temam" the other pass found is a
+  different unconfirmed person. Guessing here puts a stranger's face on a speaker.
+- **Ramona Ocak** - handle only, and this one is settled: she has no public LinkedIn. Verified as a
+  real EU official via an InvestEU PDF, which puts her at DG ECFIN, not DG GROW as the row says.
+
+None of the three is worth more search time. All three need one question to the submitting partner.
+
 ## Session 2026-08-11 (e) · One Event Room on its own: Deep Tech Event Day
 
 **State:** working locally, not deployed. Copying a single Event Room as its own embed now names

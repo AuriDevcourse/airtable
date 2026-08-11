@@ -106,7 +106,7 @@ const FOUND=[
    linkedin:"https://www.linkedin.com/in/sonnenborg/" },                      // skytek.dk own author page, exact title match
  { name:"Yohanna Gustafsson",
    linkedin:"https://www.linkedin.com/in/yohannagustafsson/" },               // cse.cbs.dk own team page, exact title match
- { name:"MONIKA KANDA",
+ { name:"Monika Kanda",   // was all-caps in Airtable until 2026-08-10
    linkedin:"https://www.linkedin.com/in/monikakanda/" },                     // siliconvalley.um.dk + The Org
  { name:"Annelie Rådhall",
    linkedin:"https://www.linkedin.com/in/annelie-r%C3%A5dhall/" },            // boras-ink.se + nestsweden.se, exact title match
@@ -117,15 +117,17 @@ const FOUND=[
    linkedin:"https://www.linkedin.com/in/danielnordinbaker" },                // Big Science Sweden post: "Daniel Nordin Baker at European Spallation Source ERIC"
  { name:"Anders Rosenqvist",
    linkedin:"https://www.linkedin.com/in/andersrosenqvist/" },                // seoday.dk speaker page + Accutics Maersk case study, exact title match
- { name:"Jennifer Monatgue",
-   linkedin:"https://www.linkedin.com/in/jennifermontague/",
-   bio:"NOTE: her name is spelled Jennifer MONTAGUE - this row has 'Monatgue'. Confirmed VP of Marketing at Cerivo via the N.Rich event page and SaaSiest. Please fix the spelling before this is published anywhere." },
+ { name:"Jennifer Montague",
+   linkedin:"https://www.linkedin.com/in/jennifermontague/" },                 // row renamed from "Monatgue" 2026-08-10; spelling caveat no longer needed
  { name:"Bue Fisker",
    linkedin:"https://www.linkedin.com/in/bue-fisker-b10946a6",
    bio:"NOTE: identity confirmed, but every public source puts him at KIRKBI (the Kirk Kristiansen family holding company) as Senior Investment Manager - not the LEGO Foundation as Director of Investments, which is what this row says. They are separate legal entities. Please confirm which is current." },
+ // Fabio Cavaliere: handle already on the row. Bio caveat REMOVED because Auri cleared that Bio
+ // by hand on 2026-08-10 - re-adding it would silently undo a deliberate edit. The underlying
+ // concern still stands and lives in progress.md: Job Title "POINT OF CONTACT" and an email
+ // address in the Company field mean this row is probably the submitting contact, not a speaker.
  { name:"Fabio Cavaliere",
-   linkedin:"https://www.linkedin.com/in/fabio-cavaliere-1s3",
-   bio:"NOTE: profile bio matches (joined Ideon Science Park, studied at Lund University), but corroboration is thin. ALSO: this whole row looks like form noise, not a presenter - the Job Title is 'POINT OF CONTACT' and the Company field contains his email address. He may be the submitting contact for the session rather than someone on stage. Please check before publishing." },
+   linkedin:"https://www.linkedin.com/in/fabio-cavaliere-1s3" },
 
  { name:"Nadia Lodroman",
    linkedin:"https://www.linkedin.com/in/nadia-lodroman-69499a9/",
