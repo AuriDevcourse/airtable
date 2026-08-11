@@ -4,6 +4,28 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## WORKING TREE, as of 2026-08-11 12:00 · READ THIS FIRST
+
+`main` is pushed and deployed through `2838660` (Tito Investor Day, Brella paging, the Event Guide,
+Elementor hardening). Verified in production.
+
+**THREE FILES ARE MODIFIED AND NOT COMMITTED**, from a parallel session, and they are the Deep Tech
+Event Day work in entry (e) below:
+
+- `lib/brellaSections.ts` · `ROOM_DAY_PROGRAMMES` += Event Room 6 / 26 August / Deep Tech Event Day
+- `lib/brellaEmbedSnippet.ts`
+- `app/brella-program/page.tsx`
+
+They compile and the last `npm run build` passed with them present, but nothing about them has been
+verified in a browser by the session that wrote entry (f), and they are deliberately NOT pushed —
+`main` auto-deploys to the connector that techbbq.dk reads, and that is not somebody else's call to
+make. **Either review and commit them, or `git checkout --` them, before starting anything new.**
+Do not assume a clean tree.
+
+Two entries below are both labelled 2026-08-11: (e) is the Deep Tech work, (f) is the Elementor
+hardening. They were written by different sessions on the same day and (f) was renamed from (e) to
+break the collision.
+
 ## Session 2026-08-11 (e) · One Event Room on its own: Deep Tech Event Day
 
 **State:** working locally, not deployed. Copying a single Event Room as its own embed now names
