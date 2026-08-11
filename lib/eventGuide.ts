@@ -1,0 +1,822 @@
+// THE EVENT GUIDE — practical information for people attending TechBBQ 2026.
+//
+// Unlike every other feed in this repo, this content is NOT in Airtable. It is here, in git,
+// on purpose (Auri, 2026-08-11): the guide changes a handful of times a year, an Airtable table
+// would add a live dependency and a cache TTL to copy that is essentially static, and a typo fix
+// wants a diff and a review rather than someone editing a cell in a 3,670-row base.
+//
+// WHERE THE DESIGN COMES FROM. The staging techbbq.dk Event Guide (Humandone). Each section is a
+// row of pill tabs above ONE split panel: text left, photo right. That replaces the old
+// icon-grid-plus-popup guide, which needed a click into a modal to read a sentence.
+//
+// WHERE THE CONTENT COMES FROM. The live guide's popup markup, carried over item for item. The
+// old guide had 30 items and the new design showed 27 — Brella, Venue Map and Keypitt had no tab.
+// All 30 are here (Auri, 2026-08-11): dropping a partner and the official app off a live page is
+// not a thing to do silently.
+//
+// ─── DATES WERE WRONG IN THE SOURCE, and are corrected here ──────────────────────────────────
+// The old guide contradicted itself. Opening Hours said August 26th/27th while Badge Claim, Info
+// Desk and Keypitt all said "Wednesday 27th / Thursday 28th", and the staging design carried the
+// 27th/28th through. Those are LAST YEAR's dates: TechBBQ 2025 ran 27–28 August, and both were a
+// Wednesday and a Thursday, which is why they read as plausible.
+//
+// TechBBQ 2026 is 26–27 August (Tito event `2026` starts 2026-08-26; Brella confirms 27 August as
+// the closing day). 26 and 27 August 2026 are also a Wednesday and a Thursday. Every date in this
+// file is therefore 26th/27th. Same for the body copy that still said "TechBBQ 2025".
+//
+// If a date here is ever edited, edit it HERE and nowhere else — the preview page and the pasted
+// embed both render this file, which is the whole reason the copy lives in one place.
+
+/** Where the guide photos live. All already uploaded to the WordPress media library. */
+const IMG = "https://techbbq.dk/wp-content/uploads";
+
+/**
+ * A paragraph, optionally opening with a bold lead-in ("Important Note:"), which is the pattern
+ * the design uses to break a panel into scannable claims without a heading per sentence.
+ *
+ * `text` may contain `[label](url)` links and nothing else. The renderers escape the whole string
+ * first and then convert those, so a stray `<` in the copy can never become markup. Keep it that
+ * way: this file is authored by hand and read by two separate renderers, and the moment it
+ * accepts raw HTML both of them become an injection surface for whoever edits it next.
+ */
+export type GuideBlock =
+  | { kind: "p"; lead?: string; text: string }
+  | { kind: "list"; lead?: string; items: string[] }
+  /** A day of opening hours: a bold day heading over its own rows. */
+  | { kind: "schedule"; day: string; rows: string[] };
+
+export type GuideItem = {
+  /** Stable id, used for the tab button, the panel and the deep link (#event-guide-venue). */
+  key: string;
+  /** The pill label. Short — it sits in a row with five others on one line. */
+  tab: string;
+  /**
+   * The small red-dotted line above the panel title. Uppercased by CSS.
+   * Defaults to `tab` when omitted, which is what the design does for most panels.
+   */
+  eyebrow?: string;
+  /** The panel headline. A real answer where there is one ("Bella Center Copenhagen"). */
+  title: string;
+  /** Small uppercase chips under the intro. Only the Venue panel uses them in the design. */
+  tags?: string[];
+  blocks: GuideBlock[];
+  image: string;
+  /** Alt text. Never decorative here: every panel photo carries meaning (SECURITY r9). */
+  alt: string;
+};
+
+export type GuideSection = {
+  /** Stable id, used for the section anchor. */
+  key: string;
+  title: string;
+  items: GuideItem[];
+};
+
+export const GUIDE_SECTIONS: GuideSection[] = [
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  {
+    key: "essentials",
+    title: "Event Essentials",
+    items: [
+      {
+        key: "venue",
+        tab: "Venue",
+        eyebrow: "Venue location",
+        title: "Bella Center Copenhagen",
+        tags: [
+          "Large venue",
+          "Modern facilities",
+          "Flexible spaces",
+          "Ørestad location",
+          "5 min to airport",
+          "Easy city access",
+        ],
+        blocks: [
+          {
+            kind: "p",
+            lead: "Address:",
+            text: "Entrance 1, Emma Gads Vej 23, Copenhagen S, Denmark",
+          },
+          {
+            kind: "list",
+            lead: "Venue details:",
+            items: [
+              "One of Scandinavia's largest modern event venues",
+              "State-of-the-art facilities with flexible meeting rooms",
+              "In the Ørestad district, a few minutes from Copenhagen Airport",
+              "Direct Metro connection to the city centre",
+            ],
+          },
+        ],
+        image: `${IMG}/2024/11/Exhibition-hall-at-TechBBQ.webp`,
+        alt: "The TechBBQ exhibition hall at Bella Center Copenhagen, full of stands and attendees",
+      },
+      {
+        key: "entrance",
+        tab: "Entrance",
+        eyebrow: "Entrance location",
+        title: "Entrance 1",
+        blocks: [
+          {
+            kind: "p",
+            text: "Entrance 1 is at the front of Bella Center Copenhagen and is visible as you arrive from the Metro or the bike lanes.",
+          },
+          {
+            kind: "list",
+            lead: "What to look for:",
+            items: [
+              "Signage directing TechBBQ attendees from the moment you arrive",
+              "Check-in and the Info Desk visible immediately as you enter",
+            ],
+          },
+        ],
+        image: `${IMG}/2025/01/TechBBQ-Entrance-Logo.webp`,
+        alt: "The TechBBQ entrance signage at Bella Center Copenhagen",
+      },
+      {
+        key: "transportation",
+        tab: "Transportation",
+        eyebrow: "Getting here",
+        title: "How to reach the venue",
+        blocks: [
+          {
+            kind: "list",
+            lead: "Public transport:",
+            items: [
+              "Metro: M1 line, Bella Center station",
+              "Bus: line 30 from Copenhagen Central Station",
+              "Train: regional trains stop at Ørestad station",
+            ],
+          },
+          {
+            kind: "list",
+            lead: "Driving:",
+            items: ["E20 motorway, exit 19 “Ørestad”", "24-hour paid parking at the venue"],
+          },
+          {
+            kind: "list",
+            lead: "From the airport:",
+            items: [
+              "Copenhagen Airport (CPH) is the closest airport",
+              "Metro, train or taxi to the venue",
+              "8 to 15 minutes door to door",
+            ],
+          },
+        ],
+        image: `${IMG}/2025/01/Ed-West.webp`,
+        alt: "Attendees arriving at TechBBQ",
+      },
+      {
+        key: "access",
+        tab: "Access",
+        eyebrow: "Accessibility",
+        title: "Accessibility at the venue",
+        blocks: [
+          {
+            kind: "list",
+            lead: "Venue features:",
+            items: [
+              "Accessible entrances to all areas",
+              "Lifts and elevators to all floors",
+              "Wide, clear walkways",
+              "Accessible parking nearby",
+            ],
+          },
+          {
+            kind: "list",
+            lead: "Additional support:",
+            items: [
+              "Service animals are welcome",
+              "Assistance is available on request",
+              "For specific needs, call +45 32 52 88 11",
+            ],
+          },
+          {
+            kind: "p",
+            lead: "AC Hotel Bella Sky Copenhagen:",
+            text: "Elevators in both towers, and accessible rooms are available.",
+          },
+        ],
+        image: `${IMG}/2025/01/Accessibility.webp`,
+        alt: "Accessible routes and facilities at Bella Center Copenhagen",
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  {
+    key: "on-site",
+    title: "On-Site Experience",
+    items: [
+      {
+        key: "opening-hours",
+        tab: "Opening Hours",
+        title: "Two days at Bella Center",
+        blocks: [
+          {
+            kind: "schedule",
+            day: "Wednesday, August 26th (Event day 1)",
+            rows: ["9:00 · Doors open", "17:00 · Stage program ends", "20:00 · End of day 1"],
+          },
+          {
+            kind: "schedule",
+            day: "Thursday, August 27th (Event day 2)",
+            rows: [
+              "9:00 · Doors open",
+              "17:00 · Stage program ends",
+              "17:00 · After hours begins",
+              "21:00 · End of day 2",
+            ],
+          },
+        ],
+        image: `${IMG}/2025/01/opening-hours.webp`,
+        alt: "Attendees arriving as the doors open at TechBBQ",
+      },
+      {
+        key: "venue-map",
+        tab: "Venue Map",
+        title: "Find your way around",
+        blocks: [
+          {
+            kind: "p",
+            text: "The full venue map lives in the Brella app, so it stays correct if a room or a stage moves in the days before the event.",
+          },
+          {
+            kind: "p",
+            lead: "On the day:",
+            text: "Printed maps and signage are up throughout the venue, and the Info Desk near check-in can point you anywhere.",
+          },
+        ],
+        image: `${IMG}/2024/11/Exhibition-hall-at-TechBBQ.webp`,
+        alt: "Overview of the TechBBQ exhibition hall layout",
+      },
+      {
+        key: "stage-program",
+        tab: "Stage Program",
+        title: "What is on, and when",
+        blocks: [
+          {
+            kind: "p",
+            text: "The program is released closer to the event and will also be available on the event platform, where you can build your own schedule.",
+          },
+        ],
+        image: `${IMG}/2024/11/TechBBQ-audience-engaged-with-headphones.webp`,
+        alt: "A TechBBQ audience listening to a stage session with headphones",
+      },
+      {
+        key: "badge-claim",
+        tab: "Badge Claim",
+        title: "Collecting your badge",
+        blocks: [
+          {
+            kind: "p",
+            lead: "Where:",
+            text: "The check-in area is right as you enter Bella Center through Entrance 1.",
+          },
+          {
+            kind: "list",
+            lead: "What you get:",
+            items: ["A name badge", "A lanyard", "A wristband"],
+          },
+          {
+            kind: "list",
+            lead: "Check-in hours:",
+            items: ["9:00 – 18:00 on Wednesday 26th", "9:00 – 18:00 on Thursday 27th"],
+          },
+          {
+            kind: "p",
+            lead: "Pick up early:",
+            text: "Join us on Thursday, August 20th between 12:00 and 18:00 at Matrikel 1 Café (outdoor area) to collect your badge before the event.",
+          },
+          {
+            kind: "list",
+            lead: "Pickup options:",
+            items: [
+              "Individual attendees can collect their own badge",
+              "Partners may collect all badges for their company in bulk",
+            ],
+          },
+          {
+            kind: "list",
+            lead: "Please note:",
+            items: ["Lost badge reprint: 50 DKK", "Lost wristband replacement: 750 DKK"],
+          },
+        ],
+        image: `${IMG}/2025/01/badge-claim.webp`,
+        alt: "A TechBBQ attendee collecting a badge at the check-in desk",
+      },
+      {
+        key: "wardrobe",
+        tab: "Wardrobe",
+        eyebrow: "Keypitt™ wardrobe",
+        title: "Keypitt™ wardrobe",
+        blocks: [
+          { kind: "p", lead: "Where:", text: "Directly in front of the check-in area." },
+          {
+            kind: "list",
+            lead: "Prices:",
+            items: ["Jackets: free of charge", "Luggage and larger items: 35 DKK"],
+          },
+          {
+            kind: "list",
+            lead: "Opening hours:",
+            items: ["8:00 – 18:00 on Wednesday 26th", "8:00 – 18:00 on Thursday 27th"],
+          },
+          {
+            kind: "p",
+            lead: "Skip the queue:",
+            text: "Get your [KeyPass](https://www.keypitt.io/welcome?rf=RV8JCCHk29uhEbOm6PKZLrlQU-XuIGpt7suzn-HxGYA) before you arrive.",
+          },
+          {
+            kind: "list",
+            items: [
+              "Takes 20 seconds, once for life",
+              "Works at all Keypitt™ venues and events",
+              "Add it to your phone wallet for one-tap access",
+              "Show it at check-in and check-out, no paper ticket needed",
+            ],
+          },
+          {
+            kind: "p",
+            text: "Already have one with payment connected? Head straight to the fast-track line.",
+          },
+        ],
+        image: `${IMG}/2025/01/cloak-room.jpg`,
+        alt: "The Keypitt wardrobe and cloak room at TechBBQ",
+      },
+      {
+        key: "lost-and-found",
+        tab: "Lost & Found",
+        title: "Lost something?",
+        blocks: [
+          {
+            kind: "p",
+            lead: "During the event:",
+            text: "Visit the Info Desk. Our team will help you, and found items are handed in there.",
+          },
+          {
+            kind: "p",
+            lead: "After the event:",
+            text: "Email us at [info@techbbq.org](mailto:info@techbbq.org).",
+          },
+        ],
+        image: `${IMG}/2025/01/lost-and-found.webp`,
+        alt: "The TechBBQ info desk where lost and found items are handled",
+      },
+      {
+        key: "info-desk",
+        tab: "Info Desk",
+        title: "Ask us anything",
+        blocks: [
+          { kind: "p", lead: "Where:", text: "Next to the check-in area." },
+          {
+            kind: "list",
+            lead: "Opening hours:",
+            items: ["8:00 – 18:00 on Wednesday 26th", "8:00 – 18:00 on Thursday 27th"],
+          },
+        ],
+        image: `${IMG}/2025/01/info-desk.jpg`,
+        alt: "TechBBQ staff at the info desk",
+      },
+      {
+        key: "media-policy",
+        tab: "Media Policy",
+        eyebrow: "Photo & video policy",
+        title: "Photos, filming and press",
+        blocks: [
+          {
+            kind: "p",
+            lead: "General policy:",
+            text: "You are welcome to take photos and video on your phone and share them online. TechBBQ is a public event.",
+          },
+          {
+            kind: "p",
+            lead: "Professional equipment:",
+            text: "Professional filming equipment is only allowed by prior agreement, or if you are an accredited member of the press.",
+          },
+        ],
+        image: `${IMG}/2025/01/Photo.jpg`,
+        alt: "A photographer covering TechBBQ",
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  {
+    key: "food",
+    title: "Food, Drinks & Payments",
+    items: [
+      {
+        key: "food-beverage",
+        tab: "Food & Beverage",
+        title: "BBQ Experience",
+        blocks: [
+          {
+            kind: "p",
+            text: "Staying true to our name and heritage, TechBBQ features barbecue setups for you to enjoy. Alongside the barbecue you will find a variety of other options at our two on-site cafés and a kiosk.",
+          },
+          {
+            kind: "p",
+            lead: "Important note:",
+            text: "Catering is not included with your ticket, and bringing your own food and drinks is not permitted.",
+          },
+        ],
+        image: `${IMG}/2025/01/food.webp`,
+        alt: "Food being served at TechBBQ",
+      },
+      {
+        key: "coffee",
+        tab: "Coffee",
+        title: "Coffee on site",
+        blocks: [
+          {
+            kind: "p",
+            text: "Espresso-based coffee is available to buy at the cafés inside the event area.",
+          },
+        ],
+        image: `${IMG}/2025/01/coffee.webp`,
+        alt: "Coffee being poured at a TechBBQ café",
+      },
+      {
+        key: "water",
+        tab: "Water Stations",
+        title: "Free water in the Garden Hall",
+        blocks: [
+          {
+            kind: "p",
+            text: "Our water stations in the Garden Hall serve some of the world's purest tap water.",
+          },
+          {
+            kind: "p",
+            lead: "Bring a bottle:",
+            text: "We care about sustainability, so please bring a reusable bottle and refill it at the stations rather than using single-use cups.",
+          },
+        ],
+        image: `${IMG}/2025/01/water.webp`,
+        alt: "A water refill station at TechBBQ",
+      },
+      {
+        key: "payments",
+        tab: "Payments",
+        title: "A cashless event",
+        blocks: [
+          {
+            kind: "p",
+            text: "TechBBQ is cashless. We accept card and contactless payments only, everywhere on site.",
+          },
+        ],
+        image: `${IMG}/2025/01/payment.webp`,
+        alt: "A contactless card payment at TechBBQ",
+      },
+      {
+        key: "recycling",
+        tab: "Recycling",
+        title: "Sorting into 21 categories",
+        blocks: [
+          {
+            kind: "p",
+            lead: "Waste management:",
+            text: "Bella Center Copenhagen sorts waste at the point of disposal into 21 distinct categories, so materials are separated before they are ever collected.",
+          },
+          {
+            kind: "p",
+            lead: "The result:",
+            text: "Less than 0.5% of the venue's waste goes to landfill, and the rest is recycled or upcycled.",
+          },
+        ],
+        image: `${IMG}/2025/01/recycling.webp`,
+        alt: "Waste sorting stations at Bella Center Copenhagen",
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  {
+    key: "work",
+    title: "Work & Lounges",
+    items: [
+      {
+        key: "event-platform",
+        tab: "Online Event Platform",
+        title: "Official Event App",
+        blocks: [
+          {
+            kind: "p",
+            lead: "Maximise your experience:",
+            text: "The event platform has a matchmaking tool and the full program in one place. It is the best way to connect and stay informed.",
+          },
+          {
+            kind: "p",
+            lead: "Launch:",
+            text: "The platform opens two weeks before TechBBQ 2026. Ticket holders are invited to set up a profile and start networking, on desktop and on mobile.",
+          },
+          {
+            kind: "p",
+            lead: "Access:",
+            text: "Ticket holders receive an email with a personal invitation and a download link.",
+          },
+          {
+            kind: "p",
+            lead: "Pro tip:",
+            text: "Most meetings are arranged before the event begins, so set your profile up early.",
+          },
+        ],
+        image: `${IMG}/2024/11/Networking-tables-at-TechBBQ.jpg`,
+        alt: "Attendees networking at tables during TechBBQ",
+      },
+      {
+        key: "brella",
+        tab: "Brella App",
+        eyebrow: "Event app · Brella",
+        title: "This is Brella",
+        blocks: [
+          {
+            kind: "p",
+            text: "Brella is TechBBQ's official networking and event app, and it is the platform described above. The app goes live two weeks before the conference and a download QR code appears here.",
+          },
+          {
+            kind: "list",
+            lead: "What you can do:",
+            items: [
+              "Book 1:1 meetings with other attendees",
+              "Browse the agenda and build your own schedule",
+              "Find exhibitors and partners",
+              "Get event updates and notifications",
+            ],
+          },
+          {
+            kind: "p",
+            lead: "Download:",
+            text: "Available for iOS and Android. You will receive an email with instructions before the event.",
+          },
+        ],
+        image: `${IMG}/2024/07/Networking-at-TechBBQ.jpg`,
+        alt: "Attendees meeting each other at TechBBQ",
+      },
+      {
+        key: "table-reservation",
+        tab: "Table Reservation",
+        title: "Meetings in the Matchmaking Area",
+        blocks: [
+          {
+            kind: "p",
+            text: "Meetings you accept on the event platform are given a table in the Matchmaking Area automatically.",
+          },
+          {
+            kind: "p",
+            lead: "Note:",
+            text: "You cannot reserve a table without matching on the platform first.",
+          },
+        ],
+        image: `${IMG}/2024/07/Networking-at-TechBBQ.jpg`,
+        alt: "Meeting tables in the TechBBQ matchmaking area",
+      },
+      {
+        key: "wifi",
+        tab: "WiFi",
+        title: "Free WiFi",
+        blocks: [
+          { kind: "p", text: "TechBBQ offers free WiFi throughout the venue." },
+        ],
+        image: `${IMG}/2024/08/53231547134_85dce7b644_c.jpg`,
+        alt: "Attendees working on laptops at TechBBQ",
+      },
+      {
+        key: "charging",
+        tab: "Charging",
+        title: "Stay powered up",
+        blocks: [
+          {
+            kind: "p",
+            text: "Power outlets are available in the workspaces throughout the venue. Please bring your own charger.",
+          },
+        ],
+        image: `${IMG}/2025/01/charging.webp`,
+        alt: "A phone charging at a TechBBQ workspace",
+      },
+      {
+        key: "workspaces",
+        tab: "Workspaces",
+        title: "Somewhere to get work done",
+        blocks: [
+          {
+            kind: "p",
+            text: "Workspaces are spread across the venue, free to use at any time and with no reservation. They suit a quick task or an hour on your laptop.",
+          },
+          {
+            kind: "p",
+            lead: "Our thinking:",
+            text: "We hope you can be present at the event, and we know work does not always wait.",
+          },
+        ],
+        image: `${IMG}/2025/01/workspaces.webp`,
+        alt: "A workspace area at TechBBQ",
+      },
+      {
+        key: "relaxation",
+        tab: "Relaxation",
+        eyebrow: "Re-charging zone",
+        title: "A quieter room",
+        blocks: [
+          {
+            kind: "list",
+            lead: "In the Re-Charging Zone:",
+            items: ["Guided meditation", "Breathwork sessions", "Biohacking devices"],
+          },
+          {
+            kind: "p",
+            lead: "Why:",
+            text: "Two days of networking is a lot. The zone is somewhere to release tension and get your focus back.",
+          },
+          {
+            kind: "p",
+            lead: "Partner:",
+            text: "The zone is co-hosted by [One Thirty Labs](https://onethirtylabs.com).",
+          },
+        ],
+        image: `${IMG}/2024/11/Guided-meditation-at-TechBBQ.jpg`,
+        alt: "A guided meditation session in the TechBBQ re-charging zone",
+      },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────
+  {
+    key: "safety",
+    title: "Safety",
+    items: [
+      {
+        key: "safety-overview",
+        tab: "Safety Overview",
+        title: "Security & Safety",
+        blocks: [
+          {
+            kind: "p",
+            lead: "Our commitment:",
+            text: "We work closely with our security partner at Bella Center Copenhagen to keep the event safe and welcoming.",
+          },
+          {
+            kind: "p",
+            lead: "Staff:",
+            text: "All venue staff are trained in safety and evacuation procedures.",
+          },
+          {
+            kind: "p",
+            lead: "Security check:",
+            text: "Every visitor and staff member passes a security check at the entrance, and the security team is present throughout the event.",
+          },
+          {
+            kind: "p",
+            lead: "Questions:",
+            text: "Approach the nearest security personnel at any time.",
+          },
+        ],
+        image: `${IMG}/2024/11/Smiles-and-connections-at-TechBBQ.jpg`,
+        alt: "Attendees and staff at TechBBQ",
+      },
+      {
+        key: "facility-safety",
+        tab: "Facility Safety",
+        title: "What the venue has in place",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "CCTV surveillance",
+              "Automatic fire alarm and sprinkler system",
+              "Monitored door alarms",
+              "A security officer on site 24/7",
+              "Automatic external defibrillators",
+              "A fully stocked first aid office",
+            ],
+          },
+        ],
+        image: `${IMG}/2024/11/Networking-and-exploration-at-TechBBQ-exhibition.jpg`,
+        alt: "The TechBBQ exhibition area at Bella Center Copenhagen",
+      },
+      {
+        key: "first-aid",
+        // The staging design spells this "Firts Aid". Corrected here rather than reproduced.
+        tab: "First Aid",
+        title: "If you need help",
+        blocks: [
+          {
+            kind: "p",
+            lead: "Getting help:",
+            text: "Approach the nearest security personnel. They are trained in basic first aid and can call emergency responders.",
+          },
+          {
+            kind: "p",
+            lead: "On site:",
+            text: "Trained paramedics are available throughout the event. For immediate assistance, contact the nearest staff or security member, or go to the Info Desk.",
+          },
+          {
+            kind: "p",
+            lead: "Emergency number:",
+            text: "The national emergency number in Denmark is 112. Call 112 first, then tell nearby TechBBQ staff or security.",
+          },
+          {
+            kind: "p",
+            lead: "Distressing behaviour:",
+            text: "If you witness or experience distressing or inappropriate behaviour, tell the nearest security personnel. See our [Code of Conduct](https://techbbq.dk/techbbq-code-of-conduct/).",
+          },
+        ],
+        image: `${IMG}/2024/11/Two-women-at-a-TechBBQ-booth-showcasing-eco-friendly-technology.jpg`,
+        alt: "TechBBQ staff available to help attendees",
+      },
+      {
+        key: "code-of-conduct",
+        tab: "Code of Conduct",
+        title: "How we treat each other",
+        blocks: [
+          {
+            kind: "p",
+            lead: "What we expect:",
+            text: "Respect every attendee, regardless of identity or background.",
+          },
+          {
+            kind: "p",
+            lead: "Where it applies:",
+            text: "All event activities, in person and online.",
+          },
+          {
+            kind: "p",
+            lead: "Full text:",
+            text: "Read the complete [Code of Conduct](https://techbbq.dk/techbbq-code-of-conduct/).",
+          },
+        ],
+        image: `${IMG}/2024/11/TechBBQ-interviewer-preparing-to-film-an-attendee-outdoors.jpg`,
+        alt: "An interview being filmed at TechBBQ",
+      },
+      {
+        key: "health-measures",
+        tab: "Health Measures",
+        title: "Looking after each other",
+        blocks: [
+          {
+            kind: "p",
+            lead: "If you feel unwell:",
+            text: "TechBBQ hosts thousands of people. Please consider everyone's wellbeing and stay home. You can transfer your ticket to someone else.",
+          },
+          {
+            kind: "p",
+            lead: "Hygiene:",
+            text: "Bathrooms for handwashing are available throughout the venue.",
+          },
+        ],
+        image: `${IMG}/2025/01/health-measures.jpg`,
+        alt: "Hand hygiene facilities at the venue",
+      },
+      {
+        key: "prohibited-items",
+        tab: "Prohibited Items",
+        title: "What you cannot bring",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Drugs or narcotics",
+              "Weapons or firearms",
+              "Glass or deposit bottles, bring a reusable water bottle instead",
+              "Professional filming equipment without prior approval",
+              "Walkie-talkies or portable speakers",
+              "Aerosol sprays, including paint and deodorant",
+              "Portable chairs of any kind",
+              "Flyers or promotional material, without permission",
+            ],
+          },
+        ],
+        image: `${IMG}/2024/11/Full-audience-at-TechBBQ-session.webp`,
+        alt: "A full audience at a TechBBQ session",
+      },
+    ],
+  },
+];
+
+// NO F.A.Q. HERE. The staging design has one, and it was built and then removed at Auri's
+// request (2026-08-11). The four questions came from the design with their answers collapsed,
+// so the copy could only ever have been a draft nobody at TechBBQ had approved — the guide is
+// better with no F.A.Q. than with four invented answers on a public page. If it comes back, the
+// answers have to come from TechBBQ, not from re-reading the panels above.
+
+/** Every item, flattened. Used for the count on the dashboard and for deep-link lookups. */
+export function guideItems(): GuideItem[] {
+  return GUIDE_SECTIONS.flatMap((s) => s.items);
+}
+
+/**
+ * Throws if two items share a key.
+ *
+ * Called by the API route and the preview page rather than trusted: the keys become element ids
+ * and `aria-controls` targets in both renderers, and a duplicate would silently wire one tab to
+ * another section's panel. Cheap to check, invisible to debug.
+ */
+export function assertUniqueKeys(): void {
+  const seen = new Set<string>();
+  for (const item of guideItems()) {
+    if (seen.has(item.key)) {
+      throw new Error(`[event-guide] duplicate item key "${item.key}" — keys become element ids`);
+    }
+    seen.add(item.key);
+  }
+}

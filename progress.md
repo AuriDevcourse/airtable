@@ -4,6 +4,272 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## Session 2026-08-11 (d) · The box hugs its content AND the page still holds still
+
+Correction to (c). Fixing the layout shift by stacking every panel in one grid cell made each
+section as tall as its TALLEST panel, which left dead space under the short ones. Auri rejected
+that: the box should grow to fit, not pad to the maximum.
+
+### How both are true at once
+
+Only the ACTIVE panel is in normal flow; the others are `position:absolute` in the same slot. So
+the slot is exactly as tall as the panel being read — no reserved space. The height is then
+ANIMATED between panels (260ms) rather than snapped.
+
+The reason this satisfies "don't move the whole page": the section heading and the tab row sit
+ABOVE the slot and never move, whatever the panel does. What you are looking at when you click a
+tab stays exactly where it is. Content below the panel does shift by the height difference, which
+is unavoidable if the box is to hug its content, and it now slides over a quarter second instead
+of teleporting.
+
+Height cannot transition to `auto`, so both renderers do the same dance: measure the outgoing
+height BEFORE the swap, swap, clear the inline height to measure the incoming one, then transition
+between the two pixel values and hand the height back to `auto` on `transitionend`. Leaving it
+pinned would break reflow on a window resize. The React side does this in `useLayoutEffect` (not
+`useEffect` — the new panel would flash at full height for a frame first). `prefers-reduced-motion`
+skips straight to the new height.
+
+The snippet keeps ONE `transitionend` listener per slot, replaced each time. Clicking faster than
+the transition interrupts it, and a fresh listener per click would pile up on an element that can
+be clicked all day.
+
+### Measured, on both renderers
+
+- Every section's slot height now **equals its active panel exactly**, and varies per tab:
+  Event Essentials 305/369/382/392, On-Site 305/344/485/557, Work & Lounges 305/331/374,
+  Safety 305/331/338/372. Food is 305 throughout. No dead space anywhere.
+- The inline height is always cleared once it lands, so nothing is left pinned.
+- Across all 8 tabs of the worst section: section heading delta **0**, tab row delta **0**,
+  `scrollY` delta **0**.
+
+### GOTCHA · `scroll-behavior: smooth` faked a bug THREE times
+
+`html` has `scroll-behavior: smooth`, so a `window.scrollTo` is still animating when you read
+`scrollY` or any `getBoundingClientRect().top`. It produced a phantom 200px "jump", then a phantom
+800px one, and separately a run where every slot looked stuck at 344px because the measurement
+landed mid-transition. **Settle first**: poll `scrollY` until it is unchanged for ~500ms before
+taking a baseline, and poll the element height until it stops changing before reading it. Three
+false alarms in one session came from measuring an animation instead of a layout.
+
+## Session 2026-08-11 (c) · Onest, a page that holds still, no F.A.Q.
+
+Three corrections from Auri after seeing (b). Typecheck clean, `npm run build` passes.
+
+### 1. ONEST, not Archivo
+
+The staging design is set in expanded Archivo and (b) matched it. Auri's call: the guide uses
+**Onest**, the TechBBQ heading font, same as every other page and embed here. `--font-heading` on
+the page, `family=Onest:wght@400;500;600;700&family=Inter:...` in the snippet — the exact link the
+other embeds already use. The Archivo import is gone from the page, `font-stretch` is gone from the
+CSS. **Do not reintroduce Archivo.**
+
+The finding from (b) still stands and is now only a comment: the live guide asks Google Fonts for
+`Archivo+Expanded`, which is not a family, gets a 400 and silently falls back to a system sans.
+
+### 2. THE SECTION HEIGHT IS FIXED, so a tab switch moves nothing
+
+Measured first, because the fix depends on where the movement actually was. The photo column's
+`aspect-ratio` already floors every panel at 305px, so four of five sections only varied 67–87px.
+**On-Site Experience was the problem: 305px (Venue Map) to 557px (Badge Claim)**, and the document
+height swung 278px as you clicked through.
+
+Fix: all of a section's panels are rendered and stacked in ONE grid cell (`.eg-slot` +
+`grid-area:1/1`), so the section is always as tall as its tallest panel. Hidden panels keep their
+space with `visibility:hidden` — not `display:none`, which would defeat the whole thing.
+
+- Hidden panels get `aria-hidden` **and `inert`**. aria-hidden alone leaves their links focusable;
+  verified that the Keypitt link inside a hidden panel now refuses focus.
+- **Photos are deferred, not the text.** All 30 panels' copy is in the DOM from the start (cheap);
+  each photo rides on `data-src` and is promoted the first time its panel is shown. Fresh load =
+  5 images, 25 deferred. The figure holds its space through `aspect-ratio`, so promoting an image
+  later shifts nothing. Without this a section of eight pulled eight photos for the one being read.
+- The React side tracks a `visited` set for the same reason, so going back to a tab is instant.
+- `select()` in the snippet no longer calls `sendHeight()` — the height cannot change on a switch.
+
+Measured after, on BOTH renderers: per-section height spread **0**, document height spread **0**,
+and with the scroll at rest, clicking all 30 tabs leaves `scrollY` **exactly where it was**.
+
+Trade-off, accepted: dead space under the short panels in On-Site Experience, which is now a
+constant 717px tall. That is the price of a page that holds still.
+
+### 3. F.A.Q. REMOVED
+
+Gone from the data file, the API response, the React component, the page, the CSS and the snippet
+builder (`?faq=` on /api/embed too). The four answers were only ever drafts written from the rest of
+the guide, because the design had them collapsed — better absent than invented. If it comes back,
+the answers come from TechBBQ.
+
+### GOTCHA · `scroll-behavior: smooth` fakes a layout shift
+
+Measuring scroll stability looked like a 200px jump until it turned out `html` has
+`scroll-behavior: smooth` globally, so a `scrollTo` is still animating when you read `scrollY`.
+Poll until the position is stable for ~500ms BEFORE clicking anything, or you will chase a bug that
+is your own instrumentation.
+
+### Still open
+
+Same as (b) minus the F.A.Q.: review the look, and decide whether Brella and Online Event Platform
+stay two tabs or merge. Deliberate deviation from the design is unchanged (copy top-aligned in every
+panel; the design bottom-aligns the Venue one).
+
+## Session 2026-08-11 (b) · The Event Guide, rebuilt in the new design
+
+Same branch `fix/tito-investor-day-brella-paging`, still NOT committed. Typecheck clean,
+`npm run build` passes with `/event-guide` and `/api/event-guide` both in the route table.
+
+New files: `lib/eventGuide.ts` (content), `lib/eventGuideSnippet.ts` (embed builder),
+`components/EventGuide.tsx` (preview renderer), `components/CopyEventGuideEmbed.tsx`,
+`app/event-guide/page.tsx`, `app/api/event-guide/route.ts`.
+Edited: `app/globals.css` (+267 lines of `.eg-*`), `middleware.ts` (PUBLIC_PATHS),
+`lib/pages.ts` (catalog row under Program), `app/api/embed/route.ts` (`kind=event-guide`).
+
+### What changed about the guide
+
+The old guide is a grid of icon cards that each open a popup. The staging techbbq.dk design
+(Humandone, supplied as a PDF screencapture) has **no popups**: per section, a row of pill tabs over
+ONE split panel, copy left and photo right, then an F.A.Q. with a left title and a right accordion.
+That is what this now renders, in both places.
+
+**Content lives in git, not Airtable** (Auri's call). 30 items in 5 sections. The design showed only
+27 — Brella, Venue Map and Keypitt had no tab — and all three are back, because dropping a partner
+and the official app off a live page silently is not a thing to do. Brella sits under Work & Lounges
+next to Online Event Platform; the two overlap and could be merged if Auri wants.
+
+### FOUR BUGS IN THE EXISTING GUIDE, found while porting it
+
+1. **The font never loaded.** The live embed asks Google Fonts for `family=Archivo+Expanded`. There
+   is no such family — that URL answers **HTTP 400** — so the guide has been rendering in a fallback
+   sans this whole time. Archivo IS variable with a wdth axis (62–125), so Expanded is
+   `family=Archivo:wdth,wght@125,400;...` plus `font-stretch:125%`. Do not "simplify" that back to a
+   family name. next/font has no Archivo Expanded either, hence `axes:["wdth"]` on the page.
+2. **12 of 28 photos were 404.** Every `/2025/01/*.jpg` in the old markup is gone: the site converted
+   that batch to WebP and deleted the JPEGs. Same filenames, `.webp` extension. Fixed here; **the
+   live guide is still showing 12 broken images today** until its markup is replaced.
+3. **The dates were last year's.** Opening Hours said 26th/27th while Badge Claim, Info Desk and
+   Keypitt said "Wednesday 27th / Thursday 28th", and the staging design carried 27/28 through.
+   27–28 August was **TechBBQ 2025**, and it was also a Wed/Thu, which is why it reads as plausible.
+   2026 is 26–27 August (Tito `2026` starts 2026-08-26; Brella confirms the 27th as closing). All
+   dates in `lib/eventGuide.ts` are 26th/27th.
+4. **"TechBBQ 2025" was still in the body copy** of Online Event Platform. Now 2026. The design also
+   spells it "Firts Aid"; corrected to First Aid.
+
+### Verified, not assumed
+
+- `/api/event-guide` serves **30 items across 5 sections**, no item missing image/alt/blocks.
+- The generated embed was fetched from `/api/embed?kind=event-guide`, its `<script>` extracted and
+  passed to `node --check`: **valid JS**. Worth keeping up — a snippet builder is a template literal
+  and tsc cannot see inside it. One backtick in a comment (around the word draft) silently closed
+  the template and was only caught this way.
+- Ran the snippet in a real browser from a same-origin test page: 5 sections, 30 tabs, clicking the
+  last tab in all five at once switched all five **independently**, exactly one `aria-selected` per
+  tablist, `aria-controls`/`aria-labelledby` correct after every swap, one tabbable pill per list.
+  Identical result on the React preview page.
+- **All 30 photos clicked through and loaded in-browser**, zero broken.
+- Phone at 390px: single column, photo above the copy, tabs scroll sideways, no horizontal page
+  overflow.
+
+### GOTCHA that cost time here
+
+A blank photo in a screenshot is usually a lie. Twice: once `loading="lazy"` had simply not fired
+under a fullPage screenshot, and once the browser was rendering a **stale cached feed** whose items
+still carried `.jpg` while the server was already serving `.webp`. Check
+`img.naturalWidth` and re-fetch with `cache:"reload"` before believing an image is broken.
+
+### NEXT STEPS
+
+1. **The four F.A.Q. answers are DRAFTS and need Auri's approval.** The design had them collapsed,
+   so there was nothing to copy and they were written from the rest of the guide. "Are sessions
+   recorded" in particular is a policy question this repo has no source for. They are badged on the
+   dashboard and the embed builder **refuses to emit a draft at all**, so the F.A.Q. is empty in the
+   copied snippet until the `draft` flag is cleared per row in `lib/eventGuide.ts`.
+2. Review the look against the PDF and say what to change. Deliberate deviation: the design
+   bottom-aligns the copy in the Venue panel and top-aligns it everywhere else; everything here is
+   top-aligned, which is predictable across 30 panels of very different length.
+3. Decide whether Brella and Online Event Platform stay as two tabs or merge into one.
+4. Then paste it: Copy embed code on `/event-guide`, from the DEPLOYED dashboard. No hero in the
+   snippet, because the WordPress page has its own title.
+5. Tell whoever owns the current guide markup about the dead font link and the 12 broken images —
+   those are live right now, independent of this rebuild.
+
+## Session 2026-08-11 · What the three connections can and cannot do, and two silent failures
+
+Branch `fix/tito-investor-day-brella-paging`, NOT merged, NOT committed. Typecheck clean,
+`npm run build` passed, `.next` removed afterwards. Files: `lib/tito.ts`,
+`lib/brellaprogram.ts`, `app/api/tito-lookup/route.ts`.
+
+Started as "what data do we actually have, and where does each source stop". Probing the three
+APIs live turned up two bugs that fail silently, which is why nobody had noticed either.
+
+### Tito was blind to 227 ticket holders
+
+`TITO_EVENTS` listed four events. The Tito account has **five**: `investor-day-2026` was missing
+and holds **227 tickets**. A support lookup searched the other four, matched nothing, and answered
+"no ticket" to a real attendee. No error, no log, just a wrong answer somebody then acts on.
+
+Fixed by adding the slug. Verified: "Jensen" now returns 3 Investor Day people who were
+structurally unreachable before. Safe because all three uses of the array are length-agnostic
+(`.map`, index-by-`i`, `=== TITO_EVENTS.length`), and the searches run in parallel so
+`maxDuration = 20` still covers five.
+
+**Slug and title differ in Tito.** `investor-dinner-2026` is titled "TechBBQ Investor x Founder
+Dinner". Labels here were taken from `GET /v3/techbbq/events` rather than invented. Check that
+endpoint against this list whenever a new event opens.
+
+### Brella fetched one page and stopped
+
+`fetchBrellaProgram` fired a single `page[size]=500` with no loop. Fine at 281 timeslots, but the
+501st would have vanished with no error anywhere: the programme would just be short, and nobody
+would spot it until a session was missing from techbbq.dk.
+
+Brella's paging, all verified before writing the loop:
+- `page[number]` works. Pages of 100 gave 100 + 100 + 81 = 281.
+- A page past the end returns **HTTP 200 with empty `data`**, so the loop has a real terminator.
+- **`included` DIFFERS PER PAGE** (344, 360, 252 records). This was the trap. Indexing only the
+  last page would have stripped tracks, tags and speakers off most sessions.
+- The paged union equals the single big call: same 281 timeslot ids, same 838 `included` keys.
+
+Proof nothing broke: ran the new code locally and diffed `/api/program?event=brella` against
+production (still old code). Same 247 sessions, same ids, and with the origin prefix normalised the
+payloads are **byte-identical, 405,851 bytes both sides**. The 14 apparent diffs were all
+absolute-vs-relative URLs, which is pre-existing origin resolution on localhost.
+
+At 281 rows it still finishes in ONE request, so today's behaviour is unchanged.
+
+### The limits of each source, measured not assumed
+
+- **Airtable**: the token reads the whole base, **52 tables**, including `Speakers` (260 fields,
+  passports/DOB/emails) and `Tech Talent`. `SAFE_FIELDS` allow-lists are the ONLY thing between
+  that and techbbq.dk. A per-table scoped token would be the real fix. `/meta/whoami` does not
+  return the scope list, so exact permissions need airtable.com/create/tokens. Rate limit is 5
+  req/s per base, shared by every route here; 6 concurrent reads did not 429.
+- **Brella**: 281 timeslots, 421 speakers, 911 attendees readable. `meetings` returns **404** with
+  this key, so matchmaking data needs a different permission. The key can WRITE: `lib/*` is GET-only
+  by discipline, `brella-push*.mjs` is not.
+- **Tito**: 5 events, 3,121 tickets in the main one. **Hides tickets by default** and a lot of them:
+  170 of 3,121 in 2026, 52 of 171 in LP Forum. `ALL_STATES` handles this, so any NEW Tito read
+  must pass it too. Lookup caps at 25 hits per event, deliberate, fine for support and useless for
+  a full list.
+
+Stale numbers corrected while here: code comments said "80 timeslots, 30 published sessions" and
+progress.md said 356 Brella speakers. Reality is 281 and 421. The event grew.
+
+### NEXT STEPS
+
+1. **Review the diff and merge** `fix/tito-investor-day-brella-paging`. Nothing is committed yet.
+   The Tito fix matters before the summit: support is answering Investor Day people wrongly today.
+2. Still open from yesterday and unchanged: **24 Board Summit headshots**. Verified live, still
+   3 photos and 0 LinkedIn across the 27 rows.
+3. Verify the **Policy Stage dates** against Brella. Airtable's day numbering and Brella's do not
+   agree, Board Summit's 27 Aug is confirmed, Policy's 26 Aug is not.
+4. Consider a scoped Airtable token per table instead of one base-wide read token.
+
+### GOTCHA
+
+The **production dashboard password differs from local `.env.local`**: `INTERNAL_USER`/`INTERNAL_PASS`
+from the local file gets a **401** against `airtable-woad.vercel.app`. That blocked the prod
+before/after on `/api/tito-lookup`. If you need to hit a gated endpoint in production, that
+password lives somewhere other than your local env file.
+
 ## Session 2026-08-10 (m) · Board Summit speakers, and faces by name
 
 ### 27 rows written into Marketing Project Overview

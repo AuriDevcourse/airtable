@@ -38,6 +38,9 @@ const PUBLIC_PATHS = new Set([
   "/api/ls-startups",
   "/api/partners",
   "/api/team",
+  // Static attendee information from lib/eventGuide.ts. No Airtable read, no token, no PII —
+  // every word of it is meant to be on techbbq.dk.
+  "/api/event-guide",
   // Public by the same reasoning as the rest: the WordPress embed fetches it cross-origin and a
   // browser fetch() cannot answer a Basic auth challenge. What makes it safe is that the strict
   // read only ever contains interns who ticked "Consent to publish" — the ?pending=1 variant that

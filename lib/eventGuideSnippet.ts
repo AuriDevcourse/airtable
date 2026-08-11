@@ -1,0 +1,286 @@
+import { endpointDecl } from "@/lib/embedOriginGuard";
+
+// Elementor snippet for the Event Guide. Fetches /api/event-guide and renders the tabbed sections.
+// Same class names and the same markup as components/EventGuide.tsx, so the two stay comparable —
+// a change to one has an obvious counterpart in the other.
+//
+// SELF-CONTAINED. One HTML widget: markup, its own #id-scoped CSS, its font <link> and its script.
+// It shares nothing with the WordPress theme and needs no plugin, which is the whole requirement —
+// paste it in and it works.
+//
+// TYPEFACE: ONEST, the TechBBQ heading font, requested exactly the way every other embed in this
+// repo requests it. This was first built in expanded Archivo to match the staging design and Auri
+// corrected it (2026-08-11). Worth knowing if you ever go looking: the live guide's own markup asks
+// for "Archivo+Expanded", which is not a Google family — that URL answers 400 and the page silently
+// falls back to a system sans.
+//
+// NO F.A.Q. The design has one; it was built here and removed at Auri's request (2026-08-11).
+//
+// NO HERO. The staging design opens with a full-bleed gradient title block; that is the WordPress
+// page's own header, and shipping a second one inside the widget would give the page two titles.
+//
+// __ORIGIN__ is swapped for the live URL at copy time (see components/CopyEventGuideEmbed.tsx).
+
+export type EventGuideOptions = {
+  /** Unique element id, so two guides can share one WordPress page without colliding. */
+  uid?: string;
+  /** Feed path. Only overridden by a future variant of the guide. */
+  path?: string;
+};
+
+export function buildEventGuideSnippet({
+  uid,
+  path = "/api/event-guide",
+}: EventGuideOptions = {}): string {
+  const id = uid || "tbbq-event-guide";
+
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<section id="${id}" class="tbbq-eg"><p class="tbbq-eg__loading">Loading the event guide…</p></section>
+
+<style>
+  #${id}.tbbq-eg{--fg:#f2f2f2;--muted:#9a9a9c;--card:#131313;--card2:#191919;--border:#2a2a2a;--acc:#ff2600;font-family:"Inter",ui-sans-serif,system-ui,sans-serif;max-width:760px;margin:0 auto;color:var(--fg)}
+  #${id} .tbbq-eg__loading{color:var(--muted);margin:0;text-align:center;padding:40px 0}
+  #${id} *{box-sizing:border-box}
+  #${id} .eg-h,#${id} .eg-panel__title{font-family:"Onest",ui-sans-serif,system-ui,sans-serif;font-weight:600;letter-spacing:-.02em;color:var(--fg)}
+  #${id} .eg-section{margin:0 0 88px}
+  #${id} .eg-section:last-of-type{margin-bottom:0}
+  #${id} .eg-h{font-size:clamp(26px,4vw,38px);line-height:1.1;text-align:center;margin:0 0 22px}
+  #${id} .eg-tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;padding:0}
+  #${id} .eg-tab{font:500 13px/1 "Inter",ui-sans-serif,system-ui,sans-serif;color:var(--fg);background:transparent;border:1px solid var(--border);border-radius:999px;padding:9px 15px;cursor:pointer;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+  #${id} .eg-tab:hover{background:var(--card2)}
+  #${id} .eg-tab[aria-selected="true"]{background:#f2f2f2;border-color:#f2f2f2;color:#0d0d0d}
+  #${id} .eg-tab:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+  /* THE STACK. Every panel is here, but only the ACTIVE one is in normal flow, so the slot is
+     exactly as tall as the panel being read — no reserved space under a short one. The height is
+     ANIMATED between panels (see select()) so a longer tab grows rather than snapping; the heading
+     and the tabs sit above it and never move. inert keeps hidden links off the keyboard. */
+  #${id} .eg-slot{position:relative;transition:height 260ms ease}
+  #${id} .eg-slot>.eg-panel{position:absolute;top:0;left:0;width:100%;visibility:hidden}
+  #${id} .eg-slot>.eg-panel[data-active="true"]{position:relative;visibility:visible}
+  #${id} .eg-panel{background:var(--card);border-radius:16px;padding:clamp(18px,3vw,26px);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:clamp(18px,3vw,28px);align-items:start}
+  /* aspect-ratio, not a height: it reserves the photo's space before the <img> exists, which is
+     what lets an unvisited panel measure the same as a visited one. */
+  #${id} .eg-panel__media{margin:0;border-radius:12px;overflow:hidden;background:var(--card2);aspect-ratio:5/4}
+  #${id} .eg-panel__media img{width:100%;height:100%;display:block;object-fit:cover;object-position:50% 30%}
+  #${id} .eg-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--fg);margin:0 0 18px}
+  #${id} .eg-eyebrow:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--acc);flex:0 0 auto}
+  #${id} .eg-panel__title{font-size:clamp(19px,2.4vw,24px);line-height:1.2;margin:0 0 12px}
+  #${id} .eg-body{font-size:13px;line-height:1.6;color:var(--muted)}
+  #${id} .eg-body>*+*{margin-top:10px}
+  #${id} .eg-body p{margin:0}
+  #${id} .eg-lead{color:var(--fg);font-weight:600}
+  #${id} .eg-body a{color:var(--fg);text-decoration:underline;text-underline-offset:2px}
+  #${id} .eg-body a:hover{opacity:.75}
+  #${id} .eg-list{margin:0;padding:0;list-style:none}
+  #${id} .eg-list li{position:relative;padding-left:13px}
+  #${id} .eg-list li+li{margin-top:4px}
+  #${id} .eg-list li:before{content:"";position:absolute;left:2px;top:.62em;width:3px;height:3px;border-radius:50%;background:var(--muted)}
+  #${id} .eg-day{color:var(--fg);font-weight:600;margin:0 0 4px}
+  #${id} .eg-schedule+.eg-schedule{margin-top:14px}
+  #${id} .eg-tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
+  #${id} .eg-tags li{font-size:9px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#d0d0d0;border:1px solid var(--border);border-radius:4px;padding:4px 7px;line-height:1}
+  @media (max-width:720px){
+    #${id} .eg-panel{grid-template-columns:1fr}
+    #${id} .eg-panel__media{grid-row:1;aspect-ratio:16/10}
+    #${id} .eg-tabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding-bottom:4px;scrollbar-width:none}
+    #${id} .eg-tabs::-webkit-scrollbar{display:none}
+    #${id} .eg-tab{flex:0 0 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #${id} .eg-tab{transition:none}
+    #${id} .eg-slot{transition:none}
+  }
+</style>
+
+<script>
+(function(){
+  var root=document.getElementById(${JSON.stringify(id)});
+  if(!root)return;
+${endpointDecl(path, "  ")}
+
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+
+  /* [label](url) only. Everything is escaped FIRST and the link built from the escaped pieces, so
+     no authored copy can introduce an attribute or a tag. The scheme is allow-listed for the same
+     reason it is in the React renderer: a javascript: href in the data must not become a link. */
+  function linkify(s){
+    return esc(s).replace(/\\[([^\\]]+)\\]\\(([^)\\s]+)\\)/g,function(_,label,href){
+      if(!/^(https?:\\/\\/|mailto:|#|\\/)/i.test(href))return label;
+      var ext=/^https?:/i.test(href)?' target="_blank" rel="noopener noreferrer"':"";
+      return '<a href="'+href+'"'+ext+'>'+label+'</a>';
+    });
+  }
+
+  function block(b){
+    if(!b)return"";
+    if(b.kind==="list"){
+      var lead=b.lead?'<p class="eg-lead">'+esc(b.lead)+'</p>':"";
+      var items="";
+      for(var i=0;i<(b.items||[]).length;i++)items+='<li>'+linkify(b.items[i])+'</li>';
+      return '<div>'+lead+'<ul class="eg-list">'+items+'</ul></div>';
+    }
+    if(b.kind==="schedule"){
+      var rows="";
+      for(var j=0;j<(b.rows||[]).length;j++)rows+='<li>'+esc(b.rows[j])+'</li>';
+      return '<div class="eg-schedule"><p class="eg-day">'+esc(b.day)+'</p><ul class="eg-list">'+rows+'</ul></div>';
+    }
+    return '<p>'+(b.lead?'<span class="eg-lead">'+esc(b.lead)+' </span>':"")+linkify(b.text)+'</p>';
+  }
+
+  /* EVERY panel is built up front — that is what fixes the section height. The photo is NOT: it is
+     carried on data-src and promoted to src the first time the panel is shown, so a section of
+     eight does not fetch eight images for the one being read. The figure holds its space either
+     way through aspect-ratio, so promoting it later shifts nothing. */
+  function panel(item,sid,idx,active){
+    var blocks="";
+    for(var i=0;i<(item.blocks||[]).length;i++)blocks+=block(item.blocks[i]);
+    var tags="";
+    if(item.tags&&item.tags.length){
+      for(var t=0;t<item.tags.length;t++)tags+='<li>'+esc(item.tags[t])+'</li>';
+      tags='<ul class="eg-tags">'+tags+'</ul>';
+    }
+    var img=active
+      ? '<img src="'+esc(item.image)+'" alt="'+esc(item.alt)+'" loading="lazy" decoding="async">'
+      : '<img data-src="'+esc(item.image)+'" alt="'+esc(item.alt)+'" loading="lazy" decoding="async">';
+    return '<div class="eg-panel" role="tabpanel" id="'+sid+'-p'+idx+'" aria-labelledby="'+sid+'-t'+idx+'"'
+      +' data-active="'+(active?"true":"false")+'" tabindex="'+(active?"0":"-1")+'"'
+      +(active?"":' aria-hidden="true" inert')+'>'
+      +'<div>'
+      +'<p class="eg-eyebrow">'+esc(item.eyebrow||item.tab)+'</p>'
+      +'<h3 class="eg-panel__title">'+esc(item.title)+'</h3>'
+      +'<div class="eg-body">'+blocks+'</div>'
+      +tags
+      +'</div>'
+      +'<figure class="eg-panel__media">'+img+'</figure>'
+      +'</div>';
+  }
+
+  function section(sec,n){
+    var sid=${JSON.stringify(id)}+"-s"+n;
+    var tabs="",panels="";
+    for(var i=0;i<sec.items.length;i++){
+      var it=sec.items[i];
+      tabs+='<button type="button" class="eg-tab" role="tab" id="'+sid+'-t'+i+'"'
+        +' aria-controls="'+sid+'-p'+i+'" aria-selected="'+(i===0?"true":"false")+'"'
+        +' tabindex="'+(i===0?"0":"-1")+'" data-i="'+i+'">'+esc(it.tab)+'</button>';
+      panels+=panel(it,sid,i,i===0);
+    }
+    return '<section class="eg-section" data-sec="'+n+'" aria-labelledby="'+sid+'-h">'
+      +'<h2 class="eg-h" id="'+sid+'-h">'+esc(sec.title)+'</h2>'
+      +'<div class="eg-tabs" role="tablist" aria-label="'+esc(sec.title)+'">'+tabs+'</div>'
+      +'<div class="eg-slot">'+panels+'</div>'
+      +'</section>';
+  }
+
+  fetch(ENDPOINT,{headers:{Accept:"application/json"}}).then(function(r){
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(function(data){
+    var secs=(data&&data.sections)||[];
+    if(!secs.length){root.innerHTML='<p class="tbbq-eg__loading">Event guide coming soon.</p>';return;}
+    var html="";
+    for(var i=0;i<secs.length;i++)html+=section(secs[i],i);
+    root.innerHTML=html;
+
+    /* Delegated from the root: ONE listener for all five sections, and because the panels are
+       already in the DOM a switch only flips attributes — nothing is rebuilt and focus is never
+       lost. */
+    root.addEventListener("click",function(e){
+      var btn=e.target&&e.target.closest?e.target.closest(".eg-tab"):null;
+      if(btn&&root.contains(btn))select(btn);
+    });
+    root.addEventListener("keydown",function(e){
+      var btn=e.target&&e.target.closest?e.target.closest(".eg-tab"):null;
+      if(!btn)return;
+      var list=[].slice.call(btn.parentNode.querySelectorAll(".eg-tab"));
+      var cur=list.indexOf(btn),next=null,last=list.length-1;
+      if(e.key==="ArrowRight")next=cur===last?0:cur+1;
+      else if(e.key==="ArrowLeft")next=cur===0?last:cur-1;
+      else if(e.key==="Home")next=0;
+      else if(e.key==="End")next=last;
+      if(next===null)return;
+      e.preventDefault();
+      select(list[next]);
+      list[next].focus();
+    });
+
+    function select(btn){
+      var secEl=btn.closest(".eg-section");
+      var idx=Number(btn.getAttribute("data-i"));
+      var slot=secEl.querySelector(".eg-slot");
+      /* Measured BEFORE anything swaps: this is the height the animation starts from. */
+      var fromH=slot.offsetHeight;
+
+      var pills=secEl.querySelectorAll(".eg-tab");
+      for(var i=0;i<pills.length;i++){
+        var on=pills[i]===btn;
+        pills[i].setAttribute("aria-selected",on?"true":"false");
+        pills[i].setAttribute("tabindex",on?"0":"-1");
+      }
+      var panels=secEl.querySelectorAll(".eg-slot>.eg-panel");
+      for(var j=0;j<panels.length;j++){
+        var active=j===idx;
+        panels[j].setAttribute("data-active",active?"true":"false");
+        panels[j].setAttribute("tabindex",active?"0":"-1");
+        if(active){
+          panels[j].removeAttribute("aria-hidden");
+          panels[j].removeAttribute("inert");
+          var im=panels[j].querySelector("img[data-src]");
+          if(im){im.setAttribute("src",im.getAttribute("data-src"));im.removeAttribute("data-src");}
+        }else{
+          panels[j].setAttribute("aria-hidden","true");
+          panels[j].setAttribute("inert","");
+        }
+      }
+
+      /* Height cannot transition to "auto", so measure the new panel with the height cleared,
+         then move between two pixel values and give the height back to auto on landing. Pinning
+         it would break reflow on a window resize. */
+      slot.style.height="";
+      var toH=slot.offsetHeight;
+      var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if(fromH===toH||reduce)return;
+      slot.style.height=fromH+"px";
+      /* Read forces the start value to take, or both writes collapse into one recalculation and
+         nothing animates. */
+      void slot.offsetHeight;
+      slot.style.height=toH+"px";
+      /* ONE listener per slot, replaced each time. Clicking faster than the transition interrupts
+         it, and a fresh listener per click would pile up on an element that can be clicked all
+         day. */
+      if(slot._egDone)slot.removeEventListener("transitionend",slot._egDone);
+      slot._egDone=function(e){
+        if(e.propertyName!=="height")return;
+        slot.style.height="";
+        slot.removeEventListener("transitionend",slot._egDone);
+        slot._egDone=null;
+        /* The document really did change height, so the iframe wrapper needs telling. */
+        sendHeight();
+      };
+      slot.addEventListener("transitionend",slot._egDone);
+    }
+  }).catch(function(err){
+    root.innerHTML='<p class="tbbq-eg__loading">Could not load the event guide right now.</p>';
+    /* Logged for the same reason as the other embeds: a stale paste and a server fault look
+       identical from the outside without the endpoint in the message. */
+    if(window.console&&console.error)console.error("[tbbq-event-guide] failed to load",ENDPOINT,err);
+  });
+
+  /* Height for the iframe wrapper the current guide is pasted into. A no-op when this snippet is
+     dropped straight into an Elementor HTML widget on the page itself — there is no parent to
+     listen — so it is safe either way. */
+  var lastH=0;
+  function sendHeight(){
+    if(window.parent===window)return;
+    var h=Math.min(document.body.scrollHeight,8000);
+    if(Math.abs(h-lastH)>5){lastH=h;window.parent.postMessage({iframeHeight:h},"*");}
+  }
+  window.addEventListener("load",function(){setTimeout(sendHeight,300);});
+  if(window.ResizeObserver)new ResizeObserver(sendHeight).observe(document.body);
+})();
+</script>`;
+}

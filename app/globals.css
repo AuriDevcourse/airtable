@@ -2737,3 +2737,229 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 
 
+
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   EVENT GUIDE (/event-guide)
+   Ported from the staging techbbq.dk Event Guide. A section is a row of pill tabs over ONE
+   split panel: copy left, photo right. Replaces the old icon-grid-plus-popup guide.
+
+   TYPEFACE: ONEST, the TechBBQ heading font, same as every other page and embed here
+   (--font-heading). The staging design is set in expanded Archivo and this was built that way
+   first; Auri corrected it to Onest on 2026-08-11. Do not reintroduce Archivo.
+
+   THE PANEL NEVER CHANGES HEIGHT. All of a section's panels are stacked in ONE grid cell, so the
+   section is always as tall as its TALLEST panel and switching tab moves nothing below it. This
+   is not cosmetic: On-Site Experience ran from 305px (Venue Map) to 557px (Badge Claim), and the
+   whole document swung 278px as you clicked through, which is what Auri asked to stop. The cost
+   is dead space under the short panels in that one section, which is the trade for a page that
+   holds still.
+
+   The container is deliberately narrow (~760px), matching the staging design's centred column.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+.eg-page { padding: 48px 20px 96px; }
+.eg-wrap { max-width: 760px; margin: 0 auto; }
+
+.eg-section { margin: 0 0 88px; }
+.eg-section:last-of-type { margin-bottom: 0; }
+.eg-section__title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: clamp(26px, 4vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+  text-align: center;
+  margin: 0 0 22px;
+}
+
+/* ── Pill tabs ───────────────────────────────────────────────────────────────────────────── */
+.eg-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  padding: 0;
+}
+.eg-tab {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-foreground);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 9px 15px;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.eg-tab:hover { background: var(--color-card-2); }
+/* The selected pill inverts to the light surface. Contrast of #0d0d0d ink on it is ~18:1. */
+.eg-tab[aria-selected="true"] {
+  background: var(--color-surface);
+  border-color: var(--color-surface);
+  color: var(--color-ink);
+}
+.eg-tab:focus-visible {
+  outline: 2px solid var(--color-red-orange);
+  outline-offset: 2px;
+}
+
+/* ── The stack ───────────────────────────────────────────────────────────────────────────────
+   Every panel of a section lives here, but only the ACTIVE one is in normal flow. The inactive
+   ones are taken out of it (absolute), so the slot is exactly as tall as the panel you are
+   reading — no reserved space under a short one.
+
+   This replaced a version that stacked all panels in one grid cell and let the tallest set the
+   height. That held the page perfectly still but left dead space under Venue Map and friends,
+   which Auri rejected (2026-08-11): the box should grow to fit, not pad to the maximum.
+
+   The height is therefore ANIMATED rather than snapped. The section heading and the tabs sit
+   above the slot and never move, so what you are looking at stays put; only the content below
+   slides, and it slides over ~260ms instead of teleporting. The JS in both renderers measures
+   the outgoing and incoming heights and transitions between them, then hands the height back to
+   auto so a window resize still reflows normally. */
+.eg-slot { position: relative; transition: height 260ms ease; }
+.eg-slot > .eg-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  visibility: hidden;
+}
+/* `inert` on the hidden ones keeps their links out of the tab order and off a screen reader,
+   which aria-hidden alone would not do. */
+.eg-slot > .eg-panel[data-active="true"] {
+  position: relative;
+  visibility: visible;
+}
+
+.eg-panel {
+  background: var(--color-card);
+  border-radius: var(--radius-xl);
+  padding: clamp(18px, 3vw, 26px);
+  display: grid;
+  /* Copy a little wider than the photo, which is the split in the design (~54/46). */
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(18px, 3vw, 28px);
+  align-items: start;
+}
+.eg-panel__media {
+  margin: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--color-card-2);
+  /* aspect-ratio, not a height: it reserves the photo's space even before the <img> exists, which
+     is what lets an unvisited panel measure the same as a visited one. */
+  aspect-ratio: 5 / 4;
+}
+.eg-panel__media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  /* Same 30% bias as the speaker cards: venue and crowd photos put their subject above centre. */
+  object-position: 50% 30%;
+}
+
+/* Eyebrow: red dot + the tab name, uppercase and tracked out. */
+.eg-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-foreground);
+  margin: 0 0 18px;
+}
+.eg-eyebrow::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-red-orange);
+  flex: 0 0 auto;
+}
+
+.eg-panel__title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: clamp(19px, 2.4vw, 24px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+  margin: 0 0 12px;
+}
+
+/* ── Body copy ───────────────────────────────────────────────────────────────────────────── */
+.eg-body { font-family: var(--font-body); font-size: 13px; line-height: 1.6; color: var(--color-muted); }
+.eg-body > * + * { margin-top: 10px; }
+.eg-body p { margin: 0; }
+.eg-lead { color: var(--color-foreground); font-weight: 600; }
+.eg-body a { color: var(--color-foreground); text-decoration: underline; text-underline-offset: 2px; }
+.eg-body a:hover { opacity: 0.75; }
+
+.eg-list { margin: 0; padding: 0; list-style: none; }
+.eg-list li { position: relative; padding-left: 13px; }
+.eg-list li + li { margin-top: 4px; }
+/* A dot rather than a hyphen: the source copy used "-" prefixes, and a text dash is not a
+   bullet (DESIGN r2). */
+.eg-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+
+/* Opening hours: a bold day over its own rows. */
+.eg-day { color: var(--color-foreground); font-weight: 600; margin: 0 0 4px; }
+.eg-schedule + .eg-schedule { margin-top: 14px; }
+
+/* Small uppercase chips. Rounded rectangles, not pills — pills are the tabs. */
+.eg-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.eg-tags li {
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #d0d0d0;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 4px 7px;
+  line-height: 1;
+}
+
+/* ── Narrow screens ─────────────────────────────────────────────────────────────────────────
+   The split collapses and the PHOTO GOES FIRST: on a phone the image is what tells you which
+   panel you are looking at, and a wall of text above it reads as a document. */
+@media (max-width: 720px) {
+  .eg-panel { grid-template-columns: 1fr; }
+  .eg-panel__media { grid-row: 1; aspect-ratio: 16 / 10; }
+  /* Tabs scroll sideways instead of stacking into six rows of pills. */
+  .eg-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .eg-tabs::-webkit-scrollbar { display: none; }
+  .eg-tab { flex: 0 0 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eg-tab { transition: none; }
+  /* The height still changes, it just changes instantly. */
+  .eg-slot { transition: none; }
+}

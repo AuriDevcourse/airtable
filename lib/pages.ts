@@ -100,6 +100,16 @@ export const SECTIONS: PageSection[] = [
         note: "The agendas for NISS and Future of Fintech, from each team's own Airtable view.",
         keywords: "agenda schedule niss fintech policy",
       },
+      {
+        // Filed under Program because it answers the same question a visitor arrives with —
+        // "what do I need to know to turn up" — even though it is the one page here whose
+        // content is in git rather than Airtable.
+        href: "/event-guide",
+        label: "Event Guide",
+        note: "Practical attendee info: venue, hours, badges, food, safety. Written in the repo, not Airtable.",
+        keywords:
+          "guide venue entrance transportation accessibility opening hours badge claim keypitt wardrobe lost found info desk photo policy food coffee water payments recycling wifi charging workspaces relaxation brella safety first aid code of conduct prohibited faq practical",
+      },
     ],
   },
   {

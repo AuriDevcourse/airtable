@@ -13,6 +13,7 @@
 //   /api/embed?kind=partners             → the partner logo wall
 //   /api/embed?kind=partners-bare        → the same wall with no TechBBQ styling, for a third party
 //   /api/embed?kind=ls-startups          → the Life Science wall
+//   /api/embed?kind=event-guide          → the attendee Event Guide
 //
 // partners-bare takes two extra switches: &css=1 adds a 5-line starter stylesheet (off by
 // default — bare means bare), and &tiers=0 gives one flat list with no tier headings.
@@ -26,6 +27,7 @@ import { buildPartnersEmbedSnippet } from "@/lib/partnersEmbedSnippet";
 import { buildPartnersBareEmbedSnippet } from "@/lib/partnersBareEmbedSnippet";
 import { buildLsStartupsEmbedSnippet } from "@/lib/lsStartupsEmbedSnippet";
 import { buildInternsEmbedSnippet } from "@/lib/internsEmbedSnippet";
+import { buildEventGuideSnippet } from "@/lib/eventGuideSnippet";
 import { INTERN_DEPARTMENTS } from "@/lib/internDepartments";
 import { columnSlug, findTimelineColumn, isBrellaSection, TIMELINE_COLUMNS } from "@/lib/brellaSections";
 import { baseUrl } from "@/lib/photo";
@@ -100,10 +102,15 @@ export async function GET(req: NextRequest) {
         department,
         departments: INTERN_DEPARTMENTS,
       });
+    } else if (kind === "event-guide") {
+      snippet = buildEventGuideSnippet({ uid: uid("tbbq-eg") });
     } else {
       return withCors(
         NextResponse.json(
-          { error: "Unknown kind. Use brella, partners, partners-bare, ls-startups or interns." },
+          {
+            error:
+              "Unknown kind. Use brella, partners, partners-bare, ls-startups, interns or event-guide.",
+          },
           { status: 400 }
         ),
         reqOrigin
