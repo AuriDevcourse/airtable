@@ -6,15 +6,55 @@ reaching the browser.
 
 ## WORKING TREE, as of 2026-08-12 18:30 · READ THIS FIRST
 
-Session (l) is COMMITTED AND PUSHED to `main`: NASS 2026 on `/program` (`lib/program.ts`,
-`lib/programFaces.ts`, `lib/agendaSnippet.ts`, `app/program/page.tsx`, this file). `tsc --noEmit`
-passes. `npm run build` still has NOT been run — the dev server holds `.next`.
+Session (l) is COMMITTED AND PUSHED to `main` as **`8507100`**, and Vercel has deployed it: NASS 2026
+on `/program` (`lib/program.ts`, `lib/programFaces.ts`, `lib/agendaSnippet.ts`,
+`app/program/page.tsx`, this file). `tsc --noEmit` passes. `npm run build` still has NOT been run —
+the dev server holds `.next`.
+
+Checked against PRODUCTION after the deploy: `/api/program?event=nass` serves 22 sessions,
+answers `Access-Control-Allow-Origin: https://techbbq.dk`, and all 42 distinct face images return
+200. 44 faces on 52 people.
 
 Sessions (j) and (k) are still uncommitted and were deliberately left out of that commit.
 
-**Session (l) also wrote to AIRTABLE**, 22 session rows that no commit can undo. See its entry —
-including a select option called "Natalie Becker" that a UI paste added to `When Is it`, which the
-API cannot delete and somebody has to remove by hand.
+**Session (l) also wrote to AIRTABLE**, 22 session rows that no commit can undo. See its entry.
+
+### NEXT STEPS
+
+1. **Delete the select option "Natalie Becker" from the `When Is it` field** on Sessions
+   (`tblSlpTzDi2oVYwqv`). A UI paste created it; the API cannot remove a choice, so it has to be done
+   in Airtable, and until it is, it sits in the dropdown beside Day 1 and Day 2 for every programme in
+   that table. The row it damaged (`recYtq2KnSopmiRgU`, 09:30) was already restored to Day 2 /
+   Event Room 2.
+2. **Put " · " between the two hosts on the 09:25 row.** Both are currently in `Speaker Details` as
+   one comma-joined string, so the agenda draws them as a single person with a two-line title.
+   parsePeople splits on " · " only.
+3. **Reconcile four names** so their headshots reach the agenda (43 → 47 faces). Agenda spelling on
+   the left, roster spelling on the right: Amb. Diane Gachumba / Dr. Diane **Gashumba** (also
+   Ambassador vs Dr. — confirm it is one person before changing either), Charity Wanjiru Kiarie /
+   Wanjiru Kiarie, Ism**ae**l Eleburuike / Ism**ai**l Eleburuike, Natalie Becker / Natalie Bridgette
+   Becker-Aakervik.
+4. **Paste the embed on techbbq.dk when the agenda is final.** Nothing is installed yet: the copy
+   button on the NASS 2026 tab produces the snippet, and the deploy above is what makes its
+   `/api/program?event=nass` fetch work from techbbq.dk.
+5. Optional, Auri's call: the dashboard preview still draws placeholder INITIALS in the generic
+   orange, because that circle is shared by all nine tabs. The embed itself is fully #FF0028.
+6. Chase the three people with no headshot in either table: Lamiaa El Rashidy, Sherief Kesseba,
+   Gabriella Mukamugema. And decide what to do about the three non-people the sheet lists as
+   speakers — "TechBBQ", "Impact Fund Denmark, Danish Company Representative" and
+   "LOUNGE VIBE (DJ MUSIC)" — which currently render as circles with an initial.
+
+### GOTCHAS
+
+- **An unknown `?event=` silently falls back to `techbbq`**, which is 3 sample rows. Before the deploy,
+  `?event=nass` in production answered 200 with `"event":"techbbq"` and a Sample Panel in it. A
+  snippet pointing at an event the deploy does not have does not fail loudly; it shows placeholder
+  data. Check the `event` field in the JSON, not just the status code.
+- The copy button on localhost bakes in the DEPLOYED origin, never `localhost` (`lib/embedOrigin.ts`),
+  so a snippet copied locally cannot be tested locally without rewriting its origin by hand — and the
+  browser reports the resulting CORS refusal as a bare "Failed to fetch".
+- Faces come from TWO tables now. If a NASS speaker has no face, check the CRM (`Event Room 2`) AND
+  the Nordic-Africa Summit Presenters view before assuming the join is broken.
 
 ## SUPERSEDED · WORKING TREE, as of 2026-08-12 11:00
 
