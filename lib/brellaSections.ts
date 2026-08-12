@@ -250,6 +250,11 @@ const ROOM_DAY_PROGRAMMES: { room: string; date: string; programme: string }[] =
   // and the room went unlabelled — taking the derived all-day band with it, since that band is
   // built from the programme name. Same fix as its sibling above (Auri, 2026-08-10).
   { room: "Event Room 2", date: "26 August", programme: "Nordic India Startup Summit" },
+  // Deep Tech Event Day landed in Brella as thirteen sessions on the plain "Event Room 6"
+  // track, exactly as the two summits did — programmeOf() finds nothing in the track name, so
+  // the room went unlabelled and the derived all-day band never appeared. Its own ROOM_ALIASES
+  // entry above still stands for the day a real track shows up (Auri, 2026-08-11).
+  { room: "Event Room 6", date: "26 August", programme: "Deep Tech Event Day" },
 ];
 
 /** The programme running in a room on a given day, when only the room and date can say. */

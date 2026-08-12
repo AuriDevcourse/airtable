@@ -286,6 +286,23 @@ Dashboard preview shows the same. Temp files removed.
 - Playwright MCP was locked by another session all session ("Browser is already in use"). Chrome
   MCP worked instead.
 
+### Then: strip it back to the room and the day (Auri, same session)
+
+Two follow-ups, both scoped to SINGLE-COLUMN mode so the whole-board views are untouched.
+
+4. `app/brella-program/page.tsx` · New `columnDays` memo: once a column is picked, only the days
+   that column actually runs on get a tab. Event Room 6 shows DAY 1 alone. An effect follows the
+   column onto a live day, or picking Room 6 on the 27th would leave `dayIdx` on a tab that no
+   longer exists and blank the board. A column with nothing at all keeps both tabs on purpose.
+5. Topic filter hidden whenever one column is chosen, on the page (`showTags`) and in the embed
+   (`renderTags` early-returns on `SPLIT_DAYS`). New `changeStage()` clears chosen tags with the
+   switch — the filter is gone from the screen, so a tag left on would dim cards with no way to
+   turn it off.
+
+Re-verified: single room = one DAY 1 tab, no tag box, 13 sessions. All rooms / Stages keep both
+days and their tags; Campfire (no tags in the data) is unchanged. Embed: no day pills, no track
+pills, tags hidden, 13 sessions, all-day band. `tsc --noEmit` clean.
+
 ### Next steps
 
 1. Deploy, then copy the snippet from the deployed dashboard (not localhost) and paste it on the
