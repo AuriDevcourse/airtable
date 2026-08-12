@@ -4,15 +4,23 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## WORKING TREE, as of 2026-08-11 16:30 · READ THIS FIRST
+## WORKING TREE, as of 2026-08-12 10:00 · READ THIS FIRST
 
-The Deep Tech note below is resolved — the tree was clean when session (h) started. What is
-uncommitted now is session (h), the four Day 0 programmes: `lib/program.ts`, `lib/programFaces.ts`,
+Session (h) is committed. The tree was CLEAN when session (i) started, at `067b5b3`. Modified and
+not committed now: **`lib/eventEmbedSnippet.ts`** (day headings in the events embed, session (i)
+below) and this file. `tsc --noEmit` passes; `npm run build` has NOT been run (the dev server holds
+`.next`). Verified in a browser against the real built snippet.
+
+**Nothing moves on techbbq.dk until this is pushed AND the snippet is re-copied from the deployed
+dashboard and repasted** into the Elementor HTML widget. The pasted snippet is a static copy of the
+builder's output, so a deploy on its own changes nothing there.
+
+## SUPERSEDED · WORKING TREE, as of 2026-08-11 16:30
+
+The Deep Tech note below is resolved — the tree was clean when session (h) started. What was
+uncommitted then was session (h), the four Day 0 programmes: `lib/program.ts`, `lib/programFaces.ts`,
 `lib/agendaSnippet.ts`, `app/program/page.tsx`, `scripts/seed-day0-programs.mjs`, this file.
-`tsc --noEmit` passes; `npm run build` has NOT been run (the dev server holds `.next`). Verified in
-a browser: all eight tabs, and both new themes rendered from the real snippet. **The 39 Airtable
-rows are already live** — the code is what is still local, so until it is pushed, a copied embed
-points at the deployed connector and gets a 400 for these four events.
+Verified in a browser: all eight tabs, and both new themes rendered from the real snippet.
 
 ## SUPERSEDED · WORKING TREE, as of 2026-08-11 12:00
 
@@ -35,6 +43,48 @@ Do not assume a clean tree.
 Two entries below are both labelled 2026-08-11: (e) is the Deep Tech work, (f) is the Elementor
 hardening. They were written by different sessions on the same day and (f) was renamed from (e) to
 break the collision.
+
+## Session 2026-08-12 (i) · The events embed groups by day, like the dashboard does
+
+**One file: `lib/eventEmbedSnippet.ts`.** Auri, comparing localhost:3000/partner-events against the
+Elementor paste: the dashboard prints a small muted `25 AUG` on the left above each day's cards, and
+the embed did not. The embed rendered one flat pile in feed order, so the only date on the page was
+the badge on every card — a visitor had to read all 17 of them to work out what happens when.
+
+`render()` now buckets the list on `e.date`, sorts the days ascending, sorts each day's cards by
+start time, and prints an `<h2 class="tbbq-ev-day">` above each group. Same three rules the dashboard
+uses (`app/partner-events/page.tsx`, the `.bp-day` blocks), so the two cannot drift on this again:
+
+- `zzz-no-date` is a real bucket key, not null, so an event whose partner never filled in a date
+  heads a "Date TBC" group like any other day and a plain string sort puts it last.
+- `startMinutes()` mirrors the dashboard's, including its "unparseable sorts last" rule.
+- `dayLabel()` is `Intl` in a **try/catch**. This string runs in whatever browser opens techbbq.dk,
+  and an unavailable time zone must not take the whole grid down with it.
+
+**The heading is a full-width GRID ITEM (`grid-column:1/-1`), not a wrapper.** Wrapping each day in
+its own container would have meant moving the grid CSS off `.tbbq-ev-grid` and re-pointing both
+media queries and the fixed-column override at the new inner element. Spanning `1/-1` breaks the row
+inside the existing auto-fill grid instead, and nothing else in that stylesheet had to move.
+
+Per-card date badges are KEPT. It repeats the day inside a group, and Auri's ask was to retain as
+much detail as the dashboard, not to trade one for the other.
+
+Verified: `tsc --noEmit` clean, plus the built snippet rendered in a browser against the local feed
+— three groups (25, 26, 27 AUG), each label left-aligned above its own row, cards in clock order.
+The escaping trap in this file bit nothing this time: the regex is written `\\d` because the whole
+snippet is one template literal, and it was checked as the emitted single-backslash form.
+
+Next steps:
+1. Commit and push `lib/eventEmbedSnippet.ts` (branch off `main` — it auto-deploys to the connector
+   techbbq.dk reads).
+2. Re-copy the embed from the **deployed** dashboard and repaste it into the Elementor HTML widget.
+   Copying from localhost bakes in a localhost endpoint.
+3. Check it on techbbq.dk at phone width: the heading spans the single column there too, which was
+   verified in a resized browser and not on a real device.
+
+Gotcha for whoever is next: `app/partner-events/page.tsx` still carries the note that the embed
+"draws the old card wall". Still true of the CARD itself (badges, poster, Register button); the day
+grouping is now shared. The two designs remain deliberately different.
 
 ## Session 2026-08-11 (h) · The four Day 0 programmes, and faces that cross a project line
 

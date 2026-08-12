@@ -147,6 +147,16 @@ export function buildEventEmbedSnippet({
   #${id} .tbbq-ev__loading{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
   #${id} .tbbq-ev__empty{font-family:var(--sans)!important;grid-column:1/-1;color:var(--muted);margin:0}
 
+  /* THE DAY HEADING. Ported from .bp-day__label in app/globals.css — the dashboard groups these
+     cards under a small muted date and the embed did not, which is the last thing that made a
+     pasted grid read as a flat pile instead of a schedule (Auri, 2026-08-12).
+     A full-width GRID ITEM rather than a wrapper: spanning 1/-1 lets the heading break the row
+     inside the existing auto-fill grid, so the container, its media queries and the fixed-column
+     override all keep working untouched. */
+  #${id} .tbbq-ev-day{grid-column:1/-1!important;margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:12px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--muted)!important;line-height:1.2!important;text-align:left!important}
+  /* Every heading after the first, so consecutive days are separated by more than the grid gap. */
+  #${id} .tbbq-ev-day~.tbbq-ev-day{margin-top:10px!important}
+
   /* Matches .s-card on the dashboard and every other TechBBQ embed: flat dark frame, a
      uniform 1px border (no coloured spine), and a diagonal glow that fades in on hover
      behind the text band rather than a lift. */
@@ -336,8 +346,44 @@ ${endpointDecl(path, "  ")}
     if(!all.length&&!BOARD){grid.innerHTML='<p class="tbbq-ev__empty">No events to show yet.</p>';return;}
     if(!all.length)grid.innerHTML='<p class="tbbq-ev__empty">No events to show yet.</p>';
 
+    /* ONE HEADING PER DATE, the same grouping the dashboard does (app/partner-events/page.tsx,
+       the .bp-day blocks). A flat pile of cards makes a visitor read every date badge to work out
+       what happens when; the heading answers it once per group.
+       The bucket for a partner who never filled in a date is a real key rather than null so it
+       heads a group like any other day, and the "zzz" prefix sorts it last under a plain
+       string sort of ISO dates. */
+    var NO_DATE="zzz-no-date";
+    /* "25 AUG". Intl in a try/catch: this string runs in whatever browser opens techbbq.dk, and
+       an unavailable time zone must not take the whole grid down with it. */
+    function dayLabel(iso){
+      var d=new Date(iso+"T00:00:00Z");
+      if(isNaN(d.getTime()))return iso;
+      try{
+        return new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"short",timeZone:"UTC"}).format(d).toUpperCase();
+      }catch(_){return iso;}
+    }
+    /* "09:30-11:30" -> 570, so a day's cards run in clock order under their heading. The feed has
+       already normalised the string, so anything unparseable here is absent rather than malformed
+       — those sort last, which is where an unscheduled event belongs. */
+    function startMinutes(slot){
+      var m=/^(\\d{2}):(\\d{2})/.exec(String(slot==null?"":slot));
+      return m?Number(m[1])*60+Number(m[2]):Number.MAX_SAFE_INTEGER;
+    }
     function render(list){
-      grid.innerHTML=list.length?list.map(card).join(""):'<p class="tbbq-ev__empty">Nothing in this category yet.</p>';
+      if(!list.length){grid.innerHTML='<p class="tbbq-ev__empty">Nothing in this category yet.</p>';return;}
+      var byDay={},keys=[];
+      list.forEach(function(e){
+        var k=e.date||NO_DATE;
+        if(!byDay[k]){byDay[k]=[];keys.push(k);}
+        byDay[k].push(e);
+      });
+      keys.sort();
+      grid.innerHTML=keys.map(function(k){
+        var head='<h2 class="tbbq-ev-day">'+esc(k===NO_DATE?"Date TBC":dayLabel(k))+'</h2>';
+        return head+byDay[k].sort(function(a,b){
+          return startMinutes(a.timeSlot)-startMinutes(b.timeSlot);
+        }).map(card).join("");
+      }).join("");
     }
 
     var pills=root.querySelector(".tbbq-ev-tabs__pills");
