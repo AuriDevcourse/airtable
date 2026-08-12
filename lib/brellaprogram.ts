@@ -3,8 +3,16 @@
 // source that is actually complete: 30 published sessions with times, stage, topic tags
 // and descriptions, versus the near-empty "Program 2026" Airtable table.
 //
-// Read-only. The same key can create and delete sessions in the live attendee app, so
-// nothing here uses anything but GET.
+// Read-only BY CHOICE. The same key can create sessions and speakers in the live attendee app —
+// brella-push.mjs does exactly that with POST /timeslots and POST /speakers — so nothing in the
+// feed path uses anything but GET.
+//
+// If you are here wondering whether writes are possible: they are, and the working request shapes
+// are documented in brella-push.mjs. Do NOT conclude otherwise from Brella's public help page
+// (it describes the read API only) or from an OPTIONS probe (OPTIONS 404s on a path whose GET
+// returns 200). Both of those misled a session on 2026-08-12 into reporting the API as read-only.
+// What genuinely has no route is ASSIGNING a speaker to a session; that stays a manual step in the
+// Brella UI.
 //
 // Mapped onto the shared ProgramSession shape from lib/program.ts, so the existing
 // /program page and the agenda embed render it with no changes.

@@ -1347,6 +1347,44 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* ---- "Still missing from Airtable" panel on /partner-events ---- */
 /* Dashboard-only, deliberately NOT in the embed snippet: it is a note to the TechBBQ team
    about source-data gaps, not something techbbq.dk visitors should read. */
+/* THE PROVENANCE LINE (components/FeedSource.tsx). Dashboard chrome, not content: it sits above a
+   tab's data and says which system that tab reads and how stale it can be. Quiet on purpose — it
+   is a fact to be checked, not a warning to be answered, so it gets no panel and no colour. */
+.feed-source {
+  margin: 0 0 14px;
+  color: var(--color-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.feed-source__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+}
+.feed-source__row + .feed-source__row { margin-top: 2px; }
+/* Nudged onto the text's baseline: a 12px box against a 12.5px line rides high without it. */
+.feed-source__icon { flex-shrink: 0; margin-top: 3px; opacity: 0.7; }
+.feed-source strong { color: #e6e6e6; font-weight: 600; }
+.feed-source__label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  font-weight: 700;
+  opacity: 0.62;
+}
+.feed-source__detail { opacity: 0.82; }
+/* Underlined on hover only: a dotted-underline link in a line this quiet reads as noise, but it
+   has to be visibly clickable once the pointer finds it. */
+.feed-source__link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.22);
+  text-underline-offset: 2px;
+}
+.feed-source__link:hover { color: #fff; text-decoration-color: rgba(255, 255, 255, 0.6); }
+.feed-source__link:focus-visible { outline: 2px solid var(--color-red, #ce0f2e); outline-offset: 2px; }
+
 .ev-gaps {
   margin-top: 28px;
   border: 1px solid rgba(253, 157, 4, 0.3);
@@ -1371,6 +1409,51 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   margin: 0;
 }
 .ev-gaps li strong { color: #fff; font-weight: 600; }
+/* THE DERIVED GAPS LIST (RoomGapsPanel on /partner-events). Reuses the amber .ev-gaps frame — it is
+   the same kind of thing, work the team still owes — but each finding gets its own line with a tag,
+   because these are per room per day rather than one prose paragraph. */
+.ev-gaps__line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ev-gaps__tag {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  border: 1px solid rgba(253, 157, 4, 0.35);
+  background: rgba(253, 157, 4, 0.1);
+  color: var(--color-amber);
+  font-family: var(--font-heading);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+/* The two that mean somebody has to talk to a partner, not tidy a field. */
+.ev-gaps__tag[data-kind="empty"],
+.ev-gaps__tag[data-kind="no-agenda"] {
+  border-color: rgba(255, 107, 107, 0.4);
+  background: rgba(255, 107, 107, 0.12);
+  color: #ff6b6b;
+}
+.ev-gaps__day {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.ev-gaps__note {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  font-size: 11.5px;
+}
+
 .ev-gaps li code {
   background: rgba(255, 255, 255, 0.08);
   padding: 1px 5px;

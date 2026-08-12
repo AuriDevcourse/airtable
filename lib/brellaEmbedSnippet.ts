@@ -984,10 +984,28 @@ ${originDecl("  ")}
          Derived from the shape of the data, not a list of names: at least two STRICTLY SHORTER
          sessions inside it. Strictly shorter stops two identical spans swallowing each other,
          and two stops an ordinary back-to-back pair being reinterpreted. */
+      /* AND ITS AGENDA HAS TO FILL IT — at least half, measured as the UNION of the children's
+         spans (Auri, 2026-08-12). Containing two shorter sessions is not enough: Google's
+         "Scaling Europe" (12:00-14:45) came to contain the first two Creative Business Cup items
+         once CBC was given a 14:00 start overlapping it, and was promoted to a shell, so the
+         column drew two dashed bands over one agenda. A real shell is nearly all agenda (CBC 100%
+         of its span, Future of Fintech 95%); those two accidental guests filled 12%. Union rather
+         than sum so children overlapping each other cannot count shared minutes twice.
+         KEEP THIS IN STEP WITH components/ProgramTimeline.tsx — same rule, two renderers. */
+      var fills=function(u,kids){
+        var iv=kids.map(function(k){return [k.start,k.end];}).sort(function(a,b){return a[0]-b[0];});
+        var covered=0,lo=iv[0][0],hi=iv[0][1];
+        for(var i=1;i<iv.length;i++){
+          if(iv[i][0]<=hi){hi=Math.max(hi,iv[i][1]);}
+          else{covered+=hi-lo;lo=iv[i][0];hi=iv[i][1];}
+        }
+        return (covered+(hi-lo))/(u.end-u.start);
+      };
       var umb=itemsAll.filter(function(u){
-        return itemsAll.filter(function(k){
+        var kids=itemsAll.filter(function(k){
           return k.s.id!==u.s.id&&k.start>=u.start&&k.end<=u.end&&(k.end-k.start)<(u.end-u.start);
-        }).length>=2;
+        });
+        return kids.length>=2&&fills(u,kids)>=0.5;
       });
       var umbIds={};umb.forEach(function(u){umbIds[u.s.id]=1;});
       var items=itemsAll.filter(function(x){return !umbIds[x.s.id];});
@@ -1032,8 +1050,13 @@ ${originDecl("  ")}
       /* The half-day shell. Same dashed band, positioned against the clock instead of spanning
          the column, because it only owns part of the day — full height would claim an afternoon
          it does not have. Labelled with its time range rather than "All day", since how long it
-         runs is what the band is there to say. Still a button: unlike the derived band there is
-         a real session behind this one to open. */
+         runs is what the band is there to say.
+         NOT A BUTTON (Auri, 2026-08-12: "the one that I can press is a shell, that shouldn't be
+         pressed"). It used to open its own detail because a real session sits behind it, and that
+         read as a session competing with the ones inside it — when a visitor presses inside that
+         rectangle they mean one of the cards. Now a div with pointer-events none, exactly like the
+         derived band, so the press lands on the card underneath. Same change in
+         components/ProgramTimeline.tsx; keep the two in step. */
       umb.forEach(function(u){
         var s=u.s;
         /* WHERE THE SHELL'S NAME GOES when a session starts on its own first minute. Future of
@@ -1049,15 +1072,14 @@ ${originDecl("  ")}
         var head=1e9;
         kids.forEach(function(k){if(k.start-u.start<head)head=k.start-u.start;});
         var above=(head<BAND_LABEL_MIN&&(u.start-from)>=BAND_LABEL_MIN);
-        html+='<button type="button" class="tbbq-bp__allDay" data-id="'+esc(s.id)+'"'
+        html+='<div class="tbbq-bp__allDay" aria-hidden="true"'
           +(above?' data-labelabove="1"':'')
-          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:'+((u.start-from)*PXN)+'px;height:'+((u.end-u.start)*PXN)+'px;z-index:0;'+(above?'overflow:visible;':'')+sessionVars(s)+'"'
-          +' title="'+esc(s.name)+'">'
+          +' style="position:absolute;left:'+INSET+'px;right:'+INSET+'px;top:'+((u.start-from)*PXN)+'px;height:'+((u.end-u.start)*PXN)+'px;z-index:0;pointer-events:none;'+(above?'overflow:visible;':'')+sessionVars(s)+'">'
           +'<span class="tbbq-bp__allDayHead"'+(above?' style="position:absolute;bottom:100%;left:0;right:0;padding:0 10px 5px"':'')+'>'
           +'<span class="tbbq-bp__allDayLabel">'+esc(s.timeSlot||"")+'</span>'
           +'<span class="tbbq-bp__allDayTitle">'+esc(s.name)+'</span>'
           +'</span>'
-          +'</button>';
+          +'</div>';
       });
       /* Near the top rather than vertically centred: the column is as tall as the whole day,
          so a centred label sits below the fold on a stage with nothing on it. Placed inline

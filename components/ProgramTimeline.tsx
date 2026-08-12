@@ -13,6 +13,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
+import { contains, shellsAmong } from "@/lib/shellRule";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
@@ -712,9 +713,10 @@ export function StageTimeline({
           // what stops an ordinary back-to-back pair from being reinterpreted. Measured across all
           // 247 sessions on 2026-08-11, this matches Future of Fintech and nothing else — the rule
           // describes the one case rather than inventing a category.
-          const isInside = (c: Placed, u: Placed) =>
-            c.id !== u.id && c.start >= u.start && c.end <= u.end && c.end - c.start < u.end - u.start;
-          const umbrellas = mine.filter((u) => mine.filter((c) => isInside(c, u)).length >= 2);
+          // The rule itself lives in lib/shellRule.ts — this file and lib/roomGaps.ts both ask, and
+          // when each carried its own copy they disagreed about Google's `Scaling Europe`.
+          const isInside = (c: Placed, u: Placed) => contains(u, c);
+          const umbrellas = shellsAmong(mine);
           const umbrellaIds = new Set(umbrellas.map((u) => u.id));
           // A PROGRAMME THAT RUNS THE WHOLE DAY, with no umbrella session to say so.
           //
@@ -785,16 +787,27 @@ export function StageTimeline({
                 const kids = mine.filter((c) => isInside(c, s));
                 const headroom = kids.length ? Math.min(...kids.map((c) => c.start)) - s.start : Infinity;
                 const labelAbove = headroom < BAND_LABEL_MIN && s.start - from >= BAND_LABEL_MIN;
+                // NOT A BUTTON (Auri, 2026-08-12: "the one that I can press is a shell, that
+                // shouldn't be pressed"). It used to open its own detail, on the reasoning that
+                // unlike the derived band there is a real session behind it. Wrong in practice: a
+                // pressable rectangle around an agenda reads as a session competing with the
+                // sessions inside it, and what a visitor wants when they press it is one of those.
+                //
+                // So it matches the derived band exactly — a div, aria-hidden, pointer-events
+                // none — and the clicks land on the cards underneath instead. THE CONSEQUENCE,
+                // worth knowing: whatever sits on the shell's own Brella row (its speakers, its
+                // description) is now unreachable from the board, which is why the speakers belong
+                // on the individual sessions.
                 return (
-                  <button
+                  <div
                     key={s.id}
-                    type="button"
                     className="bp-tl__allDayCard"
                     style={
                       {
                         ...sessionVars(s),
                         top: (s.start - from) * PX_PER_MIN,
                         height: (s.end - s.start) * PX_PER_MIN,
+                        pointerEvents: "none",
                       } as React.CSSProperties
                     }
                     data-labelabove={labelAbove ? "1" : undefined}
@@ -803,14 +816,13 @@ export function StageTimeline({
                         ? "1"
                         : undefined
                     }
-                    title={s.name}
-                    onClick={() => onOpen(s)}
+                    aria-hidden="true"
                   >
                     <span className="bp-tl__allDayHead">
                       <span className="bp-tl__allDayLabel">{s.timeSlot}</span>
                       <span className="bp-tl__allDayTitle">{s.name}</span>
                     </span>
-                  </button>
+                  </div>
                 );
               })}
               {alldayHere.map((s) => (
@@ -1040,7 +1052,30 @@ export function OpeningIcon({ size = 12 }: { size?: number }) {
 // of pills on every preview card turned the section into a wall of buttons, and a visitor
 // should read what the event is before signing up for it.
 export function hasDetail(s: Session): boolean {
-  return Boolean(s.speakers?.length) || s.description.length > 150 || Boolean(s.registerUrl);
+  return Boolean(s.speakers?.length) || bodyText(s.description).length > 24 || Boolean(s.registerUrl);
+}
+
+/**
+ * The description with Brella's SUBTITLE LINE STRIPPED, for deciding whether a card has anything
+ * behind it. lib/brellaprogram.ts joins subtitle and body ("Side Event Promotion by Rockstart" then
+ * the Draft.js content), and a subtitle on its own is branding, not detail — a dialog containing
+ * only "Session by Google" wastes the click.
+ *
+ * WHY THE OLD RULE (description.length > 150) HAD TO GO. Auri, 2026-08-12, on the Creative Business
+ * Cup agenda: "right now it is just title and time". Five of its six items carry a real sentence
+ * from the published programme — "Startups pitch: 3 minutes + 5 minutes Q&A / feedback each." is 58
+ * characters — so every one of them fell under the threshold and could not be opened at all. The
+ * length was standing in for "is there anything here", and it measured the wrong string.
+ *
+ * 24 characters is the floor that keeps a one-word placeholder ("Networking", "TBA") from opening an
+ * empty dialog while letting a real short sentence through.
+ */
+function bodyText(description: string): string {
+  return description
+    .split("\n")
+    .filter((line) => !/^\s*(session|side event promotion)\b.*\bby\b/i.test(line))
+    .join("\n")
+    .trim();
 }
 
 /**

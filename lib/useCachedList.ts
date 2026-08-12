@@ -13,6 +13,14 @@ export type CachedState<T> = {
   // fetch leaves it waiting for a change report that will never arrive.
   revalidateError: string | null;
   updated: boolean; // last revalidation actually changed the data
+  // When this hook last got an ANSWER from the feed, as epoch ms. null until one lands, and
+  // reset on every tab switch so it can never describe the feed you just left.
+  //
+  // It is when the BROWSER was answered, which is not the same as when Airtable was read: on the
+  // deployed site the CDN can answer with a copy up to its own s-maxage old. So anything printing
+  // this has to say "checked", not "fresh as of", and name the cadence separately — that is where
+  // the staleness actually comes from (lib/cachePolicy.ts).
+  fetchedAt: number | null;
   // What the last completed revalidation changed, for the local refresh button to print.
   // null = no comparison was possible (cold load: everything is "new", which is noise, so
   // nothing is reported). total === 0 = compared and genuinely identical.
@@ -59,6 +67,7 @@ export function useCachedList<T>(
   const [revalidateError, setRevalidateError] = useState<string | null>(null);
   const [updated, setUpdated] = useState(false);
   const [changes, setChanges] = useState<ChangeSummary | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -68,6 +77,7 @@ export function useCachedList<T>(
     setRevalidateError(null);
     // Clear first: a diff from the previous feed must not linger after a tab switch.
     setChanges(null);
+    setFetchedAt(null);
 
     // 1. Hydrate from cache.
     let cached: T[] | null = null;
@@ -111,6 +121,9 @@ export function useCachedList<T>(
       })
       .then((json) => {
         if (!active) return;
+        // Stamped on ANY answer, changed or identical: the question it answers is "when did this
+        // page last check", and "nothing differed" is a completed check.
+        setFetchedAt(Date.now());
         const fresh = (Array.isArray(json[listKey]) ? json[listKey] : []) as T[];
         const freshStr = JSON.stringify(fresh);
         // 3. Update only if changed.
@@ -149,5 +162,5 @@ export function useCachedList<T>(
     };
   }, [cacheKey, url, listKey, nonce]);
 
-  return { data, loading, revalidating, error, revalidateError, updated, changes };
+  return { data, loading, revalidating, error, revalidateError, updated, changes, fetchedAt };
 }

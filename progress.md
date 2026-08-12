@@ -308,6 +308,54 @@ Next steps:
    `Pitch training with Gleb Maltsev` Tue 09:00-12:30. Neither can be an Event Room 5 booking (that
    morning is already taken twice over). Ask CBC where they belong.
 
+## Session 2026-08-12 (l) · "Which rooms still look incomplete", computed not written
+
+Auri: "which sessions feel incomplete still? For example this CBC, I think it's still incomplete."
+New panel at the top of the Event Rooms tab, above the board, from **`lib/roomGaps.ts`**. Derived
+from the sessions every load, so a room leaves the list by being finished and a room nobody has
+thought about appears on the same terms. It found CBC on its own: "5 sessions and not one names a
+speaker" on the 26th, 6 on the 27th.
+
+Six findings, ordered by what to chase first: `empty`, `no-agenda`, `double-booked`, `no-speakers`,
+`thin-speakers`, `no-descriptions`. Grouped by room, tagged, each line naming the actual sessions.
+Dashboard only — a to-do list naming paying partners' rooms has no business in an embed.
+
+**It caught a real duplicate nobody had noticed:** Event Room 2 on the 27th has both "After Event
+Reception with Light Entertainment" and "After-Event Networking: Reception with Light Entertainment"
+booked over each other. Two rows for one reception.
+
+**Three false positives, all fixed, all worth knowing if you extend the rules:**
+
+1. **All-day rows were dropped**, because `parseSlot` returns null for "All day" — so Event Room 1
+   read as EMPTY on the 27th while Board Summit had the room all day. All-day now counts as present
+   and as covering the day.
+2. **A long session is not the same as an unfilled booking.** "What VCs won't tell you about raising
+   in this market" is a two-hour workshop with a speaker and a full blurb, and it was reported as
+   "one block, no programme inside it". A block is only flagged now when it ALSO has no speakers and
+   no real description.
+3. **Breaks are not sessions.** The panel asked the Policy Stage for speakers on "Networking Lunch,
+   Networking & Refreshments, Networking & Drinks". A name rule (`NOT_A_SESSION`) drops breaks,
+   lunches, receptions and transitions from the speaker and description checks, and from the
+   denominator too — an agenda of six talks and four breaks is not "speakers on 6 of 10".
+
+**ON PROGRAM 2026 TOO, per section** (Auri: "have the same box in the program 2026 as well just to
+understand it"). Extracted the panel to **`components/RoomGapsPanel.tsx`** first rather than pasting
+it into a second page — this repo's own history is what settled that argument: the venue line, the
+artwork override, the title key and the shell rule had all already drifted between these two pages.
+It follows the open section, so Stages reports stages, Event Rooms reports rooms, Grill reports grill
+tracks, and the heading changes with it (`GAP_SUBJECT`). Computed over the CANONICAL column list, so
+narrowing to one stage does not hide that another is empty, and across both days either way.
+
+On Stages it immediately named the `TBA` placeholder slots on BBQ, Tech and Campfire, plus a clash on
+Campfire where "Moving Beyond Unicorn" overlaps a TBA slot.
+
+**And the shell rule now lives in ONE place: `lib/shellRule.ts`.** The timeline and the gaps panel
+each had their own copy and they had already diverged — the timeline had the fill requirement, the
+panel did not, so the panel still reported "Scaling Europe — 2 sessions and not one names a speaker"
+about Google's session from exactly the false shell the timeline had stopped drawing. Both import it
+now. The embed's copy stays inline (it is a JavaScript string sent to WordPress and cannot import),
+with comments in all three pointing at each other.
+
 ## Session 2026-08-12 (j) · Every tab says where its data comes from, and how stale it can be
 
 Auri: "show where the information is gotten from just above, as well as how often it updates. I want

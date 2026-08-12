@@ -5,6 +5,17 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyBrellaEmbed } from "@/components/CopyBrellaEmbed";
+import { RoomGapsPanel } from "@/components/RoomGapsPanel";
+import { roomGaps } from "@/lib/roomGaps";
+
+// The word the panel's heading uses for this section's columns: "Which stages still look
+// incomplete". A heading that says "rooms" above a list of stages reads as somebody else's panel.
+const GAP_SUBJECT: Record<string, string> = {
+  stages: "stages",
+  rooms: "rooms",
+  grills: "grill tracks",
+  side: "side events",
+};
 import {
   BREATHWORK_ICON_PATHS,
   BREATHWORK_LABEL,
@@ -676,6 +687,27 @@ export default function BrellaProgramPage() {
 
   const shown = days.reduce((n, d) => n + d.sessions.length, 0);
 
+  // WHICH COLUMNS OF THIS SECTION STILL LOOK UNFINISHED. Same lib/roomGaps.ts rules the Event Rooms
+  // board on /partner-events uses, pointed at whichever section is open — so the Stages view reports
+  // stages and the Grill view reports grill tracks, on identical terms.
+  //
+  // Computed over the CANONICAL column list, not the columns currently displayed, so picking one
+  // stage does not hide the fact that another one is empty.
+  const gaps = useMemo(() => {
+    const set = TIMELINE_COLUMNS[section];
+    if (!set) return [];
+    const mine = all.filter((s) => inBrellaSection(s, section));
+    if (!mine.length) return [];
+    return roomGaps(
+      mine,
+      (room) => columnOf(room, set) ?? room,
+      EVENT_DAYS.map((d) => mine.find((s) => s.day.includes(d.date))?.day).filter(
+        (d): d is string => Boolean(d)
+      ),
+      set.map((c) => c.label)
+    );
+  }, [all, section]);
+
   // ── Timeline sections (Stages, Grill Sessions) ──
   // Columns come from the CANONICAL list, not from the data, so Campfire Stage keeps its
   // column while it is still empty. Selecting one narrows to a single column.
@@ -1000,6 +1032,14 @@ export default function BrellaProgramPage() {
                     speakerHint={speakerHintText(q.trim().length > 0, timelineMatches)}
                   />
                 )}
+
+                {/* WHAT STILL LOOKS INCOMPLETE in the section on screen (Auri, 2026-08-12: "have
+                    the same box in the program 2026 as well just to understand it"). Same component
+                    and same rules as /partner-events — see components/RoomGapsPanel.tsx.
+                    Across BOTH days and every column of the section, whichever day or column is
+                    selected: it is a to-do list, and the thing you have not done is usually not on
+                    the view you happen to be in. */}
+                <RoomGapsPanel gaps={gaps} subject={GAP_SUBJECT[section] ?? "columns"} />
 
                 <p className="count-line">
                   {timelineSessions.length} session(s).

@@ -28,14 +28,17 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
 import { firstAttachmentId, str } from "@/lib/fields";
+import { PARTNER_EVENTS_TABLE, PARTNER_EVENTS_VIEW } from "@/lib/airtableSources";
 
 const API = "https://api.airtable.com/v0";
 
 const TOKEN = process.env.AIRTABLE_TOKEN;
 const BASE_ID = process.env.AIRTABLE_BASE_ID;
-// Pinned in code on purpose (stable Airtable ids, not secrets — see lib/niss.ts).
-const TABLE = "tbllvkwLhB4Omdphd"; // Partnership Success
-const VIEW = "viwcC25ENg2ELGszH"; // 2026 Side event and event room info
+// Pinned in code on purpose (stable Airtable ids, not secrets — see lib/niss.ts). They live in
+// lib/airtableSources.ts rather than here because the dashboard builds an "open in Airtable" link
+// from the same two ids, and a second copy over there is a link that outlives the view it names.
+const TABLE = PARTNER_EVENTS_TABLE; // Partnership Success
+const VIEW = PARTNER_EVENTS_VIEW; // 2026 Side event and event room info
 
 // Field IDs, not names — see the header. Re-read them from
 // GET /v0/meta/bases/<base>/tables if a column is ever rebuilt from scratch (renaming a

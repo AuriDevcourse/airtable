@@ -5,6 +5,16 @@ import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEventEmbed } from "@/components/CopyEventEmbed";
+import { FeedSource } from "@/components/FeedSource";
+import {
+  airtableUrl,
+  PARTNER_EVENTS_FIELDS,
+  PARTNER_EVENTS_TABLE,
+  PARTNER_EVENTS_VIEW,
+} from "@/lib/airtableSources";
+import { roomGaps } from "@/lib/roomGaps";
+// The panel itself is shared with Program 2026 — see components/RoomGapsPanel.tsx.
+import { RoomGapsPanel } from "@/components/RoomGapsPanel";
 import { venueLabel } from "@/lib/venueLabel";
 // The Event Rooms board is Program 2026's OWN timeline, not a lookalike. Extracted to
 // components/ProgramTimeline.tsx so both pages mount the same component (Auri, 2026-08-10).
@@ -109,6 +119,18 @@ const FILTERS = [
 // rule in two different wordings is how "private" starts meaning two things.
 const PRIVATE_NOTE =
   "Private event · you need an invitation or the host's approval to attend";
+
+// What the Event Rooms board takes from Brella, in Brella's own words for them. Not Airtable
+// columns: this tab does not read Airtable at all, and the 10 event-room rows that DO exist in the
+// Airtable view carry no room and no start time, which is the whole reason the board reads Brella
+// (see the note on the two sources above).
+const BRELLA_ROOMS_READS = [
+  "session name",
+  "start and end time",
+  "track (Event Room N)",
+  "description",
+  "speakers and their photos",
+] as const;
 
 // "09:30-11:30" → 570, for sorting a day's cards by when they start. The feed has already
 // normalised this string (lib/partnerevents.ts parseTimeSlot), so anything unparseable here is
@@ -496,7 +518,7 @@ export default function PartnerEventsPage() {
   // Side Events stay on Airtable, which is the source that knows all of them and carries the
   // sign-up links. So this page reads Airtable for one tab and Brella for the other, on purpose.
   const brella = useCachedList<Session>("brellaprogram", "/api/program?event=brella", "sessions");
-  const { data, loading, revalidating, error, revalidateError, updated, changes } =
+  const { data, loading, revalidating, error, revalidateError, updated, changes, fetchedAt } =
     useCachedList<PartnerEvent>("partnerevents", url, "events");
   const all = data ?? [];
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("side-event");
@@ -574,6 +596,24 @@ export default function PartnerEventsPage() {
     );
   }, [brella.data, roomDay]);
 
+  // WHICH ROOMS STILL LOOK UNFINISHED (Auri, 2026-08-12: "which sessions feel incomplete still?").
+  // Computed from the sessions rather than written down, so a room leaves the list by being
+  // finished and a room nobody has thought about appears on the same terms — see lib/roomGaps.ts.
+  // Across BOTH days on purpose: this is a to-do list, and the thing you have not done is usually
+  // not on the day you happen to be looking at.
+  const gaps = useMemo(() => {
+    const rooms = (brella.data ?? []).filter((s) => inBrellaSection(s, "rooms"));
+    if (!rooms.length) return [];
+    return roomGaps(
+      rooms,
+      (room) => columnOf(room, roomColumns) ?? room,
+      EVENT_DAYS.map((d) => rooms.find((s) => s.day.includes(d.date))?.day).filter(
+        (d): d is string => Boolean(d)
+      ),
+      roomColumns.map((c) => c.label)
+    );
+  }, [brella.data, roomColumns]);
+
   // Column → how many sessions the search lit up, for the marker on each heading. Empty when
   // nothing is typed, which is what tells the timeline not to dim anything.
   const roomMatches = useMemo(() => {
@@ -633,11 +673,16 @@ export default function PartnerEventsPage() {
           {/* Side events change late and often, so this is the page most likely to need a
               read that does not wait for the next cycle. */}
           <div style={{ marginTop: 14 }}>
+            {/* feedKey, so the report quotes THIS feed's cadence. Without it the button promised
+                "within 30 minutes" on a feed held at 60 seconds (lib/cachePolicy.ts
+                NEAR_LIVE_FEEDS) — a number thirty times the truth. It refreshes the AIRTABLE
+                side; the Brella board keeps its own ordinary cadence. */}
             <RefreshButton
               onRefresh={refresh}
               changes={changes}
               error={revalidateError}
               resetKey="partnerevents"
+              feedKey="partnerevents"
             />
           </div>
         </div>
@@ -726,6 +771,40 @@ export default function PartnerEventsPage() {
               ))}
             </div>
 
+            {/* WHERE THIS TAB READS FROM, directly under the tab that selects it (Auri,
+                2026-08-12). THE TWO TABS DO NOT SHARE A SOURCE — Side Events is Airtable, Event
+                Rooms is Brella — and the hero eyebrow can only name one of them, so it is wrong
+                whenever the other tab is open. Dashboard chrome only: deliberately NOT in the
+                embed snippet, where the name of an Airtable view means nothing to a visitor.
+                Both cadences come from lib/cachePolicy.ts rather than being typed here, so they
+                stay true when the event window closes on August 28th. */}
+            {filter === "event-room" ? (
+              <FeedSource
+                source="Brella"
+                detail="the live TechBBQ 2026 schedule, Event Room tracks"
+                // NO LINK. Brella's admin URLs are not stable enough to hardcode, and a link that
+                // lands on the wrong screen is worse than the sentence that says where to look.
+                reads={BRELLA_ROOMS_READS}
+                fetchedAt={brella.fetchedAt}
+              />
+            ) : (
+              <FeedSource
+                source="Airtable"
+                detail="Partnership Success, view “2026 Side event and event room info”"
+                href={airtableUrl(PARTNER_EVENTS_TABLE, PARTNER_EVENTS_VIEW)}
+                reads={PARTNER_EVENTS_FIELDS}
+                feedKey="partnerevents"
+                note="posters and venues read from each host’s own registration page, every 6 hours"
+                fetchedAt={fetchedAt}
+              />
+            )}
+
+            {/* THE UNFINISHED-ROOMS PANEL, above the board it is about. Event Rooms only: the Side
+                Events tab has the hand-written Airtable-gaps panel further up, which is about a
+                schema and does not change day to day. Dashboard only, never in the embed — this is
+                a to-do list naming paying partners' rooms. */}
+            {filter === "event-room" && gaps.length > 0 && <RoomGapsPanel gaps={gaps} />}
+
             {/* DAY PILLS. The Event Rooms board draws one day at a time against a clock, so it
                 gets the two-day switcher Program 2026 uses. Side Events keeps its own ALL + per-day
                 tabs, which can list every day down the page because it is a card grid. */}
@@ -778,10 +857,23 @@ export default function PartnerEventsPage() {
               matches={filter === "event-room" ? [...roomMatches.values()].reduce((a, b) => a + b, 0) : shown}
             />
 
+            {/* COUNT WHAT IS ON SCREEN, WHICH IS NOT THE SAME NUMBER ON BOTH TABS. Side Events
+                draws Airtable cards, so it counts those. Event Rooms draws the Brella board, so it
+                counts the sessions of the selected day — it used to print the 11 Airtable
+                event-room rows above a board showing a different number of Brella sessions, two
+                sources disagreeing in one sentence (Auri, 2026-08-12).
+                The revalidating and updated flags follow the same rule: they belong to whichever
+                feed that tab is actually showing. */}
             <p className="count-line" style={{ textAlign: "center" }}>
-              {shown} event(s).
-              {revalidating && <span className="reval"> · checking for updates…</span>}
-              {updated && <span className="reval"> · updated</span>}
+              {filter === "event-room"
+                ? `${roomSessions.length} session(s).`
+                : `${shown} event(s).`}
+              {(filter === "event-room" ? brella.revalidating : revalidating) && (
+                <span className="reval"> · checking for updates…</span>
+              )}
+              {(filter === "event-room" ? brella.updated : updated) && (
+                <span className="reval"> · updated</span>
+              )}
             </p>
 
             {filter === "event-room" ? (

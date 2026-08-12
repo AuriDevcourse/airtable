@@ -122,6 +122,10 @@ export function dailyCacheControl(): string {
  * Client-safe: it reads the clock and the constant above, no env, no server state.
  */
 export function cadenceLabel(key?: string): string {
+  // The near-live check comes FIRST, and matters: without it a feed on the 60-second override
+  // was promised at "within 30 minutes", which is the refresh button and the source line both
+  // quoting a number thirty times the truth (found 2026-08-12 while labelling /partner-events).
+  if (isNearLiveFeed(key)) return "within a minute";
   if (isHourlyFeed(key)) return "within the hour";
   return inFastWindow() ? "within 30 minutes" : "within the hour";
 }
