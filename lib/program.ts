@@ -19,6 +19,9 @@ import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
 import { photoUrl } from "@/lib/photo";
 import type { BrellaSection } from "@/lib/brellaSections";
+// Type only — the runtime import of this module stays dynamic and inside a try, so a face lookup
+// can never be what takes an agenda down.
+import type { FaceViewSource } from "@/lib/programFaces";
 
 const API = "https://api.airtable.com/v0";
 
@@ -138,6 +141,13 @@ type AirtableSource = {
    * be filed under instead. Earlier entries win, so a fallback can only fill a gap.
    */
   facesFrom?: string | readonly string[];
+  /**
+   * Fill missing faces from a CURATED VIEW instead of the CRM — for a co-hosted summit whose people
+   * signed up through its own form and are therefore not in Marketing Project Overview. Tried after
+   * `facesFrom`, so a CRM headshot still wins where both tables know the person.
+   * See lib/programFaces.ts, FaceViewSource.
+   */
+  facesFromView?: FaceViewSource;
   fields: {
     name: string;
     day?: string;
@@ -305,6 +315,39 @@ export const PROGRAM_SOURCES = {
     // Only three people are filed under Investor Day. Yoram Wijngaarde keynotes here as well as at
     // the LP Forum and the Pension Summit, and is filed under those.
     facesFrom: ["TechBBQ Investor Day", "LP Forum", "European Growth Pension & Insurance Summit"],
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
+  // NASS 2026 — the Nordic Africa Startup Summit, Day 2 in Event Room 2. Same Sessions table and the
+  // same hand-typed people fields as the Policy Stage above: its agenda arrived as a run-of-show
+  // spreadsheet and was typed in on 2026-08-12, so the session rows carry "Speaker Details" text and
+  // no photo cells at all.
+  //
+  // EVERY FACE COMES FROM THE JOIN, and it needs BOTH sources. The 52 people on this agenda are split
+  // across two tables: 21 are filed in the CRM under "Event Room 2" (which is how the speaker pages
+  // already find them), and the full roster of 45 lives behind the Nordic-Africa Summit Presenters
+  // view that /nass publishes. Neither covers the agenda on its own. The CRM is listed first because
+  // its headshot is the one the rest of techbbq.dk already shows for that person.
+  nass: {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Nordic Africa Startup Summit"',
+    facesFrom: "Event Room 2",
+    facesFromView: {
+      table: "tbl3dTaHrIFrHF6Mo", // Ticketing Forms
+      view: "viw9pkLpUOThgHfGB", // Nordic-Africa Summit Presenters — the same publish gate as /nass
+      nameField: "Presenter's full name",
+      photoField: "Headshots",
+      feed: "nass", // lib/photo.ts PHOTO_SOURCES.nass, already pointed at this table's Headshots
+    },
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
@@ -490,10 +533,21 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   // route so it lands inside the same `cached("program:<source>")` entry: one extra Airtable read
   // per cache fill, not one per request. A failure is logged and swallowed — an agenda with
   // initials in it is a working agenda, and this must never be what takes the programme down.
-  if (cfg.facesFrom) {
+  if (cfg.facesFrom || cfg.facesFromView) {
     try {
-      const { fetchProjectFaces, applyFaces } = await import("@/lib/programFaces");
-      return applyFaces(sessions, await fetchProjectFaces(cfg.facesFrom));
+      const { fetchProjectFaces, fetchViewFaces, applyFaces } = await import("@/lib/programFaces");
+      const faces = new Map<string, string>();
+      // CRM first, curated view second, and `set` only where the key is new — same "first source
+      // wins" rule the facesFrom list itself follows, so adding the view can only fill a gap.
+      if (cfg.facesFrom) {
+        for (const [k, url] of await fetchProjectFaces(cfg.facesFrom)) faces.set(k, url);
+      }
+      if (cfg.facesFromView) {
+        for (const [k, url] of await fetchViewFaces(cfg.facesFromView)) {
+          if (!faces.has(k)) faces.set(k, url);
+        }
+      }
+      return applyFaces(sessions, faces);
     } catch (err) {
       console.error(`[program:${source}] faces unavailable, keeping initials`, err);
     }

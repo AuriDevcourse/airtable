@@ -48,7 +48,7 @@ const TIMEOUT_MS = 10_000;
  * is exactly what happened to him on the Pension & Insurance Summit. Only stripped from the FRONT,
  * so a surname that happens to be one of these words survives.
  */
-const HONORIFIC = /^(prof|professor|dr|doctor|mr|mrs|ms|sir|hon|rt hon)\s+/;
+const HONORIFIC = /^(prof|professor|dr|doctor|mr|mrs|ms|sir|hon|rt hon|amb|ambassador)\s+/;
 
 function key(name: string): string {
   return name
@@ -59,6 +59,33 @@ function key(name: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(HONORIFIC, "");
+}
+
+/**
+ * A MIDDLE NAME IS NOT A DIFFERENT PERSON. A roster people fill in themselves carries the name they
+ * sign documents with — "Jamie Thurston Wyngaard", "Jesper Vesten Drescher", "Simon C. Mears" —
+ * while the agenda types the name they are announced by. Exact keys never meet, and both pages then
+ * show an initial next to a face that is already uploaded.
+ *
+ * So a second, looser key: FIRST AND LAST WORD ONLY. Tried after the exact key, never instead of it,
+ * and a looser key that two different people share is dropped rather than guessed at (see below) —
+ * the same rule the exact keys already follow.
+ */
+function shortKey(k: string): string {
+  const parts = k.split(" ").filter(Boolean);
+  return parts.length > 2 ? `${parts[0]} ${parts[parts.length - 1]}` : k;
+}
+
+/**
+ * The name as a self-filled roster writes it, folded to a comparison key.
+ *
+ * Two things the CRM's "Full Name" never has and a sign-up form always does:
+ *   "Alvaro Perezcano (Moderator)"  — the ROLE, appended in brackets
+ *   "Adama Ibrahim, EMBA"           — CREDENTIALS, appended after a comma
+ * Both are stripped before folding, so they cannot keep a face off the agenda.
+ */
+function rosterKey(name: string): string {
+  return key(name.replace(/\([^)]*\)/g, " ").split(",")[0]);
 }
 
 /**
@@ -155,6 +182,100 @@ export async function fetchProjectFaces(
 }
 
 /**
+ * A CURATED VIEW as the face source, instead of a `Project Name` in the CRM.
+ *
+ * Why a second shape. Marketing Project Overview is where TechBBQ files its own speakers, but a
+ * co-hosted summit collects its people through its own sign-up form: NASS 2026's 45 presenters live
+ * in the Ticketing Forms table behind the "Nordic-Africa Summit Presenters" view — the same view
+ * lib/nass.ts publishes /nass from — and only 21 of them are in the CRM at all. Pointed at the CRM,
+ * that agenda renders initials for more than half the room while every headshot sits one table away.
+ *
+ * MEMBERSHIP IN THE VIEW IS THE GATE, exactly as in lib/nass.ts: a face reaches the agenda because
+ * somebody curated that person into the view, not because a formula matched. Only the two fields
+ * named here are ever requested, so the form's emails and free-text answers stay on Airtable.
+ */
+export type FaceViewSource = {
+  table: string;
+  view: string;
+  nameField: string;
+  photoField: string;
+  /** The lib/photo.ts feed key that can re-sign attachments from `table`. */
+  feed: string;
+};
+
+export async function fetchViewFaces(src: FaceViewSource): Promise<Map<string, string>> {
+  const faces = new Map<string, string>();
+  if (!TOKEN || !BASE_ID) return faces;
+
+  const seen = new Set<string>();
+  const ambiguous = new Set<string>();
+  // Loose keys are collected separately and merged LAST, so an exact match always wins over a
+  // first-and-last-word one, whatever order the records came back in.
+  const loose = new Map<string, string>();
+  const looseClash = new Set<string>();
+  let offset: string | undefined;
+
+  do {
+    const params = new URLSearchParams();
+    params.set("view", src.view);
+    params.set("pageSize", "100");
+    for (const field of [src.nameField, src.photoField]) params.append("fields[]", field);
+    if (offset) params.set("offset", offset);
+
+    const res = await fetchWithTimeout(
+      `${API}/${BASE_ID}/${src.table}?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" },
+      TIMEOUT_MS
+    );
+    if (!res.ok) {
+      // Same rule as fetchOneProject: faces are an enhancement, never a reason to fail the agenda.
+      console.error("[program-faces] view fetch failed", res.status, await res.text());
+      return faces;
+    }
+
+    const data = (await res.json()) as {
+      records: { id: string; fields: Record<string, unknown> }[];
+      offset?: string;
+    };
+    for (const rec of data.records) {
+      const k = rosterKey(str(rec.fields[src.nameField]));
+      if (!k) continue;
+      if (seen.has(k)) {
+        ambiguous.add(k);
+        faces.delete(k);
+        continue;
+      }
+      seen.add(k);
+      const att = firstAttachmentId(rec.fields[src.photoField]);
+      if (!att) continue;
+      const url = photoUrl(src.feed, rec.id, undefined, att);
+      faces.set(k, url);
+
+      const short = shortKey(k);
+      if (short !== k) {
+        // Two people who shorten to the same key make that key useless — "Anna Maria Berg" and
+        // "Anna Sofie Berg" both become "anna berg". Neither gets it.
+        if (loose.has(short) && loose.get(short) !== url) looseClash.add(short);
+        loose.set(short, url);
+      }
+    }
+    offset = data.offset;
+  } while (offset);
+
+  for (const [k, url] of loose) {
+    if (!faces.has(k) && !looseClash.has(k)) faces.set(k, url);
+  }
+
+  if (ambiguous.size) {
+    console.info(
+      `[program-faces] ${ambiguous.size} name(s) appear more than once in view ${src.view} and were ` +
+        `left without a face: ${[...ambiguous].join(", ")}`
+    );
+  }
+  return faces;
+}
+
+/**
  * Fill in every missing face on a programme's `onStage` people from the CRM.
  *
  * Mutates nothing: returns new session objects, because the sessions it is handed come out of a
@@ -171,7 +292,13 @@ export function applyFaces(
     // `?? null` rather than `|| null`: an empty string from the map would otherwise fall through
     // to the initial anyway, but keeping the type honest matters more than the edge case.
     const fill = (list: NonNullable<ProgramSession["onStage"]>["speakers"]) =>
-      list.map((p) => (p.photo ? p : { ...p, photo: faces.get(key(p.name)) ?? null }));
+      list.map((p) => {
+        if (p.photo) return p;
+        const k = key(p.name);
+        // Exact key first, then the first-and-last-word one — so "Simon Mears" on the agenda finds
+        // "Simon C. Mears" in the roster, and never the other way round.
+        return { ...p, photo: faces.get(k) ?? faces.get(shortKey(k)) ?? null };
+      });
     return {
       ...s,
       onStage: {

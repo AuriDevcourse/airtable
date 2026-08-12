@@ -125,6 +125,7 @@ function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
 // heading/note bake a fixed date line + ticket notice into that event's embed.
 type EventKey =
   | "niss"
+  | "nass"
   | "fintech"
   | "policy"
   | "board"
@@ -138,7 +139,7 @@ const EVENTS: {
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
@@ -148,6 +149,20 @@ const EVENTS: {
     label: "NISS 2026",
     heading: "August 26th",
     note: "Access to the program on 26th of August is for the holders of TechBBQ tickets only",
+  },
+  // NASS 2026 — Nordic Africa Startup Summit, all of it Day 2 in Event Room 2, so the heading is
+  // fixed here rather than drawn from the data (every row is the same day). `people` because the
+  // agenda names its speakers and moderators, like the Policy Stage below.
+  //
+  // ONE FLAT #FF0028 rather than the fire gradient (Auri, 2026-08-12) — the `crimson` theme in
+  // lib/agendaSnippet.ts.
+  {
+    key: "nass",
+    label: "NASS 2026",
+    heading: "August 27th",
+    sub: "Event Room 2",
+    theme: "crimson",
+    people: true,
   },
   // Fintech's design (Auri's mock): blue palette on #111827, no title icons, and
   // every title the same size (no oversized Opening).
@@ -229,7 +244,7 @@ function CopyAgendaEmbed({
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;

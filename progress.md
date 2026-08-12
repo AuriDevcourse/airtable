@@ -4,16 +4,33 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## WORKING TREE, as of 2026-08-12 10:00 · READ THIS FIRST
+## WORKING TREE, as of 2026-08-12 18:30 · READ THIS FIRST
 
-Session (h) is committed. The tree was CLEAN when session (i) started, at `067b5b3`. Modified and
-not committed now: **`lib/eventEmbedSnippet.ts`** (day headings in the events embed, session (i)
-below) and this file. `tsc --noEmit` passes; `npm run build` has NOT been run (the dev server holds
-`.next`). Verified in a browser against the real built snippet.
+Session (l) is COMMITTED AND PUSHED to `main`: NASS 2026 on `/program` (`lib/program.ts`,
+`lib/programFaces.ts`, `lib/agendaSnippet.ts`, `app/program/page.tsx`, this file). `tsc --noEmit`
+passes. `npm run build` still has NOT been run — the dev server holds `.next`.
 
-**Nothing moves on techbbq.dk until this is pushed AND the snippet is re-copied from the deployed
-dashboard and repasted** into the Elementor HTML widget. The pasted snippet is a static copy of the
-builder's output, so a deploy on its own changes nothing there.
+Sessions (j) and (k) are still uncommitted and were deliberately left out of that commit.
+
+**Session (l) also wrote to AIRTABLE**, 22 session rows that no commit can undo. See its entry —
+including a select option called "Natalie Becker" that a UI paste added to `When Is it`, which the
+API cannot delete and somebody has to remove by hand.
+
+## SUPERSEDED · WORKING TREE, as of 2026-08-12 11:00
+
+Session (i)'s embed work is committed and pushed as `5510231`. Uncommitted now: session (j), the
+per-tab source line (**`components/FeedSource.tsx`** and **`lib/airtableSources.ts`** new, plus
+`app/partner-events/page.tsx`, `app/globals.css`, `lib/useCachedList.ts`, `lib/cachePolicy.ts`,
+`lib/partnerevents.ts`), and session (k), the CBC push (**`brella-push-cbc.mjs`** new, plus a
+comment fix in `lib/brellaprogram.ts`). `tsc --noEmit` passes; `npm run build` has NOT been run (the
+dev server holds `.next`). Both tabs verified in a browser.
+
+**Session (k) already changed the LIVE Brella event** — that part is not waiting on a commit and
+cannot be undone by one. See its entry for the ids.
+
+Reminder from session (i), still outstanding: **the Elementor widget has not been repasted.** The
+day headings are live in the builder but the pasted snippet is a static copy, so techbbq.dk still
+shows the flat grid until someone copies from the deployed dashboard and pastes again.
 
 ## SUPERSEDED · WORKING TREE, as of 2026-08-11 16:30
 
@@ -43,6 +60,295 @@ Do not assume a clean tree.
 Two entries below are both labelled 2026-08-11: (e) is the Deep Tech work, (f) is the Elementor
 hardening. They were written by different sessions on the same day and (f) was renamed from (e) to
 break the collision.
+
+## Session 2026-08-12 (l) · NASS 2026 on /program, with faces from two tables
+
+**22 rows were written to Airtable** — the Nordic Africa Startup Summit run-of-show, typed in from a
+Google Sheet Auri linked (`1zdxyPAvjh5DhuZRLe2y3NUnmJgc8OHd2`, tab `Ark1`). Sessions table
+`tblSlpTzDi2oVYwqv`, all of them `Name of the Event` = "Nordic Africa Startup Summit", Day 2,
+Event Room 2, 09:00 to 18:05. The one pre-existing NASS row (`rec8UceSsQnkx71Ul`, which held only an
+Event Room) became the 09:00 registration row instead of being left as an orphan; the other 21 are new.
+Read back after writing: 22 rows, no field mismatches.
+
+Mapping decisions, because the sheet does not fit the table:
+- `Session Format` in the sheet has 11 values the `Session Type` select does not (High-Level Keynote,
+  Conversation, Lightning Talk, Interactive Policy Session, Case Based Panel Discussion…). Auri's call
+  was to MAP onto the existing seven rather than grow the select: solo talks to Keynote, two-person
+  Conversation to Fireside Chat, three or more to Panel, breaks and lunch to Break, registration and
+  the closing reception to Networking & Drinks.
+- `Description` = the Theme line, then the talking points with the brackets stripped. The sheet's
+  `Signal` and `Q & A` columns have nowhere to go and were dropped.
+- Speaker cells read "NAME [Job Title, Company]" with co-speakers separated by runs of spaces, and
+  the sheet ALSO has runs of spaces inside the brackets. Splitting on whitespace alone tore four
+  people in half; the importer splits at bracket depth 0 and never right before a `[`.
+
+`/program` has a NASS 2026 tab (`?event=nass`), fixed heading "August 27th", `sub` "Event Room 2",
+`people: true`. Verified in a browser: 22 sessions, 54 people, 43 faces, every photo URL 200.
+
+**THE COLOUR IS ONE FLAT #FF0028** (Auri, 2026-08-12), not the three-stop fire gradient — the new
+`crimson` theme in `lib/agendaSnippet.ts`. `grad` is a single-stop gradient, the same trick `blue`
+uses, so the shared `background-clip:text` CSS needs no branch. Ground stays TRANSPARENT like
+`orange`, because this snippet is pasted into a section that is already dark; giving it its own black
+would draw a panel edge where there is none. The greys beside it are neutral rather than the fire
+theme's warm ones. Contrast note: white on #FF0028 is 3.98:1, under AA for small text — the tag pills
+inherit that from every other theme here (#ff2600 is 4.0:1), so it was left consistent rather than
+fixed in one theme only.
+
+THE EMBED WAS TESTED AS A PASTE, not just as a tab. The copy button's clipboard call was stubbed in a
+browser, the real 11.5KB string captured, its origin rewritten to localhost, and the result loaded as
+a standalone page: 22 sessions painted, faces and all, no `__ORIGIN__` left in the output, no
+`fa7000`/`ce0f2e` anywhere, three uses of #FF0028. The snippet fetches
+`https://airtable-woad.vercel.app/api/program?event=nass`, which is why this had to be PUSHED before
+the snippet can work on techbbq.dk — on localhost the copy button deliberately bakes in the deployed
+origin (`lib/embedOrigin.ts`), and until this deploy that URL 404'd the event.
+
+**FACES NEEDED A SECOND SOURCE, and that is the one real code change.** The 52 people on this agenda
+are split across two tables: 21 sit in Marketing Project Overview under `Event Room 2`, and the full
+roster of 45 lives behind the "Nordic-Africa Summit Presenters" view that `/nass` already publishes
+(`tbl3dTaHrIFrHF6Mo` / `viw9pkLpUOThgHfGB`). Pointed at the CRM alone, more than half the room
+rendered initials. So `lib/programFaces.ts` gained `fetchViewFaces()` + a `facesFromView` config, and
+membership in the view is the publish gate exactly as in `lib/nass.ts`. Two matching rules came with
+it, both needed by real rows in this roster:
+- `rosterKey()` strips an appended role and credentials, because a self-filled form writes
+  "Alvaro Perezcano (Moderator)" and "Adama Ibrahim, EMBA".
+- `shortKey()` is a first-and-last-word fallback, tried only after the exact key, because the roster
+  carries "Jamie Thurston Wyngaard" where the agenda announces "Jamie Wyngaard". A loose key two
+  people share is dropped rather than guessed at.
+`amb`/`ambassador` joined the honorific strip while there.
+
+**Eleven people still show an initial, and four of those are a NAME MISMATCH to reconcile** — the
+same person spelled two ways across the two tables, which is Airtable data, not code:
+- "Amb. Diane Gachumba" (agenda) vs "Dr. Diane Gashumba" (roster) — Gachumba/Gashumba, and one says
+  Ambassador where the other says Dr. **Confirm these are the same person before touching either.**
+- "Charity Wanjiru Kiarie" vs "Wanjiru Kiarie"
+- "Ismael Eleburuike" vs "Ismail Eleburuike"
+- "Natalie Becker" vs "Natalie Bridgette Becker-Aakervik"
+Three more are in neither table and have no photo anywhere: Lamiaa El Rashidy, Sherief Kesseba,
+Gabriella Mukamugema. The last four are not people at all and render as circles with an initial:
+"TechBBQ" (opening), "Impact Fund Denmark, Danish Company Representative" (a placeholder speaker),
+"LOUNGE VIBE (DJ MUSIC)" (a music cue in the Speaker column). Left as the sheet has them.
+
+Also from the sheet, unresolved: **Prof. Jackson Kiilu Maalu** sits on a row of his own with no
+session, so he was not imported. The 10:45 speaker is still the placeholder "Danish Company
+Representative" and the 15:05 fireside has no moderator (the sheet says TBA).
+
+One cell WAS corrected after the import: the 09:30 moderator read "Natalie Becker introduces the
+Minister", a stage direction that the agenda renderer would have drawn as a person's name. It now
+reads "Natalie Becker".
+
+**SOMEBODY WAS EDITING THESE ROWS IN THE AIRTABLE UI WHILE THIS SESSION RAN**, and a paste landed in
+the wrong cells on the 09:30 row (`recYtq2KnSopmiRgU`): `Event Room` was cleared and `When Is it` was
+set to "Natalie Becker", which Airtable accepted by CREATING THAT AS A NEW SELECT OPTION. Both cells
+were restored to Day 2 / Event Room 2. **The stray "Natalie Becker" option is still on the `When Is it`
+field** — the API cannot delete a select choice, so it has to go in the UI, and until it does it sits
+in the dropdown beside Day 1 and Day 2 for every programme in this table.
+
+The same editing pass changed the 09:25 row on purpose: both hosts moved from `Moderator Details` into
+`Speaker Details` as ONE comma-joined string, "Charles Kinga, Head of Africa at TechBBQ,  Natalie
+Becker Partner, Producer at Thought Leader Global and Africa". parsePeople splits on " · ", not on
+commas, so the agenda now draws that as a SINGLE person whose title runs on for two lines. Two people
+need " · " between them. Left as the editor wrote it — the fix is theirs to confirm, not a guess to
+make.
+
+Not done, and deliberately: nothing about NASS is published. `/api/program?event=nass` serves it and
+the dashboard tab renders it, but no Elementor snippet has been pasted anywhere, so techbbq.dk is
+unchanged.
+
+Observation while regression-checking the other programmes, NOT touched: the Board Summit resolves
+3 faces out of 31 people and Investor Day 4 out of 15, both from before this session. Their people are
+filed somewhere other than the `facesFrom` projects those two configs name.
+
+## Session 2026-08-12 (k) · The Creative Business Cup agenda went INTO Brella
+
+**13 sessions were created in the live attendee app, and one existing block was moved.** Not a dry
+run. Ids 986768-986780, listed below, so a rollback is a list and not a hunt.
+
+CBC sat in Brella as one block per day, so the board drew a rectangle that said nothing about what
+happens inside it. Creative Business Network's published programme (`CBC_2026_Program.pdf`, on
+Auri's Desktop under `Side Events/`) has the full agenda; Auri settled that the PDF is correct.
+`brella-push-cbc.mjs` sends it. Verified on the board: Event Room 5 draws the dashed
+`14:00 - 17:00 · CBC Initial Pitching` shell with its six items nested inside, Day 1 went 30 -> 36
+sessions.
+
+| ids | what |
+|---|---|
+| 986768-986773 | Day 1, 26 Aug, 14:00-17:00, six items from Welcome & opening to Wrap-up |
+| 986774-986780 | Day 2, 27 Aug, 09:30-13:00, seven items from Welcome & recap to Closing remarks |
+| 978024 (PATCHed) | Day 1 parent moved from 15:00-17:30 to **14:00-17:00** |
+
+**THE 14:00 START OVERLAPS GOOGLE, AND THAT IS DELIBERATE.** `Scaling Europe` holds Event Room 5
+until 14:45 on the 26th, so CBC's first 45 minutes collide with it, and the tracker doc records the
+CBC slot as 15:00-17:30 DONE — i.e. 15:00 is what BRIGHT submitted on their Event Room form. Raised
+twice, Auri chose the PDF times both times. Do not "fix" this without asking him.
+
+**THE AGENDA BROKE THE SHELL RULE, and the fix is in both renderers.** Auri, looking at Event Room 5:
+"how are there 3 sessions in the same room?" The DOM had TWO dashed bands in that column. Google's
+`Scaling Europe` (12:00-14:45) had been promoted to a shell, because it now contains the first two
+CBC items (14:00-14:15 and 14:15-14:20) — they only land inside it because of the 14:00 start.
+
+The old rule was "contains at least two strictly shorter sessions". It now also requires the
+contained sessions to FILL at least half the candidate's span, measured as the UNION of their spans
+so overlapping children cannot count shared minutes twice. CBC's six items fill 100% of 14:00-17:00
+and Future of Fintech's eight fill 95% of 09:30-13:00; Scaling Europe's two accidental guests filled
+20 minutes of 165, which is 12%. Changed in `components/ProgramTimeline.tsx` AND
+`lib/brellaEmbedSnippet.ts` — same rule, two renderers, and a comment in each pointing at the other.
+
+What Room 5 draws now: one CBC shell, and `Scaling Europe` back to a card sharing two lanes with the
+three CBC items it overlaps. That is honest about a genuine double-booking, and it is also ugly —
+Scaling Europe is squeezed to half width and its title truncates. **Moving CBC to 14:45 or 15:00
+would make the column clean and is one PATCH.** Auri's call, twice made for 14:00; flagged again with
+the render in front of him.
+
+**THE SHELL IS NO LONGER PRESSABLE, and the sessions inside it now open.** Auri, seeing it: "the one
+that I can press is a shell, that shouldn't be pressed. Instead add speakers and info to individual
+sessions." Three changes:
+
+1. The half-day shell was a `<button>` that opened its own detail, on the reasoning that a real
+   Brella row sits behind it. It is now a `div`, `aria-hidden`, `pointer-events:none`, exactly like
+   the derived all-day band, so a press lands on the card underneath. Both renderers.
+   **Consequence:** whatever sits on the shell's own row is unreachable from the board, which is the
+   other half of why the speakers belong on the individual sessions.
+2. `hasDetail()` no longer asks whether the description is over 150 characters. That length was
+   standing in for "is there anything here" and measured the wrong string: five of the six CBC items
+   carry a real sentence from the programme, the longest 65 characters, so none of them could be
+   opened. It now strips Brella's subtitle line (`Session by …`, branding not detail) and asks
+   whether more than 24 characters remain. `Break & networking` ("Catering available.") and
+   `Pitching — Block 2` ("Continued pitches.") still do not open, correctly: those add nothing the
+   title has not already said.
+3. Cleared the `subtitle` on all 13 CBC rows in Brella (PATCH, ids only). I had set it at creation
+   and it printed "Session by Creative Business Network" on every card inside a shell already named
+   Creative Business Cup — thirteen copies of one fact.
+
+**SPEAKERS PER SESSION ARE OFF THE TABLE, descriptions carry the detail instead** (Auri, 2026-08-12:
+"we dont need to contact them... instead, let's just have description to each session"). Which of
+CBC's five speakers runs which item is recorded in no source we have: the PDF names only Rasmus on
+the Day 1 welcome and Gleb on the pitch training, Brella has all five heaped on the block, Airtable's
+Event Room form takes five flat presenter slots per ROOM with no session field, and cbnet.com's own
+CBC 2026 page prints "No items found" under Jury & speakers with the FAQ saying details are still
+being updated. All 13 sessions already carry their description from the PDF, which is the detail.
+
+Day 2's block was renamed from "Creative Business Cup 2026 - CBC Global Finals & Creativity & AI" to
+**"CBC Global Finals & Creativity & AI"** — it said CBC twice. Day 1 keeps the long form; nobody
+asked for it.
+
+Two sessions still do not open on the board, correctly: `Break & networking` ("Catering available.")
+and `Pitching — Block 2` ("Continued pitches.") fall under the 24-character floor in hasDetail(),
+because a dialog there would only repeat the title.
+
+**Four Brella API facts learned the hard way. Read these before writing to Brella again:**
+
+1. **A description is sent as a PLAIN STRING in `content`.** GET returns `content` as a Draft.js
+   document, so sending that shape back is the obvious move and it is wrong: the POST 500s with an
+   empty body, and PATCHing the object stores the serialised JSON as the visible text (that happened
+   to 986768 and was repaired).
+2. **An unknown key returns 200 and is silently ignored.** `description`, `content_html` and `body`
+   all "succeeded" and changed nothing. A 200 is not evidence that a field landed — re-read it.
+3. **`GET /timeslots/<id>` 404s.** There is no single-timeslot read; verify through the collection.
+   A verification loop built on the single read reports every field as missing.
+4. **A POST carrying title + start_time + duration + location + track_id works; adding subtitle and
+   content to that same POST 500s.** So the script creates with the minimal proven body and PATCHes
+   the extras on. Splitting it also means a rejected description costs a description, not a session.
+
+Also corrected a comment in `lib/brellaprogram.ts` that had been wrong in both directions in one
+afternoon. Writes ARE possible (brella-push.mjs has created timeslots and speakers since 10 August);
+what has no route is ASSIGNING a speaker to a session. Brella's public help page describes the read
+API only, and OPTIONS 404s on a path whose GET returns 200 — both of those misled this session into
+telling Auri the API was read-only, which he correctly pushed back on.
+
+**Auri's remaining step:** link the five CBC speakers (Safa Sharif, Jenni Ahtiainen, Gleb Maltsev,
+Anna Sofia Abrahamsson, Mikkel Holme) to the new sub-sessions by hand in the Brella dashboard. They
+are already on the two parent blocks. The PDF names no one per agenda item, so nothing here guessed.
+
+Next steps:
+1. Speakers, by hand, as above.
+2. **Nordic IPO & Stock Market Day 2026** (Event Room 3, 26 Aug, 12:30-17:30) is the same shape:
+   one block, no agenda. Per the tracker doc, FBV has not sent the programme yet ("Missing speakers
+   & program", waiting on 3-4 panellists). When it arrives, `brella-push-cbc.mjs` is the template.
+3. Two PDF items were deliberately NOT created: the Mon 25 evening welcome reception, and
+   `Pitch training with Gleb Maltsev` Tue 09:00-12:30. Neither can be an Event Room 5 booking (that
+   morning is already taken twice over). Ask CBC where they belong.
+
+## Session 2026-08-12 (j) · Every tab says where its data comes from, and how stale it can be
+
+Auri: "show where the information is gotten from just above, as well as how often it updates. I want
+to just understand if we are always up to date." New `components/FeedSource.tsx`, three muted rows
+directly under the tab that selects the data:
+
+- **Source** · the system, plus the table/view/board inside it, and that name is a LINK straight to
+  the rows in Airtable (asked for in the follow-up: "add the link where it takes the information
+  from"). No link on the Brella tab: its admin URLs are not stable enough to hardcode and a link
+  that lands on the wrong screen is worse than the sentence.
+- **Reads** · the exact columns the feed pulls. The question behind it is "why does the card show
+  something I cannot find in the table", so anything absent from this list comes from somewhere
+  else, which the Source row's trailing clause then names.
+- **Updates** · the cadence in words, plus when this page last checked.
+
+**Why /partner-events needed it most: its two tabs do not share a source.** Side Events is Airtable
+(Partnership Success, view "2026 Side event and event room info", plus posters and venues scraped
+from each host's registration page on a 6 hour cache); Event Rooms is Brella. The hero eyebrow names
+Airtable only, so it was wrong for whichever tab was not open.
+
+**New `lib/airtableSources.ts`, and it is CLIENT-SAFE ON PURPOSE.** The link needs the base id, the
+table id and the view id in a `"use client"` page, so they live in a module that holds nothing but
+ids and column names: no token, no `process.env`, no fetching. **Never add a credential to it.** The
+base id is pinned there rather than read from env because every table id in `lib/*` is already
+hardcoded, so a base pointing elsewhere breaks all of them anyway; an Airtable id is in the URL of
+every share link and opens nothing without a token. `lib/partnerevents.ts` now IMPORTS its table and
+view ids from that module instead of declaring its own copies, so the link cannot outlive the view
+it names. Verified the feed still returns all 20 rows after that swap.
+
+**The cadence is READ FROM `lib/cachePolicy.ts`, never typed into the component.** That file owns the
+TTLs and flips to the calm cadence by clock on 28 August, so a hardcoded "within 30 minutes" would
+become a lie that morning with nothing to catch it.
+
+**Two honesty fixes came out of writing it, both live before this and both wrong:**
+
+1. `cadenceLabel()` had no branch for `NEAR_LIVE_FEEDS`, so `partnerevents` (60 second CDN, 1 minute
+   memory) was described as "within 30 minutes" — thirty times the truth. The refresh button has
+   been printing that on this page since the near-live override went in. Fixed at the source, so
+   both the button and the new line say "within a minute".
+2. `/partner-events` never passed `feedKey` to `<RefreshButton>`, which is what selects that branch.
+   It does now.
+
+`useCachedList` gained `fetchedAt`, stamped on any answer including a byte-identical one, and reset
+on tab switch. It is when the BROWSER was answered, not when Airtable was read — the CDN can answer
+from a copy up to its own s-maxage old — so it prints as "checked 10:46" and the cadence clause next
+to it is what describes the possible lag. Do not reword it into "live as of".
+
+**NOT in any embed.** Auri was explicit: this is an indication next to the embed, not part of it. An
+Airtable view name means nothing to a techbbq.dk visitor. Nothing went into `lib/*EmbedSnippet.ts`.
+
+**The count line was counting the wrong source, found while tracing where the board's data comes
+from.** On the Event Rooms tab it printed the 11 Airtable event-room rows above a board drawing
+Brella sessions — two sources disagreeing inside one sentence. It now counts the selected day's
+Brella sessions there (30 on Day 1, 48 on Day 2, both verified) and keeps counting Airtable cards on
+Side Events. The `revalidating` and `updated` flags moved to the same rule: they follow whichever
+feed the open tab is actually showing.
+
+**For the record, since it came up twice: what the Event Rooms board does and does not read.** The
+board is Brella only. `/api/program?event=brella` DOES merge Airtable in, but only into other
+sections — the Side Events, and the Policy Stage (Brella holds that stage as one all-day row with 28
+speakers on it, so the real 15 sessions are substituted from Airtable). The rooms section is
+untouched. The summit names on the all-day bands (Deep Tech Event Day, Nordic India Startup Summit,
+Nordic Africa Startup Summit) come from NEITHER source: they are pinned in `ROOM_DAY_PROGRAMMES` in
+`lib/brellaSections.ts`, because those summits have no Brella track of their own. Changing one is a
+code edit. That is now a clause on the Brella source line so it is not invisible.
+
+Two small things settled while looking at it: the row is TWO lines always, because as one wrapping
+line the divider stranded itself at the end of line one; and the clock is forced to 24 hours
+(`en-GB`, `h23`) so it matches the Airtable time ranges everywhere else on the page.
+
+Next steps:
+1. Commit and push. Nothing here touches a feed's behaviour, only what the dashboard says about it.
+2. **Decide whether this rolls out to the other tabbed pages.** `/program` has eight tabs across
+   several sources and is the obvious next one; `FeedSource` was written generic for exactly that.
+   Not done here because each tab needs its source named accurately, which is research per tab.
+3. Consider printing the CDN's `age` header, which is the true answer to "how old is this copy".
+   Deliberately skipped: localhost has no CDN, so it would be blank on the very page Auri is
+   looking at while developing.
+
+Gotcha: `fetchedAt` is now returned by `useCachedList` and every page destructures that hook. Adding
+a field is safe, removing one is not — a dozen pages read this hook.
 
 ## Session 2026-08-12 (i) · The events embed groups by day, like the dashboard does
 

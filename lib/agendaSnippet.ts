@@ -25,7 +25,8 @@ export type AgendaOptions = {
   // "navy" = the Board Summit look: a deeper blue ground with a blue gradient.
   // "gold" = the Day 0 look: the fire gradient on a SOLID near-black, from the designed pages.
   // "beam" = the same, on Investor Day's blue-black ground.
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam";
+  // "crimson" = NASS 2026: one flat #FF0028 instead of the fire gradient.
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
   // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
   icons?: boolean;
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
@@ -118,6 +119,30 @@ const THEMES = {
     rowBorder: "rgba(255,255,255,.12)",
     time: "#e8ded3",
     noteInk: "#cfc6bd",
+  },
+  // NASS 2026 · Nordic Africa Startup Summit. ONE FLAT COLOUR, #FF0028 (Auri, 2026-08-12), not the
+  // three-stop fire gradient every other Day 1/Day 2 programme uses. `grad` is therefore a
+  // single-stop gradient, the same trick the `blue` theme uses: background-clip:text over a solid
+  // paints exactly that solid, so the shared CSS below needs no branch.
+  //
+  // Ground stays TRANSPARENT, like `orange` and unlike `navy`/`gold`. This is the look the tab
+  // already had before the colour changed, and it is pasted into a dark section on techbbq.dk, so
+  // giving it its own black would draw a panel edge where there is none today.
+  crimson: {
+    ink: "#f2f2f2",
+    muted: "#9a9a9c",
+    acc: "#FF0028",
+    grad: "linear-gradient(120deg,#FF0028,#FF0028)",
+    tagInk: "#fff",
+    tagBorder: "transparent",
+    border: "rgba(255,0,40,.45)",
+    glow: "rgba(255,0,40,.10)",
+    bg: "transparent",
+    rowBorder: "rgba(255,255,255,.09)",
+    // Neutral greys rather than the fire theme's warm ones — beside #FF0028 a warm grey reads as a
+    // second, muddier accent.
+    time: "#d7d3d4",
+    noteInk: "#c8c3c4",
   },
   // TECHBBQ INVESTOR DAY, the one Day 0 page with a different backdrop: the blue beam
   // (`body.is-investor` swaps bg-program.jpg for bg-beam.jpg and scrims it with #04060e/#020308), so
