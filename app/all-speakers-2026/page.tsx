@@ -8,6 +8,7 @@ import { useCachedList } from "@/lib/useCachedList";
 import type { ChangeSummary } from "@/lib/diffList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // The tab set the embed snippet renders — keys match the /api/all-speakers groups.
 // Speakers + Event Room shuffle per page load (fair exposure). The snippet's shuffle
@@ -89,6 +90,8 @@ const INVESTOR_EVENT_LABELS: Record<string, string> = {
   "pension-summit": "Pension & Insurance Summit",
   "lp-forum": "LP Forum",
   "investor-day": "Investor Day",
+  // Short on the card, same as the API's tag: the full name wraps and unevens the grid.
+  "family-office": "Family Office Summit",
 };
 
 // Detail pop-up for the Speakers group — same look/behavior as /speakers-2026
@@ -149,7 +152,7 @@ function SpeakerModal({ speaker, onClose }: { speaker: Card; onClose: () => void
             // eslint-disable-next-line @next/next/no-img-element
             <img src={speaker.photo} alt={speaker.name} />
           ) : (
-            <div className="s-card__img--empty" />
+            <MissingPhoto />
           )}
         </div>
 
@@ -310,8 +313,8 @@ export default function AllSpeakers2026Page() {
       // Random order per page load (Auri's rule); nobody here is ranked.
       return shuffle(merged);
     }
-    // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day.
-    // One card per person here too: an investor at two of the three events names both.
+    // Investor speakers: Pension & Insurance Summit + LP Forum + Investor Day + Nordic Family
+    // Office Summit. One card per person here too: an investor at two events names both.
     return (investors.data ?? []).map((p) => ({
       ...p,
       tag: p.events?.length
@@ -385,7 +388,7 @@ export default function AllSpeakers2026Page() {
           <p className="lede">
             Every 2026 roster in one place. Speakers is the Speaker Hub grid; Event Room
             Speakers combines NISS 2026 and NASS 2026; Investor Speakers covers the
-            Pension &amp; Insurance Summit, LP Forum and Investor Day.
+            Pension &amp; Insurance Summit, LP Forum, Investor Day and the Nordic Family Office Summit.
           </p>
 
           <div className="seg" role="tablist" aria-label="Speaker group" style={{ marginTop: 28 }}>
@@ -451,7 +454,7 @@ export default function AllSpeakers2026Page() {
                       <SpeakerPhoto src={p.photo} alt={p.name} />
                     ) : (
                       <div className="s-card__media">
-                        <div className="s-card__img--empty" />
+                        <MissingPhoto />
                       </div>
                     )}
                     <div className="s-card__overlay">

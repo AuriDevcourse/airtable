@@ -148,8 +148,8 @@ export const SECTIONS: PageSection[] = [
       {
         href: "/investors",
         label: "Investor speakers",
-        note: "LP Forum, Investor Day and the Pension & Insurance Summit, filtered per event.",
-        keywords: "lp forum investor day pension insurance vc",
+        note: "LP Forum, Investor Day, the Pension & Insurance Summit and the Nordic Family Office Summit, filtered per event.",
+        keywords: "lp forum investor day pension insurance vc nordic family office",
       },
       {
         href: "/partners",
@@ -230,6 +230,7 @@ export const INVESTOR_EVENTS: PageItem[] = [
   { href: "/investors?event=lp-forum", label: "LP Forum", note: "" },
   { href: "/investors?event=investor-day", label: "TechBBQ Investor Day", note: "" },
   { href: "/investors?event=pension-summit", label: "Pension & Insurance Summit", note: "" },
+  { href: "/investors?event=family-office", label: "Nordic Family Office Summit", note: "" },
 ];
 
 /** Every page as one flat list, for the front-page filter and for "current page" matching. */

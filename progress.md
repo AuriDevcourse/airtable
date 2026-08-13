@@ -4,7 +4,103 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## WORKING TREE, as of 2026-08-12 18:30 · READ THIS FIRST
+## WORKING TREE, as of 2026-08-13 · READ THIS FIRST
+
+**Session (m): the Nordic Family Office Summit is now the FOURTH investor event.** Uncommitted, on
+branch **`investors-family-office`** (branched off `main`, working tree was clean). Sessions (j), (k)
+and the older uncommitted work are untouched by it. Nothing was written to Airtable this session.
+
+### WHAT WAS JUST DONE
+
+**Part 2 · "NO PHOTO IN AIRTABLE" tiles, investors only so far.**
+
+A speaker whose row has no Profile Picture used to be dropped by the feed and appear NOWHERE — the
+dashboard could not name who was missing, so nobody knew there was anything to chase. Same failure
+the partner wall fixed with its name tiles, so it is fixed the same way:
+
+- `lib/investors.ts` · rows with a name but no photo are kept and marked `pending: "no-photo"`.
+  `fetchInvestors(event, includePending)` gates them. Two ordering rules came with it: a row WITH a
+  photo always wins the dedupe (or a person entered twice could be won by their empty row), and
+  anyone pending sorts last whatever their Hierarchy.
+- `app/api/investor-speakers/route.ts` · caches the FULL list, then serves the public a filtered
+  copy. `?pending=1` + the dashboard password is the only way to get the photoless rows, and such a
+  response is never CDN-stored and never CORS-tagged.
+- `app/api/all-speakers/route.ts` · shares the `investors:all` cache key, so it now fills it the
+  same way (`fetchInvestors(undefined, true)`) and filters `pending` out unconditionally. This is
+  the feed the "All Speakers 2026" embed fetches; it has no `?pending=` of its own.
+- `app/investors/page.tsx` · fetches `?pending=1`, draws the tile, leads the count with what the
+  embed ships ("N person(s) live on techbbq.dk · M more waiting on a photo, below"), and names them
+  in a worklist panel underneath the grid.
+- `components/MissingPhoto.tsx` + `.s-card__missing` in `globals.css` · the tile itself, a dashed
+  hollow box reading "NO PHOTO / IN AIRTABLE" with the person's name and title still below it.
+  Wired into all 12 speaker/team pages, so the other feeds only need their own `pending` flag.
+
+Proven end to end by temporarily forcing one person pending (Aileen Lee): dashboard 61 with 1
+pending tile + worklist line, public feed 60, combined embed feed 60. The hack was then reverted —
+`grep Aileen` over the repo is empty.
+
+**Right now zero investors are pending**: Anne Marie Kindberg and Anja Bach Eriksson both got
+photos uploaded in Airtable mid-session, so the live count went 59 → 61 and the tile has nothing to
+draw. It is not dead code, it is an empty worklist.
+
+### PART 1 · WHAT WAS DONE BEFORE THAT
+
+- `lib/investors.ts` · added `"family-office": "Nordic Family Office Summit"` to `INVESTOR_EVENTS`.
+  That one line is what makes the feed, the `?event=` param, the tabs and the dedupe all cover it.
+- `app/investors/page.tsx` · fourth tab + label + its own copy-embed button; eyebrow/lede now say four
+  events, not three.
+- `app/api/all-speakers/route.ts` · `INVESTOR_TAGS` entry, so a family-office person in the combined
+  feed is tagged "Nordic Family Office Summit" rather than the raw key.
+- `app/all-speakers-2026/page.tsx` · same label in `INVESTOR_EVENT_LABELS` + lede text.
+- `lib/pages.ts` · nav shortcut `/investors?event=family-office`, updated note + search keywords.
+- `lib/program.ts` · **BUG FIX, unrelated to the tab.** The `family-office` agenda joined faces on the
+  project name `"Nordic Family Office"`. No such option exists; the real one is
+  `"Nordic Family Office Summit"`. The join had been matching nothing since it was written, and every
+  face on that agenda was coming from the `Event Room 2` / `Event Room 1` fallbacks.
+
+Verified on localhost:3000 with `?fresh=1`: family-office **8**, investor-day **15**, lp-forum **20**,
+pension-summit **18**, all **59** (61 rows, 2 people dedupe across events). `/investors`,
+`/investors?event=family-office`, `/all-speakers-2026` and `/program?event=family-office` all 200.
+`/api/program?event=family-office` → 7 sessions, 10 faces, zero nulls. `tsc --noEmit` passes.
+`npm run build` NOT run: the dev server holds `.next`.
+
+### NEXT STEPS
+
+1. **Give the other feeds the same `pending: "no-photo"` flag.** Auri asked for it everywhere; the
+   investor feed is the pattern to copy, and `MissingPhoto` is already wired into every page. The
+   ones that still drop photoless people silently: `lib/niss.ts:120`, `lib/nass.ts:108`,
+   `lib/fintechspeakers.ts:109`, `lib/policystage.ts:122`, `lib/summitextras.ts:77`, and the hub
+   (`lib/hub.ts`). Each needs its route to gate `?pending=1` the same way, and any route sharing a
+   cache key with another has to fill it the same way — see the `investors:all` note above.
+2. **Delete the nameless LP Forum row** in the Marketing Project Overview view. It has a photo and
+   no Full Name, so it is dropped for the name, not the picture, and no tile will ever show it.
+3. **Re-copy the Elementor snippet** for any investor widget already pasted on techbbq.dk if it
+   should include the new event; the family-office button copies its own snippet.
+4. Once all ten family-office speakers are filed under their own project in the CRM, drop the
+   `Event Room 2` / `Event Room 1` fallbacks from `facesFrom` in `lib/program.ts`.
+
+### GOTCHAS
+
+- The CRM option is spelled **"Nordic Family Office Summit"** in full. Anything shorter matches nothing
+  and fails SILENTLY: `filterByFormula` returns zero rows, the join finds no faces, no error is raised.
+  Read the option list from the meta API (`/v0/meta/bases/<base>/tables`) before hardcoding a name.
+- `/investors` validates `?event=` against its own `EVENTS` array. Adding a key to `INVESTOR_EVENTS`
+  in `lib/investors.ts` without adding it to that array leaves the API serving the event while the page
+  quietly falls back to "all".
+- **`?pending=1` is a PUBLIC-SAFETY gate, not a display option.** It needs the dashboard password
+  AND the param, and a response carrying it is treated as a live-read: `no-store`, no CORS header.
+  Anything less and a CDN copy could answer a techbbq.dk visitor with a faceless card.
+- **A shared cache key must be FILLED the same way by every route that reads it.** `investors:all`
+  is written by whichever of `/api/investor-speakers` and `/api/all-speakers` runs first, so both
+  now store the list WITH the pending rows and each filters on the way out. Storing the narrow list
+  from one route would have silently hidden pending people from the dashboard, or the reverse.
+- The card grid renders `MissingPhoto` whenever `photo` is null — it does not check `pending`. Any
+  feed that returns a photoless person now gets the tile automatically, which is the point, but it
+  also means a broken photo URL and a missing upload look the same. A grey card that fills in after
+  a few seconds is the `/api/photo` proxy being slow, NOT a missing picture.
+- Everything below this block is session (l) and earlier. Its next steps and gotchas still stand.
+
+## SUPERSEDED · WORKING TREE, as of 2026-08-12 18:30
 
 Session (l) is COMMITTED AND PUSHED to `main` as **`8507100`**, and Vercel has deployed it: NASS 2026
 on `/program` (`lib/program.ts`, `lib/programFaces.ts`, `lib/agendaSnippet.ts`,

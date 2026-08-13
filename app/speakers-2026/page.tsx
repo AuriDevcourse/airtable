@@ -8,6 +8,7 @@ import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 import { SyncButton } from "@/components/SyncButton";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // The curated Airtable hierarchy runs 1..30, so the first page is exactly the ranked block.
 const PAGE_SIZE = 30;
@@ -116,7 +117,7 @@ function SpeakerModal({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={speaker.photo} alt={speaker.name} />
           ) : (
-            <div className="s-card__img--empty" />
+            <MissingPhoto />
           )}
         </div>
 
@@ -317,7 +318,7 @@ export default function Speakers2026() {
                           <SpeakerPhoto src={s.photo} alt={s.name} />
                         ) : (
                           <div className="s-card__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="s-card__overlay">
@@ -355,7 +356,7 @@ export default function Speakers2026() {
                           />
                         ) : (
                           <div className="row__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="row__text">

@@ -1,5 +1,5 @@
 // Server-only: investor speakers for the European Growth Pension & Insurance Summit,
-// the LP Forum and TechBBQ Investor Day. Same source as the Main Page 12 — the
+// the LP Forum, TechBBQ Investor Day and the Nordic Family Office Summit. Same source as the Main Page 12 — the
 // "Marketing Project Overview" table (tblTecOBecLQCNIeD), rows whose Project Name is
 // one of those events. Only the
 // allow-listed marketing fields below are ever requested; the table is wide and holds
@@ -20,6 +20,9 @@ export const INVESTOR_EVENTS = {
   "pension-summit": "European Growth Pension & Insurance Summit",
   "lp-forum": "LP Forum",
   "investor-day": "TechBBQ Investor Day",
+  // Added 2026-08-13: the Nordic Family Office Summit rows are now filed in the CRM under
+  // their own Project Name option, so the feed reads them like the other three.
+  "family-office": "Nordic Family Office Summit",
 } as const;
 export type InvestorEventKey = keyof typeof INVESTOR_EVENTS;
 
@@ -56,6 +59,12 @@ export type InvestorSpeaker = {
   events: string[];
   // Curated importance from the same table (1 = first); blanks sort last.
   hierarchy: number;
+  // Set only when the row has no Profile Picture. The DASHBOARD asks for these (?pending=1) and
+  // draws a "no photo in Airtable" tile carrying the person's name and title, so the gap is a
+  // visible worklist instead of a silent omission. The public feed never returns them, so what
+  // techbbq.dk renders is unchanged: a card with no face is not something to publish.
+  // Same shape and same reasoning as `pending` on the partner wall (lib/partners.ts).
+  pending?: "no-photo";
 };
 
 type AirtableRecord = { id: string; fields: Record<string, unknown> };
@@ -85,6 +94,7 @@ function mapRecord(rec: AirtableRecord): InvestorSpeaker {
     event: eventKey(str(f["Project Name"])),
     events: [eventKey(str(f["Project Name"]))].filter(Boolean),
     hierarchy: num(f["Hierarchy"]),
+    pending: firstPhoto(f["Profile Picture"]) ? undefined : ("no-photo" as const),
   };
 }
 
@@ -119,7 +129,12 @@ function dedupe(people: InvestorSpeaker[]): InvestorSpeaker[] {
     const events = [...new Set([...prev.events, ...p.events])].sort(
       (a, b) => EVENT_ORDER.indexOf(a) - EVENT_ORDER.indexOf(b)
     );
+    // A ROW WITH A PHOTO ALWAYS BEATS ONE WITHOUT, and it is the first test for a reason: the
+    // dashboard now keeps photoless rows, so the same person entered twice — once with a headshot,
+    // once without — could otherwise be won by the empty row and render as "no photo in Airtable"
+    // while their picture sits in the other row.
     const better =
+      (p.photo ? 1 : 0) - (prev.photo ? 1 : 0) ||
       (p.linkedin ? 1 : 0) - (prev.linkedin ? 1 : 0) ||
       (p.hierarchy < prev.hierarchy ? 1 : 0);
     // The winning row supplies the identity — photo, title, LinkedIn — and the merged list
@@ -142,7 +157,8 @@ export class InvestorsError extends Error {
 async function fetchInvestorsOnce(
   token: string,
   base: string,
-  event?: InvestorEventKey
+  event?: InvestorEventKey,
+  includePending = false
 ): Promise<InvestorSpeaker[]> {
   const people: InvestorSpeaker[] = [];
   let offset: string | undefined;
@@ -175,20 +191,41 @@ async function fetchInvestorsOnce(
     const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
     for (const rec of data.records) {
       const p = mapRecord(rec);
-      // No portrait, no card — same publish rule as NISS/NASS: uploading a Profile
-      // Picture is what makes a person appear, so nobody renders as a grey placeholder.
-      if (p.name && p.photo) people.push(p);
+      // NO PORTRAIT, NO CARD ON techbbq.dk — same publish rule as NISS/NASS: uploading a Profile
+      // Picture is what makes a person appear, so nobody renders as a grey placeholder in public.
+      //
+      // The dashboard is the exception (includePending). Dropping these here meant a speaker with
+      // no headshot vanished with no trace anywhere: the /investors page could not name who was
+      // missing, so nobody knew there was anything to chase. They come back as `pending` rows now,
+      // for the dashboard only, and the route below is what keeps them out of the public feed.
+      if (!p.name) continue;
+      if (p.photo || includePending) people.push(p);
     }
     offset = data.offset;
   } while (offset);
 
   const unique = dedupe(people);
-  // Order by curated Hierarchy (1 first); unranked sink to the end, then by name.
-  unique.sort((a, b) => a.hierarchy - b.hierarchy || a.name.localeCompare(b.name));
+  // Order by curated Hierarchy (1 first); unranked sink to the end, then by name. Anyone with no
+  // photo sorts BELOW everyone else regardless of hierarchy, so the grid reads as the finished
+  // roster first and the chase-list after it — the same rule the partner wall uses.
+  unique.sort(
+    (a, b) =>
+      Number(!!a.pending) - Number(!!b.pending) ||
+      a.hierarchy - b.hierarchy ||
+      a.name.localeCompare(b.name)
+  );
   return unique;
 }
 
-export async function fetchInvestors(event?: InvestorEventKey): Promise<InvestorSpeaker[]> {
+/**
+ * `includePending` keeps the rows with no Profile Picture. ONLY the dashboard passes it, via
+ * `?pending=1` + the dashboard password (app/api/investor-speakers/route.ts). Everything else —
+ * every pasted embed on techbbq.dk, /all-speakers-2026's combined feed — gets the finished roster.
+ */
+export async function fetchInvestors(
+  event?: InvestorEventKey,
+  includePending = false
+): Promise<InvestorSpeaker[]> {
   const token = process.env.AIRTABLE_TOKEN;
   const base = process.env.AIRTABLE_BASE_ID;
   if (!token || !base) {
@@ -198,7 +235,7 @@ export async function fetchInvestors(event?: InvestorEventKey): Promise<Investor
   let lastErr: unknown;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
-      return await fetchInvestorsOnce(token, base, event);
+      return await fetchInvestorsOnce(token, base, event, includePending);
     } catch (err) {
       lastErr = err;
       if (attempt < ATTEMPTS) console.error(`[investors] attempt ${attempt} failed, retrying`, err);

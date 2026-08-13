@@ -6,6 +6,7 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // Same per-image shimmer loader as the other speaker pages: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
@@ -122,7 +123,7 @@ export default function Niss2025Page() {
                       <SpeakerPhoto src={p.photo} alt={p.name} />
                     ) : (
                       <div className="s-card__media">
-                        <div className="s-card__img--empty" />
+                        <MissingPhoto />
                       </div>
                     )}
                     <div className="s-card__overlay">

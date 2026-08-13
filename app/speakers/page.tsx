@@ -6,6 +6,7 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { useCachedList } from "@/lib/useCachedList";
 import { buildEmbedSnippet } from "@/lib/embedSnippet";
 import { embedOrigin } from "@/lib/embedOrigin";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // The full Speakers table preview. It used to be the front page; the front page is now the hub
 // that sorts every page in this dashboard into Speakers / Projects / Program (app/page.tsx),
@@ -210,7 +211,7 @@ export default function SpeakersPage() {
                           <SpeakerPhoto src={s.photo} alt={s.name} />
                         ) : (
                           <div className="s-card__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="s-card__overlay">
@@ -247,7 +248,7 @@ export default function SpeakersPage() {
                           />
                         ) : (
                           <div className="row__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="row__text">

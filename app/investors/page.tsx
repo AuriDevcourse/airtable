@@ -8,6 +8,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // Same per-image shimmer loader as the NISS/NASS pages: state lives here so parent
 // re-renders (SWR revalidation) can't reset it back to shimmering.
@@ -42,9 +43,12 @@ type InvestorSpeaker = {
   events?: string[];
   // The API's Infinity (unranked) serializes to null in JSON.
   hierarchy: number | null;
+  // Set when the Airtable row has no Profile Picture. Only ?pending=1 returns these, so this
+  // page shows them and techbbq.dk never can.
+  pending?: "no-photo";
 };
 
-const EVENTS = ["all", "pension-summit", "lp-forum", "investor-day"] as const;
+const EVENTS = ["all", "pension-summit", "lp-forum", "investor-day", "family-office"] as const;
 type EventKey = (typeof EVENTS)[number];
 
 const LABELS: Record<string, string> = {
@@ -52,8 +56,17 @@ const LABELS: Record<string, string> = {
   "pension-summit": "Pension & Insurance Summit",
   "lp-forum": "LP Forum",
   "investor-day": "Investor Day",
+  "family-office": "Nordic Family Office Summit",
 };
 const eventLabel = (e: string) => LABELS[e] ?? e;
+
+// SHORTER ON THE CARD ONLY. The event's full name wraps to two lines inside a card's tag line,
+// which makes those cards taller than every other card in the grid. Tabs, the nav and prose keep
+// the full name — this override exists for the tag line and nowhere else (Auri, 2026-08-13).
+const CARD_LABELS: Record<string, string> = {
+  "family-office": "Family Office Summit",
+};
+const cardLabel = (e: string) => CARD_LABELS[e] ?? eventLabel(e);
 
 // useSearchParams needs a Suspense boundary on a prerendered page, so the view lives in its
 // own component below and this wrapper provides it.
@@ -85,9 +98,16 @@ function InvestorsView() {
   };
 
   // `base` for the embed snippet, `url` for this page's own fetch (see /niss).
+  //
+  // THIS PAGE SHOWS MORE THAN techbbq.dk DOES, on purpose. `base` is what gets copied into
+  // Elementor and stays clean; the page's own fetch adds ?pending=1, which returns the speakers
+  // whose Airtable row has no Profile Picture. They render as a "no photo in Airtable" tile with
+  // their name and title, so the gap is a worklist rather than a silent omission — same idea as
+  // the partner wall's name tiles. ?pending=1 needs the dashboard password, which this page
+  // already has (middleware gates it) and the browser sends on a same-origin request.
   const base =
     event === "all" ? "/api/investor-speakers" : `/api/investor-speakers?event=${event}`;
-  const { url, refresh } = useFreshUrl(base);
+  const { url, refresh } = useFreshUrl(base + (base.includes("?") ? "&" : "?") + "pending=1");
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
     useCachedList<InvestorSpeaker>(`investors:${event}`, url, "people");
   // Random order, re-rolled on every page load (same approach as Speakers 2026 / NASS).
@@ -106,25 +126,34 @@ function InvestorsView() {
       return arr;
     };
     const all = data ?? [];
+    // Anyone with no photo goes LAST, whatever their hierarchy: the grid should read as the
+    // finished roster first and the chase-list after it. They shuffle among themselves.
+    const live = all.filter((x) => !x.pending);
+    const missing = all.filter((x) => x.pending);
     // Infinity serializes to null in JSON, so unranked arrive as null, not a number.
-    const ranked = all.filter((x) => typeof x.hierarchy === "number");
-    const unranked = all.filter((x) => typeof x.hierarchy !== "number");
+    const ranked = live.filter((x) => typeof x.hierarchy === "number");
+    const unranked = live.filter((x) => typeof x.hierarchy !== "number");
     // Shuffle then sort: Array.sort is stable, so hierarchy ties keep the shuffled order.
     shuffle(ranked).sort((a, b) => (a.hierarchy as number) - (b.hierarchy as number));
-    return [...ranked, ...shuffle(unranked)];
+    return [...ranked, ...shuffle(unranked), ...shuffle(missing)];
   }, [data, seed]);
+
+  // What the embed will actually ship, which is the number that matters for techbbq.dk.
+  const missingPhoto = useMemo(() => people.filter((p) => p.pending), [people]);
 
   return (
     <main>
       <section className="hero">
         <HeroBackdrop image="/backgrounds/bg-landscape-4.jpg" />
         <div className="wrap hero__inner">
-          <p className="eyebrow">Pension &amp; Insurance Summit · LP Forum · Investor Day · 2026</p>
+          <p className="eyebrow">
+            Pension &amp; Insurance Summit · LP Forum · Investor Day · Nordic Family Office Summit · 2026
+          </p>
           <h1>
             Investor <span className="text-tbbq-gradient">speakers</span>
           </h1>
           <p className="lede">
-            Live from Airtable · the Marketing Project Overview rows for the three
+            Live from Airtable · the Marketing Project Overview rows for the four
             investor events · served as JSON at <code>/api/investor-speakers</code>.
           </p>
 
@@ -148,7 +177,7 @@ function InvestorsView() {
           </div>
 
           {/* One button per event, so any single event's snippet can be grabbed without
-              switching tabs to it first — three events means three separate Elementor widgets
+              switching tabs to it first — four events means four separate Elementor widgets
               on techbbq.dk, and switching tab / copy / switch back for each was the slow way.
               Each button carries its OWN path, so what it copies is fixed by the button and not
               by whichever tab happens to be active. Secondary styling: the gradient button above
@@ -195,8 +224,16 @@ function InvestorsView() {
           </>
         ) : (
           <>
+            {/* The number that LEADS is what the embed ships, because that is what techbbq.dk
+                shows. The photoless ones are counted separately and named below the grid. */}
             <p className="count-line">
-              {people.length} person(s).
+              {people.length - missingPhoto.length} person(s) live on techbbq.dk
+              {missingPhoto.length > 0 && (
+                <span className="muted">
+                  {" · "}
+                  {missingPhoto.length} more waiting on a photo, below
+                </span>
+              )}
               {revalidating && <span className="reval"> · checking for updates…</span>}
               {updated && <span className="reval"> · updated</span>}
             </p>
@@ -209,7 +246,7 @@ function InvestorsView() {
                       <SpeakerPhoto src={p.photo} alt={p.name} />
                     ) : (
                       <div className="s-card__media">
-                        <div className="s-card__img--empty" />
+                        <MissingPhoto />
                       </div>
                     )}
                     <div className="s-card__overlay">
@@ -218,7 +255,7 @@ function InvestorsView() {
                           card rather than a second card. */}
                       {event === "all" && (p.events?.length || p.event) && (
                         <span className="s-card__role">
-                          {(p.events?.length ? p.events : [p.event]).map(eventLabel).join(" · ")}
+                          {(p.events?.length ? p.events : [p.event]).map(cardLabel).join(" · ")}
                         </span>
                       )}
                       <h3 className="s-card__name">{p.name}</h3>
@@ -227,7 +264,7 @@ function InvestorsView() {
                   </>
                 );
                 return (
-                  <article key={p.id} className="s-card">
+                  <article key={p.id} className="s-card" data-pending={p.pending || undefined}>
                     {p.linkedin ? (
                       <a href={p.linkedin} target="_blank" rel="noopener noreferrer">
                         {card}
@@ -239,6 +276,27 @@ function InvestorsView() {
                 );
               })}
             </div>
+
+            {/* The worklist, spelled out so it can be pasted to whoever owns the row. Reuses the
+                /partner-events gaps panel rather than inventing a second look for the same job. */}
+            {missingPhoto.length > 0 && (
+              <section className="ev-gaps" style={{ marginTop: 40 }}>
+                <h2>Not on techbbq.dk yet</h2>
+                <ul>
+                  <li>
+                    <strong>
+                      {missingPhoto.length} {missingPhoto.length === 1 ? "needs" : "need"} a photo
+                    </strong>
+                    , and {missingPhoto.length === 1 ? "shows" : "show"} as a placeholder
+                    tile in the grid above instead:{" "}
+                    {missingPhoto.map((p) => p.name + (p.company ? ` (${p.company})` : "")).join(", ")}
+                    . Upload a portrait into the row&apos;s <code>Profile Picture</code> cell in
+                    Marketing Project Overview. Nothing else is needed — the feed reads Airtable
+                    directly, and they join the embed the moment the picture lands.
+                  </li>
+                </ul>
+              </section>
+            )}
           </>
         )}
       </div>

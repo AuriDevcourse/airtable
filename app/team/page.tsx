@@ -6,6 +6,7 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // Public TechBBQ team directory: current staff grouped by department, with contact email and
 // LinkedIn. Fed by /api/team (which also powers the techbbq.dk embed). Email is public by
@@ -82,7 +83,7 @@ function MemberCard({ m }: { m: TeamMember }) {
     <TeamPhoto src={m.photo} alt={m.name} focus={m.focus} />
   ) : (
     <div className="s-card__media">
-      <div className="s-card__img--empty" />
+      <MissingPhoto />
     </div>
   );
   return (

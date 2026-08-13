@@ -13,7 +13,8 @@ import { feedTtlMs } from "@/lib/cachePolicy";
 // groups so the embed's tab switcher works without extra round-trips.
 //   speakers  = the Speaker Hub grid (same as /api/speakers-2026)
 //   eventRoom = NISS 2026 + NASS 2026 + Future of Fintech + the partner presenters, tagged per room
-//   investors = Pension & Insurance Summit + LP Forum + Investor Day, tagged per event
+//   investors = Pension & Insurance Summit + LP Forum + Investor Day + Nordic Family Office
+//               Summit, tagged per event
 // Cache keys are shared with the individual routes, so this route serves from the same
 // server cache the standalone feeds fill (and vice versa).
 
@@ -36,6 +37,10 @@ const INVESTOR_TAGS: Record<string, string> = {
   "pension-summit": "Pension & Insurance Summit",
   "lp-forum": "LP Forum",
   "investor-day": "Investor Day",
+  // Short on purpose: this string is the card's TAG LINE, and "Nordic Family Office Summit"
+  // wraps to two lines there, making those cards taller than the rest of the grid — on this
+  // dashboard and inside every pasted embed. The full name stays on the /investors tab and nav.
+  "family-office": "Family Office Summit",
 };
 
 // The five entries this feed is assembled from. Shared with the standalone routes, which is
@@ -70,7 +75,11 @@ export async function GET(req: NextRequest) {
     // Airtable read. All three roles come back; the route below keeps them all, unlike the
     // standalone feed which defaults to Speaker for the sake of what is already pasted.
     cached("fintech-speakers", fetchFintechSpeakers, ttl),
-    cached("investors:all", () => fetchInvestors(), ttl),
+    // `true` matches what /api/investor-speakers stores under this SHARED key: the list including
+    // the rows with no photo. It has to match, or whichever route fills the cache first decides
+    // what the other one serves. This route is public — it is what the pasted embed fetches — so
+    // the photoless rows are filtered out below, never here.
+    cached("investors:all", () => fetchInvestors(undefined, true), ttl),
   ]);
 
   const val = <T,>(r: PromiseSettledResult<T[]>): T[] => (r.status === "fulfilled" ? r.value : []);
@@ -135,12 +144,17 @@ export async function GET(req: NextRequest) {
       prev.tag = tags;
       return out;
     }, []);
-  // Same for an investor speaking at two of the three events (Yoram Wijngaarde, LP Forum and the
+  // Same for an investor speaking at more than one of the events (Yoram Wijngaarde, LP Forum and the
   // Pension & Insurance Summit): one card, both events named.
-  const investors: Tagged<InvestorSpeaker>[] = val(invR).map((p) => ({
-    ...p,
-    tag: p.events.map((e) => INVESTOR_TAGS[e] ?? e).join(" · ") || p.event,
-  }));
+  // THE PHOTOLESS ROWS ARE DROPPED HERE, unconditionally. This feed has no ?pending= of its own:
+  // it is the one the "All Speakers 2026" embed on techbbq.dk fetches, and a card with no face is
+  // not something to publish. /investors is where those people are shown and chased.
+  const investors: Tagged<InvestorSpeaker>[] = val(invR)
+    .filter((p) => !p.pending)
+    .map((p) => ({
+      ...p,
+      tag: p.events.map((e) => INVESTOR_TAGS[e] ?? e).join(" · ") || p.event,
+    }));
 
   if ([hubR, nissR, nassR, roomsR, invR].every((r) => r.status === "rejected")) {
     return withCors(

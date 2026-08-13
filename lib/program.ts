@@ -274,12 +274,11 @@ export const PROGRAM_SOURCES = {
     kind: "airtable",
     table: "tblSlpTzDi2oVYwqv", // Sessions
     filter: '{Name of the Event}="Nordic Family Office Summit"',
-    // "Nordic Family Office" HAS NO ROWS YET (checked 2026-08-11), so every face on this agenda comes
-    // from the two fallbacks — Zenia W. Francker is filed under Event Room 2, Adrian Larsen under
-    // Event Room 1. That is a stopgap, not the design: the other eight speakers are not in the CRM at
-    // all and cannot be found anywhere. Once the ten are filed under their own project, drop the
-    // Event Room entries.
-    facesFrom: ["Nordic Family Office", "Event Room 2", "Event Room 1"],
+    // The CRM option is "Nordic Family Office Summit", spelled out in full — the shorter
+    // "Nordic Family Office" this used to name matches nothing, so the join silently found no
+    // faces. Eight rows are filed under it now (checked 2026-08-13). The Event Room fallbacks
+    // stay for the two who are still filed there (Zenia W. Francker, Adrian Larsen).
+    facesFrom: ["Nordic Family Office Summit", "Event Room 2", "Event Room 1"],
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",

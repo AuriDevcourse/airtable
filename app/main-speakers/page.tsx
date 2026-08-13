@@ -7,6 +7,7 @@ import { CopyEmbed } from "@/components/CopyEmbed";
 import { CopyApiSnippet } from "@/components/CopyApiSnippet";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // The 12 speakers marketing tick as "Main Page = YES" in Airtable, in curated order.
 // Photos + name + title·company only — no bio, no modal. Same card/row look as the other
@@ -128,7 +129,7 @@ export default function MainSpeakers() {
                           <SpeakerPhoto src={s.photo} alt={s.name} />
                         ) : (
                           <div className="s-card__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="s-card__overlay">
@@ -170,7 +171,7 @@ export default function MainSpeakers() {
                           />
                         ) : (
                           <div className="row__media">
-                            <div className="s-card__img--empty" />
+                            <MissingPhoto />
                           </div>
                         )}
                         <div className="row__text">

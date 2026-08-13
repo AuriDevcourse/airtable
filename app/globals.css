@@ -451,6 +451,26 @@ a { color: inherit; }
   object-fit: cover; object-position: 50% 30%;
   display: block; background: #1d1d1d;
 }
+/* "MISSING PICTURE" tile · components/MissingPhoto.tsx.
+   A photoless person used to be a bare grey rectangle, indistinguishable from an image still
+   loading or a broken proxy URL. Same idiom as the partner wall's name tile (.lw-tile--text):
+   a dashed hollow box that reads as an unfinished slot, so the gap is a request to go and get
+   the headshot rather than something to squint at. Dashboard only — the pasted embeds build
+   their own markup and never render this. */
+.s-card__missing {
+  display: grid; place-items: center;
+  padding: 10px;
+  border: 1px dashed var(--color-border);
+  border-radius: inherit;
+  background: #161616;
+}
+.s-card__missing span {
+  font-family: var(--font-heading);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  text-align: center;
+  color: var(--color-muted);
+}
 /* Name + title in the padded bottom band, on the card frame. */
 .s-card__overlay {
   position: relative;

@@ -6,6 +6,7 @@ import { SkeletonGrid } from "@/components/SkeletonGrid";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
 import { CopyEmbed } from "@/components/CopyEmbed";
+import { MissingPhoto } from "@/components/MissingPhoto";
 
 // Manual per-person crop overrides. Default card crop is object-position 50% 30% (see
 // globals.css). Some portraits sit too high/low in the square; nudge the vertical % here.
@@ -143,7 +144,7 @@ export default function NissPage() {
                       <SpeakerPhoto src={p.photo} alt={p.name} />
                     ) : (
                       <div className="s-card__media">
-                        <div className="s-card__img--empty" />
+                        <MissingPhoto />
                       </div>
                     )}
                     <div className="s-card__overlay">
