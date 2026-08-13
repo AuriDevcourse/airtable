@@ -32,9 +32,10 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 // lib/photo.ts. Pinned id, stable, not a secret (see lib/niss.ts for why not an env var).
 const TABLE = "tblTecOBecLQCNIeD";
 
-// The table is 113 fields wide and full of unrelated internal project data. Two fields is the whole
-// allow-list this needs.
-const SAFE_FIELDS = ["Full Name", "Profile Picture"];
+// The table is 113 fields wide and full of unrelated internal project data. Three fields is the
+// whole allow-list this needs. `Role` is a multi-select (Speaker | Moderator | Keynote | Managing
+// Partner | Host) and is read for one reason: WHO IS THE EVENT'S HOST. See hostKeys() below.
+const SAFE_FIELDS = ["Full Name", "Profile Picture", "Role"];
 
 // Same 10s as the other reads of this table: it is wide and can be slow to scan.
 const TIMEOUT_MS = 10_000;
@@ -95,9 +96,10 @@ function rosterKey(name: string): string {
  * back first: an arbitrary face is worse than an initial, because nobody looking at the page can
  * tell it is wrong.
  */
-async function fetchOneProject(project: string): Promise<Map<string, string>> {
+async function fetchOneProject(project: string): Promise<ProjectPeople> {
   const faces = new Map<string, string>();
-  if (!TOKEN || !BASE_ID) return faces;
+  const hosts = new Set<string>();
+  if (!TOKEN || !BASE_ID) return { faces, hosts };
 
   const seen = new Set<string>();
   const ambiguous = new Set<string>();
@@ -128,7 +130,7 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
       // NOT a throw. Faces are an enhancement on top of a programme that already renders; a CRM
       // read that fails must not take the agenda down with it. The caller logs and carries on.
       console.error("[program-faces] fetch failed", res.status, await res.text());
-      return faces;
+      return { faces, hosts };
     }
 
     const data = (await res.json()) as {
@@ -144,6 +146,16 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
         continue;
       }
       seen.add(k);
+
+      // The host is recorded on the PERSON, not on the session, so it has to be read here. Both
+      // keys are registered because the agenda may type the name without the middle one, exactly
+      // as the faces below do.
+      const roles = rec.fields["Role"];
+      if (Array.isArray(roles) && roles.some((r) => /^host$/i.test(String(r)))) {
+        hosts.add(k);
+        hosts.add(shortKey(k));
+      }
+
       const att = firstAttachmentId(rec.fields["Profile Picture"]);
       if (!att) continue;
       // Proxied, never the raw attachment URL — those are signed and expire in ~2h (lib/photo.ts).
@@ -172,7 +184,7 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
         `left without a face: ${[...ambiguous].join(", ")}`
     );
   }
-  return faces;
+  return { faces, hosts };
 }
 
 /**
@@ -192,16 +204,25 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
  */
 export async function fetchProjectFaces(
   project: string | readonly string[]
-): Promise<Map<string, string>> {
+): Promise<ProjectPeople> {
   const projects = typeof project === "string" ? [project] : project;
-  const merged = new Map<string, string>();
+  const faces = new Map<string, string>();
+  const hosts = new Set<string>();
   for (const p of projects) {
-    for (const [k, url] of await fetchOneProject(p)) {
-      if (!merged.has(k)) merged.set(k, url);
+    const one = await fetchOneProject(p);
+    for (const [k, url] of one.faces) {
+      if (!faces.has(k)) faces.set(k, url);
     }
+    // Unioned, not first-wins: being the host of THIS event is what the flag means, and the event's
+    // own project is always first in the list, so a fallback project can only add someone the event
+    // itself never named. applyHostRole then only ever uses it on a session that has one person.
+    for (const k of one.hosts) hosts.add(k);
   }
-  return merged;
+  return { faces, hosts };
 }
+
+/** What one CRM project yields: the headshots, and who is flagged as a Host. */
+export type ProjectPeople = { faces: Map<string, string>; hosts: Set<string> };
 
 /**
  * A CURATED VIEW as the face source, instead of a `Project Name` in the CRM.
@@ -328,5 +349,52 @@ export function applyFaces(
         moderators: fill(s.onStage.moderators),
       },
     };
+  });
+}
+
+/**
+ * ONE PERSON, TWO ROLES — label them by what they are doing in THIS session.
+ *
+ * The investor events each have a host who also moderates. Marianne Dahl opens the Pension &
+ * Insurance Summit alone ("Intro by the Host") and then chairs the opening panel; her CRM row says
+ * `Role: Host + Moderator`. The agenda called her a "Speaker" for the intro, because the session
+ * row puts her in `Speaker Details` and that is the only thing the label was ever read from.
+ *
+ * The session already answers the moderator half: whoever is in `Moderator Details` is chairing, and
+ * that group is labelled "Moderator" already. So the only thing missing was the opening.
+ *
+ * THE RULE, deliberately narrow (Auri, 2026-08-13):
+ *   they are ALONE on stage — one speaker, no moderators, AND
+ *   the session is Opening or Closing Remarks, AND
+ *   either the person is flagged `Role: Host` in the CRM, or the SESSION NAME says host
+ *     ("Intro by the Host", which is what all four investor agendas call that slot).
+ *
+ * The solo + type conditions matter on their own. Host-and-alone without the type check would
+ * relabel a host's solo KEYNOTE as "Host", wrong in the other direction: Joe Schorge hosts the LP
+ * Forum, and if he gives a keynote there he is giving a keynote.
+ *
+ * TWO SIGNALS for who the host is, because neither is complete. The CRM flag is the durable one and
+ * is what Marianne Dahl, Joe Schorge and Trine Hoffensetz Winther are found by. The title is the
+ * fallback: the Nordic Family Office Summit runs the identical slot with Zenia W. Francker, who
+ * opens alone and then moderates a panel, and nobody in that project has `Role: Host` ticked. A
+ * session called "Intro by the Host" with exactly one person on stage has already told us who that
+ * person is. Ticking the CRM flag is still worth doing — it survives the title being reworded.
+ */
+export function applyHostRole(
+  sessions: ProgramSession[],
+  hosts: Set<string>
+): ProgramSession[] {
+  return sessions.map((s) => {
+    const st = s.onStage;
+    if (!st || st.moderators.length > 0 || st.speakers.length !== 1) return s;
+    if (!/^(opening|closing)\b/i.test(s.type)) return s;
+    const p = st.speakers[0];
+    const k = key(p.name);
+    const flagged = hosts.has(k) || hosts.has(shortKey(k));
+    // \bhost\b, not a substring: it must not fire on a session about "hosting" or a "Host Country"
+    // panel. Combined with solo + Opening/Closing above, this is the intro slot and nothing else.
+    if (!flagged && !/\bhost\b/i.test(s.name)) return s;
+    // Same no-mutation rule as applyFaces: these sessions come out of a shared cache entry.
+    return { ...s, onStage: { ...st, speakers: [{ ...p, role: "Host" }] } };
   });
 }

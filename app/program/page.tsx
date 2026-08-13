@@ -20,13 +20,19 @@ type Session = {
   // The dashboard renders it because a preview that omits what the embed shows is not a preview —
   // Auri looked at this tab, saw no faces, and reasonably reported the pictures as broken.
   onStage?: {
-    speakers: { name: string; meta: string; photo: string | null }[];
-    moderators: { name: string; meta: string; photo: string | null }[];
+    speakers: OnStagePersonData[];
+    moderators: OnStagePersonData[];
   };
 };
 
 /** One name on a hand-typed programme, as the feed serves it. */
-type OnStagePersonData = { name: string; meta: string; photo: string | null };
+type OnStagePersonData = {
+  name: string;
+  meta: string;
+  photo: string | null;
+  /** "Host" on the intro slot of an event whose host also moderates. Absent otherwise. */
+  role?: string;
+};
 
 /** One person under a session: face, name, then title in the muted colour. Mirrors the embed. */
 function OnStagePerson({ p }: { p: OnStagePersonData }) {
@@ -79,9 +85,14 @@ function OnStagePerson({ p }: { p: OnStagePersonData }) {
 
 /** Moderator first, then speakers — the order a reader wants on a panel of four. */
 function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
+  // A LONE PERSON CARRYING A ROLE NAMES THAT ROLE. The event's host opens alone and sits in
+  // `Speaker Details`, so the label used to read "Speaker" for somebody who is not speaking at that
+  // point — they are hosting. The feed marks that one case (lib/programFaces.ts, applyHostRole) and
+  // nothing else, so every other session keeps Speaker/Speakers exactly as before.
+  const soloRole = st.speakers.length === 1 ? st.speakers[0].role : undefined;
   const groups: [string, OnStagePersonData[]][] = [
     [st.moderators.length > 1 ? "Moderators" : "Moderator", st.moderators],
-    [st.speakers.length > 1 ? "Speakers" : "Speaker", st.speakers],
+    [soloRole || (st.speakers.length > 1 ? "Speakers" : "Speaker"), st.speakers],
   ];
   return (
     <>

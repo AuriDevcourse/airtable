@@ -382,7 +382,18 @@ function startMinutes(slot: string): number {
 }
 
 /** One name on a hand-typed programme: the display line, and a face when the row has one. */
-export type ProgramPerson = { name: string; meta: string; photo: string | null };
+export type ProgramPerson = {
+  name: string;
+  meta: string;
+  photo: string | null;
+  /**
+   * What this person is doing in THIS session, when it is not what the cell they came from implies.
+   * Only ever "Host" today, set by applyHostRole in lib/programFaces.ts: an event host who opens
+   * alone sits in `Speaker Details` but is not a speaker. Absent for everybody else, so the group
+   * label falls back to Speaker/Moderator as before.
+   */
+  role?: string;
+};
 
 /**
  * Split a "Speaker Details" line into people and pair each with the photo at the same index.
@@ -534,19 +545,26 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   // initials in it is a working agenda, and this must never be what takes the programme down.
   if (cfg.facesFrom || cfg.facesFromView) {
     try {
-      const { fetchProjectFaces, fetchViewFaces, applyFaces } = await import("@/lib/programFaces");
+      const { fetchProjectFaces, fetchViewFaces, applyFaces, applyHostRole } = await import(
+        "@/lib/programFaces"
+      );
       const faces = new Map<string, string>();
+      // Who the CRM flags as this event's Host, for the intro slot's label. Comes back from the same
+      // read as the faces, so it costs no extra Airtable call.
+      let hosts = new Set<string>();
       // CRM first, curated view second, and `set` only where the key is new — same "first source
       // wins" rule the facesFrom list itself follows, so adding the view can only fill a gap.
       if (cfg.facesFrom) {
-        for (const [k, url] of await fetchProjectFaces(cfg.facesFrom)) faces.set(k, url);
+        const crm = await fetchProjectFaces(cfg.facesFrom);
+        for (const [k, url] of crm.faces) faces.set(k, url);
+        hosts = crm.hosts;
       }
       if (cfg.facesFromView) {
         for (const [k, url] of await fetchViewFaces(cfg.facesFromView)) {
           if (!faces.has(k)) faces.set(k, url);
         }
       }
-      return applyFaces(sessions, faces);
+      return applyHostRole(applyFaces(sessions, faces), hosts);
     } catch (err) {
       console.error(`[program:${source}] faces unavailable, keeping initials`, err);
     }

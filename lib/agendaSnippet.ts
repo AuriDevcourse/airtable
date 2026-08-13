@@ -288,7 +288,11 @@ ${endpointDecl(path, "  ")}
         +'<div class="tbbq-agenda__people">'+st.moderators.map(person).join("")+'</div>';
     }
     if(st.speakers&&st.speakers.length){
-      out+='<div class="tbbq-agenda__role">'+(st.speakers.length>1?"Speakers":"Speaker")+'</div>'
+      // A lone person carrying a role names it: the event host opens alone from Speaker Details and
+      // is hosting, not speaking. The feed marks only that case (applyHostRole), so everything else
+      // still reads Speaker/Speakers.
+      var solo=st.speakers.length===1&&st.speakers[0].role;
+      out+='<div class="tbbq-agenda__role">'+esc(solo||(st.speakers.length>1?"Speakers":"Speaker"))+'</div>'
         +'<div class="tbbq-agenda__people">'+st.speakers.map(person).join("")+'</div>';
     }
     return out;
