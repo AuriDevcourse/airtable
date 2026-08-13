@@ -339,6 +339,40 @@ morning, so the row created for her earlier is complete.
 Note the sheet's Format column calls sessions 2 and 3 "Keynote" while listing M + S1..S4 on each;
 Airtable calls them Panels, which matches the shape. Left as Airtable has it.
 
+### PART 13 (session o) · one wording for every person line: "Title at Company"
+
+Auri, 2026-08-13: no "@", the word "at", everywhere. Applied across the WHOLE Sessions table — every
+event, not just the two summits: **63 rows, 149 person entries**. Only 4 actually used "@"; the other
+145 used a bare comma where the word belongs.
+
+THE CONVERSION PUT " at " AT THE FIRST COMMA AFTER THE NAME, which is exactly where every renderer
+already split title from company — so it changed the words and not the meaning. **15 entries had that
+first comma INSIDE the title** and were corrected by hand afterwards, because the rule produced
+nonsense on them:
+
+    Darlington Akogo, Founder at CEO & Director of AI, minoHealth AI Labs
+       → Founder, CEO & Director of AI at minoHealth AI Labs
+    Natalie Becker, Partner at Producer at Thought Leader Global and Africa
+       → Partner & Producer at Thought Leader Global and Africa
+    Adina Schildt Gillion, Founder at and former AI & Privacy Policy Manager at Meta
+       → Founder and former AI & Privacy Policy Manager at Meta
+
+Three people legitimately hold two jobs and correctly keep two "at"s: Dalia Ibrahim, Lene Skole,
+Gilbert Happy Lwetutte. Two signatures find the mistakes if this is ever re-run: a comma AFTER the
+" at ", and more than one " at " in one entry.
+
+`lib/stagePeople.ts` · `toSpeaker()` now splits on **" at "**, falling back to the first comma for
+anything not yet converted. The comma split had started halving real titles — Bosun Tijani became a
+man whose job was "Minister of Communications" at a company called "Innovation and Digital Economy
+at Federal Republic of Nigeria". Spaces on both sides of the word, so **Attorney-at-Law** survives.
+
+`lib/program.ts` · linked NISS people build `meta` as "Title at Company" too, so a linked person and
+a typed one read identically.
+
+**KEEP THE CONVENTION when adding anyone**: `Name, Title at Company`, people separated by " · ".
+A comma inside a title is fine now (the split is on the word), but " · " still means "next person"
+and must never appear inside one entry.
+
 ### NEXT STEPS (session o)
 
 **1. STILL UNRESOLVED FROM A LIVE EDIT · the NASS 12:45 row lost two speakers.**
