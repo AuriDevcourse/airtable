@@ -7,9 +7,10 @@ import { originDecl } from "@/lib/embedOriginGuard";
 // button, so copying from localhost bakes in localhost.
 //
 // Mirrors app/ls-startups/page.tsx: three coloured rows, logos only (no names, no pitch, no
-// country), each logo linking to the startup's website, and a "More soon" tile ending every
-// row. The confirmed-only gate is NOT here and never should be — it lives server-side in
-// lib/lsstartups.ts, so an unconfirmed applicant cannot reach a pasted snippet at all.
+// country), each logo linking to the startup's website. There are no "More soon" placeholders
+// here — those live only on the dashboard. The confirmed-only gate is NOT here and never should
+// be: it lives server-side in lib/lsstartups.ts, so an unconfirmed applicant cannot reach a
+// pasted snippet at all.
 
 export type LsStartupsEmbedOptions = {
   uid?: string;
@@ -19,6 +20,11 @@ export type LsStartupsEmbedOptions = {
 
 // Kept in sync by hand with ROWS in app/ls-startups/page.tsx. Order and colour are Auri's:
 // Planetary fully green, Human Health between green and blue, Deep Tech blue.
+//
+// No `total` here, unlike the dashboard's ROWS: the public wall draws the startups that are
+// confirmed and nothing more. The categories are heading for 15 / 16 / 15, so each lands in
+// three lines — 15 is 5 + 5 + 5, and a 16th tile turns the last line six across rather than
+// spilling one lonely logo onto a fourth.
 const ROWS = [
   { name: "Planetary Health", color: "#00c11a" },
   { name: "Human Health", color: "#10c8a7" },
@@ -57,9 +63,17 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__label::before{content:"";width:7px;height:7px;border-radius:9999px;background:var(--row)}
 
   /* Five across, fixed. auto-fill was packing seven into a wide container, which reads as a
-     crowd rather than a wall. The three categories are heading for roughly 15/15/16, so this
-     becomes a tidy three rows each; widen to six once a category is full. */
+     crowd rather than a wall. At 15 per category that is a tidy three lines of five. */
   #${id} .tbbq-lsw__grid{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:12px!important;margin:0!important;padding:0!important;list-style:none!important}
+
+  /* The 16-tile row (Human Health), laid out 5 + 5 + 6 so it finishes in three lines like the
+     other two instead of dropping one lonely logo onto a fourth. One grid of 30 tracks: the
+     first ten tiles take 6 tracks each, the last six take 5. A spanned tile swallows the gaps
+     inside its own span, so the row spends exactly the same width on gutters as a plain
+     5-column grid and the last line's logos just come out a little narrower. */
+  #${id} .tbbq-lsw__grid--16{grid-template-columns:repeat(30,minmax(0,1fr))!important}
+  #${id} .tbbq-lsw__grid--16>*:nth-child(-n+10){grid-column:span 6!important}
+  #${id} .tbbq-lsw__grid--16>*:nth-child(n+11){grid-column:span 5!important}
 
   /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
@@ -72,17 +86,19 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__link:focus-visible .tbbq-lsw__tile{outline:2px solid var(--row)!important;outline-offset:2px!important;background:var(--row-hover,var(--card))!important}
   /* Stand-in for a startup whose upload is not a browser-renderable image. */
   #${id} .tbbq-lsw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
-  /* The last tile of every row: a slot waiting to be filled, not a company. */
-  #${id} .tbbq-lsw__soon{display:flex!important;align-items:center!important;justify-content:center!important;box-sizing:border-box!important;width:100%!important;height:150px!important;min-height:0!important;max-height:none!important;aspect-ratio:auto!important;padding:18px!important;margin:0!important;border:1px dashed var(--row)!important;border-radius:12px!important;opacity:.55!important;color:var(--row)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;line-height:1.2!important;letter-spacing:.08em!important;text-transform:uppercase!important;text-align:center!important}
 
-  /* Narrow containers step down from five, so an Elementor column never crushes the logos. */
-  @media(max-width:1000px){#${id} .tbbq-lsw__grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+  /* Narrow containers step down from five, so an Elementor column never crushes the logos. The
+     16-row drops its 5 + 5 + 6 spans here too, or they would keep spanning tracks the narrow
+     grid no longer has. */
+  @media(max-width:1000px){
+    #${id} .tbbq-lsw__grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+    #${id} .tbbq-lsw__grid--16>*:nth-child(n){grid-column:auto!important}
+  }
   @media(max-width:780px){#${id} .tbbq-lsw__grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
   @media(max-width:560px){
     #${id}{${transparent ? "" : "padding:20px 16px!important;border-radius:16px!important;"}}
     #${id} .tbbq-lsw__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
-    #${id} .tbbq-lsw__tile,#${id} .tbbq-lsw__soon{padding:12px!important}
-    #${id} .tbbq-lsw__soon{font-size:10px!important}
+    #${id} .tbbq-lsw__tile{padding:12px!important}
     #${id} .tbbq-lsw__label{font-size:11px!important}
   }
 </style>
@@ -122,7 +138,10 @@ ${originDecl("  ")}
   function tile(s){
     var logo=safeUrl(s.logo);
     var inner=logo
-      ? '<span class="tbbq-lsw__tile"><img src="'+esc(logo)+'" alt="'+esc(s.company)+'" loading="lazy"></span>'
+      /* Eager, not lazy: a logo below the fold has no naturalWidth until it is scrolled to, and
+         both fitOne() and packWideFirst() need that number. Lazy loading meant the row would
+         reshuffle and rescale under the reader as they scrolled down to it. */
+      ? '<span class="tbbq-lsw__tile"><img src="'+esc(logo)+'" alt="'+esc(s.company)+'" loading="eager"></span>'
       : '<span class="tbbq-lsw__tile tbbq-lsw__tile--text">'+esc(s.company)+'</span>';
     var site=safeUrl(s.website);
     /* No link when the startup never filled in a Website: it still belongs on the wall,
@@ -154,10 +173,9 @@ ${originDecl("  ")}
   /* Give every tile the dashboard's 5:3 box: height = width x 0.6, measured not guessed.
      Set inline with PRIORITY, because the stylesheet declares the fallback height with
      !important and an ordinary inline style would lose to it. A fixed pixel height cannot
-     match the dashboard, whose columns are much narrower than a full-width WordPress section.
-     The "More soon" tile is sized too, or it would sit proud of the row. */
+     match the dashboard, whose columns are much narrower than a full-width WordPress section. */
   function sizeTiles(){
-    var tiles=root.querySelectorAll(".tbbq-lsw__tile,.tbbq-lsw__soon");
+    var tiles=root.querySelectorAll(".tbbq-lsw__tile");
     for(var i=0;i<tiles.length;i++){
       var w=tiles[i].clientWidth;
       if(!w)continue;
@@ -168,15 +186,53 @@ ${originDecl("  ")}
     var imgs=root.querySelectorAll(".tbbq-lsw__tile img");
     for(var i=0;i<imgs.length;i++){
       var im=imgs[i];
+      /* A logo arriving late changes what packWideFirst can see, not just its own scale, so
+         the whole row is laid out again rather than this one image being fitted. */
       if(im.complete)fitOne(im);
-      else im.addEventListener("load",(function(x){return function(){fitOne(x);};})(im),{once:true});
+      else im.addEventListener("load",relayout,{once:true});
     }
   }
+
+  /* WHICH logo goes on the last line of a 16-tile row. That line is six across, so its tiles
+     are narrower than the ten above it: a long wordmark put there shrinks to fit the width and
+     floats in a box that looks half empty, while a compact mark (a droplet, a square monogram)
+     loses nothing because it was height-limited anyway. So the six narrowest marks move to the
+     end and the wide wordmarks keep the five-across lines.
+     Measured from the decoded images, not a hand-kept list of names — the wall is live Airtable
+     data and a list would be wrong the next time a startup confirms. Returns false while any
+     logo is still undecoded, so nothing is reordered on half the information. */
+  function packWideFirst(){
+    var grids=root.querySelectorAll(".tbbq-lsw__grid--16"),ok=true;
+    for(var i=0;i<grids.length;i++){
+      var g=grids[i],kids=[].slice.call(g.children);
+      if(kids.length!==16)continue;
+      var shaped=[],bad=false;
+      for(var j=0;j<kids.length;j++){
+        var im=kids[j].querySelector("img");
+        /* A name tile has no image. It is a line of text, so it counts as wide. */
+        var r=im?(im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0):3;
+        if(!r){bad=true;break;}
+        shaped.push({el:kids[j],r:r,i:j});
+      }
+      if(bad){ok=false;continue;}
+      var narrow={};
+      shaped.slice().sort(function(a,b){return a.r-b.r;}).slice(0,6).forEach(function(x){narrow[x.i]=1;});
+      /* Two passes rather than one sort, so everything keeps the feed's order within its group
+         and only the six actually move. appendChild on a node already in the grid moves it. */
+      shaped.filter(function(x){return !narrow[x.i];})
+        .concat(shaped.filter(function(x){return narrow[x.i];}))
+        .forEach(function(x){g.appendChild(x.el);});
+    }
+    return ok;
+  }
+
   /* Column count changes at the breakpoints, so the tile changes shape and every scale has to
-     be recomputed. Debounced: resize fires continuously while dragging. */
-  function layout(){sizeTiles();fitLogos();}
+     be recomputed. Debounced: resize fires continuously while dragging, and a row of logos
+     finishes loading in a burst. */
+  function layout(){packWideFirst();sizeTiles();fitLogos();}
   var fitTimer;
-  window.addEventListener("resize",function(){clearTimeout(fitTimer);fitTimer=setTimeout(layout,120);});
+  function relayout(){clearTimeout(fitTimer);fitTimer=setTimeout(layout,120);}
+  window.addEventListener("resize",relayout);
 
   fetch(ENDPOINT).then(function(r){
     /* r.ok matters: a 429 or 502 still returns JSON with no list in it, which without this
@@ -191,11 +247,15 @@ ${originDecl("  ")}
       /* LS Type is a multi-select, so a startup in two categories appears in BOTH rows.
          That is intentional (confirmed with Auri): it is exhibiting under both. */
       var items=all.filter(function(s){return (s.categories||[]).indexOf(row.name)>=0;});
+      /* NO "More soon" slots on the public wall. techbbq.dk shows the startups that are
+         confirmed and nothing else — an empty dashed box there advertises how many are still
+         missing. The slots exist only on the dashboard (app/ls-startups/page.tsx), where they
+         are Auri's own read of how far each category has left to go. */
+      var grid="tbbq-lsw__grid"+(items.length===16?" tbbq-lsw__grid--16":"");
       return '<section class="tbbq-lsw__row" style="'+rowVars(row.color)+'">'
         +'<h3 class="tbbq-lsw__label">'+esc(row.name)+'</h3>'
-        +'<div class="tbbq-lsw__grid">'
+        +'<div class="'+grid+'">'
         +items.map(tile).join("")
-        +'<span class="tbbq-lsw__soon">More soon</span>'
         +'</div></section>';
     }).join("");
     layout();

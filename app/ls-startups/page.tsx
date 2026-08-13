@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
@@ -42,10 +42,18 @@ type Startup = {
 //
 // LS Type is a MULTI-select, so a startup in two categories appears in both rows. That is
 // correct, not a duplicate: it is exhibiting under both. Confirmed with Auri 2026-08-03.
-const ROWS: { name: string; color: string }[] = [
-  { name: "Planetary Health", color: "#00c11a" }, // fully green
-  { name: "Human Health", color: "#10c8a7" }, // green into blue
-  { name: "Deep Tech", color: "#2BB4E1" }, // blue
+//
+// `total` is the number of startups each category will hold once every confirmation is in
+// (Auri, 2026-08-13). The wall always draws that many tiles: the confirmed logos first, then
+// dashed "More soon" slots for the ones still to come. So the row never changes shape as it
+// fills — a slot just turns into a logo — and the three rows are always 15 / 16 / 15.
+//
+// Every row lands in exactly three lines. 15 is 5 + 5 + 5. 16 would spill a lone tile onto a
+// fourth line, so its last line runs six across instead (see .lw-grid--16 in globals.css).
+const ROWS: { name: string; color: string; total: number }[] = [
+  { name: "Planetary Health", color: "#00c11a", total: 15 }, // fully green
+  { name: "Human Health", color: "#10c8a7", total: 16 }, // green into blue
+  { name: "Deep Tech", color: "#2BB4E1", total: 15 }, // blue
 ];
 
 function Mark({ s }: { s: Startup }) {
@@ -57,10 +65,16 @@ function Mark({ s }: { s: Startup }) {
       <img
         className="lw-logo"
         src={s.logo}
+        // Lets useLogoRatios() read this file's shape back to the startup it belongs to.
+        data-id={s.id}
         // The name is not shown, but it still has to be readable by a screen reader and it is
         // what appears if the image itself fails.
         alt={s.company}
-        loading="lazy"
+        // NOT lazy. A lazily-loaded logo below the fold has no naturalWidth until it is
+        // scrolled into view, and the whole layout depends on those measurements: packWideFirst
+        // would sit on its hands and then reshuffle the row under the reader's eyes as they
+        // scroll. Forty-odd small marks are worth loading up front to avoid that.
+        loading="eager"
       />
     </span>
   ) : (
@@ -71,10 +85,96 @@ function Mark({ s }: { s: Startup }) {
   );
 }
 
-function LogoWall({ items }: { items: Startup[] }) {
+// Measures the SHAPE of every logo actually on the page: naturalWidth / naturalHeight, keyed by
+// startup id. Only the browser knows this — the feed carries a URL, not the file's dimensions —
+// so it has to be read after the images decode and fed back into the next render.
+function useLogoRatios(deps: unknown[]) {
+  const [ratios, setRatios] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>("img.lw-logo[data-id]"));
+
+    const collect = () => {
+      const next: Record<string, number> = {};
+      for (const img of imgs) {
+        if (img.naturalWidth && img.naturalHeight) {
+          next[img.dataset.id!] = img.naturalWidth / img.naturalHeight;
+        }
+      }
+      // Same measurements, same object: a fresh object every time would re-render forever,
+      // because this hook's own output is what the render depends on.
+      setRatios((prev) => {
+        const keys = Object.keys(next);
+        const same =
+          keys.length === Object.keys(prev).length && keys.every((k) => prev[k] === next[k]);
+        return same ? prev : next;
+      });
+    };
+
+    collect(); // anything already in the browser cache is measurable right now
+    const pending = imgs.filter((img) => !img.complete);
+    pending.forEach((img) => img.addEventListener("load", collect));
+    return () => pending.forEach((img) => img.removeEventListener("load", collect));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return ratios;
+}
+
+// WHICH logo goes on the last line, for the 16-tile row only.
+//
+// That line is six across, so its tiles are narrower than the ten above them. A long wordmark
+// dropped there has to shrink to fit its width and ends up floating in a tile that looks
+// half-empty — which is what made Human Health read as ragged. The compact marks (a droplet, a
+// square monogram, a short name) lose nothing at six across: they were height-limited anyway.
+//
+// So the narrowest marks are moved to the end of the row and the wide wordmarks stay on the
+// five-across lines. Measured, not a hand-kept list, because the wall is live Airtable data and
+// a list would be wrong the next time a startup confirms. Auri, 2026-08-13.
+//
+// A name tile (no renderable logo) counts as wide: it is a line of text and wants the room.
+function packWideFirst(items: Startup[], ratios: Record<string, number>, lastLine: number) {
+  if (lastLine <= 0 || lastLine >= items.length) return items;
+  const shape = (s: Startup) => (s.logo ? ratios[s.id] : 3);
+  // Nothing is reordered until every logo has been measured, so the wall cannot visibly
+  // reshuffle one tile at a time as the images arrive.
+  if (items.some((s) => !shape(s))) return items;
+
+  const narrowest = new Set(
+    [...items]
+      .sort((a, b) => shape(a)! - shape(b)!)
+      .slice(0, lastLine)
+      .map((s) => s.id)
+  );
+  // Two passes over the original array rather than one sort, so everything keeps the feed's
+  // order within its group and only the chosen few actually move.
+  return [...items.filter((s) => !narrowest.has(s.id)), ...items.filter((s) => narrowest.has(s.id))];
+}
+
+function LogoWall({
+  items,
+  total,
+  ratios,
+}: {
+  items: Startup[];
+  total: number;
+  ratios: Record<string, number>;
+}) {
+  // One dashed slot per startup still to be confirmed, so the row is drawn at its final size
+  // from day one. Never negative: if a category overshoots its target the slots simply stop.
+  const soon = Math.max(0, total - items.length);
+  const tiles = items.length + soon;
+
+  // The slots already sit at the end of the last line, so the logos that share it are however
+  // many of the six are left over.
+  const ordered = useMemo(
+    () => (tiles === 16 ? packWideFirst(items, ratios, 6 - soon) : items),
+    [items, ratios, tiles, soon]
+  );
+
   return (
-    <div className="lw-grid lw-grid--fixed">
-      {items.map((s) =>
+    <div className={`lw-grid lw-grid--fixed${tiles === 16 ? " lw-grid--16" : ""}`}>
+      {ordered.map((s) =>
         s.website ? (
           <a
             key={s.id}
@@ -95,11 +195,16 @@ function LogoWall({ items }: { items: Startup[] }) {
         )
       )}
 
-      {/* Sits IN the grid as the last tile rather than as a line under the wall, because the
-          point is that these rows are still filling up. An empty slot in the run of logos
-          says that; a sentence underneath reads as a footnote. Real text, not decoration, so
-          a screen reader announces it with the row it belongs to. */}
-      <span className="lw-soon">More soon</span>
+      {/* The empty slots sit IN the grid rather than as a line under the wall, because the
+          point is that these rows are still filling up. A gap in the run of logos says that;
+          a sentence underneath reads as a footnote. Real text, not decoration, so a screen
+          reader announces it — but only once per row: the rest are the same message repeated,
+          which is noise in a screen reader and nothing extra on screen. */}
+      {Array.from({ length: soon }, (_, i) => (
+        <span key={`soon-${i}`} className="lw-soon" aria-hidden={i > 0 || undefined}>
+          More soon
+        </span>
+      ))}
     </div>
   );
 }
@@ -110,9 +215,14 @@ export default function LsStartupsPage() {
     useCachedList<Startup>("lsstartups", url, "startups");
   const all = useMemo(() => data ?? [], [data]);
 
+  // Shapes drive which logos land on a six-across last line (see packWideFirst).
+  const ratios = useLogoRatios([all]);
+
   // Even out how BIG each logo looks. object-fit only matches bounding boxes, and these range
   // from square to 5:1, so without this a square mark reads as half the size of a wordmark.
-  useEffect(() => fitLogosIn(document), [all]);
+  // Re-runs on `ratios` too: a reorder moves logos into tiles of a different width, and every
+  // scale is computed against the tile it sits in.
+  useEffect(() => fitLogosIn(document), [all, ratios]);
 
   const rows = useMemo(
     () =>
@@ -176,17 +286,17 @@ export default function LsStartupsPage() {
               {updated && <span className="reval"> · updated</span>}
             </p>
 
-            {rows.map(({ name, color, items }) => (
+            {rows.map(({ name, color, total, items }) => (
               <section
                 key={name}
                 className="lw-row"
-                // 5 per row max, Auri: seven across is too many. The categories are heading
-                // for 15/15/16, so the last row will be widened to 6 once they are full.
+                // 5 across, Auri: seven is too many. A 16-tile row overrides its last line to
+                // six in CSS so it still finishes in three lines.
                 style={{ "--row": color, "--cols": 5 } as React.CSSProperties}
               >
                 <h2 className="lw-row__label">{name}</h2>
                 {items.length ? (
-                  <LogoWall items={items} />
+                  <LogoWall items={items} total={total} ratios={ratios} />
                 ) : (
                   <p className="count-line" style={{ textAlign: "left", margin: 0 }}>
                     Nobody in this category yet.
