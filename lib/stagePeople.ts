@@ -23,9 +23,21 @@ export function toSpeaker(
   role: string,
   i: number
 ): ProgramSpeaker {
-  const comma = p.meta.indexOf(",");
-  const title = (comma === -1 ? p.meta : p.meta.slice(0, comma)).trim();
-  const company = comma === -1 ? "" : p.meta.slice(comma + 1).trim();
+  // SPLIT ON " at ", FALLING BACK TO THE FIRST COMMA.
+  //
+  // Every person line in the Sessions table now reads "Title at Company" (Auri, 2026-08-13), so the
+  // word is the boundary and the comma no longer is. Splitting on the comma cut real titles in
+  // half — "Minister of Communications, Innovation and Digital Economy at Federal Republic of
+  // Nigeria" became a man whose job was "Minister of Communications" at a company called
+  // "Innovation and Digital Economy at Federal Republic of Nigeria".
+  //
+  // The comma fallback stays for anything not yet converted, and for a line that carries only one
+  // field. " at " with spaces on both sides, so Attorney-at-Law survives intact.
+  const at = p.meta.indexOf(" at ");
+  const cut = at === -1 ? p.meta.indexOf(",") : at;
+  const skip = at === -1 ? 1 : 4;
+  const title = (cut === -1 ? p.meta : p.meta.slice(0, cut)).trim();
+  const company = cut === -1 ? "" : p.meta.slice(cut + skip).trim();
   return {
     // Unique per session, so React keys never collide when one person chairs two panels.
     id: `${sessionId}-${role.toLowerCase()}-${i}`,

@@ -676,9 +676,10 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
             const att = f.lineupPhoto ? firstAttachmentId(pf[f.lineupPhoto]) : undefined;
             people.set(rec.id, {
               name,
-              // Same "Title, Company" shape parsePeople produces, so every renderer downstream
-              // treats a linked person and a typed one identically.
-              meta: [title, company].filter(Boolean).join(", "),
+              // "Title at Company", the one wording used across every agenda (Auri, 2026-08-13).
+              // The typed cells in the Sessions table were converted to it too, so a linked person
+              // and a typed one read identically — no "@", and no bare comma standing in for "at".
+              meta: [title, company].filter(Boolean).join(" at "),
               photo:
                 att && cfg.lineupPhotoFeed
                   ? photoUrl(cfg.lineupPhotoFeed, rec.id, undefined, att)
