@@ -48,7 +48,20 @@ export function RoomGapsPanel({
 }) {
   const byRoom = useMemo(() => {
     const m = new Map<string, RoomGap[]>();
-    for (const g of gaps) m.set(g.room, [...(m.get(g.room) ?? []), g]);
+    // ONE ROOM+DAY CAN LEGITIMATELY REPORT THE SAME KIND TWICE. lib/roomGaps.ts finds
+    // "no-speakers" down two independent paths — once per speakerless SHELL, and once for the
+    // speakerless standalone sessions around it — so Event Room 2 on 26 August produced two of
+    // them and the render crashed on a duplicate React key (kind+day was the key, 2026-08-13).
+    //
+    // Both lines are worth showing: they name different sessions. Only a line identical in all
+    // four fields is a genuine repeat and gets dropped.
+    const seen = new Set<string>();
+    for (const g of gaps) {
+      const fingerprint = `${g.room}|${g.day}|${g.kind}|${g.detail}`;
+      if (seen.has(fingerprint)) continue;
+      seen.add(fingerprint);
+      m.set(g.room, [...(m.get(g.room) ?? []), g]);
+    }
     for (const [, list] of m) {
       list.sort(
         (a, b) => GAP_ORDER.indexOf(a.kind) - GAP_ORDER.indexOf(b.kind) || a.day.localeCompare(b.day)
@@ -71,8 +84,10 @@ export function RoomGapsPanel({
         {byRoom.map(([room, list]) => (
           <li key={room}>
             <strong>{room}</strong>
-            {list.map((g) => (
-              <span key={g.kind + g.day} className="ev-gaps__line">
+            {/* `detail` is what separates two findings of the same kind on the same day; the index
+                is the last resort so a key can never collide even if that repeats. */}
+            {list.map((g, i) => (
+              <span key={`${g.kind}|${g.day}|${g.detail}|${i}`} className="ev-gaps__line">
                 <span className="ev-gaps__tag" data-kind={g.kind}>
                   {GAP_WORD[g.kind]}
                 </span>

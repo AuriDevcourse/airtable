@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
@@ -23,6 +23,8 @@ type Session = {
     speakers: OnStagePersonData[];
     moderators: OnStagePersonData[];
   };
+  /** People are linked to this session but withheld because it is not Locked yet. */
+  lineupPending?: boolean;
 };
 
 /** One name on a hand-typed programme, as the feed serves it. */
@@ -80,6 +82,107 @@ function OnStagePerson({ p }: { p: OnStagePersonData }) {
         {p.meta && <span style={{ color: "var(--color-muted)" }}>, {p.meta}</span>}
       </span>
     </div>
+  );
+}
+
+/**
+ * WHAT IS STILL MISSING ON THIS AGENDA, said on the page instead of in a chat message.
+ *
+ * The list of PEOPLE is computed from the feed every load, never typed in, so a face that gets
+ * uploaded removes its own line here with no edit. WHY each one is missing cannot be computed —
+ * it took a scan of 3,765 CRM rows and 2,185 form rows to establish — so those notes are written
+ * down per person, keyed by name, with a plain fallback for anyone who appears later.
+ *
+ * Scoped to the events that have one of these notes. Every other agenda renders nothing, rather
+ * than a panel saying "0 problems", which is noise on a page somebody opens to read a programme.
+ */
+const GAP_NOTES: Record<string, Record<string, string>> = {
+  nass: {
+    "Sherief Kesseba":
+      "is in Airtable WITH a headshot, but only as a 2025 Investor Dinner applicant — he is not ticked into the “Nordic-Africa Summit Presenters” view, so the agenda is not allowed to read him. Tick him in, and align Sherief / Sherif.",
+    "Impact Fund Denmark":
+      "is a placeholder, not a person: the cell says “Danish Company Representative”. It needs the name of whoever is actually taking the seat.",
+    "Lamiaa El Rashidy": "has no row in either the CRM or the presenter form. She needs one, with a portrait.",
+    "Gabriella Mukamugema": "has no row in either the CRM or the presenter form. She needs one, with a portrait.",
+  },
+};
+
+/** Extra facts about an event that no session row can carry. */
+const GAP_FOOTNOTES: Record<string, string[]> = {
+  niss: [
+    "Names publish per session, not per programme — so an outreach target cannot read their own name on techbbq.dk before they have said yes. Session Status lives on the row in the Sessions table, beside NASS, the Policy Stage and the Board Summit.",
+    "Session Description is empty on all 13 rows. The descriptions only exist in the planning sheet, so an unlocked session currently shows a title and nothing to read behind it.",
+    "India Shark Tank and Nordic Founder Pitch have no Session Type: the select has no “Pitch Session” option and the Airtable API cannot add one. Add it in the UI and they can be labelled.",
+  ],
+  nass: [
+    "Brella has no timeslot at 15:35 for the Investor Reverse Pitch, so its five people have nowhere to be linked in the attendee app. It has to be created there by hand.",
+    "Eight session titles read differently in Brella than here. The board on this dashboard shows these titles; the Brella app shows its own.",
+  ],
+};
+
+function ProgrammeGaps({ event, sessions }: { event: string; sessions: Session[] }) {
+  const notes = GAP_NOTES[event];
+  const foot = GAP_FOOTNOTES[event] ?? [];
+  const missing = useMemo(() => {
+    if (!notes) return [];
+    // A programme with footnotes but no per-person notes (NISS) lists no names here: an unlocked
+    // session has nobody on it to be missing a face.
+    const out: { name: string; where: string }[] = [];
+    for (const s of sessions) {
+      const st = s.onStage;
+      if (!st) continue;
+      for (const p of [...st.moderators, ...st.speakers]) {
+        if (p.photo || out.some((x) => x.name === p.name)) continue;
+        out.push({ name: p.name, where: s.timeSlot });
+      }
+    }
+    return out;
+  }, [notes, sessions]);
+
+  // WHICH SESSIONS ARE STILL TO BE LOCKED, from the feed rather than typed here, so the list shrinks
+  // by itself as the NISS team ticks them. Only sessions that HAVE people waiting are listed: a
+  // break is "not locked" too, and saying so would bury the nine that actually need chasing.
+  const pending = useMemo(
+    () => sessions.filter((s) => s.lineupPending).map((s) => `${s.timeSlot} · ${s.name}`),
+    [sessions]
+  );
+
+  if (!missing.length && !foot.length && !pending.length) return null;
+  return (
+    <section className="ev-gaps" aria-label="Missing source data" style={{ marginTop: 24 }}>
+      <h2>Still missing for this programme</h2>
+      <ul>
+        {pending.length > 0 && (
+          <li>
+            <strong>
+              {pending.length} session{pending.length === 1 ? "" : "s"} not locked yet
+            </strong>{" "}
+            · the people are already linked, they just do not publish until{" "}
+            <code>Session Status</code> reads <strong>Locked</strong>. Tick one and its speakers
+            appear on the next refresh:
+            <ul style={{ marginTop: 6 }}>
+              {pending.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </li>
+        )}
+        {missing.map((m) => (
+          <li key={m.name}>
+            <strong>{m.name}</strong> ({m.where}) has no photo on the agenda ·{" "}
+            {notes[m.name] ?? "no headshot found in Airtable under this spelling."}
+          </li>
+        ))}
+        {foot.map((f) => (
+          <li key={f}>{f}</li>
+        ))}
+      </ul>
+      <p className="ev-gaps__foot">
+        The lists above are read from the feed on every load, so a line disappears by itself once
+        Airtable is fixed — a session drops off when it is locked, a person when their headshot
+        lands. Nothing in this panel reaches techbbq.dk.
+      </p>
+    </section>
   );
 }
 
@@ -388,6 +491,7 @@ export default function ProgramPage() {
               {sessions.length} session(s).
               {revalidating && <span className="reval"> · checking for updates…</span>}
             </p>
+            <ProgrammeGaps event={event} sessions={sessions} />
             {days.map(({ day, items }) => (
               <section key={day || "single-day"} style={{ marginTop: 28 }}>
                 {day && <h2 style={{ fontSize: 22, margin: "0 0 14px" }}>{day}</h2>}

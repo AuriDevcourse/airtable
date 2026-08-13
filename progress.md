@@ -6,6 +6,365 @@ reaching the browser.
 
 ## WORKING TREE, as of 2026-08-13 · READ THIS FIRST
 
+**Session (o): Nordic Africa Startup Summit now fills its Brella column. UNCOMMITTED, not pushed,
+awaiting Auri's go-ahead** — it changes a PUBLIC board, so it was left for review rather than
+shipped. Four files: new `lib/nassOverride.ts`, new `lib/stagePeople.ts`, `lib/policyOverride.ts`,
+`app/api/program/route.ts`. `tsc --noEmit` passes. Nothing was written to Airtable in this part.
+
+CAREFUL WHEN COMMITTING: session (n)'s `lib/eventGuide.ts` is also uncommitted in the same tree and
+is a SEPARATE change. `git add` the four files by name, not `-A`.
+
+### WHAT WAS JUST DONE (session o)
+
+Brella had 21 rows for Event Room 2 on 27 August and **not one named a speaker**. The summit's real
+programme is the Airtable one (Sessions table, `Name of the Event = "Nordic Africa Startup Summit"`),
+already served at `/api/program?event=nass`: 22 sessions, 17 with people, 52 seats, 44 faces. Only
+the board could not see it.
+
+- `lib/nassOverride.ts` · `mergeNassStage()` SUBSTITUTES that column, exactly as the Policy Stage is
+  substituted. Not a merge: the two sources disagree on titles ("Africa's Diplomatic Corps &
+  Innovation Diplomacy" vs "Diplomacy as a Catalyst for Collaboration in Innovation"), Brella is
+  missing the 15:35 Investor Reverse Pitch and carries the 16:35 reception twice, so pairing them
+  would print the day twice under two names.
+- **SCOPED TO 27 AUGUST ONLY.** Event Room 2 runs NISS on the 26th and NASS on the 27th. NISS is
+  still being finalised, so the filter is `room === "Event Room 2" && day === NASS_DAY` and Brella's
+  Day 2 column is untouched (Auri, 2026-08-13).
+- `lib/stagePeople.ts` · `toSpeaker()` moved out of `policyOverride.ts` now that two stages need it.
+  Pure extraction, no behaviour change.
+- `app/api/program/route.ts` · third merge after side events and the Policy Stage, with its OWN
+  try/catch so a failing NASS read cannot take the other two down, plus `invalidate("program:nass")`
+  on a live-read or the refresh button would report no change on the column just edited.
+
+Verified on the local feed: Event Room 2 is 34 sessions — Day 2 twelve (1 with people, unchanged),
+Day 3 twenty-two (17 with people, 52 seats, 44 faces), labelled "Nordic Africa Startup Summit". The
+board's own "which rooms still look incomplete" panel now lists Event Room 2 for 26 August only.
+
+### PART 2 (session o) · faces 44 → 48 of 53, and the Brella push script
+
+**Airtable edits made (all approved by Auri in the moment):**
+- `recSWT4PB14SaggIu` 09:25 · both MCs are now two people in one session:
+  `Charles Kinga, Head of Africa at TechBBQ · Natalie Becker, Partner, Producer at Thought Leader
+  Global and Africa`. The row had NO photo attachments, so nothing could be mispaired by splitting.
+- `recNDdg8EQ6Cl5FYE` 09:45 · "Amb. Diane Gachumba" → **"Dr. Diane Gashumba"** (roster spelling).
+- `recnD5KWO7Jz2Z70L` 12:45 · "Ismael Eleburuike" → **"Ismail Eleburuike"**.
+
+**Matcher fixes in `lib/programFaces.ts`, all three real bug classes:**
+- `pairKey()` · first + SECOND-to-last word, for a double-barrelled surname. "Natalie Becker" on the
+  agenda now finds "Natalie Bridgette Becker-Aakervik"; shortKey folded that to "natalie aakervik".
+- `lookupKeys()` · also tries the agenda name with leading given names dropped, so "Charity Wanjiru
+  Kiarie" finds "Wanjiru Kiarie". The mirror image of the middle-name case.
+- `rosterKey()` · strips a role in SQUARE brackets, not just round ones. `Sherif Kesseba
+  [Moderator]` folded to "sherif kesseba moderator" and could never have matched anything.
+Both new keys are clash-guarded like the existing loose ones: if two people share a loose key,
+neither gets it. Verified the two new matches point at the right records (`recoy5z4fEseLyqpX`
+Natalie, `recfksWStq15MWzk1` Wanjiru Kiarie) rather than at a lookalike.
+
+**WHERE THE REMAINING NASS GAPS ACTUALLY ARE** — the question Auri asked, answered by scanning both
+sources in full (3,765 CRM rows, 2,185 Ticketing Forms rows), not just the curated slices:
+- **Sherief Kesseba is the UMBRELLA case.** `rec4493pvo5qcg6h1` in Ticketing Forms, headshot
+  uploaded, but created **27 June 2025** via the *Investor Dinner Application 2025* form — his
+  company sits in the field `Company Name Investor Dinner`. He is NOT in "Nordic-Africa Summit
+  Presenters" (45 rows) nor "NASS Presenters 2026" (45 rows), which is why nobody could find him:
+  he only shows in the unfiltered 2,185-row views. Tick him into the presenters view and align
+  Sherief/Sherif, and his face appears.
+- **Lamiaa El Rashidy and Gabriella Mukamugema are genuinely absent** from both tables.
+- **Impact Fund Denmark** and **LOUNGE VIBE (DJ MUSIC)** are not people and never get a face.
+
+**`brella-push-nass.mjs` · NEW, NEVER RUN WITH `--commit`.** Third sibling of `brella-push.mjs`
+(grills) and `brella-push-niss.mjs`. Reads the connector's own `/api/program?event=nass` rather than
+Airtable, so the name/title/company/photo parsing is not reimplemented and cannot drift from the
+board. Dry run and `--plan` both exercised:
+- 50 people · **42 would be created**, 8 already in Brella (matched by word-subset, so no
+  duplicates: "Natalie Becker" correctly found Brella's #416871 "Natalie Becker Aakervik")
+- 3 held back: the two non-people plus **"Kurt Gammelgaard Nielsen?"**, whose name ends in a literal
+  question mark and would publish that way (cell `recj5DlhzmN1gPQu0`, the 16:05 panel)
+- `--plan` matched **16 of 17** sessions to a Brella timeslot id BY START TIME, not title, because
+  the two systems disagree on 8 titles; Brella's title is printed whenever it differs
+- **50 links to make BY HAND.** The integration API has no speaker-assignment route (established in
+  `brella-push.mjs`), so this is the one part no script can do.
+
+### PART 3 (session o) · the registration row, and the all-day band question
+
+- `lib/nassOverride.ts` · `SKIP_ON_BOARD` drops **"Registration, Coffee & Small Talk" (09:00–09:20)**
+  from the Brella board. It exists in Airtable and NOT in Brella, whose Event Room 2 day starts at
+  09:25, and because this column is substituted wholesale it showed a session the attendee app does
+  not have. BOARD ONLY: the Airtable row stays, so the agenda embed still tells visitors when to turn
+  up for coffee. Delete the row instead if it should go everywhere. Board is now 21 sessions,
+  starting 09:25 (Auri, 2026-08-13).
+- **The "ALL DAY · Nordic Africa Startup Summit" band could NOT be reproduced as missing.** Measured
+  every precondition (`components/ProgramTimeline.tsx` ~742) against the real feed on BOTH localhost
+  and production: `programme` set on all sessions, zero all-day rows in the column, zero shells,
+  span 09:25→18:05 which clears `spansMorningToEvening` (start ≤ 11:00, end ≥ 16:00). All four hold,
+  on both. The embed renderer (`lib/brellaEmbedSnippet.ts` ~1031) carries the same rule and passes
+  too. Confirmed in the browser: the page text reads
+  `Event Room 2 / Nordic Africa Startup Summit` then `ALL DAY / Nordic Africa Startup Summit`.
+- **Most likely what Auri saw: the board opens on DAY 1 (26 August)**, where Event Room 2 correctly
+  bands as *Nordic India*. The NASS band only exists on the 27th. Worth knowing: the day tab took
+  three attempts to switch under browser automation, so if it is also flaky by hand that is the thing
+  to chase, not the band. Ask for a screenshot before touching the band logic.
+
+### PART 4 (session o) · the two "not a person" entries, looked at properly
+
+Both were seats that no headshot could ever fill, but for DIFFERENT reasons, and one was my misread:
+
+- **16:35 reception, `recT1bcwCc7hlj9c0`** · the cell read
+  `Gabriella Mukamugema, Mof!yah Entertainment · LOUNGE VIBE (DJ MUSIC)`. The ` · ` is the PEOPLE
+  separator, so the note about the music was parsed as a second person and I reported it as one.
+  Auri read it correctly: one human, from Mof!yah Entertainment, playing the lounge set. Cell is now
+  `Gabriella Mukamugema, DJ, Mof!yah Entertainment` — "DJ" moved into the job-title position so the
+  card reads "DJ · Mof!yah Entertainment" instead of putting the company where a title belongs. The
+  reception is one seat now, not two, and NASS is **48/52**.
+- **10:45 panel, `recqA4kx39atWeDlj`** · `Impact Fund Denmark, Danish Company Representative` is a
+  TBA PLACEHOLDER, not an organisation typed into the wrong cell: a seat held for a representative
+  nobody has named. Stays held back in `brella-push-nass.mjs` until it has a human's name. The
+  session's moderator, Charlotte Holst Frahm, is from the same organisation, so it is a second seat
+  rather than a duplicate of her.
+
+### PART 5 (session o) · the gaps note on /program
+
+`app/program/page.tsx` · new `ProgrammeGaps` panel, drawn above the agenda on the NASS tab in the
+same amber `ev-gaps` style /partner-events and /investors already use. Auri asked for the missing
+details to be written on the page rather than left in a chat message.
+
+HALF COMPUTED, HALF WRITTEN DOWN, on purpose. WHO is missing a face is read from the feed on every
+load, so a line removes itself the moment a headshot lands in Airtable. WHY each one is missing
+cannot be computed — it took a scan of 3,765 CRM rows and 2,185 form rows — so those sentences live
+in `GAP_NOTES` keyed by name, with a plain fallback for anyone who shows up later. `GAP_FOOTNOTES`
+carries the two facts no session row can hold: the missing 15:35 Brella timeslot and the eight
+diverging titles. Only events with an entry render anything; every other agenda shows nothing rather
+than a panel announcing zero problems.
+
+**Also found: `/program` ignores `?event=` in the URL.** The event tabs are local state only, so
+`/program?event=nass` opens on NISS 2026 and the tab has to be clicked. `/investors` reads its param
+properly (that was fixed there earlier). Not fixed here — nobody has asked, and it is a one-line
+`useSearchParams` change if it ever annoys anyone. Worth knowing when sharing a link to an agenda.
+
+### PART 6 (session o) · NISS publishes a line-up only when the session is LOCKED
+
+Auri's rule (2026-08-13): the NISS times and titles are settled, the people on several panels are
+not. A session shows its speakers once it is locked; until then it shows time + title + description
+with nobody named, so an outreach target cannot read their own name on techbbq.dk before saying yes.
+The planning sheet tracks this in a free-text Notes column ("Status: Locked. session brief shared"
+against "Adele and Sara are under outreach"), and the sheet is PRIVATE — the API gets a 401 and
+publishing it is not an option, it carries outreach notes about ministers. So the status moved into
+Airtable, which is what the site can actually read. Auri chose this over hardcoding.
+
+- **NEW AIRTABLE FIELD** `Session Status` (`fldH8fD3f3w1IbLa3`) on the NISS table
+  `tblfIPjV4t1c1628h`: single-select, `Locked` / `Not locked`, with the rule in its field
+  description. Seeded across all 13 programme rows from the sheet: **Locked on the two the sheet
+  marks verbatim** (10:05 Nordic Founders, 10:30 Indian-Origin Founders), Not locked on the rest.
+- `lib/program.ts` · a source can now carry a LINKED line-up rather than typed text cells:
+  `fields.lineup` (the link), `fields.status` + `lockedValues` (the gate), `fields.lineupName` /
+  `lineupTitle` / `lineupCompany` / `lineupRole` / `lineupPhoto`, and `lineupPhotoFeed`. The linked
+  people are resolved in ONE extra paged read after the sessions (they live in the same table), not
+  one request per session, and a failure is swallowed — an agenda without names is the state half
+  the programme is in anyway. Role decides moderator vs speaker; `meta` is built as "Title, Company"
+  so every renderer treats a linked person exactly like a typed one.
+- `app/program/page.tsx` · the gaps panel now also covers NISS, explaining the rule and that ticking
+  Locked is the whole action.
+
+Verified: 13 sessions, **2 publish a full line-up (8 people, 8 faces)**, 11 show time + title with no
+names. No other agenda moved (policy 34/34, techbbq and fintech carry no people).
+
+**BLOCKER for the "small description" half of the ask: `Session Description` is EMPTY on all 13
+rows.** The descriptions exist only in the planning sheet, so an unlocked session currently shows a
+title and nothing to read behind it. Copying them into Airtable is a person's job, not a script's:
+the sheet cannot be read programmatically.
+
+**⚠️ SOMEBODY IS EDITING NASS LIVE.** The 12:45 "Digitization, Data & Cross-Border Execution In
+Africa" speaker cell (`recnD5KWO7Jz2Z70L`) changed mid-session from
+`George Gachui, Co-Founder & Director, MOOKH Africa · Ismail Eleburuike, Founder & CEO, SchoolTry`
+to just `Sherief Kesseb` — one name, no title, misspelled, and he is already a speaker on the 15:35
+session. Two faces lost, NASS went 48/52 to 46/51. Looks like a paste into the wrong row. The old
+value is recorded here so it can be restored; not restored unilaterally, it is somebody's live edit.
+
+### PART 7 (session o) · NISS moved into the Sessions table
+
+NISS was the ONLY hand-typed agenda outside `tblSlpTzDi2oVYwqv` — NASS (22), the Policy Stage (15),
+the Board Summit (14) and the six Side Events (45) were all already there. Auri asked for it to join
+them in the "Event Rooms" view (`viwrTVxvTBucbJW7S`), which now reads 64 rows including 13 NISS.
+
+**THE PEOPLE DID NOT MOVE, and that was the condition for doing it.** The Sessions table stores a
+line-up as TEXT in `Speaker Details`, which is what cost NASS five faces in one day (a middle name,
+a double-barrelled surname, two misspellings, a role in square brackets) plus one accidental
+overwrite. NISS keeps its people as a LINK, so there is no name to match at all.
+
+- **Two new fields on Sessions**: `Session Lineup` (`fldTz7TOCuKQqjEsF`, link → the NISS table) and
+  `Session Status` (`fldDpfNFim6HzFB9y`, Locked / Not locked).
+- **13 rows created**, `Name of the Event = "Nordic India Startup Summit"`, `When Is it = Day 1`,
+  `Event Room = Event Room 2`, links and status carried across from the NISS table.
+- `lib/program.ts` · the `niss` source now reads Sessions with a filter, and `lineupTable` points the
+  people lookup at the NISS table. Those people are fetched BY RECORD ID (`OR(RECORD_ID()=…)`,
+  chunked 50) rather than by paging the NISS table, which holds every sign-up — a full scan to find
+  eight people would read thousands of rows on every cache fill.
+
+Verified from the new source: 13 sessions, 2 locked and publishing 8 people with 8 faces, 11 showing
+time + title only.
+
+**TWO THINGS LEFT UNDONE, both deliberate:**
+1. `India Shark Tank` and `Nordic Founder Pitch` have **no Session Type**. They are pitch sessions
+   and the shared select has no such choice; the API CANNOT add one (`PATCH` a select's options →
+   422 "Changing a field's type or number precision is not currently supported"). Adding "Pitch
+   Session" is a UI action. Left blank rather than mislabelled as "Panel".
+2. **The old rows in the NISS table's "NISS Program 2026" view are no longer read.** They were left
+   in place, not deleted — they are the NISS team's originals. If that team keeps editing there, it
+   will silently drift from what publishes. Tell them the Sessions table is the live copy now, or
+   clear the old view.
+
+### PART 8 (session o) · WRITTEN TO BRELLA · 38 speaker records created in the LIVE app
+
+`brella-push-nass.mjs` is now parameterised (`--event=niss|nass`, default nass) since both summits
+read their programme from the connector's own feed. Run 2026-08-13 with Auri's go-ahead.
+
+- **NISS: nothing to do.** All 8 people from its two locked sessions were already in Brella. Kunal
+  Singla and Zenia W. Francker were NOT pushed — their sessions are Not locked, which is the gate
+  working as designed.
+- **NASS: 38 created** (#423709–#423746), 9 already there, 2 held back (the TBA placeholder and
+  "Kurt Gammelgaard Nielsen?"). The event now holds 538 speakers.
+- **34 of 38 carry a photo.** The 4 without are exactly the 4 known faceless people.
+
+**A REAL TRAP, caught on the first record and worth remembering: BRELLA FETCHES THE PHOTO ITSELF.**
+The first commit ran with `FEED_BASE_URL=http://localhost:3000`, so the photo URL handed to Brella
+was a loopback address. Brella resolved it against its OWN machine, found nothing, and created
+Charles Kinga (#423709) with `photo-url: null` — silently, with a 201. Nothing in the response says
+the image failed. Fixed by splitting `PHOTO_BASE_URL` from `FEED_BASE_URL` in the script, with a
+loopback rewrite so it cannot happen again, and #423709 was patched with the correct URL.
+
+**A DUPLICATE HUMAN NOW EXISTS IN THE LIVE APP, as a direct result of the 12:45 overwrite:**
+`#423722 "Sherief Kesseb"` and `#423741 "Sherief Kesseba"` are the same man. The first came from the
+damaged cell. Deleting #423722 needs Auri's word — it is a destructive write to the public app.
+
+**STILL MANUAL: the 50 session links.** Brella's integration API has no speaker-assignment route.
+Run `node brella-push-nass.mjs --event=nass --plan` for the checklist with timeslot ids.
+
+### PART 9 (session o) · moderators are listed FIRST everywhere
+
+The Brella board was the odd one out: `/program`'s OnStage groups and the agenda embed have always
+led with the chair, while the board sorted moderators LAST — a deliberate old choice ("a card with
+room for two names should spend them on who is talking"). Auri reversed it on 2026-08-13: the chair
+is what you look for first when reading an agenda.
+
+- `components/ProgramTimeline.tsx` · `orderedSpeakers()` comparator flipped, and the DETAIL DIALOG
+  now runs through it too — it was rendering `s.speakers` in raw source order, so a Brella session
+  could show its moderator anywhere in the list.
+- `lib/brellaEmbedSnippet.ts` · the same flip in its own copy, `ordered()`. That renderer is a string
+  of JavaScript sent to WordPress and cannot import from the app, so the two must be changed together
+  or the pasted embed drifts from the dashboard.
+- Both face-stack rules were inverted with the sort: the stack used to guarantee the chair a slot,
+  and now guarantees a SPEAKER one, so a session chaired by two people cannot show two chairs and
+  nobody talking.
+
+Verified by running both comparators, lifted verbatim, over the real feed shape: identical output,
+moderators first, stable within a role.
+
+### PART 10 (session o) · the NISS tab names every session still to be locked
+
+`lib/program.ts` · new `ProgramSession.lineupPending`, set when a session HAS linked people that the
+lock is withholding. It says "more is coming here", which a break will never have — and it exposes
+nothing about WHO those people are, so the public feed gives away no unconfirmed name.
+
+`app/program/page.tsx` · the gaps panel leads with that list, read from the feed on every load:
+
+> **9 sessions not locked yet** · the people are already linked, they just do not publish until
+> `Session Status` reads Locked. Tick one and its speakers appear on the next refresh:
+> 09:30 Opening · 10:55 Nordic VC Outlook · 11:25 Denmark–India Venture Corridor · 12:00 Inside
+> India's VC Ecosystem · 13:20 India Shark Tank · 14:55 Nordic Founder Pitch · 16:00 From Research
+> to Market · 16:30 Foundations for Cross-Border Innovation · 17:00 What the Corridor Needs Next
+
+The two breaks (Arrival, Lunch) are correctly absent: they are unlocked too, but nobody is waiting on
+them, and listing them would bury the nine that need chasing.
+
+### PART 11 (session o) · duplicate React key on the Brella board
+
+`components/RoomGapsPanel.tsx` keyed each finding on `kind + day`, which is NOT unique:
+`lib/roomGaps.ts` finds "no-speakers" down TWO independent paths — once per speakerless SHELL
+(`u.name — N sessions and not one names a speaker`) and once for the speakerless STANDALONE sessions
+around it (`… — no speakers listed`). Event Room 2 on 26 August hit both and React threw
+`Encountered two children with the same key, "no-speakersDay 2 · 26 August"`.
+
+Both lines are worth keeping: they name different sessions. So the key became
+`kind|day|detail|index` — `detail` is what actually distinguishes them, the index is a last resort —
+and a fingerprint on `room|day|kind|detail` drops only a finding identical in all four, which would
+be a genuine repeat.
+
+Latent since the shell rule was added; nothing today caused it, the Event Room 2 data just started
+satisfying both paths at once.
+
+### PART 12 (session o) · Investor Day reconciled against its planning sheet
+
+Source: "Investor Day 2026 Program", Main Stage tab
+(`1f_FZwuDh1tHnKiRhwrUvvWTGCs-zLeSsPe-TWyfVn5U`, gid 718177690). Read through the browser —
+`/export?format=csv` 401s on these sheets, `htmlview` renders the grid and screenshots read cleanly.
+Its Status column is per PERSON (Confirmed / In process / Not Started), not per session.
+
+**Applied (everything the sheet marks Confirmed):**
+- `recgqJmaK9HHl2x0N` 13:23 · Stine Mølgaard was listed as moderator AND as a speaker on her own
+  panel, so she rendered twice on one card. Removed from Speaker Details.
+- `rec8Q4bYMjgrW3Ijt` 13:56 · same defect, Alexis Horowitz-Burdick. Removed.
+- `recpf9B5ZbEyfPL7Z` 14:29 Private LP Panel · moderator was **Lars Frølund**, the sheet says
+  **Frederik Hasling**. Swapped; Lars moves to session 7, which is where the sheet puts him.
+- `rec5WhCce942RR9jO` European Tech Sovereignty · moved **15:25–15:50 → 15:43–16:13**, moderator
+  Alexis → **Lars Frølund**, and **Mads Krogsgaard Thomsen (CEO, Novo Nordisk Foundation) added**.
+- `recSWE6SJUOIjhz8a` Close · 16:22 → **16:16**.
+
+Verified after: 9 sessions, **15/15 faces**. Christina Egelund's headshot has landed since this
+morning, so the row created for her earlier is complete.
+
+**HELD BACK — everything the sheet does NOT mark Confirmed. Not published, awaiting Auri:**
+1. **A whole session is missing from Airtable**: 15:25–15:40 Keynote, Christina Egelund, *In
+   process*, and its Topic cell is EMPTY in the sheet. That is why the day now jumps 15:22 → 15:43.
+2. 13:10 "Welcome to Innovation District Copenhagen" · the sheet names **David Dreyer Lassen**
+   (Rektor / Vice-Chancellor, University of Copenhagen), *In process*. Airtable still says
+   "To be announced", so the keynote publishes with nobody on it.
+3. "Built in Europe" S4 = **EQT**, *In process* — an organisation, not a person.
+4. Private LP Panel S1–S3 · **Not Started**, nobody named. Three "To be announced" placeholders.
+
+Note the sheet's Format column calls sessions 2 and 3 "Keynote" while listing M + S1..S4 on each;
+Airtable calls them Panels, which matches the shape. Left as Airtable has it.
+
+### NEXT STEPS (session o)
+
+1. **Auri's decision: push to main?** It changes what techbbq.dk's board shows. Nothing else is
+   blocking it. Files: `lib/nassOverride.ts`, `lib/stagePeople.ts`, `lib/policyOverride.ts`,
+   `lib/programFaces.ts`, `app/api/program/route.ts`, `brella-push-nass.mjs`.
+2. **Auri's decision: run `brella-push-nass.mjs --commit`?** It creates 42 speaker records in the
+   LIVE attendee app. Suggested order: create the 15:35 timeslot in Brella and fix the "Nielsen?"
+   cell first, then `--commit`, then work `--plan` down by hand for the 50 links.
+3. **Create the 15:35 – 16:05 "Investor Reverse Pitch" timeslot in Brella**, Event Room 2, 27 Aug.
+   It is the one session of the 17 that Brella has no row for, so its five people have nowhere to be
+   linked. Deliberately not scripted: a timeslot is the public shape of the day.
+4. **Airtable jobs that finish the last 5 NASS faces** (48/53 now):
+   - tick **Sherif Kesseba** into "Nordic-Africa Summit Presenters" and align Sherief/Sherif · his
+     headshot is already uploaded, see the umbrella note above
+   - create rows for **Lamiaa El Rashidy** and **Gabriella Mukamugema**, or drop them from the agenda
+   - **Impact Fund Denmark** and **LOUNGE VIBE (DJ MUSIC)** should come out of the Speaker Details
+     cells entirely — they are not people, and they occupy a seat on the public board
+   - drop the "?" from **"Kurt Gammelgaard Nielsen?"** once he is confirmed
+5. **Consider whether Brella's 8 differing session titles should be aligned.** The board now shows
+   Airtable's wording for the 27th because the column is substituted, so Brella's own copy only
+   matters to attendees using the app's own schedule. `--plan` prints every difference.
+6. **NISS is the sibling job, and its data is in better shape.** Its speakers are already linked per
+   session in its own table (`tblfIPjV4t1c1628h`, field `Session Lineup 2026`, view "NISS Program
+   2026"): 11 of 11 real sessions have a lineup, 43 seats, **43 of 43 with a portrait**, moderator
+   named on every one. Nothing reads that link yet — the `niss` source in `lib/program.ts` maps only
+   name/timeSlot/type/gate, which is why `/api/program?event=niss` returns 13 sessions with zero
+   people, and Brella has speakers on 1 of its 12. Because it is a RECORD LINK there is no name
+   matching and no second photo upload. Two data snags to fix while wiring: three people have
+   `Role` = "already on the website" instead of Speaker/Moderator (Archana Jahagirdar), and three
+   names carry stray whitespace (`\nJakob Williams Ørberg`, `Jose Jacob  `, `Chandra R Srikanth  `).
+
+### GOTCHAS (session o)
+
+- **`programmeOf()` finds nothing for these summits.** Neither NISS nor NASS has its own Brella
+  track; both sit on the plain "Event Room 2" track, so the label comes from `ROOM_DAY_PROGRAMMES`
+  in `lib/brellaSections.ts`, matched on room + DATE. `NASS_PROGRAMME` in `nassOverride.ts` repeats
+  that literal on purpose so a grep for either finds both — keep them in step.
+- A substitution scoped by `day` depends on the board's day STRING ("Day 3 · 27 August"). If the day
+  labels are ever renumbered, `NASS_DAY` moves with them, and a stale value silently means "replace
+  nothing" — the column would quietly fall back to Brella's speakerless rows rather than erroring.
+
+## SUPERSEDED · session (n), 2026-08-13
+
 **Session (n): the Event Guide was corrected against the internal walkthrough deck.** Uncommitted,
 on branch **`main`** (one file: `lib/eventGuide.ts`). This breaks the branch-off-main rule and
 should be moved to its own branch before anything else lands; it was a copy-only edit and nothing

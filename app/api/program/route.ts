@@ -5,6 +5,7 @@ import { BRELLA_SECTIONS, inBrellaSection, isBrellaSection } from "@/lib/brellaS
 import { fetchPartnerEvents } from "@/lib/partnerevents";
 import { mergeSideEvents } from "@/lib/sideEvents";
 import { mergePolicyStage } from "@/lib/policyOverride";
+import { mergeNassStage } from "@/lib/nassOverride";
 import { fetchEventPageDetails, EventPageDetail } from "@/lib/eventPages";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
       // The Policy Stage column is Airtable too (lib/policyOverride.ts). Without this the
       // refresh button would report no change on the one column somebody has just edited.
       invalidate("program:policy");
+      // Same for Nordic Africa on the 27th (lib/nassOverride.ts).
+      invalidate("program:nass");
     }
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
@@ -107,6 +110,22 @@ export async function GET(req: NextRequest) {
         sessionsAll = mergePolicyStage(sessionsAll, policy);
       } catch (err) {
         console.error("[/api/program] policy stage unavailable, leaving Brella's own", err);
+      }
+
+      // NORDIC AFRICA IS THE THIRD MERGE, and the same kind of substitution.
+      //
+      // Brella's 21 rows for Event Room 2 on the 27th name NOT ONE speaker; Airtable's 22 sessions
+      // name a moderator and speakers on 17 of them, with faces. Scoped to that ONE day, so Nordic
+      // India keeps the same room on the 26th while its lineup is still being finalised. See
+      // lib/nassOverride.ts.
+      //
+      // Its own try/catch, so a failing NASS read cannot take the Policy Stage or the side events
+      // down with it.
+      try {
+        const nass = await cached("program:nass", () => fetchProgram("nass"), feedTtlMs());
+        sessionsAll = mergeNassStage(sessionsAll, nass);
+      } catch (err) {
+        console.error("[/api/program] NASS programme unavailable, leaving Brella's own", err);
       }
     }
 

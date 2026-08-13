@@ -78,15 +78,52 @@ function shortKey(k: string): string {
 }
 
 /**
+ * FIRST AND SECOND-TO-LAST, for a DOUBLE-BARRELLED SURNAME.
+ *
+ * shortKey takes the last word, which is the wrong half when the surname has two parts and the
+ * agenda announces only the first of them. The Nordic Africa MC signed up as "Natalie Bridgette
+ * Becker-Aakervik" and the agenda says "Natalie Becker": shortKey folds the roster entry to
+ * "natalie aakervik", so the two never met and her headshot sat one table away from her initial.
+ *
+ * Registered ALONGSIDE shortKey rather than instead of it, and clash-guarded exactly the same way,
+ * so a pair that two people share is dropped rather than guessed at.
+ */
+function pairKey(k: string): string {
+  const parts = k.split(" ").filter(Boolean);
+  return parts.length > 2 ? `${parts[0]} ${parts[parts.length - 2]}` : k;
+}
+
+/**
+ * The keys a NAME ON THE AGENDA may be found by, in the order they are tried: exact first, then the
+ * looser ones, so a looser match can only ever fill a gap an exact one left.
+ *
+ * The last entry drops leading given names — "Charity Wanjiru Kiarie" on the agenda against
+ * "Wanjiru Kiarie" in the roster, which is the mirror image of the middle-name case and needs the
+ * trimming done on THIS side. Stops at two words: one word is a surname on its own, which is not
+ * enough to identify anybody.
+ */
+function lookupKeys(k: string): string[] {
+  const parts = k.split(" ").filter(Boolean);
+  const keys = [k, shortKey(k), pairKey(k)];
+  if (parts.length > 2) keys.push(parts.slice(1).join(" "));
+  return [...new Set(keys)];
+}
+
+/**
  * The name as a self-filled roster writes it, folded to a comparison key.
  *
- * Two things the CRM's "Full Name" never has and a sign-up form always does:
- *   "Alvaro Perezcano (Moderator)"  — the ROLE, appended in brackets
+ * Three things the CRM's "Full Name" never has and a sign-up form always does:
+ *   "Alvaro Perezcano (Moderator)"  — the ROLE, appended in ROUND brackets
+ *   "Sherif Kesseba  [Moderator]"   — the same thing in SQUARE ones
  *   "Adama Ibrahim, EMBA"           — CREDENTIALS, appended after a comma
- * Both are stripped before folding, so they cannot keep a face off the agenda.
+ * All three are stripped before folding, so they cannot keep a face off the agenda.
+ *
+ * The square-bracket case was a real miss: only the round form was handled, so his key came out as
+ * "sherif kesseba moderator" and could not have matched any agenda spelling of his name. Whoever
+ * types the role by hand picks the bracket, so both have to be understood (Auri, 2026-08-13).
  */
 function rosterKey(name: string): string {
-  return key(name.replace(/\([^)]*\)/g, " ").split(",")[0]);
+  return key(name.replace(/[([][^)\]]*[)\]]/g, " ").split(",")[0]);
 }
 
 /**
@@ -162,13 +199,13 @@ async function fetchOneProject(project: string): Promise<ProjectPeople> {
       const url = photoUrl("marketing", rec.id, undefined, att);
       faces.set(k, url);
 
-      const short = shortKey(k);
-      if (short !== k) {
+      for (const alt of [shortKey(k), pairKey(k)]) {
+        if (alt === k) continue;
         // Two people who shorten to the same key make that key useless — "Anna Maria Berg" and
         // "Anna Sofie Berg" both become "anna berg". Neither gets it: an arbitrary face is worse
         // than an initial, because nobody looking at the page can tell it is wrong.
-        if (loose.has(short) && loose.get(short) !== url) looseClash.add(short);
-        loose.set(short, url);
+        if (loose.has(alt) && loose.get(alt) !== url) looseClash.add(alt);
+        loose.set(alt, url);
       }
     }
     offset = data.offset;
@@ -294,12 +331,12 @@ export async function fetchViewFaces(src: FaceViewSource): Promise<Map<string, s
       const url = photoUrl(src.feed, rec.id, undefined, att);
       faces.set(k, url);
 
-      const short = shortKey(k);
-      if (short !== k) {
+      for (const alt of [shortKey(k), pairKey(k)]) {
+        if (alt === k) continue;
         // Two people who shorten to the same key make that key useless — "Anna Maria Berg" and
         // "Anna Sofie Berg" both become "anna berg". Neither gets it.
-        if (loose.has(short) && loose.get(short) !== url) looseClash.add(short);
-        loose.set(short, url);
+        if (loose.has(alt) && loose.get(alt) !== url) looseClash.add(alt);
+        loose.set(alt, url);
       }
     }
     offset = data.offset;
@@ -337,10 +374,13 @@ export function applyFaces(
     const fill = (list: NonNullable<ProgramSession["onStage"]>["speakers"]) =>
       list.map((p) => {
         if (p.photo) return p;
-        const k = key(p.name);
-        // Exact key first, then the first-and-last-word one — so "Simon Mears" on the agenda finds
-        // "Simon C. Mears" in the roster, and never the other way round.
-        return { ...p, photo: faces.get(k) ?? faces.get(shortKey(k)) ?? null };
+        // Exact key first, then the looser ones in order — so "Simon Mears" on the agenda finds
+        // "Simon C. Mears" in the roster, and never the other way round. See lookupKeys().
+        for (const k of lookupKeys(key(p.name))) {
+          const hit = faces.get(k);
+          if (hit) return { ...p, photo: hit };
+        }
+        return { ...p, photo: null };
       });
     return {
       ...s,

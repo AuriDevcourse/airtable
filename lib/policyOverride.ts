@@ -28,8 +28,10 @@
 //
 // Written as the board's own day string rather than a date, because that is what the timeline
 // groups on. If the day labels are ever renumbered this constant moves with them.
-import type { ProgramPerson, ProgramSession, ProgramSpeaker } from "@/lib/program";
+import type { ProgramSession } from "@/lib/program";
 import { programmeOf, ROOM_567 } from "@/lib/brellaSections";
+// Moved out when the Nordic Africa substitution needed the same mapping. See lib/stagePeople.ts.
+import { toSpeaker } from "@/lib/stagePeople";
 
 /**
  * "Policy Stage", taken from ROOM_ALIASES rather than typed again here.
@@ -52,34 +54,6 @@ const POLICY_PROGRAMME = programmeOf("Policy Stage") ?? "Policy Stage";
 
 /** The board's day label for the Policy Stage. Auri, 2026-08-07. */
 export const POLICY_DAY = "Day 3 · 27 August";
-
-/**
- * One hand-typed person into the shape the board's PersonRow draws.
- *
- * `meta` arrives as "Title, Company" — parsePeople() in lib/program.ts has already taken the
- * name off the front. PersonRow renders title and company as "title · company", so the first
- * comma splits them; a meta with no comma is all title, which is right for "Minister for
- * Taxation" and for a bare company name alike.
- *
- * `bio` is empty because the Sessions table has no bio field. PersonRow already handles that:
- * no bio means a plain row instead of a button that opens nothing.
- */
-function toSpeaker(p: ProgramPerson, sessionId: string, role: string, i: number): ProgramSpeaker {
-  const comma = p.meta.indexOf(",");
-  const title = (comma === -1 ? p.meta : p.meta.slice(0, comma)).trim();
-  const company = comma === -1 ? "" : p.meta.slice(comma + 1).trim();
-  return {
-    // Unique per session, so React keys never collide when one person chairs two panels.
-    id: `${sessionId}-${role.toLowerCase()}-${i}`,
-    name: p.name,
-    title,
-    company,
-    photo: p.photo,
-    bio: "",
-    // Drives the badge on the row, and isModerator() styles the moderator's differently.
-    role,
-  };
-}
 
 /**
  * Replace the Brella board's Policy Stage column with the Airtable programme.

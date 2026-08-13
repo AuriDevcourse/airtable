@@ -742,7 +742,10 @@ ${originDecl("  ")}
   }
 
   function isMod(p){return /moderator/i.test(p&&p.role||"");}
-  function ordered(sp){return (sp||[]).slice().sort(function(a,b){return (isMod(a)?1:0)-(isMod(b)?1:0);});}
+  /* MODERATORS FIRST. Reversed 2026-08-13 (Auri): the chair is what a reader looks for first, and
+     the /program page and the agenda embed have always led with them. sort is stable, so people
+     with the same role keep the source order. Mirrors orderedSpeakers() in ProgramTimeline.tsx. */
+  function ordered(sp){return (sp||[]).slice().sort(function(a,b){return (isMod(b)?1:0)-(isMod(a)?1:0);});}
   /* cls lets the same builder emit the inline row (list cards, dialog) and the pinned stack on
      a timeline card, which needs its own class to be positioned. */
   function faces(sp,n,cls){

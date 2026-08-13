@@ -16,7 +16,7 @@
 // half-filled drafts stay invisible.
 
 import { fetchWithTimeout } from "@/lib/http";
-import { str } from "@/lib/fields";
+import { firstAttachmentId, str } from "@/lib/fields";
 import { photoUrl } from "@/lib/photo";
 import type { BrellaSection } from "@/lib/brellaSections";
 // Type only — the runtime import of this module stays dynamic and inside a try, so a face lookup
@@ -111,6 +111,15 @@ export type ProgramSession = {
   // which is Brella's structured speaker-assignment data — these come from a text cell and a photo
   // cell, so they carry a display line and a face and nothing else.
   onStage?: { speakers: ProgramPerson[]; moderators: ProgramPerson[] };
+  /**
+   * TRUE when this session HAS a line-up that is deliberately not published yet — people are
+   * linked, the session is not Locked, so no name reaches `onStage`.
+   *
+   * It says "more is coming here", which is different from a break that will never have anybody on
+   * it. The dashboard uses it to list exactly what is still to be confirmed; a public consumer can
+   * ignore it, and nothing about who those people are is exposed.
+   */
+  lineupPending?: boolean;
 };
 
 // Two kinds of source now. Airtable ones name a table + the fields to read; the Brella one
@@ -163,7 +172,42 @@ type AirtableSource = {
     speakerPhoto?: string;
     moderatorDetails?: string;
     moderatorPhoto?: string;
+    /**
+     * WHO IS ON STAGE, as a LINK to people rows in the same table — the other way a programme
+     * carries its line-up, and a better one. NISS files each session's people in
+     * `Session Lineup 2026`, so there is no name to match, no typo to break it, and the headshot
+     * each person uploaded once is the one that renders. Rows are read from `cfg.table` itself.
+     */
+    lineup?: string;
+    /**
+     * WHO CHAIRS THIS SESSION, linked, when their own `Role` does not say so.
+     *
+     * Chairing is a fact about the SESSION, not about the person: Kunal Singla moderates the India
+     * Shark Tank while his NISS row reads "Brand Ambassadors", which is a real category three
+     * people carry and which drives /api/niss-speakers. Overwriting it to make one agenda read
+     * correctly would have destroyed that (Auri, 2026-08-13). So the session names its own chair,
+     * and everyone in `lineup` still falls back to their Role.
+     */
+    lineupModerators?: string;
+    /**
+     * The gate on the LINE-UP, not on the row: names publish only while this cell reads one of
+     * `lockedValues`. An unlocked session still shows — time, title, description — with nobody
+     * named on it. See the `niss` source for the whole reasoning.
+     */
+    status?: string;
+    /** Fields on the linked person rows. Only needed alongside `lineup`. */
+    lineupName?: string;
+    lineupTitle?: string;
+    lineupCompany?: string;
+    lineupRole?: string;
+    lineupPhoto?: string;
   };
+  /** The `status` values that let a line-up publish. Defaults to ["Locked"]. */
+  lockedValues?: readonly string[];
+  /** lib/photo.ts feed key that can re-sign the linked people's photo attachments. */
+  lineupPhotoFeed?: string;
+  /** Where the linked people live, when that is not `table` itself. */
+  lineupTable?: string;
 };
 
 type BrellaSource = { kind: "brella" };
@@ -186,15 +230,53 @@ export const PROGRAM_SOURCES = {
       room: "Event Room",
     },
   },
+  // NORDIC INDIA. Its people are LINKED per session, not typed into a text cell: each programme row
+  // carries `Session Lineup 2026`, pointing at people rows in this same table. No name matching, no
+  // typo to break it, and the portrait each person uploaded on sign-up is the one that renders.
+  //
+  // A LINE-UP PUBLISHES ONLY WHEN THE SESSION IS LOCKED (Auri, 2026-08-13). The programme is still
+  // being finalised: the times and titles are settled, the people on several panels are not — the
+  // planning sheet's Notes column tracks it per session ("Status: Locked. session brief shared"
+  // against "Adele and Sara are under outreach"). Publishing a name that is still an outreach
+  // target is how somebody reads their own name on techbbq.dk before they have said yes.
+  //
+  // So `Session Status` on the Airtable row is the gate, and the sheet is where the team decides.
+  // An unlocked session STILL SHOWS — its time, title and description — with nobody named on it,
+  // which is what makes the agenda usable while the line-up is being closed.
+  // MOVED INTO THE SESSIONS TABLE on 2026-08-13, so every hand-typed agenda lives in one place:
+  // NASS, the Policy Stage, the Board Summit and the six Side Events were already there and NISS was
+  // the only one somewhere else (Auri). Its 13 rows are now `Name of the Event = "Nordic India
+  // Startup Summit"` beside the rest.
+  //
+  // THE PEOPLE DID NOT MOVE, and that is the point of doing it this way. The Sessions table stores a
+  // line-up as TEXT in `Speaker Details`, which is what cost NASS five separate faces today — a
+  // middle name, a double-barrelled surname, two spellings and a role in square brackets. NISS keeps
+  // its people as a LINK (`Session Lineup` → the NISS table), so there is no name to match and the
+  // portrait each person uploaded on sign-up is the one that renders.
+  //
+  // The old rows in the NISS table's "NISS Program 2026" view are NOT read any more. They are left
+  // in place rather than deleted, so if the NISS team keeps editing there it will silently drift
+  // from what publishes — see progress.md.
   niss: {
     kind: "airtable",
-    table: "tblfIPjV4t1c1628h", // NISS 2026
-    view: "viwMqDT1GMW7AwOtQ", // program rows
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Nordic India Startup Summit"',
+    lockedValues: ["Locked"],
+    lineupPhotoFeed: "niss", // lib/photo.ts PHOTO_SOURCES.niss → the NISS table's "Self Portrait"
+    lineupTable: "tblfIPjV4t1c1628h", // where the linked people live
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
-      type: "Type of Session",
-      gate: "Should be On Website",
+      type: "Session Type",
+      description: "Description",
+      status: "Session Status",
+      lineup: "Session Lineup",
+      lineupModerators: "Session Moderators",
+      lineupName: "Full Name",
+      lineupTitle: "Position at Company ", // the trailing space is in the field name
+      lineupCompany: "Company Name",
+      lineupRole: "Role",
+      lineupPhoto: "Self Portrait",
     },
   },
   // THE POLICY STAGE, from the purpose-built Sessions table. Its programme arrived as a PDF, so it is
@@ -476,9 +558,17 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
     f.speakerPhoto,
     f.moderatorDetails,
     f.moderatorPhoto,
+    f.lineup,
+    f.lineupModerators,
+    f.status,
   ].filter((x): x is string => Boolean(x));
 
   const sessions: ProgramSession[] = [];
+  // Sessions whose people are LINKED rather than typed. Filled during the paging loop, resolved in
+  // one extra request afterwards.
+  const lineups: { session: ProgramSession; ids: string[]; modIds: string[]; locked: boolean }[] = [];
+  // `role` decides which group a linked person lands in; it is not part of what a session publishes.
+  const stripRole = ({ name, meta, photo }: ProgramPerson): ProgramPerson => ({ name, meta, photo });
   let offset: string | undefined;
 
   do {
@@ -525,11 +615,107 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
           : [];
         if (speakers.length || moderators.length) s.onStage = { speakers, moderators };
       }
+      // A LINKED line-up, resolved after the paging loop: the ids are collected here and the people
+      // rows fetched in one pass below, rather than one request per session.
+      if (f.lineup) {
+        const ids = Array.isArray(r[f.lineup]) ? (r[f.lineup] as string[]) : [];
+        const locked = (cfg.lockedValues ?? ["Locked"]).includes(str(r[f.status ?? ""]));
+        // The ids are kept even when the session is unlocked so the count can be logged; `locked`
+        // is what decides whether any name reaches the payload.
+        const modIds =
+          f.lineupModerators && Array.isArray(r[f.lineupModerators])
+            ? (r[f.lineupModerators] as string[])
+            : [];
+        if (ids.length || modIds.length) lineups.push({ session: s, ids, modIds, locked });
+      }
       const dayOk = f.day ? Boolean(s.day) : true;
       if (s.name && s.timeSlot && dayOk) sessions.push(s);
     }
     offset = data.offset;
   } while (offset);
+
+  // ── RESOLVE THE LINKED LINE-UPS ────────────────────────────────────────────────────────────────
+  //
+  // One extra read for the whole programme, not one per session: the linked people live in the same
+  // table, so they come back in the same paged scan the sessions came from.
+  //
+  // A FAILURE HERE IS SWALLOWED. The agenda without names is exactly what an unlocked session shows
+  // anyway, so a broken lookup degrades to the state half the programme is already in rather than
+  // taking the page down.
+  if (f.lineup && lineups.length) {
+    try {
+      const need = [
+        ...new Set(lineups.filter((l) => l.locked).flatMap((l) => [...l.ids, ...l.modIds])),
+      ];
+      const people = new Map<string, ProgramPerson & { role: string }>();
+      // The people can live in another table (NISS keeps its roster in its own), and they are
+      // fetched BY ID rather than by scanning it: the NISS table holds every sign-up, so a full
+      // page-through to find 8 people would read thousands of rows on every cache fill.
+      const peopleTable = cfg.lineupTable ?? cfg.table;
+      const want = [f.lineupName, f.lineupTitle, f.lineupCompany, f.lineupRole, f.lineupPhoto]
+        .filter((x): x is string => Boolean(x));
+      for (let i = 0; i < need.length; i += 50) {
+        const chunk = need.slice(i, i + 50);
+        {
+          const p = new URLSearchParams();
+          p.set("pageSize", "100");
+          p.set("filterByFormula", `OR(${chunk.map((id) => `RECORD_ID()='${id}'`).join(",")})`);
+          for (const field of want) p.append("fields[]", field);
+          const r2 = await fetchWithTimeout(`${API}/${BASE_ID}/${peopleTable}?${p.toString()}`, {
+            headers: { Authorization: `Bearer ${TOKEN}` },
+            cache: "no-store",
+          });
+          if (!r2.ok) throw new Error(`lineup fetch ${r2.status}`);
+          const d2 = (await r2.json()) as { records: AirtableRecord[] };
+          for (const rec of d2.records) {
+            const pf = rec.fields;
+            const name = str(pf[f.lineupName ?? ""]).replace(/\s+/g, " ").trim();
+            if (!name) continue;
+            const title = str(pf[f.lineupTitle ?? ""]).trim();
+            const company = str(pf[f.lineupCompany ?? ""]).trim();
+            const att = f.lineupPhoto ? firstAttachmentId(pf[f.lineupPhoto]) : undefined;
+            people.set(rec.id, {
+              name,
+              // Same "Title, Company" shape parsePeople produces, so every renderer downstream
+              // treats a linked person and a typed one identically.
+              meta: [title, company].filter(Boolean).join(", "),
+              photo:
+                att && cfg.lineupPhotoFeed
+                  ? photoUrl(cfg.lineupPhotoFeed, rec.id, undefined, att)
+                  : null,
+              role: str(pf[f.lineupRole ?? ""]),
+            });
+          }
+        }
+      }
+      for (const l of lineups) {
+        if (!l.locked) {
+          // Linked people held back by the lock. Marked so the dashboard can say which sessions are
+          // still to be confirmed, without naming anybody who has not agreed to be named.
+          l.session.lineupPending = true;
+          continue;
+        }
+        const get = (ids: string[]) =>
+          ids.map((id) => people.get(id)).filter(Boolean) as (ProgramPerson & { role: string })[];
+        // NAMED ON THE SESSION FIRST, then anyone whose own Role says Moderator. Somebody linked in
+        // both places is printed once, as a moderator.
+        const named = get(l.modIds);
+        const namedNames = new Set(named.map((p) => p.name));
+        const rest = get(l.ids).filter((p) => !namedNames.has(p.name));
+        const moderators = [...named, ...rest.filter((p) => /moderator/i.test(p.role))].map(
+          stripRole
+        );
+        const speakers = rest.filter((p) => !/moderator/i.test(p.role)).map(stripRole);
+        if (speakers.length || moderators.length) l.session.onStage = { speakers, moderators };
+      }
+      const shown = lineups.filter((l) => l.locked).length;
+      console.info(
+        `[program:${source}] ${shown}/${lineups.length} session line-ups are locked and published`
+      );
+    } catch (err) {
+      console.error(`[program:${source}] line-up unavailable, showing sessions without names`, err);
+    }
+  }
 
   // Day asc ("Day 1…" before "Day 2…" alphabetically), then start time, then name.
   sessions.sort(

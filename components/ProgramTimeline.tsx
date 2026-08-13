@@ -341,14 +341,18 @@ function firstWords(text: string, n = 5): string {
 }
 
 /**
- * Up to two names for the card, speakers before moderators, with "+N" for the rest.
+ * MODERATORS FIRST, then speakers, then everyone else in the order the source gave them.
  *
- * Speakers first because a card with room for two names should spend them on who is talking,
- * not on who is chairing. The full list with roles is in the dialog.
+ * It used to be the other way round: a card with room for two names spends them on who is talking,
+ * not on who is chairing. Auri reversed it on 2026-08-13 — the chair is the thing you look for
+ * first when reading an agenda, and both the /program page and the agenda embed have always listed
+ * moderators at the top, so the board was the odd one out.
+ *
+ * `sort` is stable, so people with the same role keep the source's order.
  */
 function orderedSpeakers(speakers: Speaker[] | undefined): Speaker[] {
   if (!speakers?.length) return [];
-  return [...speakers].sort((a, b) => Number(isModerator(a)) - Number(isModerator(b)));
+  return [...speakers].sort((a, b) => Number(isModerator(b)) - Number(isModerator(a)));
 }
 
 /** The little stack of faces on a card. Initials when Brella has no photo. */
@@ -363,21 +367,20 @@ function Avatars({
   className?: string;
 }) {
   const all = orderedSpeakers(speakers);
-  // SHOW THE MODERATOR, not just the first two speakers.
+  // SHOW A SPEAKER TOO, not just moderators.
   //
-  // orderedSpeakers puts moderators last, which was right when the card printed two NAMES and
-  // should spend them on who is talking. With faces only, it meant the chair was invisible on
-  // 45 of the 73 sessions that have one — so the ring below marked nothing. A panel now reads
-  // as one speaker plus the chair, which is what the card is trying to say, and the +N chip
-  // still carries everyone who did not fit.
+  // The mirror of the problem this block used to solve. With moderators sorted first, a session
+  // chaired by two people would fill both slots with chairs and show nobody who is actually
+  // talking. So the stack keeps the first moderator and spends the remaining slot on a speaker;
+  // the +N chip still carries everyone who did not fit.
   const mods = all.filter(isModerator);
   let people = all.slice(0, n);
-  if (mods.length && !people.some(isModerator) && n > 1) {
-    people = [...all.filter((p) => !isModerator(p)).slice(0, n - 1), mods[0]];
+  if (mods.length && n > 1 && !people.some((p) => !isModerator(p))) {
+    const speaking = all.filter((p) => !isModerator(p));
+    if (speaking.length) people = [...mods.slice(0, n - 1), speaking[0]];
   }
-  // Moderators are ordered last by orderedSpeakers but looked identical to the speakers, so a
-  // two-face stack could be showing one of each and read as two speakers. The ring says which
-  // is which; the title attribute says it in words, for anyone who cannot see the ring.
+  // A two-face stack can be showing one of each and would otherwise read as two speakers. The ring
+  // says which is which; the title attribute says it in words, for anyone who cannot see the ring.
   if (!people.length) return null;
   // The card used to end with ", +3" after the names. The names are gone, so the count moves
   // onto the stack — without it a six-person panel and a two-person fireside are the same two
@@ -1307,8 +1310,10 @@ export function SessionDialog({ s, onClose }: { s: Session; onClose: () => void 
         {s.speakers && s.speakers.length > 0 && (
           <>
             <h3 className="bp-modal__heading">{peopleSummary(s.speakers)}</h3>
+            {/* Same order as the card's face stack and as every other agenda on the dashboard:
+                whoever is chairing comes first (Auri, 2026-08-13). */}
             <ul className="bp-people">
-              {s.speakers.map((p) => (
+              {orderedSpeakers(s.speakers).map((p) => (
                 <PersonRow key={p.id} p={p} />
               ))}
             </ul>
