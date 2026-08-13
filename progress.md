@@ -43,6 +43,18 @@ pending tile + worklist line, public feed 60, combined embed feed 60. The hack w
 photos uploaded in Airtable mid-session, so the live count went 59 → 61 and the tile has nothing to
 draw. It is not dead code, it is an empty worklist.
 
+**Part 3 · agenda avatars on the four investor programmes: 64/67 → 66/67.**
+
+`lib/programFaces.ts` · `applyFaces` looks up the exact name key and THEN `shortKey` (first and last
+word only), but `fetchOneProject` — the CRM source every investor agenda uses — only ever STORED
+exact keys. The second lookup could never hit. `fetchViewFaces` has had the loose layer since NASS;
+this copies it over, merged last so an exact match still wins.
+
+Fixed two people whose headshot was already in the table: "Micha Breakstone" on the LP Forum agenda
+now finds "Micha Y. Breakstone", and "Frederik von Bennigsen" finds "Frederik Runge von Bennigsen".
+Coverage after: pension-summit 22/22, family-office 10/10, lp-forum 20/20, investor-day 14/15.
+Nothing else moved (policy 34/34, nass 44/52, board 3/31, all unchanged).
+
 ### PART 1 · WHAT WAS DONE BEFORE THAT
 
 - `lib/investors.ts` · added `"family-office": "Nordic Family Office Summit"` to `INVESTOR_EVENTS`.
@@ -66,17 +78,24 @@ pension-summit **18**, all **59** (61 rows, 2 people dedupe across events). `/in
 
 ### NEXT STEPS
 
-1. **Give the other feeds the same `pending: "no-photo"` flag.** Auri asked for it everywhere; the
+1. **Fix the Christina Egelund row on the Investor Day agenda**, the last face missing across the
+   four investor programmes. Her `Speaker Details` cell reads
+   `Christina Egelund␣␣Minister of Education` — name and job title glued together with a double
+   space, so the whole string is treated as a name and matches nobody. The CRM has her filed as
+   "Christina Egelund" WITH a headshot. Split it the way parsePeople expects (name, then the title)
+   and the face appears by itself. Deliberately NOT patched in code: guessing that the first two
+   words of a long string are the name would eventually put the wrong face on somebody.
+2. **Give the other feeds the same `pending: "no-photo"` flag.** Auri asked for it everywhere; the
    investor feed is the pattern to copy, and `MissingPhoto` is already wired into every page. The
    ones that still drop photoless people silently: `lib/niss.ts:120`, `lib/nass.ts:108`,
    `lib/fintechspeakers.ts:109`, `lib/policystage.ts:122`, `lib/summitextras.ts:77`, and the hub
    (`lib/hub.ts`). Each needs its route to gate `?pending=1` the same way, and any route sharing a
    cache key with another has to fill it the same way — see the `investors:all` note above.
-2. **Delete the nameless LP Forum row** in the Marketing Project Overview view. It has a photo and
+3. **Delete the nameless LP Forum row** in the Marketing Project Overview view. It has a photo and
    no Full Name, so it is dropped for the name, not the picture, and no tile will ever show it.
-3. **Re-copy the Elementor snippet** for any investor widget already pasted on techbbq.dk if it
+4. **Re-copy the Elementor snippet** for any investor widget already pasted on techbbq.dk if it
    should include the new event; the family-office button copies its own snippet.
-4. Once all ten family-office speakers are filed under their own project in the CRM, drop the
+5. Once all ten family-office speakers are filed under their own project in the CRM, drop the
    `Event Room 2` / `Event Room 1` fallbacks from `facesFrom` in `lib/program.ts`.
 
 ### GOTCHAS

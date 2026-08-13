@@ -101,6 +101,14 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
 
   const seen = new Set<string>();
   const ambiguous = new Set<string>();
+  // Same loose layer the view source has had all along, added here 2026-08-13. applyFaces looks up
+  // the exact key and THEN shortKey, but this function only ever stored exact ones, so the second
+  // lookup could never hit for a CRM-sourced agenda: "Micha Breakstone" on the LP Forum agenda
+  // missed "Micha Y. Breakstone" in the CRM, and "Frederik von Bennigsen" missed "Frederik Runge
+  // von Bennigsen", while both headshots sat in the table. Merged LAST, so an exact match always
+  // wins over a first-and-last-word one whatever order the records arrived in.
+  const loose = new Map<string, string>();
+  const looseClash = new Set<string>();
   let offset: string | undefined;
 
   do {
@@ -139,10 +147,24 @@ async function fetchOneProject(project: string): Promise<Map<string, string>> {
       const att = firstAttachmentId(rec.fields["Profile Picture"]);
       if (!att) continue;
       // Proxied, never the raw attachment URL — those are signed and expire in ~2h (lib/photo.ts).
-      faces.set(k, photoUrl("marketing", rec.id, undefined, att));
+      const url = photoUrl("marketing", rec.id, undefined, att);
+      faces.set(k, url);
+
+      const short = shortKey(k);
+      if (short !== k) {
+        // Two people who shorten to the same key make that key useless — "Anna Maria Berg" and
+        // "Anna Sofie Berg" both become "anna berg". Neither gets it: an arbitrary face is worse
+        // than an initial, because nobody looking at the page can tell it is wrong.
+        if (loose.has(short) && loose.get(short) !== url) looseClash.add(short);
+        loose.set(short, url);
+      }
     }
     offset = data.offset;
   } while (offset);
+
+  for (const [k, url] of loose) {
+    if (!faces.has(k) && !looseClash.has(k)) faces.set(k, url);
+  }
 
   if (ambiguous.size) {
     console.info(
