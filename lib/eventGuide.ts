@@ -26,6 +26,17 @@
 //
 // If a date here is ever edited, edit it HERE and nowhere else — the preview page and the pasted
 // embed both render this file, which is the whole reason the copy lives in one place.
+//
+// ─── TIMES AND ON-SITE FACTS COME FROM THE WALKTHROUGH DECK (2026-08-13) ─────────────────────
+// "TECHBBQ 2026 - WALKTHROUGH.pdf" (the internal event walkthrough) is the authority for the
+// schedule, the pre-badge days and the venue layout, and it overrode this file where the two
+// disagreed: day 1 stage program ends 17:30 not 17:00, the program starts at 10:00 both days,
+// Thursday finishes with a pre-after party in Hall E 17:15–19:00, and there is a SECOND pre-badge
+// day (24 August at Bella) on top of the 20th at Matrikel1.
+//
+// The deck's Brella screenshots are dated 10 August 2026 and show a fully populated program,
+// speaker list, partner list and side events, so the "opens two weeks before" future tense that
+// used to be in here is gone: the platform is live.
 
 /** Where the guide photos live. All already uploaded to the WordPress media library. */
 const IMG = "https://techbbq.dk/wp-content/uploads";
@@ -216,16 +227,21 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             kind: "schedule",
             day: "Wednesday, August 26th (Event day 1)",
-            rows: ["9:00 · Doors open", "17:00 · Stage program ends", "20:00 · End of day 1"],
+            rows: [
+              "9:00 · Check-in opens",
+              "10:00 · Stage program starts",
+              "17:30 · Stage program ends",
+              "20:00 · Doors close",
+            ],
           },
           {
             kind: "schedule",
             day: "Thursday, August 27th (Event day 2)",
             rows: [
-              "9:00 · Doors open",
+              "9:00 · Check-in opens",
+              "10:00 · Stage program starts",
               "17:00 · Stage program ends",
-              "17:00 · After hours begins",
-              "21:00 · End of day 2",
+              "17:15 – 19:00 · Pre-after party in Hall E",
             ],
           },
         ],
@@ -239,7 +255,17 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "The full venue map lives in the Brella app, so it stays correct if a room or a stage moves in the days before the event.",
+            text: "Everything runs off one main artery. You enter at Entrance 1, pass check-in and the wardrobe, and the exhibition, the stages and the lounges open up from there.",
+          },
+          {
+            kind: "list",
+            lead: "Roughly where things are:",
+            items: [
+              "Check-in, wardrobe and the Info Desk: straight ahead from Entrance 1",
+              "Event Rooms 1 to 6, the Investor Lounge and the exhibition: hall C",
+              "Grill Sessions and the pre-after party: hall E",
+              "The BBQ Stage, the Founders Lounge and the Matchmaking Area: halls C3 and C4",
+            ],
           },
           {
             kind: "p",
@@ -257,7 +283,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "The program is released closer to the event and will also be available on the event platform, where you can build your own schedule.",
+            text: "The full program is live on the event platform. You can browse it by day, filter by track, stage, speaker or session type, and save sessions to your own schedule.",
+          },
+          {
+            kind: "p",
+            lead: "Both days:",
+            text: "The stage program starts at 10:00. It runs until 17:30 on Wednesday and until 17:00 on Thursday.",
           },
         ],
         image: `${IMG}/2024/11/TechBBQ-audience-engaged-with-headphones.webp`,
@@ -284,9 +315,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             items: ["9:00 – 18:00 on Wednesday 26th", "9:00 – 18:00 on Thursday 27th"],
           },
           {
-            kind: "p",
+            kind: "list",
             lead: "Pick up early:",
-            text: "Join us on Thursday, August 20th between 12:00 and 18:00 at Matrikel 1 Café (outdoor area) to collect your badge before the event.",
+            items: [
+              "Thursday, August 20th, 12:00 – 18:00 at Matrikel 1 Café (outdoor area)",
+              "Monday, August 24th at Bella Center Copenhagen",
+            ],
           },
           {
             kind: "list",
@@ -413,7 +447,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "Staying true to our name and heritage, TechBBQ features barbecue setups for you to enjoy. Alongside the barbecue you will find a variety of other options at our two on-site cafés and a kiosk.",
+            text: "Staying true to our name and heritage, TechBBQ features barbecue setups for you to enjoy. Alongside the barbecue there is a large food court, several cafés and coffee points across the venue, and a kiosk.",
           },
           {
             kind: "p",
@@ -507,8 +541,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           },
           {
             kind: "p",
-            lead: "Launch:",
-            text: "The platform opens two weeks before TechBBQ 2026. Ticket holders are invited to set up a profile and start networking, on desktop and on mobile.",
+            lead: "It is open now:",
+            text: "Ticket holders can set up a profile and start networking today, on desktop and on mobile. The program, the speaker list, the partner list and the side events are all in there.",
           },
           {
             kind: "p",
@@ -532,7 +566,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "Brella is TechBBQ's official networking and event app, and it is the platform described above. The app goes live two weeks before the conference and a download QR code appears here.",
+            text: "Brella is TechBBQ's official networking and event app, and it is the platform described above. It is live for TechBBQ 2026, so you can start booking meetings before you arrive.",
           },
           {
             kind: "list",
@@ -560,7 +594,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "Meetings you accept on the event platform are given a table in the Matchmaking Area automatically.",
+            text: "Meetings you accept on the event platform are given a table in the Matchmaking Area automatically. There are 200 tables in hall C4, plus a post-meeting lounge and workzone beside them.",
           },
           {
             kind: "p",
@@ -588,7 +622,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
         blocks: [
           {
             kind: "p",
-            text: "Power outlets are available in the workspaces throughout the venue. Please bring your own charger.",
+            lead: "Charging area:",
+            text: "There is a dedicated charging area in hall C4, next to the Matchmaking Area.",
+          },
+          {
+            kind: "p",
+            text: "Power outlets are also available in the workspaces throughout the venue. Please bring your own charger.",
           },
         ],
         image: `${IMG}/2025/01/charging.webp`,

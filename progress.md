@@ -6,6 +6,63 @@ reaching the browser.
 
 ## WORKING TREE, as of 2026-08-13 · READ THIS FIRST
 
+**Session (n): the Event Guide was corrected against the internal walkthrough deck.** Uncommitted,
+on branch **`main`** (one file: `lib/eventGuide.ts`). This breaks the branch-off-main rule and
+should be moved to its own branch before anything else lands; it was a copy-only edit and nothing
+else in the tree was touched. Session (m) below is unaffected. Nothing was written to Airtable.
+
+### WHAT WAS JUST DONE (session n)
+
+`C:\Users\User\Downloads\TECHBBQ 2026 - WALKTHROUGH.pdf` (35 pages, mostly images: floor plans,
+Brella screenshots, photo collages) is now the AUTHORITY for the guide's schedule and venue facts,
+and it contradicted this file in four places. All four are fixed in `lib/eventGuide.ts`:
+
+- **Opening Hours** · day 1 stage program ends **17:30**, not 17:00. The 10:00 stage program start
+  was missing on both days. Thursday now ends with **17:15–19:00 pre-after party in Hall E**; the
+  invented "17:00 After hours begins" and "21:00 End of day 2" rows are deleted.
+- **Badge Claim** · there is a SECOND pre-badge day, **Monday 24 August at Bella**, on top of the
+  20th at Matrikel 1. No time is published for the 24th because the deck doesn't give one.
+- **Platform copy is present tense** · the deck's Brella screenshots are dated 10 Aug 2026 with a
+  fully populated program, speakers, partners and side events. "The program is released closer to
+  the event", "the platform opens two weeks before" and "a download QR code appears here" (there is
+  no QR on the page) are all gone from Stage Program, Event Platform and Brella App.
+- **Venue Map** · dropped the claim that the full map lives in the Brella app. Brella's sidebar has
+  no map section in ANY of the deck's screenshots. Replaced with the real hall layout from the
+  floor plans (Entrance 1 → check-in → wardrobe; Event Rooms + Investor Lounge in hall C; Grill
+  Sessions + pre-after party in hall E; BBQ Stage, Founders Lounge, Matchmaking in C3/C4).
+
+Three understated facts also corrected: food is "a large food court, several cafés and coffee
+points" instead of a wrong count of two (the plan shows Bella Food, Bella Cafe, 3× Bella Coffee,
+2× Café, The Gastro, Foodgrab, Kiosk); Charging names the dedicated charging area in hall C4;
+Table Reservation states 200 tables plus the post-meeting lounge.
+
+Item count is unchanged at **30** — no tabs added or removed. Verified with `npx tsc --noEmit`
+(clean) and by grepping the rendered `/event-guide` HTML for every new string and every deleted one.
+
+### NEXT STEPS (session n)
+
+1. Move this diff off `main` onto a branch, then review and merge.
+2. **Decide on a parties tab.** The deck has Matrikel1 pre-party Tue 25 from 19:00 and the official
+   after-party at ARCH Thu 27 from 21:00, but Wednesday's Proud Mary drinks are still **TBD**.
+   Blocked on that: don't publish a party program with a hole in it.
+3. **Get approved copy for the missing on-site areas**, all on the 2026 floor plan and absent from
+   the guide: **Kids Area** (powered by Family, hall C4 — the real gap, a parent reading the page
+   cannot tell it exists), Grill Sessions (hall E, 50 chairs), merchandise shop, photo wall (2× 4m
+   at B4), podcast studio, the Novo Life Science and Deep Tech area (27×20 m). New tabs need copy
+   from TechBBQ, not copy composed off a floor plan — same rule that killed the F.A.Q.
+4. **Verify "Garden Hall"** in the Water Stations panel. The 2026 plan shows no Garden Hall and the
+   deck only promises "more water stations". Ask production.
+5. Redeploy so the pasted Elementor embed picks the corrected copy up (the embed renders this same
+   file, and it must be copied from the DEPLOYED dashboard, never localhost).
+
+### GOTCHAS (session n)
+
+- **The deck is 35 pages and only ~3.8 KB of it is real text.** Everything that matters is inside
+  images. `pdftoppm` is not installed on this machine, so `Read` cannot render the PDF: use PyMuPDF
+  (`import fitz`, `page.get_pixmap(dpi=110).save(...)`) to write PNGs and read those instead.
+- Dates were already correct here (26–27 Aug) from the earlier fix, and the deck confirms them.
+  Don't let a 27th/28th "correction" creep back in; those are 2025's dates.
+
 **Session (m): the Nordic Family Office Summit is now the FOURTH investor event.** Uncommitted, on
 branch **`investors-family-office`** (branched off `main`, working tree was clean). Sessions (j), (k)
 and the older uncommitted work are untouched by it. Nothing was written to Airtable this session.
