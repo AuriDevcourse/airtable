@@ -4,15 +4,32 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
-## WORKING TREE, as of 2026-08-13 · READ THIS FIRST
+## STATE, as of 2026-08-13 evening · READ THIS FIRST
 
-**Session (o): Nordic Africa Startup Summit now fills its Brella column. UNCOMMITTED, not pushed,
-awaiting Auri's go-ahead** — it changes a PUBLIC board, so it was left for review rather than
-shipped. Four files: new `lib/nassOverride.ts`, new `lib/stagePeople.ts`, `lib/policyOverride.ts`,
-`app/api/program/route.ts`. `tsc --noEmit` passes. Nothing was written to Airtable in this part.
+**Session (o) is COMMITTED, PUSHED and DEPLOYED. Working tree clean.**
 
-CAREFUL WHEN COMMITTING: session (n)'s `lib/eventGuide.ts` is also uncommitted in the same tree and
-is a SEPARATE change. `git add` the four files by name, not `-A`.
+- `ff3d924` — the whole programme/agenda body of work below (NASS on the board, NISS moved + locked,
+  face matching, moderator ordering, the gaps panels, the duplicate-key crash).
+- `8287a16` — a PARALLEL session's `/ls-startups` logo wall (final-size rows with "More soon" slots,
+  the 5 + 5 + 6 grid). Committed separately so history stays honest; not reviewed line by line here.
+
+Verified on production after the deploy:
+
+| | |
+|---|---|
+| Investor Day | 9 sessions · **15/15 faces** · reconciled against its planning sheet |
+| Board · Event Room 2 · 27 Aug (NASS) | 21 sessions · 17 with people · **46/51 faces** · starts 09:25 |
+| Board · Event Room 2 · 26 Aug (NISS) | 12 sessions · 11 with people · **36/36 faces** (Brella's own) |
+| `/api/program?event=niss` | 13 sessions · **2 publishing names, 9 withheld by the lock** |
+
+**WRITTEN TO LIVE SYSTEMS TODAY, none of it undoable by a git revert:**
+- **Brella**: 38 speaker records created (#423709–#423746). 34 carry a photo.
+- **Airtable**: the `Session Status`, `Session Lineup` and `Session Moderators` fields; 13 NISS rows
+  in the Sessions table; Christina Egelund's CRM row; and ~10 cell edits across NASS and Investor Day.
+
+**STILL MANUAL, nothing can script it**: the ~50 Brella speaker→session links. Brella's integration
+API has no speaker-assignment route. `node brella-push-nass.mjs --event=nass --plan` prints the
+checklist with each timeslot id.
 
 ### WHAT WAS JUST DONE (session o)
 
@@ -324,34 +341,62 @@ Airtable calls them Panels, which matches the shape. Left as Airtable has it.
 
 ### NEXT STEPS (session o)
 
-1. **Auri's decision: push to main?** It changes what techbbq.dk's board shows. Nothing else is
-   blocking it. Files: `lib/nassOverride.ts`, `lib/stagePeople.ts`, `lib/policyOverride.ts`,
-   `lib/programFaces.ts`, `app/api/program/route.ts`, `brella-push-nass.mjs`.
-2. **Auri's decision: run `brella-push-nass.mjs --commit`?** It creates 42 speaker records in the
-   LIVE attendee app. Suggested order: create the 15:35 timeslot in Brella and fix the "Nielsen?"
-   cell first, then `--commit`, then work `--plan` down by hand for the 50 links.
-3. **Create the 15:35 – 16:05 "Investor Reverse Pitch" timeslot in Brella**, Event Room 2, 27 Aug.
-   It is the one session of the 17 that Brella has no row for, so its five people have nowhere to be
-   linked. Deliberately not scripted: a timeslot is the public shape of the day.
-4. **Airtable jobs that finish the last 5 NASS faces** (48/53 now):
-   - tick **Sherif Kesseba** into "Nordic-Africa Summit Presenters" and align Sherief/Sherif · his
-     headshot is already uploaded, see the umbrella note above
-   - create rows for **Lamiaa El Rashidy** and **Gabriella Mukamugema**, or drop them from the agenda
-   - **Impact Fund Denmark** and **LOUNGE VIBE (DJ MUSIC)** should come out of the Speaker Details
-     cells entirely — they are not people, and they occupy a seat on the public board
+**1. STILL UNRESOLVED FROM A LIVE EDIT · the NASS 12:45 row lost two speakers.**
+`recnD5KWO7Jz2Z70L` ("Digitization, Data & Cross-Border Execution In Africa") reads
+`Speaker Details: "Sherief Kesseb"` — one name, no title, misspelled, and he is already a speaker on
+the 15:35 session. Before that edit it read:
+
+    George Gachui, Co-Founder & Director, MOOKH Africa · Ismail Eleburuike, Founder & CEO, SchoolTry
+
+Both had faces. This is live on the board and in the embed. Restore it, or confirm the change was
+deliberate. It also spawned a DUPLICATE in Brella: `#423722 "Sherief Kesseb"` beside
+`#423741 "Sherief Kesseba"` — deleting one is a destructive write to the public app, so it waits.
+
+**2. Four items held back from the Investor Day sheet**, all non-Confirmed there:
+   - the **15:25–15:40 Christina Egelund keynote is missing from Airtable entirely** (topic cell
+     empty in the sheet), which is why the day jumps 15:22 → 15:43
+   - **David Dreyer Lassen** (Rektor, University of Copenhagen) on the 13:10 keynote — *In process*,
+     so that session publishes with nobody on it
+   - **EQT** as S4 on "Built in Europe" — *In process*, and an organisation
+   - Private LP Panel **S1–S3** — *Not Started*
+
+**3. The ~50 Brella speaker→session links, by hand.** Nothing can script them: the integration API
+has no speaker-assignment route. `node brella-push-nass.mjs --event=nass --plan`.
+
+**4. Create the 15:35–16:05 "Investor Reverse Pitch" timeslot in Brella** (Event Room 2, 27 Aug).
+The one NASS session Brella has no row for, so its five people have nowhere to link. Deliberately
+not scripted: a timeslot is the public shape of the day.
+
+**5. Airtable jobs that finish the last NASS faces:**
+   - tick **Sherif Kesseba** into "Nordic-Africa Summit Presenters" (his headshot is already there,
+     he came in via a 2025 form) and align Sherief / Sherif
+   - create rows for **Lamiaa El Rashidy** and **Gabriella Mukamugema**, or drop them
+   - take **Impact Fund Denmark** out of the 10:45 speaker cell — it is a TBA placeholder, not a
+     person, and it holds a seat on the public board
    - drop the "?" from **"Kurt Gammelgaard Nielsen?"** once he is confirmed
-5. **Consider whether Brella's 8 differing session titles should be aligned.** The board now shows
-   Airtable's wording for the 27th because the column is substituted, so Brella's own copy only
-   matters to attendees using the app's own schedule. `--plan` prints every difference.
-6. **NISS is the sibling job, and its data is in better shape.** Its speakers are already linked per
-   session in its own table (`tblfIPjV4t1c1628h`, field `Session Lineup 2026`, view "NISS Program
-   2026"): 11 of 11 real sessions have a lineup, 43 seats, **43 of 43 with a portrait**, moderator
-   named on every one. Nothing reads that link yet — the `niss` source in `lib/program.ts` maps only
-   name/timeSlot/type/gate, which is why `/api/program?event=niss` returns 13 sessions with zero
-   people, and Brella has speakers on 1 of its 12. Because it is a RECORD LINK there is no name
-   matching and no second photo upload. Two data snags to fix while wiring: three people have
-   `Role` = "already on the website" instead of Speaker/Moderator (Archana Jahagirdar), and three
-   names carry stray whitespace (`\nJakob Williams Ørberg`, `Jose Jacob  `, `Chandra R Srikanth  `).
+   - NOTE: a photo added now does NOT reach Brella. Brella COPIES the image when the record is
+     created, so those four need a re-push or a manual upload.
+
+**6. NISS, to finish it:**
+   - tick the remaining **9 sessions** to `Locked` as their line-ups confirm (the /program tab names
+     them; the people are already linked, portraits included)
+   - **Session Description is empty on all 13 rows** — the text lives only in the planning sheet
+   - add a **"Pitch Session"** option to `Session Type` in the UI (the API cannot), then label
+     India Shark Tank and Nordic Founder Pitch
+   - tell the NISS team the **Sessions table is the live copy now**; their old "NISS Program 2026"
+     view is no longer read and will drift silently
+   - merge the duplicate people rows: **Kunal Singla ×5**, **Zenia W. Francker ×4** (one spelled
+     "Zenia Worm Francke")
+
+**7. Smaller, still open:**
+   - tick `Role: Host` on **Zenia W. Francker**'s CRM row — her Nordic Family Office intro is
+     labelled Host only via the session-title fallback
+   - delete the nameless LP Forum row in Marketing Project Overview
+   - give the other speaker feeds the same `pending: "no-photo"` flag the investor feed has
+     (`lib/niss.ts`, `lib/nass.ts`, `lib/fintechspeakers.ts`, `lib/policystage.ts`,
+     `lib/summitextras.ts`, `lib/hub.ts`)
+   - `/program` ignores `?event=` in the URL — the tabs are local state, so a shared link opens on
+     NISS. One `useSearchParams` change if it ever annoys anyone.
 
 ### GOTCHAS (session o)
 
