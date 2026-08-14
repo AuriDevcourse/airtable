@@ -459,29 +459,57 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // FUTURE OF FINTECH — MOVED INTO THE SESSIONS TABLE on 2026-08-14, the same move NISS made the day
+  // before, and for a sharper reason.
+  //
+  // WHERE IT USED TO LIVE: the "Future Of Fintech" table (tbleh7Lqv1zMQaUKx), which is a SPEAKER
+  // REGISTRATION FORM with eight programme rows wedged into it. That table holds Email, Phone Number,
+  // dietary requirements and a GDPR consent box on 18 speaker rows, beside 8 rows that are sessions
+  // and have no person on them at all. It also has no field that could carry a line-up.
+  //
+  // WHAT THAT COST: the tab was EMPTY for an unknown number of days. The old source pinned a column
+  // called "Type of Session"; the table was reworked and the column went; Airtable answers 422
+  // UNKNOWN_FIELD_NAME and fails the WHOLE request, so eight intact rows became a 502. fetchProgram()
+  // now survives that class of rename on its own, but a programme table nobody is filling in and a
+  // registration form sharing one table is the thing that produced it.
+  //
+  // THE PEOPLE. The 8 rows were seeded by `seed-future-of-fintech.mjs`, which prints its plan before
+  // it writes and refuses to run twice. Three sessions carry a line-up, typed into `Speaker Details`
+  // the way the Policy Stage and the Board Summit do. The FOUR PANELS DELIBERATELY NAME NOBODY: 18
+  // speakers are confirmed for this event and not one is assigned to a panel in Airtable or in
+  // Brella, so they carry a `Session Type` of "Panel" and an empty line-up (Auri, 2026-08-14: "I
+  // don't know who is in panel 1 or 4. It's completely fine. Just... at least have a role or label
+  // panel"). An empty cell says "not decided"; a guess would say something false on techbbq.dk.
+  //
+  // THE OLD ROWS ARE NOT READ ANY MORE and are left in place rather than deleted, exactly as the NISS
+  // ones were — so if the fintech team keeps editing there it will silently drift from what
+  // publishes. See progress.md.
   fintech: {
     kind: "airtable",
-    table: "tbleh7Lqv1zMQaUKx", // Future Of Fintech
-    view: "viw0mk6kOUKxNqgzU", // Future of Fintech Program 2026
-    // NO `type` ANY MORE. This source read a "Type of Session" column, and on 2026-08-14 the whole
-    // tab was empty: Airtable answers 422 UNKNOWN_FIELD_NAME when a pinned field is gone, and the
-    // 422 killed the request rather than one value, so eight sessions vanished together. The column
-    // is not in the table's schema now — the closest thing is "Role at the event ( optional )",
-    // which describes a PERSON and would have printed "Speaker" as a session type.
-    //
-    // The agenda reads fine without it: the cards show time, title and description and no kicker.
-    // To get kickers back, add a single-select to the table and name it here.
-    //
-    // THE ROWS ARE ALL STILL THERE — eight, 09:30 to 12:50, breakfast then four panels — so nothing
-    // was lost in Airtable. fetchProgram() now survives this class of rename on its own; this entry
-    // is corrected as well, so the recovery is not doing work on every read.
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Future of Fintech"',
+    // WHERE THE FACES COME FROM. The session rows carry no photo cells, and these speakers are not in
+    // the CRM's Marketing Project Overview — they registered through the fintech team's own form, and
+    // the headshot each of them uploaded sits on their row in that table. So the join reads the
+    // registration table's speakers view directly, the same mechanism NASS uses for its presenter
+    // form. `feed: "fintech"` is already pointed at this table's Attachments in lib/photo.ts.
+    facesFromView: {
+      table: "tbleh7Lqv1zMQaUKx", // Future Of Fintech (the registration form)
+      view: "viwsqDRAVlgJh3STT", // Speakers for Future of Fintech
+      nameField: "Name",
+      photoField: "Attachments",
+      feed: "fintech",
+    },
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
-      // Added at the same time: it exists in the table, holds what each session is about, and was
-      // simply never read. Empty on all eight rows today, so it renders nothing until somebody
-      // fills it in.
-      description: "Session Description",
+      type: "Session Type",
+      description: "Description",
+      room: "Event Room",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
     },
   },
 } satisfies Record<string, SourceConfig>;
