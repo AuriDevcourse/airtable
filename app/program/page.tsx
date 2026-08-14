@@ -280,7 +280,21 @@ const EVENTS: {
   },
   // Fintech's design (Auri's mock): blue palette on #111827, no title icons, and
   // every title the same size (no oversized Opening).
-  { key: "fintech", label: "Future of Fintech", theme: "blue", icons: false, bigOpening: false },
+  //
+  // `people` since 2026-08-14: the programme moved into the Sessions table and three of its eight
+  // sessions now name a line-up in `Speaker Details`, so it renders faces exactly like the Policy
+  // Stage. The four panels name nobody yet and simply show no people. Heading and venue are fixed
+  // here because every row is the same morning in the same room.
+  {
+    key: "fintech",
+    label: "Future of Fintech",
+    heading: "August 27th",
+    sub: "Event Room 3 · Hall C",
+    theme: "blue",
+    icons: false,
+    bigOpening: false,
+    people: true,
+  },
   // THE POLICY STAGE is the first programme that names its people. It came from a PDF, so the
   // Sessions table carries "Speaker Details" and "Moderator Details" as text plus a photo cell, and
   // `people` turns those into a moderator-then-speakers list with faces under each session.

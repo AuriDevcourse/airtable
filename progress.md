@@ -4,6 +4,69 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (r) · 2026-08-14 · FUTURE OF FINTECH MOVED INTO THE SESSIONS TABLE, WITH PEOPLE
+
+**WRITTEN TO AIRTABLE TODAY, a git revert does NOT undo it:** 8 new rows in the Sessions table
+(`tblSlpTzDi2oVYwqv`) with `Name of the Event = "Future of Fintech"` —
+`rec55GJwcljdRNSqz, recqjSFuQlIdYKkeL, recnrl9beVUPpoumY, recDKWSXEerOWifoE, recEsQDPSsYp3FFLO,`
+`recP3elWndUtQB3gq, rechb6qDFGHaLGojZ, rec17JOcSu1d4YYET`. Written by
+`scripts/seed-future-of-fintech.mjs`, which prints its plan first and REFUSES to run if the event
+already has rows, so it cannot duplicate the programme.
+
+**WHY THE MOVE.** Auri asked for the Brella content to be pulled into Airtable. Brella turned out to
+be the POORER source: its Event Room 3 column for 27 August has the same 8 titles, **empty
+descriptions on all of them**, and names only TWO people (Sander Janca-Jensen, Ken Villum Klausen).
+Meanwhile the old "Future Of Fintech" table already held **18 confirmed speakers with photos**. That
+table is a SPEAKER REGISTRATION FORM (Email, Phone Number, dietary requirements, GDPR consent on 18
+rows) with 8 programme rows wedged in beside them, and no field that could carry a line-up. So the
+programme moved to where every other hand-typed agenda lives, and Auri chose that himself
+("You can write it in here. Create another event: Future of Fintech").
+
+**WHAT THE 8 ROWS SAY.** Titles and times are the fintech team's own, copied across. Every row has a
+`Session Type` now: Networking & Drinks, Keynote, Fireside Chat, Keynote, then four Panels.
+- Three sessions carry a line-up in `Speaker Details`: Sander on the 10:00 keynote, Sander + Ken on
+  the 10:15 fireside with **Sara Sjølin, Bloomberg** as moderator, Ken on the 10:40 keynote.
+- The 10:15 fireside is the only row with a DESCRIPTION anywhere, taken from Brella's own shell copy.
+- **THE FOUR PANELS NAME NOBODY, deliberately.** 18 speakers are confirmed and not one is assigned to
+  a panel in either system. Auri: "I don't know who is in panel 1 or 4. It's completely fine."
+  An empty cell says "not decided"; a guess would say something false on techbbq.dk.
+- Sara as the fireside moderator is INFERRED, from Brella's sentence "Sander joins Ken and Sara for
+  the fireside chat" plus her `Role = Moderator` on her own row. Everything else is copied, not judged.
+- `When Is it` left EMPTY on purpose: its options are `Day 1 | Day 2 | Natalie Becker` (somebody
+  typed a name into a select), and no source read it, so guessing which "Day" 27 August is was not
+  worth polluting it further.
+
+**CODE**
+- `lib/program.ts` · the `fintech` source now reads `tblSlpTzDi2oVYwqv` filtered on
+  `{Name of the Event}="Future of Fintech"`, with the full hand-typed people fields, `room` from
+  `Event Room`, and `type` back (the Sessions table HAS a `Session Type` select).
+- **FACES COME FROM THE REGISTRATION FORM**, via `facesFromView` → `tbleh7Lqv1zMQaUKx` view
+  `viwsqDRAVlgJh3STT`, `Name` + `Attachments`, feed `fintech` (already in lib/photo.ts). These people
+  are NOT in the CRM's Marketing Project Overview — they registered through the fintech team's form —
+  so the NASS-style view join is the only thing that finds them. **4 of 4 faces resolve.**
+- `app/program/page.tsx` · the fintech tab gains `people: true`, `heading: "August 27th"`,
+  `sub: "Event Room 3 · Hall C"`.
+
+**THE OLD 8 ROWS IN `tbleh7Lqv1zMQaUKx` ARE NO LONGER READ** and were left in place, exactly as the
+NISS ones were. If the fintech team keeps editing there it will silently drift from what publishes.
+
+**VERIFIED.** `tsc --noEmit` clean. Feed: 8 sessions, all typed, 3 with people, 4/4 faces. Rendered
+in a real browser on /program → Future of Fintech.
+
+**NEXT STEPS**
+1. **Get the four panel line-ups from the fintech team** and put them in `Speaker Details`, read back
+   from Airtable so the ids are right:
+   `recEsQDPSsYp3FFLO` 11:05 Panel 1 Build Fintech ·
+   `recP3elWndUtQB3gq` 11:30 Panel 2 Scale Fintech ·
+   `rechb6qDFGHaLGojZ` 12:05 Panel 3 Capital, Scaling & Exits ·
+   `rec17JOcSu1d4YYET` 12:30 Panel 4 AI Native Fintech.
+   Format: `Name, Title at Company · Name, Title at Company`, moderator in its own cell. Faces then
+   resolve on their own for anyone in the speakers view.
+2. **Confirm Sara Sjølin really moderates the fireside**, since that one line is inferred.
+3. **Descriptions are empty on 7 of 8 rows.** They are what makes an agenda say what is happening.
+4. **The 18th speaker, Nikita Thakrar, is marked `canceled`** in the registration table. Nothing
+   reads that flag; it only matters once panels are filled in.
+
 ## SESSION (q) · 2026-08-14 · FUTURE OF FINTECH CAME BACK · A RENAMED COLUMN CAN NO LONGER KILL AN AGENDA
 
 **CURRENT STATE: fixed locally in `lib/program.ts`, UNCOMMITTED, so PRODUCTION IS STILL BROKEN.**
