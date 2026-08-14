@@ -4,6 +4,46 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (p) · 2026-08-14 · A SESSION CAN NOW LINK ITS OWN RUN OF SHOW
+
+**Built on `feat/session-programme-pdf`, merged to `main` and pushed on Auri's instruction, so it
+deploys.** Nothing was written to Airtable, Brella or any other live system in this session — the
+only live effect is what techbbq.dk renders.
+
+**THE PROBLEM.** Brella models a partner's all-day takeover of an event room as ONE timeslot.
+"Beyond Unicorns - Building Europe's Resilient Industries" is Event Room 1, 26 August, 13:30 - 17:30,
+with 17 people hung off it and no time on any of them. An attendee can tell that Randi Wahlsten is
+somewhere in those four hours and nothing more (Auri: "it's difficult to understand when exactly they
+are speaking and what is happening specifically"). The run of show exists, as the host's PDF, and it
+was already uploaded to techbbq.dk with nothing linking to it.
+
+**WHAT WAS BUILT.**
+- `lib/sessionProgrammes.ts` (new) · a list of `{ match: RegExp, url, label }`, matched on
+  `titleKey(session.name)`. One entry today: `/^beyond unicorns\b/` →
+  `https://techbbq.dk/wp-content/uploads/2026/08/Closing-Loops-TechBBQ.pdf`. Https enforced there,
+  and a rejected url is `console.error`'d rather than silently not appearing.
+- Matched on the TITLE, not the Brella timeslot id: an id dies when somebody deletes and recreates
+  the row, which is what happened to the 15:35 Investor Reverse Pitch during NASS.
+- `lib/program.ts` · `ProgramSession.programmeUrl?: { url, label }`.
+- `lib/brellaprogram.ts` · set while mapping the feed, so /brella-program, the pasted embed and
+  `/api/program?event=brella` all carry it. Same reasoning as `roomAlias()` and `HIDDEN_TRACKS`
+  living at the source.
+- Rendered in BOTH dialogs — `components/ProgramTimeline.tsx` and `lib/brellaEmbedSnippet.ts` —
+  above the speaker list, and counted by both copies of `hasDetail()` so a row that is nothing but
+  an all-day booking and a PDF can still be opened. Outlined in the stage colour
+  (`.bp-modal__cta--doc` / `.tbbq-bp__cta--doc`) so it does not compete with Register where a
+  session has both; link text inherits its colour, because several track colours fail 4.5:1 as text.
+
+**VERIFIED.** `tsc --noEmit` clean. The feed carries it on exactly 1 of ~230 sessions. Dialog opens
+with the button on the dashboard AND in the generated embed rendered in a real browser (the embed
+tested by pointing a copy of the snippet at the local feed); no console errors; the PDF answers 200
+`application/pdf`.
+
+**TO ADD ANOTHER**, e.g. the four confusing PDFs in the other event rooms: one entry in
+`lib/sessionProgrammes.ts`, nothing else. **THE REAL FIX** for the same complaint is typing a run of
+show into the Sessions table the way NASS and the Policy Stage were done, which gives per-slot times
+and faces instead of a document. Not attempted here; Auri asked for the link.
+
 ## STATE, as of 2026-08-13 evening · READ THIS FIRST
 
 **Session (o) is COMMITTED, PUSHED and DEPLOYED. Working tree clean.**

@@ -88,6 +88,12 @@ export type Session = {
   dateLabel?: string;
   // Side events only. See the note below for why the copy hedges between the two mechanisms.
   access?: "public" | "private-invite";
+  /**
+   * The host's own run of show, where an all-day row is really a whole agenda: "Beyond Unicorns"
+   * is one 13:30 - 17:30 block with seventeen people and no times on any of them. Set by the feed
+   * from lib/sessionProgrammes.ts, guaranteed https there.
+   */
+  programmeUrl?: { url: string; label: string };
 };
 
 // Airtable's `Event type` has exactly two options, "Public Event" and "Private Event (invite
@@ -1055,7 +1061,15 @@ export function OpeningIcon({ size = 12 }: { size?: number }) {
 // of pills on every preview card turned the section into a wall of buttons, and a visitor
 // should read what the event is before signing up for it.
 export function hasDetail(s: Session): boolean {
-  return Boolean(s.speakers?.length) || bodyText(s.description).length > 24 || Boolean(s.registerUrl);
+  return (
+    Boolean(s.speakers?.length) ||
+    bodyText(s.description).length > 24 ||
+    Boolean(s.registerUrl) ||
+    // A run of show is the whole reason to open the card, so it counts on its own. Beyond Unicorns
+    // has seventeen speakers and would open anyway; a row that is nothing but an all-day booking
+    // and a PDF would not have.
+    Boolean(s.programmeUrl)
+  );
 }
 
 /**
@@ -1295,6 +1309,20 @@ export function SessionDialog({ s, onClose }: { s: Session; onClose: () => void 
           </div>
         )}
 
+        {/* THE HOST'S RUN OF SHOW, above the people for the same reason as the sign-up button
+            below it: whoever opened an all-day block wants the timings, and under seventeen bios
+            they are off the bottom of a phone. Outlined rather than filled so it does not compete
+            with Register on a session that has both.
+
+            target="_blank" because it is a PDF: opening it in place loses the agenda the visitor
+            was reading, and Chrome's viewer has no way back to it. */}
+        {s.programmeUrl && (
+          <p className="bp-modal__cta bp-modal__cta--doc">
+            <a href={s.programmeUrl.url} target="_blank" rel="noopener noreferrer">
+              {s.programmeUrl.label}
+            </a>
+          </p>
+        )}
         {/* Above the speaker list on purpose: someone who opened a side event came to sign up,
             and on a phone a CTA under six bios is below the fold. */}
         {s.registerUrl && (
