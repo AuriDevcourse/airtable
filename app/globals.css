@@ -2055,6 +2055,19 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .bp-modal__cta a:hover { filter: brightness(1.12); }
 .bp-modal__cta a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
+/* THE RUN-OF-SHOW LINK. Outlined in the stage's own colour rather than filled, so that on a
+   session carrying both documents and a sign-up the filled button is still the one that takes a
+   commitment. Text colour is inherited, not --track: the track colours are tuned for a white
+   label on a solid fill and several of them fail 4.5:1 as text on the card ground. */
+.bp-modal__cta--doc { margin-top: 16px; }
+.bp-modal__cta--doc a {
+  background: transparent;
+  border: 1px solid var(--track);
+  color: inherit;
+}
+.bp-modal__cta--doc a:hover { background: color-mix(in srgb, var(--track) 14%, transparent); filter: none; }
+.bp-modal__cta--doc a:focus-visible { outline: 2px solid var(--track); outline-offset: 2px; }
+
 /* Session dialog. align-items:flex-start + overflow-y on the overlay so a long speaker list
    scrolls the overlay rather than being clipped by a centred flex item. */
 .bp-overlay {

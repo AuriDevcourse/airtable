@@ -79,6 +79,19 @@ export type ProgramSession = {
   programme?: string;
   location?: string; // Brella's own venue string, e.g. "Bella Center Copenhagen"
   speakers?: ProgramSpeaker[];
+  /**
+   * THE SESSION'S OWN RUN OF SHOW, for an all-day booking that is really a whole agenda inside one
+   * row: "Beyond Unicorns" is 13:30 - 17:30 with seventeen people and no times on any of them, and
+   * the host's PDF is the only place the timings exist.
+   *
+   * Set in lib/brellaprogram.ts from lib/sessionProgrammes.ts, which is where the URLs and the
+   * reasoning live. `label` names the document rather than being defaulted, because a run of show,
+   * a schedule and a workshop plan are not the same thing to whoever is about to press it.
+   *
+   * Optional and rare — two or three sessions of ~230 carry one — so every consumer treats it as
+   * absent by default. Guaranteed https by that module.
+   */
+  programmeUrl?: { url: string; label: string };
   // Public sign-up page. Only the Side Events carry one, and only because they come from
   /**
    * Side events only: the partner's own event artwork, lifted from their ticketing page's

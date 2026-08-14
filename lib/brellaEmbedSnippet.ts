@@ -418,6 +418,13 @@ export function buildBrellaEmbedSnippet({
   #${id} .tbbq-bp__cta a{display:inline-flex!important;align-items:center!important;padding:11px 20px!important;border-radius:10px!important;background:var(--track)!important;background-image:none!important;color:#fff!important;font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.2!important;text-decoration:none!important;text-transform:none!important;box-shadow:none!important;transition:filter .18s}
   #${id} .tbbq-bp__cta a:hover{filter:brightness(1.12)!important;color:#fff!important;text-decoration:none!important}
   #${id} .tbbq-bp__cta a:focus-visible{outline:2px solid #fff!important;outline-offset:2px!important}
+  /* The run-of-show link: outlined in the stage colour, so on a session with both documents and a
+     sign-up the filled button is still the one that takes a commitment. Text colour is INHERITED
+     rather than --track, because several track colours fail 4.5:1 as text on the card ground. */
+  #${id} .tbbq-bp__cta--doc{margin-top:16px!important}
+  #${id} .tbbq-bp__cta--doc a{background:transparent!important;border:1px solid var(--track)!important;color:inherit!important}
+  #${id} .tbbq-bp__cta--doc a:hover{background:color-mix(in srgb,var(--track) 14%,transparent)!important;filter:none!important;color:inherit!important}
+  #${id} .tbbq-bp__cta--doc a:focus-visible{outline:2px solid var(--track)!important;outline-offset:2px!important}
 
   /* ── DIALOG ── position:fixed so it escapes whatever Elementor column it was pasted into. */
   #${id} .tbbq-bp__overlay{position:fixed!important;inset:0!important;z-index:99999!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;padding:5vh 16px!important;background:rgba(0,0,0,.72)!important;overflow-y:auto!important}
@@ -782,7 +789,14 @@ ${originDecl("  ")}
      Join · Approval Required", and one uses Google RSVP where the mechanism is unknown. This
      copy covers both and claims neither — either way a visitor cannot just turn up. */
   var PRIVATE_NOTE="Private event · you need an invitation or the host's approval to attend";
-  function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150||Boolean(safeUrl(s.registerUrl));}
+  /* docUrl(): the host's own run of show, for an all-day row that is really a whole agenda (see
+     lib/sessionProgrammes.ts). HTTPS ONLY, like imgSrc above and unlike safeUrl: this snippet is
+     pasted onto a secure page that nobody can go back and correct, and the server already
+     guarantees https. A missing or malformed url yields "" and the link is simply not drawn. */
+  function docUrl(s){var d=s&&s.programmeUrl;return d?imgSrc(d.url):"";}
+  function docLabel(s){var d=s&&s.programmeUrl;return d&&d.label?String(d.label):"Open the full programme";}
+  /* A run of show counts on its own: it is the whole reason to open the card. */
+  function hasDetail(s){return (s.speakers&&s.speakers.length)||String(s.description||"").length>150||Boolean(safeUrl(s.registerUrl))||Boolean(docUrl(s));}
   /* A side event whose partner has not filled in a time shows its DATE instead of "Time TBC":
      the date is real information a visitor can plan around, the placeholder is not. Only the
      Side Events carry dateLabel, so every other section is unaffected. */
@@ -1458,6 +1472,12 @@ ${originDecl("  ")}
       +'<h2>'+esc(s.name)+'</h2>'
       +'<p class="tbbq-bp__meta">'+(s.section==="side"?hostIcon():stageIcon)+esc(s.section==="side"?[("Hosted by "+s.room),s.location].filter(Boolean).join(" · "):meta)+(s.type?'<span class="tbbq-bp__topic">'+esc(s.type)+'</span>':'')+'</p>'
       +(s.description?'<div class="tbbq-bp__body">'+String(s.description).split("\\n").filter(Boolean).map(function(p){return '<p>'+esc(p)+'</p>';}).join("")+'</div>':'')
+      /* THE HOST'S RUN OF SHOW, above the people for the same reason as the sign-up link below:
+         whoever opened an all-day block wants the timings, and under seventeen bios they are off
+         the bottom of a phone. Outlined rather than filled so it does not compete with Register on
+         a session that has both. New tab because it is a PDF -- opening it in place loses the
+         agenda the visitor was reading. */
+      +(docUrl(s)?'<p class="tbbq-bp__cta tbbq-bp__cta--doc"><a href="'+esc(docUrl(s))+'" target="_blank" rel="noopener noreferrer">'+esc(docLabel(s))+'</a></p>':'')
       /* Above the speaker list on purpose: whoever opened a side event came to sign up, and a
          CTA below six bios is off the bottom of a phone screen. */
       +(safeUrl(s.registerUrl)?'<p class="tbbq-bp__cta"><a href="'+esc(safeUrl(s.registerUrl))+'" target="_blank" rel="noopener noreferrer">Register for this event</a></p>':'')
