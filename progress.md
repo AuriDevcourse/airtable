@@ -4,6 +4,74 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (s) · 2026-08-14 · DEADLINES TABLE AUDITED AGAINST THE LIVE SITE · READ-ONLY, NOTHING WRITTEN
+
+**NOTHING WAS WRITTEN ANYWHERE.** No Airtable writes, no code changes. The token in `.env.local` is
+scoped `data.records:read`, so the fixes below are a list, not an applied diff. Only this file changed.
+
+**WHAT WAS DONE.** Auri asked whether the *Deadlines of Projects and Applications* table
+(base `appgXNjXJqpk9Ebxd`, table `tblKdmTuZRcCFMGjK`, view `viw1eb9ExvXwvZv5t`) still makes sense for
+2026. Pulled all **26 records across 16 projects** via the REST API and checked every date against the
+project's own page on techbbq.dk. 20 of 26 date values are correct.
+
+**FOUR ERRORS FOUND**
+1. **The summit is Aug 26-27, not Aug 26-28.** Confirmed three ways: `/techbbq2026/`, the LP Forum page
+   and the Pension Summit page all say 26-27, Bella Center. Two records carry the wrong span in
+   `Details` · `TechBBQ Summit 2026` ("Main summit: Aug 26-28, 2026") and `Life Science x Deep Tech`
+   ("Summit Aug 27-28").
+2. **Startup Showcase says "Final pitch during Summit: 27-28th of August" on the live page**, which
+   runs a day past the summit. The record inherited it. This is a real contradiction on a public page,
+   not a table typo, so it needs an internal answer.
+3. **Future of Fintech time is wrong in the table:** record says 09:00-12:00, the page says
+   **09:30-13:00, Event Room 3**. Note this agrees with session (r) above, where the hand-typed
+   programme in `tblSlpTzDi2oVYwqv` also sits in Event Room 3 on 27 August.
+4. **Investor Day venue is the Maersk Tower, 15th floor** (University of Copenhagen), not Bella Center.
+   Dinner is at D'Angleterre. The record records no venue at all.
+
+Also thin: Deep Tech Day should carry **09:00-17:00, Event Room 6**.
+
+**"Matrikel1, Copenhagen" IS NOT A VENUE.** It is the office address in the site footer and it leaks
+into every scrape of techbbq.dk. Do not let it into a venue field.
+
+**FIVE 2026 ITEMS WITH REAL DATES HAVE NO ROW AT ALL**
+- **Media accreditation deadline · August 16, 2026** (from `/media/`). Two days out at time of writing.
+  Highest-priority gap.
+- **Defence & Dual-Use Summit** · Aug 26 09:30-17:30 · Aug 27 Royal Reception 08:00-09:30 (registration
+  only) + Defence Tech & Cyber Arena 09:30-11:30 · Bella Center.
+- **The Policy Stage** · Aug 27 · Event Rooms 5, 6, 7 · Bella Center.
+- **Nordic IPO & Stock Market Day** · Aug 26, 12:30-17:15 · Bella Center. Lives on an external domain
+  (`nordic-ipo-stockmarketday26.fbv.dk`), which is likely why it was missed.
+- **Board Summit** · no row, and no 2026 date published either.
+
+**SIX THINGS THE WEBSITE CANNOT ANSWER** (someone internal has to)
+1. **Startup Capital** · applications open / deadline / announcement are all literally "TBD" on the
+   live page with the pitch on **Nov 3**. The page also still promises an email "no later than May 5th",
+   left over from an earlier cycle.
+2. **Board Summit 2026** · programme block renders "Loading…", page still lists 2025 speakers only.
+3. **Nordic-Africa 2026 programme** · same "Loading…" state.
+4. **Volunteer application deadline** · never stated. Sign-up opened Mar 20, briefing is "TBA".
+5. **Ticket price tier cutoffs** · not published anywhere.
+6. **`/startup-program/` is stale in public** · says "Applications open April 2025" and lists Hero
+   Academy as "Applications open April 30th" when Apr 30 was the *deadline*. Wrong year on a live page.
+
+**TABLE STRUCTURE VERDICT: sound.** Project / Deadline type / Date / Flag / Lead / Page covers the job
+and the `Days left` formula computes correctly. Two weaknesses · `Details` is doing too much work
+(session dates, times and venues buried in free text where nothing can sort or flag them, so Time and
+Venue deserve real fields), and there is no `Source verified on` field, which would make an annual
+re-check like this cheap.
+
+**NEXT STEPS**
+1. Widen the Airtable token scope to `data.records:write` (or have Auri edit by hand) and apply the
+   four fixes + five missing rows above.
+2. Chase the media accreditation deadline into the table before Aug 16.
+3. Ask the Startup Showcase owner which is true: Aug 27 or Aug 27-28. Fix whichever is wrong,
+   including the public page.
+4. Ask Rares / the Startup Capital owner for the November application timeline, it is ~11 weeks out
+   with no open window.
+5. Fix `/startup-program/`'s "April 2025" and the Hero Academy open/deadline mislabel on the live site.
+
+---
+
 ## SESSION (r) · 2026-08-14 · FUTURE OF FINTECH MOVED INTO THE SESSIONS TABLE, WITH PEOPLE
 
 **WRITTEN TO AIRTABLE TODAY, a git revert does NOT undo it:** 8 new rows in the Sessions table
