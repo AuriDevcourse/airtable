@@ -4,6 +4,65 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (q) · 2026-08-14 · FUTURE OF FINTECH CAME BACK · A RENAMED COLUMN CAN NO LONGER KILL AN AGENDA
+
+**CURRENT STATE: fixed locally in `lib/program.ts`, UNCOMMITTED, so PRODUCTION IS STILL BROKEN.**
+`https://airtable-woad.vercel.app/api/program?event=fintech` returns
+`{"error":"Could not reach the program source."}` until this is pushed. Locally the tab serves all 8
+sessions. Nothing was written to Airtable in this session.
+
+**WHAT HAPPENED.** Auri: "why did the program of Future of Fintech disappear?" Airtable was refusing
+the whole request:
+
+```
+[program:fintech] fetch failed 422 {"error":{"type":"UNKNOWN_FIELD_NAME",
+  "message":"Unknown field name: \"Type of Session\""}}
+```
+
+The `fintech` source pinned a column called `Type of Session`. It is not in the table's schema any
+more. **Airtable 422s the ENTIRE request when one name in `fields[]` is unknown**, so eight intact
+rows became a 502 and the tab rendered empty. NOT a code regression: `git log -S "Type of Session"`
+shows that string untouched in this source since `67c9c6d`, 29 July. The table was reworked at the
+Airtable end — it now carries `Session Description`, `Hierarchy` and `Role at the event ( optional )`,
+which reads like the programme table was merged with the speaker registration form.
+
+**THE ROWS WERE NEVER LOST**: 8 in view `viw0mk6kOUKxNqgzU`, 09:30 Networking Breakfast, two founder
+talks, Panels 1 to 4, ending 12:50.
+
+**WHAT WAS CHANGED, all in `lib/program.ts`:**
+- `PROGRAM_SOURCES.fintech` · `type` REMOVED. Deliberately NOT repointed at
+  `Role at the event ( optional )`, the only vaguely similar column: it describes a PERSON and would
+  have printed "Speaker" as a session type. Cards now show time and title with no kicker.
+- `PROGRAM_SOURCES.fintech` · `description: "Session Description"` ADDED. It exists in the table and
+  was simply never read. **Empty on all 8 rows today**, so it renders nothing until somebody fills it.
+- `AirtableSource.fields.type` is now OPTIONAL, and the read is `f.type ? str(r[f.type]) : ""`.
+- `fetchProgram()` · the paging request moved into `requestPage()`, which reads `UNKNOWN_FIELD_NAME`
+  off a 422, drops the field Airtable named, and re-requests. Bounded at `wanted.length` attempts.
+  **`f.name` and `f.timeSlot` are never dropped** (the `essential` set) — a list of blank rows at
+  unknown times is worse than an error somebody has to look at. It `console.error`s on EVERY read, so
+  a rename still gets fixed rather than living behind the recovery forever.
+
+**GOTCHA, do not "simplify" this away:** `fields[]` stays PINNED rather than fetching whole records.
+That table also holds Email, Phone Number, dietary requirements and a GDPR consent checkbox, and the
+allow-list is the only thing keeping them out of a public feed (security rule 3). The recovery drops
+one field; it never opens the request up.
+
+**VERIFIED.** `tsc --noEmit` clean. Feed returns 8 sessions; `/program` → Future of Fintech renders
+all 8 in a real browser. The recovery path was tested for real by pointing `description` at a column
+that does not exist: still 8 sessions, then reverted.
+
+**NEXT STEPS**
+1. **Commit and push `lib/program.ts` to main** — production is broken until then. Auri had not
+   given the go-ahead when the session ended.
+2. **Ask Auri whether he wants session-type kickers back.** If yes: add a single-select to the
+   Future Of Fintech table and name it in `PROGRAM_SOURCES.fintech.fields.type`. One line.
+3. **`Session Description` is empty on all 8 rows.** Filling it is what makes this agenda say what
+   is actually happening, which is the same complaint that produced the Beyond Unicorns PDF link in
+   session (p).
+4. **Check the other Airtable-sourced agendas against their tables' live schemas.** This one broke
+   silently for an unknown number of days. The recovery now stops a repeat from being fatal, but a
+   rename still costs a column until somebody reads the log.
+
 ## SESSION (p) · 2026-08-14 · A SESSION CAN NOW LINK ITS OWN RUN OF SHOW
 
 **Built on `feat/session-programme-pdf`, merged to `main` and pushed on Auri's instruction, so it

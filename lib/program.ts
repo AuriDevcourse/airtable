@@ -174,7 +174,13 @@ type AirtableSource = {
     name: string;
     day?: string;
     timeSlot: string;
-    type: string;
+    /**
+     * The kicker above the title ("Panel", "Keynote"). OPTIONAL, because a programme is allowed not
+     * to classify its sessions — Future of Fintech lost its "Type of Session" column when the table
+     * was reworked, and pinning a column that no longer exists took the whole agenda down. See the
+     * UNKNOWN_FIELD_NAME recovery in fetchProgram().
+     */
+    type?: string;
     description?: string;
     room?: string;
     gate?: string; // single-select whose value "NO" hides the row
@@ -455,12 +461,27 @@ export const PROGRAM_SOURCES = {
   },
   fintech: {
     kind: "airtable",
-    table: "tbleh7Lqv1zMQaUKx", // Future of Fintech
-    view: "viw0mk6kOUKxNqgzU", // program rows (no website gate on this one)
+    table: "tbleh7Lqv1zMQaUKx", // Future Of Fintech
+    view: "viw0mk6kOUKxNqgzU", // Future of Fintech Program 2026
+    // NO `type` ANY MORE. This source read a "Type of Session" column, and on 2026-08-14 the whole
+    // tab was empty: Airtable answers 422 UNKNOWN_FIELD_NAME when a pinned field is gone, and the
+    // 422 killed the request rather than one value, so eight sessions vanished together. The column
+    // is not in the table's schema now — the closest thing is "Role at the event ( optional )",
+    // which describes a PERSON and would have printed "Speaker" as a session type.
+    //
+    // The agenda reads fine without it: the cards show time, title and description and no kicker.
+    // To get kickers back, add a single-select to the table and name it here.
+    //
+    // THE ROWS ARE ALL STILL THERE — eight, 09:30 to 12:50, breakfast then four panels — so nothing
+    // was lost in Airtable. fetchProgram() now survives this class of rename on its own; this entry
+    // is corrected as well, so the recovery is not doing work on every read.
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
-      type: "Type of Session",
+      // Added at the same time: it exists in the table, holds what each session is about, and was
+      // simply never read. Empty on all eight rows today, so it renders nothing until somebody
+      // fills it in.
+      description: "Session Description",
     },
   },
 } satisfies Record<string, SourceConfig>;
@@ -584,26 +605,73 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   const stripRole = ({ name, meta, photo }: ProgramPerson): ProgramPerson => ({ name, meta, photo });
   let offset: string | undefined;
 
-  do {
-    const params = new URLSearchParams();
-    if (cfg.view) params.set("view", cfg.view);
-    if (cfg.filter) params.set("filterByFormula", cfg.filter);
-    params.set("pageSize", "100");
-    for (const field of wanted) params.append("fields[]", field);
-    if (offset) params.set("offset", offset);
+  /**
+   * A RENAMED COLUMN MUST NOT TAKE A WHOLE AGENDA DOWN.
+   *
+   * Airtable answers `422 UNKNOWN_FIELD_NAME` when ANY name in `fields[]` is not in the table, and
+   * it fails the entire request rather than that one value. On 2026-08-14 the Future of Fintech tab
+   * was empty for exactly that reason: the "Type of Session" column had gone in a rework, and eight
+   * intact session rows became a 502. The kicker on a card is not worth an agenda.
+   *
+   * So the field Airtable names in the error is dropped and the page re-requested. The columns that
+   * are the agenda itself — the title and the time — are NEVER dropped: a list of blank rows at
+   * unknown times is worse than an error somebody has to look at.
+   *
+   * `fields[]` STAYS PINNED, which is the point of doing it this way rather than fetching whole
+   * records. This table also holds Email, Phone Number, dietary requirements and a GDPR consent
+   * box, and the allow-list is what keeps them out of a public feed (security rule 3).
+   */
+  const dropped = new Set<string>();
+  const essential = new Set([f.name, f.timeSlot].filter(Boolean) as string[]);
+  const unknownField = (detail: string): string | null => {
+    try {
+      const body = JSON.parse(detail) as { error?: { type?: string; message?: string } };
+      if (body.error?.type !== "UNKNOWN_FIELD_NAME") return null;
+      return /Unknown field name:\s*"(.+)"\s*$/.exec(body.error.message ?? "")?.[1] ?? null;
+    } catch {
+      return null;
+    }
+  };
 
-    const res = await fetchWithTimeout(
-      `${API}/${BASE_ID}/${cfg.table}?${params.toString()}`,
-      { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" }
-    );
+  const requestPage = async (
+    pageOffset: string | undefined
+  ): Promise<{ records: AirtableRecord[]; offset?: string }> => {
+    // One attempt per field it could possibly complain about, plus the successful one. Bounded so a
+    // 422 the parser misreads can never loop.
+    for (let attempt = 0; attempt <= wanted.length; attempt++) {
+      const params = new URLSearchParams();
+      if (cfg.view) params.set("view", cfg.view);
+      if (cfg.filter) params.set("filterByFormula", cfg.filter);
+      params.set("pageSize", "100");
+      for (const field of wanted) if (!dropped.has(field)) params.append("fields[]", field);
+      if (pageOffset) params.set("offset", pageOffset);
 
-    if (!res.ok) {
+      const res = await fetchWithTimeout(
+        `${API}/${BASE_ID}/${cfg.table}?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" }
+      );
+
+      if (res.ok) return (await res.json()) as { records: AirtableRecord[]; offset?: string };
+
       const detail = await res.text();
+      const missing = res.status === 422 ? unknownField(detail) : null;
+      if (missing && wanted.includes(missing) && !dropped.has(missing) && !essential.has(missing)) {
+        // LOUD, every read, and never silent: the agenda is now missing a column and somebody has
+        // to either restore it in Airtable or correct PROGRAM_SOURCES.
+        console.error(
+          `[program:${source}] "${missing}" is not a column in this table any more; serving the agenda without it. Fix the field name in lib/program.ts or restore the column.`
+        );
+        dropped.add(missing);
+        continue;
+      }
       console.error(`[program:${source}] fetch failed`, res.status, detail);
       throw new ProgramError("Could not reach the program source.", 502);
     }
+    throw new ProgramError("Could not reach the program source.", 502);
+  };
 
-    const data = (await res.json()) as { records: AirtableRecord[]; offset?: string };
+  do {
+    const data = await requestPage(offset);
     for (const rec of data.records) {
       const r = rec.fields;
       // Opt-out gate: only an explicit "NO" hides a row (blank/YES both show).
@@ -613,7 +681,7 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
         name: str(r[f.name]),
         day: f.day ? str(r[f.day]) : "",
         timeSlot: str(r[f.timeSlot]),
-        type: str(r[f.type]),
+        type: f.type ? str(r[f.type]) : "",
         description: f.description ? str(r[f.description]) : "",
         room: f.room ? str(r[f.room]) : "",
       };
