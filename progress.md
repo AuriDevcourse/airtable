@@ -43,14 +43,15 @@ programme moved to where every other hand-typed agenda lives, and Auri chose tha
 - **FACES COME FROM THE REGISTRATION FORM**, via `facesFromView` → `tbleh7Lqv1zMQaUKx` view
   `viwsqDRAVlgJh3STT`, `Name` + `Attachments`, feed `fintech` (already in lib/photo.ts). These people
   are NOT in the CRM's Marketing Project Overview — they registered through the fintech team's form —
-  so the NASS-style view join is the only thing that finds them. **4 of 4 faces resolve.**
+  so the NASS-style view join is the only thing that finds them. **5 of 5 seats get a face** — 3
+  distinct people across 5 seats, since Sander and Ken each appear twice.
 - `app/program/page.tsx` · the fintech tab gains `people: true`, `heading: "August 27th"`,
   `sub: "Event Room 3 · Hall C"`.
 
 **THE OLD 8 ROWS IN `tbleh7Lqv1zMQaUKx` ARE NO LONGER READ** and were left in place, exactly as the
 NISS ones were. If the fintech team keeps editing there it will silently drift from what publishes.
 
-**VERIFIED.** `tsc --noEmit` clean. Feed: 8 sessions, all typed, 3 with people, 4/4 faces. Rendered
+**VERIFIED.** `tsc --noEmit` clean. Feed: 8 sessions, all typed, 3 with people, 5/5 seats with a face. Rendered
 in a real browser on /program → Future of Fintech.
 
 **NEXT STEPS**
