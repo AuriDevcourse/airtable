@@ -76,6 +76,7 @@ import {
   hasDetail,
   BreathBadge,
   OpeningBadge,
+  ProgrammeBadge,
   SessionDialog,
 } from "@/components/ProgramTimeline";
 
@@ -502,6 +503,10 @@ function SessionCard({
       )}
       {/* Last line on the card, Auri's placement: it is a caveat, not a headline. */}
       {s.access === "private-invite" && <p className="bp-card__note">{PRIVATE_NOTE}</p>}
+      {/* THERE IS A RUN OF SHOW BEHIND THIS CARD. Last, under the caveat, because it is a footnote
+          about the card rather than a claim about what the session is — and not a link, because the
+          card is already a button and the PDF belongs in the dialog. See PROGRAMME_ICON_PATHS. */}
+      {s.programmeUrl && <ProgrammeBadge />}
     </>
   );
   const style = sessionVars(s);

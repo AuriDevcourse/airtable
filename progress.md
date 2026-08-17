@@ -4,6 +4,243 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (w) · 2026-08-17 · BOARD SUMMIT: PDF LINK + THE 4 MISSING PEOPLE · CBC PROGRAMME CHANGED
+
+**BRANCH** `board-summit-programme-link`, off `main` (which was carrying session (v)'s uncommitted
+NISS flag; that change came along and is untouched).
+
+**CURRENT STATE.** Boardway's run of show is linked from both surfaces that show the Board Summit, and
+all 31 of its people are now published. `needsRole` is empty for the first time. Nothing is deployed.
+
+**1 · THE PDF LINK** · `https://techbbq.dk/wp-content/uploads/2026/08/Board-Summit-Program-2026.pdf`
+(Auri uploaded it to WP media). Two surfaces, because the Board Summit is two different objects:
+- **The Brella board** carries it as ONE all-day row, 31 people heaped on it, no times — the Beyond
+  Unicorns shape. One entry in `lib/sessionProgrammes.ts` (`/^board summit\b/`) puts the link on that
+  card, and therefore on `/brella-program`, the pasted embed and `/api/program?event=brella` at once.
+- **The agenda embed** (`?event=board`, 14 real sessions) gets a new `doc` option in
+  `lib/agendaSnippet.ts`, wired on the `board` entry in `app/program/page.tsx`. **ONE link above the
+  list, not one per session** — the same document answers all fourteen rows, and Auri's ask ("add this
+  link to all the sessions") is satisfied by it being unmissable once rather than repeated fourteen
+  times. Say the word if he wants it per row instead.
+- The link also renders on the `/program` dashboard itself, so it can be checked without pasting a
+  snippet into WordPress.
+
+**2 · THE 4 MISSING PEOPLE** · `scripts/board-summit-fill-roles.mjs` (dry run by default, `--write`
+applied 2026-08-17). One cause, two symptoms: the four people with no `Role` in Marketing Project
+Overview were both **off the roster wall** (the `BOARD_ROLES` gate in `lib/boardsummit.ts`) and
+**missing from their sessions**. Roles read off the PDF's own labels, per Auri: Interviewer/Moderator
+→ Moderator, Interviewee/Speaker/Panel/Keynote/Founders → Speaker.
+
+| Person | Role | Session | Cell was |
+|---|---|---|---|
+| Barbara Myhre Isaksen | Moderator | Human Judgment in AI | empty |
+| Henrik Horn Andersen | Moderator | Technology, Trust & Society | `TBC` |
+| Line Kloster Pedersen | Speaker | Boardroom Dilemmas | not listed |
+| Frederikke Schmidt | Speaker | Boardroom Dilemmas | not listed |
+
+Verified live: 8 moderator slots, 27 speaker slots, **every one of the four has a face**, roster
+`counts` now `{Speaker: 25, Moderator: 6}`, `needsRole: []`.
+
+**3 · WHAT THE PDF SAYS THAT WAS NOT WRITTEN** — deliberate, all four need a human:
+- **"Can Europe Compete?" lists Bjarne Corydon as MODERATOR and names no panel.** He is currently a
+  Speaker. Moving him leaves a card with a moderator and nobody speaking, which is worse than the
+  mislabel. **Ask Boardway who the guest is.**
+- **"Stable Talk" moderator is blank in the PDF too.** The cell still says `TBC`.
+- **Two name spellings disagree.** PDF `Bianca Bruun` vs CRM `Bianca Bruhn`; PDF `Thomas Koefod` vs
+  CRM `Thomas Koefoed`. The CRM's spelling is what the rest of techbbq.dk shows, so nothing changed.
+- **Two counts in the PDF disagree with its own lists**: "Panel (4x)" on Technology, Trust & Society
+  names 3; "Founders (3 x)" on Boardroom Dilemmas names 2. One person may still be unnamed on each.
+- The PDF's "Live Interview" files Henriette Divert under *Interviewee* and Viktor Axelsen under
+  *Speakers*. That is the PDF's typo — she is Interviewer on the two sessions either side — and the
+  data already has it the right way round.
+
+**4 · CBC: THE PROGRAMME WE PUSHED TO BRELLA IS OUT OF DATE.** Not fixed, only found. Auri has four
+files; the newest is `Downloads/CBC26 @TechBBQ - programme overview (1).pdf`, PDF creationDate
+**2026-08-17**, vs `...overview.pdf` at 2026-08-14 and `CBC_2026_Program.pdf` (the one
+`brella-push-cbc.mjs` was built from) older still. The new programme is a **different agenda**:
+
+| | old (in Brella now) | new (17 Aug PDF) |
+|---|---|---|
+| 26 Aug | 14:00–17:00, pitching blocks | **15:00–18:00**, Welcome · Creativity & AI panel · CBC Denmark jury · Keynote · Winner |
+| 27 Aug | 09:30–13:00, 7 sub-sessions | **09:30–12:30 Global Finals + 12:30–13:00 Winner announcement** |
+| weekdays | Tue 26 / Wed 27 (**wrong**) | Wed 26 / Thu 27 (correct) |
+
+So the **13 CBC sub-sessions live in Brella are wrong on times and titles**, and the parent Day 1
+block (15:00–17:30) matches neither. It also names people the old one did not: Rasmus Wiinstedt
+Tscherning, Ondrej Spala, Sarthak Ahuja, Anne Rahbek, Petra Kaukua, Michael Bjørnlund, Edina Bugar,
+Mthabisi Bokete, Anna Sofia Abrahamson. **Next: rewrite `brella-push-cbc.mjs` off the 17 Aug PDF and
+delete the stale sub-sessions.** Do not run the old `--parent` fix; its 14:00 start is from the dead
+version.
+
+**5 · THE LINK WAS THERE AND COULD NOT BE FOUND** (Auri, 2026-08-17: "on here there is no link
+whatsoever"). Both halves of that are true, and the second is the bug. Verified in his own Chrome: the
+anchor renders correctly in the dialog, and the board gave no sign it existed — the mark now does.
+- **`ProgrammeBadge` / `ProgrammeIcon`** (`components/ProgramTimeline.tsx`, Lucide file-text via
+  `PROGRAMME_ICON_PATHS` in `lib/brellaTheme.ts`, `.bp-doc` in `globals.css`). On any card whose
+  session has `programmeUrl`: the pill with the word on a list card and on an all-day block, the bare
+  icon inside the title on a timeline card (which can be 24px tall).
+- **A mark, not a link.** The card is already a `<button>`; an anchor inside it is invalid markup and
+  a coin-flip for which one a tap hits. The PDF stays in the dialog.
+- **The board also opens on DAY 1 (26 August) and remembers the last day you chose.** Board Summit is
+  27 August, so it is not on the tab you land on. Not changed, but it is half of why he saw nothing.
+
+**6 · THE REAL FIND: BRELLA HYPERLINKS ARE BEING THROWN AWAY.** Auri: "there is a Google Drive link".
+There is — inside Brella's Draft.js `content.entityMap` — and `lib/brellaprogram.ts` flattens the
+content to text and drops every one. **26 of 303 timeslots carry a link.** 21 are sign-ups already
+captured separately as `registerUrl`, so the losses are:
+
+| Session | Dropped link |
+|---|---|
+| Beyond Unicorns | Drive `14D4qkms_RlRv4L0z8qKNQF0Rc3DCWcIe` |
+| Board Summit by Boardway | Drive `1VDre9Bcf7tsKNrWr8XL9OdrjSy8bCGtz` |
+| CBC Initial Pitching | Drive `1pH9lanDlZ45Dlrke7HLMJlnN7Hxx_JhH` |
+| CBC Global Finals & Creativity & AI | Drive `1s5P_Wnn4udz24Eta6vxF7Jyz2qMZcLwb` |
+| Policy Stage | Drive `1Mz5TiwWsuOXKfvHnp8Qutcaviy1NoBa9` |
+| **Scaling Europe** | `cloud.google.com/events/scaling-europe` — and its description ends with the dead words "REGISTRATION LINK". No `registerUrl` on this row, so the sign-up is unreachable. A real bug, not a nicety. |
+
+**Proposed, NOT DONE, needs Auri's call:** read `entityMap` in the mapper and use the first link as a
+**fallback** for `programmeUrl`, with `lib/sessionProgrammes.ts` overriding it wherever we host the
+PDF on techbbq.dk. Then no programme can silently lose its document, the hand-maintained list shrinks
+to "which ones do we serve ourselves", and Scaling Europe's sign-up comes back. The reason to ask
+first: it puts **Google Drive URLs on a public techbbq.dk board**, where a sharing permission nobody
+re-checks is a dead link in front of attendees.
+
+**GOTCHAS**
+- **`Role` in Marketing Project Overview is a `multipleSelects`, not a single select.** A bare string
+  422s with "Cannot parse value for field Role". Options: Speaker, Moderator, Keynote, Managing
+  Partner, Host. The script writes `["Moderator"]` and **keeps an existing role** rather than
+  replacing it.
+- **`GET /v0/<base>/<table>/<recordId>` does not accept `fields[]`** — it 422s on one. Use the list
+  endpoint with `filterByFormula=OR(RECORD_ID()='…')` to keep the field allow-list.
+- A 422 rejects the **whole** PATCH batch, so the first failed run wrote nothing. That is the reason
+  `typecast` is off here.
+- Three CRM names carried **double spaces** ("Barbara  Myhre   Isaksen"), visible on the public roster
+  wall. Collapsed in the same PATCH. The name join folds whitespace anyway, so nothing depended on it.
+- Both board feeds sit behind a 1h cache. Use `?fresh=1` or the dashboard refresh button.
+
+**FILE POINTERS** · `lib/sessionProgrammes.ts` (both PDF entries) · `lib/agendaSnippet.ts`
+(`AgendaOptions.doc`, `escapeHtml`, the `.tbbq-agenda__doc` CSS, `var DOC`) · `app/program/page.tsx`
+(the `board` entry's `doc`, `CopyAgendaEmbed`, the dashboard link) ·
+`scripts/board-summit-fill-roles.mjs` (rerunnable, idempotent).
+
+---
+
+## SESSION (w) · 2026-08-17 · NISS REWIRED TO THE TYPED CELLS + A ROSTER ON /program
+
+**CURRENT STATE.** `/program?event=niss` publishes the people from `Speaker Details` /
+`Moderator Details`, matching Airtable exactly: **41 people across 10 sessions, 37 with a face**. A
+**speaker & moderator roster** now sits under the agenda on the NISS tab only. Dev server only,
+nothing deployed.
+
+**WHY THE REWIRE (Auri's call).** NISS was the one programme reading LINKED records
+(`Session Lineup` → `tblfIPjV4t1c1628h`). Those links disagreed with the typed cells on **eleven of
+thirteen** sessions, and the typed cells are what the NISS team keeps current — Brella agreed with
+the cells, not the links. Two sessions ("Nordic VC Outlook 2026", "Nordic Founder Pitch") were linked
+to the SAME four people, i.e. a copy-pasted cell. The link fields are left in the table, unread.
+
+**THE PARSER HAD TO LEARN NISS'S FORMAT.** Other programmes write "Name, Title, Company · …". NISS
+writes "Thomas Heshe – EasySBC · Tim B. Madsen – Copenhagen Quantum" and sometimes joins two people
+with ";". `parsePeople` now splits name/meta at whichever comes FIRST, a dash or a comma
+(earliest-wins keeps every older programme byte-identical), and the dash rule is deliberately narrow:
+an en/em dash always, a plain hyphen ONLY when a space follows. Without that last part
+"Peter Winther-Schmidt" and "Co-Founder" get cut in half.
+
+**THE SEMICOLON IS OPT-IN, AND THAT MATTERS.** Splitting on ";" globally silently broke **NASS on six
+sessions** — it uses ";" INSIDE a job title ("Development Economist; Diaspora & Transnationalism"),
+so it invented nameless phantom people. Now `semicolonSplitsPeople: true`, set on NISS alone. Do not
+turn it on for a source whose cells you have not actually read.
+
+**FACES COME FROM THE ROSTER.** Reading typed cells lost the portraits the links used to bring (20 of
+41). Added `facesFromView` → the NISS table's "NISS Speaker and Moderator List 2026"
+(`viwRMZMX5NeN68XX7`), joined by name, which took it to 37. The session's own photo cell still wins
+where filled — that is how Sara Resvik got a face without existing in the roster at all.
+
+**THE ROSTER SECTION** · `NissRoster` in `app/program/page.tsx`, consuming the pre-existing
+`/api/niss-speakers` (same table, same view — no new feed was needed). 40 people, Moderators then
+Speakers, portrait + title + company + LinkedIn. Anyone the roster holds that **no session names** is
+flagged "not on the agenda", recomputed per render, because Auri explicitly does not want to
+cross-check two lists by hand. NISS only; verified absent on NASS and Policy Stage.
+
+**GOTCHAS**
+- **Honorific matching order.** Strip punctuation FIRST, then the honorific. `mr\s+` never matches
+  "mr." while the dot is there, and Manish Prabhat was flagged as missing from the session he opens.
+  Same fix covers "Dr.Rajneesh".
+- **Duplicate roster rows are dropped as ambiguous**, not guessed. Three names appear twice (one
+  "Speaker", one "already on the website"): **Anand Unnikrishnan, Rajat Tandon, Archana Jahagirdar**.
+- Photo counts that disagree with people counts mean photos are dropped for that whole group, by
+  design. A wrong face beside a wrong name is worse than none.
+- The roster grid is ~40 lazy images; they load on scroll. 76 images "pending" in a headless check is
+  `loading="lazy"` doing its job, not a broken proxy (measured: 10 parallel proxy reads in 1.4s).
+
+**STILL OPEN IN AIRTABLE (no code can fix these)**
+1. **`Colin Brown Sparkmind Capital`** in India Shark Tank has no separator — needs "Colin Brown –
+   Sparkmind Capital". Until then it is one long name with no face.
+2. **`Anand Unnikrishan`** in the session cell vs **`Unnikrishnan`** in the roster.
+3. The three **duplicate roster rows** above.
+4. **Thomas Marschall** is in India Shark Tank but exists NOWHERE in the 469-row NISS table.
+   LinkedIn: https://www.linkedin.com/in/thomas-marschall-bb280a6/ . Auri: leave unplaced people
+   alone, so this is informational.
+5. Ten roster people are flagged "not on the agenda". Five are spelling drift (Chandra R Srikanth vs
+   **Chandra Ranganathan**, Tim Bruun/Tim B., Amit Kumar/Amit K., Bendjazia/Bendjazi,
+   Unnikrishnan/Unnikrishan); five are genuinely unplaced and Auri is fine with that.
+
+**VERIFIED** · `tsc --noEmit` clean · `npm run audit:fields` clean · before/after diff across all
+nine programmes shows **only NISS changed** · roster renders on the NISS tab and no other.
+
+**FILE POINTERS** · `lib/program.ts` (the `niss` source, `semicolonSplitsPeople`, `parsePeople`) ·
+`app/program/page.tsx` (`NissRoster`, `nameKey`) · `lib/programFaces.ts` (the name join) ·
+`lib/niss.ts` + `app/api/niss-speakers` (the roster feed, unchanged).
+
+---
+
+## SESSION (v) · 2026-08-17 · NISS EMBED DROPPED ITS 8 SPEAKERS · ONE FLAG
+
+**CURRENT STATE.** The `/program` copy-embed for **NISS 2026** now renders its line-up. Verified in a
+real browser: 13 rows, **8 people, 8 photos loaded**, Moderator/Speakers labels correct. One line of
+config changed, no API or data change.
+
+**WHAT WAS WRONG.** `/program` renders `onStage` for every event **unconditionally**
+(`app/program/page.tsx:540`), but the copied snippet gates faces behind a `PEOPLE` flag
+(`lib/agendaSnippet.ts`, `function people(st){ if(!PEOPLE||!st) return ""; }`). The flag is opt-in per
+event in the `EVENTS` array, and **NISS never set it** — it was written before any programme named
+people, and nobody revisited it when NISS gained a line-up. So the dashboard showed 8 people and the
+snippet you pasted showed none. The data was always there.
+
+**THE FIX** · `app/program/page.tsx` · `people: true` on the `niss` entry. That is the whole change.
+
+**AUDITED THE REST.** Cross-checked all 9 events' `onStage` data against their `people` flag. NISS was
+the only mismatch — nass 52, fintech 21, policy 34, board 31, pension-summit 23, family-office 9,
+lp-forum 20, investor-day 15 people, all already flagged. NISS had 8 and no flag.
+
+**GOTCHAS**
+- **The snippet fetches PRODUCTION, always.** It hard-rejects a localhost ORIGIN and falls back to
+  `https://airtable-woad.vercel.app`, so nobody pastes a dev URL into WordPress. Good guard, but it
+  means **this fix does nothing until deployed** and cannot be tested by pasting locally.
+- To test an embed locally you must strip that fallback from a throwaway copy. CORS on the real feed
+  is pinned to `techbbq.dk`, so a localhost test page is refused by the production API by design.
+- The copy button writes to the clipboard, and `navigator.clipboard.readText()` hangs on a permission
+  prompt under automation. Patch `navigator.clipboard.writeText` before clicking and read the captured
+  string instead.
+- `public/niss-embed.html` is **unrelated legacy** · a NISS **2025** speaker wall on
+  `/api/niss-speakers`, not the agenda. It has no `PEOPLE` flag and needed no change. Do not "fix" it.
+- **This class of bug is not covered by `npm run audit:fields`.** That audit checks Airtable field
+  types; this was a page-config flag. The general shape — the dashboard renders something the embed
+  silently omits — has no guard yet.
+
+**NEXT STEPS**
+1. **Deploy.** Sessions (t), (u) and (v) are all dev-server only. The NISS embed on techbbq.dk still
+   drops its speakers until this ships.
+2. When any programme starts naming people, set `people: true` on it. The type comment in
+   `lib/agendaSnippet.ts` now says so at the definition.
+3. Consider a guard for the real pattern here: an event whose feed carries `onStage` while its config
+   has `people` off is always a mistake, and could fail a check rather than wait for someone to notice.
+4. Re-check the 6 NISS sessions still marked `lineupPending` once the NISS team fills them.
+
+**FILE POINTERS** · `app/program/page.tsx` (the `EVENTS` array, the flag, and `OnStage` at :540) ·
+`lib/agendaSnippet.ts` (the `people` type comment + the `PEOPLE` gate).
+
+---
+
 ## SESSION (u) · 2026-08-17 · THE SAME BUG, MADE UNREPEATABLE · `npm run audit:fields`
 
 **CURRENT STATE.** A schema audit now cross-checks **every** Airtable field this repo reads against

@@ -33,10 +33,39 @@ export type AgendaOptions = {
   // Fintech wants every title the same size, so it passes false.
   bigOpening?: boolean;
   // Show WHO IS ON STAGE under each session: the moderator first, then the speakers, each with their
-  // face when the feed has one. Off by default, because only the Policy Stage feed carries `onStage`
-  // and turning it on for the others would render nothing while changing their markup.
+  // face when the feed has one. Off by default, and that default is now the sharp edge here rather
+  // than a safe choice: the dashboard renders `onStage` for EVERY event unconditionally, so any
+  // programme that gains a line-up shows it on /program while its copied embed silently drops it.
+  // NISS sat that way until 2026-08-17 (8 people on the page, none in the snippet).
+  //
+  // SO: when a programme starts naming people, set `people: true` on it in app/program/page.tsx.
+  // Leaving it off on a feed that carries no `onStage` at all is still free — `people()` renders
+  // nothing and the markup is unchanged.
   people?: boolean;
+  // THE PARTNER'S OWN PROGRAMME DOCUMENT, as a link above the list. For an agenda that also exists
+  // as a designed PDF the host sends out: the Board Summit's run of show, Creative Business Cup's
+  // programme overview.
+  //
+  // ONE LINK PER EMBED, NOT ONE PER SESSION. The same document answers all fourteen rows, so a copy
+  // under each one is the same sentence printed fourteen times — and on a page where every row
+  // already carries a time, a tag and up to four faces, it is the line that gets skipped. Above the
+  // list it is read once, before the reader starts scanning.
+  //
+  // The URL must be https and is dropped if it is not: see the guard in buildAgendaSnippet. This
+  // snippet is pasted into WordPress by hand and lives there uncorrected, so a bad value has to fail
+  // at copy time rather than on a public page.
+  doc?: { url: string; label: string };
 };
+
+/**
+ * Escape for HTML built HERE rather than in the browser. The snippet's own esc() runs on feed data;
+ * this runs on `doc`, which is a constant from app/program/page.tsx and gets baked into the markup.
+ */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string
+  );
+}
 
 // Everything that differs between the two looks lives here.
 const THEMES = {
@@ -204,9 +233,23 @@ export function buildAgendaSnippet({
   icons = true,
   bigOpening = true,
   people = false,
+  doc,
 }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
   const t = THEMES[theme];
+
+  // HTTPS ONLY, and silently dropped otherwise — the same rule and the same reasoning as
+  // lib/sessionProgrammes.ts: techbbq.dk is https, and an http PDF link is a mixed-content warning
+  // on a page that is otherwise clean. Built here as finished markup so the client script only has
+  // to print a constant.
+  const docHref = doc && /^https:\/\//i.test(doc.url.trim()) ? doc.url.trim() : "";
+  // Lucide `file-text`, inline for the same reason as ICONS above: the embed loads no external
+  // scripts, so an icon font or a Lucide bundle is not an option on a WordPress page.
+  const DOC_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>';
+  const docHtml = docHref
+    ? `<a class="tbbq-agenda__doc" href="${escapeHtml(docHref)}" target="_blank" rel="noopener noreferrer">${DOC_ICON}${escapeHtml(doc!.label)}</a>`
+    : "";
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -229,6 +272,14 @@ export function buildAgendaSnippet({
   #${id} .tbbq-agenda__where::before{content:"·";margin:0 10px;opacity:.6}
   #${id} .tbbq-agenda__note{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:${t.noteInk};border:1px solid rgba(255,255,255,.16);border-radius:9999px;padding:7px 16px;margin:0 0 22px 6px}
   #${id} .tbbq-agenda__note::before{content:"";flex:none;width:7px;height:7px;border-radius:9999px;background-image:var(--grad)}
+  /* THE PROGRAMME DOCUMENT. Shaped like the note pill so the block keeps one vocabulary, but in the
+     accent colour and with a border that brightens on hover, because this one is clickable and the
+     note is not. focus-visible is spelled out: WordPress themes routinely kill the default outline,
+     and this is the only interactive thing in the embed. */
+  #${id} .tbbq-agenda__doc{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--acc);text-decoration:none;border:1px solid ${t.tagBorder};border-radius:9999px;padding:8px 17px;margin:0 0 22px 6px;transition:border-color .15s,background-color .15s}
+  #${id} .tbbq-agenda__doc:hover{border-color:var(--acc);background:rgba(255,255,255,.05)}
+  #${id} .tbbq-agenda__doc:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+  #${id} .tbbq-agenda__doc svg{flex:none;width:16px;height:16px}
   #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
   #${id} .tbbq-agenda__row:last-child{border-bottom:0}
   #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
@@ -260,6 +311,9 @@ ${endpointDecl(path, "  ")}
   var HEADING = ${JSON.stringify(heading || "")};
   var NOTE = ${JSON.stringify(note || "")};
   var SUB = ${JSON.stringify(sub || "")};
+  // Already-escaped markup, built and https-checked in buildAgendaSnippet. Empty when the programme
+  // has no document.
+  var DOC = ${JSON.stringify(docHtml)};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var BIG_OPENING = ${bigOpening ? "true" : "false"};
   var PEOPLE = ${people ? "true" : "false"};
@@ -311,6 +365,9 @@ ${endpointDecl(path, "  ")}
     var where = SUB ? '<span class="tbbq-agenda__where">'+esc(SUB)+'</span>' : '';
     if(HEADING)html+='<div class="tbbq-agenda__date">'+esc(HEADING)+where+'</div>';
     if(NOTE)html+='<div class="tbbq-agenda__note">'+esc(NOTE)+'</div>';
+    // Under the note, above the first row: read once, before the scanning starts. NOT esc()'d —
+    // it is finished markup from the server, and escaping it would print the anchor as text.
+    if(DOC)html+='<div>'+DOC+'</div>';
     var day="";
     for(var i=0;i<list.length;i++){
       var s=list[i];

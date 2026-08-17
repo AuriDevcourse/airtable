@@ -6,6 +6,7 @@ import { fetchPartnerEvents } from "@/lib/partnerevents";
 import { mergeSideEvents } from "@/lib/sideEvents";
 import { mergePolicyStage } from "@/lib/policyOverride";
 import { mergeNassStage } from "@/lib/nassOverride";
+import { mergeBoardSummit } from "@/lib/boardOverride";
 import { fetchEventPageDetails, EventPageDetail } from "@/lib/eventPages";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
@@ -126,6 +127,21 @@ export async function GET(req: NextRequest) {
         sessionsAll = mergeNassStage(sessionsAll, nass);
       } catch (err) {
         console.error("[/api/program] NASS programme unavailable, leaving Brella's own", err);
+      }
+
+      // THE BOARD SUMMIT IS THE FOURTH MERGE, and the same substitution again.
+      //
+      // Brella holds it as one all-day row in Event Room 1 on the 27th with 31 speakers on it and no
+      // times. Airtable's 14 sessions name a moderator and speakers on 12 of them, with faces, and
+      // carry the PDF link on every row. See lib/boardOverride.ts.
+      //
+      // Its own try/catch, so a failing Board Summit read cannot take NASS, the Policy Stage or the
+      // side events down with it.
+      try {
+        const board = await cached("program:board", () => fetchProgram("board"), feedTtlMs());
+        sessionsAll = mergeBoardSummit(sessionsAll, board);
+      } catch (err) {
+        console.error("[/api/program] Board Summit unavailable, leaving Brella's own", err);
       }
     }
 

@@ -186,6 +186,202 @@ function ProgrammeGaps({ event, sessions }: { event: string; sessions: Session[]
   );
 }
 
+/** One row of the NISS roster, as /api/niss-speakers serves it. */
+type RosterPerson = {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  photo: string | null;
+  linkedin: string | null;
+  role: string;
+};
+
+/**
+ * THE FULL NISS SPEAKER AND MODERATOR ROSTER, under the agenda (Auri, 2026-08-17).
+ *
+ * The roster is its own registration list — 50 people who signed up, each with the portrait they
+ * uploaded — while the agenda names only whoever is typed into a session's `Speaker Details`. The two
+ * drift, and the point of this block is that NOBODY HAS TO CROSS-CHECK THEM BY HAND: everyone the
+ * roster holds but no session names is marked "not on the agenda", computed on every render.
+ *
+ * NISS only. Every other programme keeps its people in the Sessions table and has no second list to
+ * reconcile against, so there is nothing here for them to show.
+ */
+function NissRoster({ sessions }: { sessions: Session[] }) {
+  const { data, loading, error } = useCachedList<RosterPerson>(
+    "program:niss-roster",
+    "/api/niss-speakers",
+    "people"
+  );
+
+  // Same folding as lib/programFaces.ts: lowercase, accents stripped, punctuation dropped, leading
+  // honorific removed. Without the honorific rule "Mr. Manish Prabhat" never meets "Manish Prabhat"
+  // and the roster would accuse a man who is on the agenda of being absent from it.
+  // PUNCTUATION GOES FIRST, then the honorific. The other order looks equivalent and is not: the
+  // roster writes "Mr. Manish Prabhat" and "Dr.Rajneesh", and `mr\s+` never matches "mr." while the
+  // dot is still there. He was flagged as missing from a session he opens.
+  const nameKey = (n: string) =>
+    n
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9 ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/^(prof|professor|dr|doctor|mr|mrs|ms|sir|hon|amb|ambassador)\s+/, "");
+
+  const onAgenda = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of sessions) {
+      if (!s.onStage) continue;
+      for (const p of [...s.onStage.moderators, ...s.onStage.speakers]) set.add(nameKey(p.name));
+    }
+    return set;
+  }, [sessions]);
+
+  // Moderators first, matching how every session lists its people. "canceled" and the internal
+  // roles are dropped: this is the published line-up, not the CRM.
+  const groups = useMemo(() => {
+    const people = data ?? [];
+    const pick = (role: string) => people.filter((p) => p.role === role);
+    return [
+      ["Moderators", pick("Moderator")],
+      ["Speakers", pick("Speaker")],
+    ] as [string, RosterPerson[]][];
+  }, [data]);
+
+  if (loading || error || !data) return null;
+
+  const shown = groups.reduce((n, [, list]) => n + list.length, 0);
+  const absent = groups.reduce(
+    (n, [, list]) => n + list.filter((p) => !onAgenda.has(nameKey(p.name))).length,
+    0
+  );
+
+  return (
+    <section style={{ marginTop: 44 }} aria-label="NISS speaker and moderator roster">
+      <h2 style={{ fontSize: 22, margin: "0 0 4px" }}>Speaker &amp; moderator roster</h2>
+      <p className="count-line" style={{ marginTop: 0 }}>
+        {shown} registered · from the NISS sign-up list, not the agenda.
+        {absent > 0 && ` ${absent} are not named on any session below.`}
+      </p>
+      {groups.map(([label, list]) =>
+        list.length === 0 ? null : (
+          <div key={label} style={{ marginTop: 18 }}>
+            <h3
+              style={{
+                margin: "0 0 10px",
+                fontSize: 11,
+                letterSpacing: ".14em",
+                textTransform: "uppercase",
+                color: "var(--color-muted)",
+              }}
+            >
+              {label} · {list.length}
+            </h3>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {list.map((p) => {
+                const missing = !onAgenda.has(nameKey(p.name));
+                return (
+                  <article
+                    key={p.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      background: "var(--color-card)",
+                      borderRadius: 14,
+                      padding: "12px 14px",
+                      minWidth: 0,
+                    }}
+                  >
+                    {p.photo ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={p.photo}
+                        alt=""
+                        loading="lazy"
+                        style={{
+                          flex: "none",
+                          width: 44,
+                          height: 44,
+                          borderRadius: 9999,
+                          objectFit: "cover",
+                          objectPosition: "50% 30%",
+                          background: "var(--color-card-2)",
+                        }}
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          flex: "none",
+                          width: 44,
+                          height: 44,
+                          borderRadius: 9999,
+                          display: "grid",
+                          placeItems: "center",
+                          background: "var(--color-card-2)",
+                          fontFamily: "var(--font-heading)",
+                          fontWeight: 700,
+                          color: "var(--color-orange, #fa7000)",
+                        }}
+                      >
+                        {p.name.trim().charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>
+                        {p.linkedin ? (
+                          <a
+                            href={p.linkedin}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "inherit" }}
+                          >
+                            {p.name}
+                          </a>
+                        ) : (
+                          p.name
+                        )}
+                      </div>
+                      {(p.title || p.company) && (
+                        <div style={{ fontSize: 12.5, color: "var(--color-muted)", marginTop: 2 }}>
+                          {[p.title, p.company].filter(Boolean).join(", ")}
+                        </div>
+                      )}
+                      {missing && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            marginTop: 4,
+                            letterSpacing: ".08em",
+                            textTransform: "uppercase",
+                            color: "var(--color-orange, #fa7000)",
+                          }}
+                        >
+                          not on the agenda
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
 /** Moderator first, then speakers — the order a reader wants on a panel of four. */
 function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
   // A LONE PERSON CARRYING A ROLE NAMES THAT ROLE. The event's host opens alone and sits in
@@ -257,12 +453,18 @@ const EVENTS: {
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
+  doc?: { url: string; label: string };
 }[] = [
+  // `people` since 2026-08-17: NISS carries `onStage` on two of its thirteen sessions (2 moderators
+  // + 6 speakers) and the dashboard has always rendered them. The embed did not, because it gates
+  // faces behind this flag and NISS was written before any programme named its line-up. The result
+  // was a copied snippet that quietly dropped 8 people the page above it was showing.
   {
     key: "niss",
     label: "NISS 2026",
     heading: "August 26th",
     note: "Access to the program on 26th of August is for the holders of TechBBQ tickets only",
+    people: true,
   },
   // NASS 2026 — Nordic Africa Startup Summit, all of it Day 2 in Event Room 2, so the heading is
   // fixed here rather than drawn from the data (every row is the same day). `people` because the
@@ -307,6 +509,11 @@ const EVENTS: {
   // THE BOARD SUMMIT (Boardway), out of the same Sessions table as the Policy Stage. Dark blue
   // rather than the fire gradient (Auri, 2026-08-10) — see the `navy` theme in lib/agendaSnippet.ts.
   // Every row is Day 2, so the heading is fixed here instead of coming from the data.
+  //
+  // `doc` since 2026-08-17: Boardway's own run of show, uploaded to the WordPress media library and
+  // linked once above the list rather than on each of the fourteen rows — see AgendaOptions.doc for
+  // why. The same PDF is on the Brella board's all-day Board Summit card (lib/sessionProgrammes.ts),
+  // so a reader who meets the programme on either surface can reach it.
   {
     key: "board",
     label: "Board Summit",
@@ -314,6 +521,10 @@ const EVENTS: {
     sub: "Event Room 1 & 2",
     theme: "navy",
     people: true,
+    doc: {
+      url: "https://techbbq.dk/wp-content/uploads/2026/08/Board-Summit-Program-2026.pdf",
+      label: "See the full programme (PDF)",
+    },
   },
   // THE FOUR DAY 0 PROGRAMMES, 25 August — the day before TechBBQ opens, so none of them is a "Day 1"
   // or "Day 2" and each carries a fixed heading rather than one drawn from the data.
@@ -367,6 +578,7 @@ function CopyAgendaEmbed({
   icons,
   bigOpening,
   people,
+  doc,
 }: {
   path: string;
   heading?: string;
@@ -376,12 +588,13 @@ function CopyAgendaEmbed({
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
+  doc?: { url: string; label: string };
 }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, sub, theme, icons, bigOpening, people }).replace(/__ORIGIN__/g, embedOrigin());
+    const code = buildAgendaSnippet({ uid, path, heading, note, sub, theme, icons, bigOpening, people, doc }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -471,6 +684,7 @@ export default function ProgramPage() {
               icons={EVENTS.find((e) => e.key === event)?.icons}
               bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}
               people={EVENTS.find((e) => e.key === event)?.people}
+              doc={EVENTS.find((e) => e.key === event)?.doc}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
@@ -505,6 +719,20 @@ export default function ProgramPage() {
               {sessions.length} session(s).
               {revalidating && <span className="reval"> · checking for updates…</span>}
             </p>
+            {/* The programme document, on the dashboard as well as in the embed. Without it the only
+                way to check the link works is to paste the snippet into WordPress. */}
+            {EVENTS.find((e) => e.key === event)?.doc && (
+              <p className="count-line" style={{ marginTop: -6 }}>
+                <a
+                  href={EVENTS.find((e) => e.key === event)!.doc!.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--color-orange, #fa7000)" }}
+                >
+                  {EVENTS.find((e) => e.key === event)!.doc!.label}
+                </a>
+              </p>
+            )}
             <ProgrammeGaps event={event} sessions={sessions} />
             {days.map(({ day, items }) => (
               <section key={day || "single-day"} style={{ marginTop: 28 }}>
@@ -543,6 +771,9 @@ export default function ProgramPage() {
                 ))}
               </section>
             ))}
+            {/* Under the agenda, NISS only: the sign-up roster, with anyone no session names
+                flagged. See NissRoster for why it exists and why it is not shown elsewhere. */}
+            {event === "niss" && <NissRoster sessions={sessions} />}
           </>
         )}
       </div>

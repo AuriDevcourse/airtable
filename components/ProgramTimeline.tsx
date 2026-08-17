@@ -23,6 +23,8 @@ import {
   HOST_ICON_PATHS,
   OPENING_ICON_PATHS,
   OPENING_LABEL,
+  PROGRAMME_ICON_PATHS,
+  PROGRAMME_LABEL,
   STAGE_ICON_PATHS,
   isBreathwork,
   isOpening,
@@ -850,6 +852,9 @@ export function StageTimeline({
                 >
                   <span className="bp-tl__allDayLabel">All day</span>
                   <span className="bp-tl__allDayTitle">{s.name}</span>
+                  {/* The Board Summit's whole column is this one block, so unlike a 24px timeline
+                      card there is room for the word as well as the mark. */}
+                  {s.programmeUrl && <ProgrammeBadge />}
                 </button>
               ))}
               {laid.length === 0 && alldayHere.length === 0 && umbrellas.length === 0 && (
@@ -912,6 +917,10 @@ export function StageTimeline({
                           the title out of the box it has. */}
                       {breath && <BreathIcon />}
                       {opening && <OpeningIcon />}
+                      {/* Same place and the same reason: a timeline card can be 24px tall, so the
+                          mark rides in the title rather than claiming a row. It says the dialog has
+                          a run of show in it — see PROGRAMME_ICON_PATHS. */}
+                      {s.programmeUrl && <ProgrammeIcon />}
                       {firstWords(s.name)}
                     </span>
                     <span className="bp-tl__cardTime">{s.timeSlot}</span>
@@ -1104,6 +1113,46 @@ export function BreathBadge() {
     <span className="bp-breath">
       <BreathIcon />
       {BREATHWORK_LABEL}
+    </span>
+  );
+}
+
+/** Lucide file-text, the programme-document mark. Paths shared with the embed via brellaTheme. */
+export function ProgrammeIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      className="bp-breath__icon"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {PROGRAMME_ICON_PATHS.map((d, i) => (
+        <path key={i} d={d} />
+      ))}
+    </svg>
+  );
+}
+
+/**
+ * "Programme", on a card whose session has a run of show behind it. See PROGRAMME_ICON_PATHS for
+ * why the board needs the mark and why it is not itself a link.
+ *
+ * Reuses .bp-breath, so it inherits the stage colour like the opening badge does, and gets
+ * .bp-doc for the one difference: it sits at the BOTTOM of the card rather than as a kicker above
+ * the title, because it is a footnote about the card and not a statement of what kind of thing
+ * the session is.
+ */
+export function ProgrammeBadge() {
+  return (
+    <span className="bp-breath bp-doc">
+      <ProgrammeIcon />
+      {PROGRAMME_LABEL}
     </span>
   );
 }

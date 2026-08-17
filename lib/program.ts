@@ -223,6 +223,14 @@ type AirtableSource = {
   };
   /** The `status` values that let a line-up publish. Defaults to ["Locked"]. */
   lockedValues?: readonly string[];
+  /**
+   * Treat ";" as a separator BETWEEN people, not just "·". NISS writes
+   * "Colin Brown – Sparkmind Capital; Adele Unneberg – Sandwater" and means two people.
+   *
+   * Off everywhere else on purpose: NASS puts ";" inside a single job title, so turning this on for
+   * it splits one speaker into three. Only set it on a source whose cells you have actually read.
+   */
+  semicolonSplitsPeople?: boolean;
   /** lib/photo.ts feed key that can re-sign the linked people's photo attachments. */
   lineupPhotoFeed?: string;
   /** Where the linked people live, when that is not `table` itself. */
@@ -267,35 +275,51 @@ export const PROGRAM_SOURCES = {
   // the only one somewhere else (Auri). Its 13 rows are now `Name of the Event = "Nordic India
   // Startup Summit"` beside the rest.
   //
-  // THE PEOPLE DID NOT MOVE, and that is the point of doing it this way. The Sessions table stores a
-  // line-up as TEXT in `Speaker Details`, which is what cost NASS five separate faces today — a
-  // middle name, a double-barrelled surname, two spellings and a role in square brackets. NISS keeps
-  // its people as a LINK (`Session Lineup` → the NISS table), so there is no name to match and the
-  // portrait each person uploaded on sign-up is the one that renders.
+  // READS THE TYPED CELLS, NOT THE LINKS (Auri, 2026-08-17). This used to resolve `Session Lineup`
+  // → the NISS speakers table, on the reasoning that a link needs no name-matching and brings the
+  // portrait each person uploaded at sign-up. The reasoning was sound and the DATA was not: the links
+  // disagreed with `Speaker Details` on eleven of the thirteen rows, and the typed text is the one
+  // the NISS team keeps current. The Opening linked Peter Winther-Schmidt and Rajat Tandon while its
+  // cell named Manish Prabhat and Md. Alam Ansari, and Brella agreed with the cell. Two sessions
+  // ("Nordic VC Outlook 2026" and "Nordic Founder Pitch") were even linked to the same four people,
+  // which is a copy-pasted cell rather than a line-up.
   //
-  // The old rows in the NISS table's "NISS Program 2026" view are NOT read any more. They are left
-  // in place rather than deleted, so if the NISS team keeps editing there it will silently drift
-  // from what publishes — see progress.md.
+  // So NISS now works like the Policy Stage: `Speaker Details` / `Moderator Details` as text, paired
+  // by index with the faces in `Speaker Photo` / `Moderator Photo`. Its cells use en dashes and the
+  // odd semicolon, which is what the separator rules in parsePeople() are there to absorb.
+  //
+  // The link fields are LEFT IN THE TABLE, not deleted, so the corrected line-ups can be rebuilt
+  // there later if anyone wants the links back. Nothing reads them today.
   niss: {
     kind: "airtable",
     table: "tblSlpTzDi2oVYwqv", // Sessions
     filter: '{Name of the Event}="Nordic India Startup Summit"',
     lockedValues: ["Locked"],
-    lineupPhotoFeed: "niss", // lib/photo.ts PHOTO_SOURCES.niss → the NISS table's "Self Portrait"
-    lineupTable: "tblfIPjV4t1c1628h", // where the linked people live
+    semicolonSplitsPeople: true,
+    // THE FACES COME BACK FROM THE ROSTER (Auri, 2026-08-17). Reading the typed cells cost NISS the
+    // portraits the linked records used to bring: the `Speaker Photo` cells are filled per session
+    // and only line up on five of the ten, so 21 of 41 people rendered as an initial. The same
+    // people are rows in the NISS table with ONE headshot each, uploaded at sign-up, so this joins
+    // them by name instead of asking anyone to re-upload 21 photos in the right order.
+    //
+    // The session's own photo cell still WINS where it is filled — see lib/programFaces.ts.
+    facesFromView: {
+      table: "tblfIPjV4t1c1628h", // Nordic India Startup Summit (NISS)
+      view: "viwRMZMX5NeN68XX7", // NISS Speaker and Moderator List 2026 — 51 rows, 50 with a portrait
+      nameField: "Full Name",
+      photoField: "Self Portrait",
+      feed: "niss", // lib/photo.ts PHOTO_SOURCES.niss, already this table's "Self Portrait"
+    },
     fields: {
       name: "Session Name",
       timeSlot: "Time Slot",
       type: "Session Type",
       description: "Description",
       status: "Session Status",
-      lineup: "Session Lineup",
-      lineupModerators: "Session Moderators",
-      lineupName: "Full Name",
-      lineupTitle: "Position at Company ", // the trailing space is in the field name
-      lineupCompany: "Company Name",
-      lineupRole: "Role",
-      lineupPhoto: "Self Portrait",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
     },
   },
   // THE POLICY STAGE, from the purpose-built Sessions table. Its programme arrived as a PDF, so it is
@@ -549,10 +573,33 @@ export type ProgramPerson = {
  * PAIRING IS BY INDEX, which is safe only while the photo cell holds one face per person in the same
  * order. When the counts disagree the photos are dropped rather than guessed: a panel showing the
  * wrong face next to the wrong minister is worse than a panel showing no faces.
+ *
+ * NISS WRITES THE SAME CELL DIFFERENTLY (added 2026-08-17), which is why the separators below are not
+ * just "·" and ",". Its rows read "Thomas Heshe – EasySBC ·  Tim B. Madsen – Copenhagen Quantum" and
+ * occasionally "Colin Brown – Sparkmind Capital; Adele Unneberg – Sandwater". So:
+ *   people split on "·", and on ";" too WHEN THE SOURCE OPTS IN
+ *   name/meta split at whichever comes FIRST, a dash or a comma
+ *
+ * THE SEMICOLON IS OPT-IN AND MUST STAY THAT WAY. NASS uses ";" INSIDE a job title — "Development
+ * Economist; Diaspora & Transnationalism", "Advisory Committee; Clinical Trials & Digital Health
+ * Leader" — so splitting on it globally invented six nameless people out of five real ones. Measured,
+ * not guessed: it showed up as a diff on six NASS sessions the moment the split went in.
+ * Earliest-wins is what keeps the older programmes byte-identical: "Karen Ellemann, Secretary
+ * General, Nordic Council of Ministers" still splits at its comma, because the comma comes first.
+ *
+ * THE DASH RULE IS DELIBERATELY NARROW. An en/em dash always separates; a plain hyphen only counts
+ * when a SPACE FOLLOWS it. Without that, "Ask Emil Løvschall-Jensen" becomes "Ask Emil Løvschall"
+ * with "Jensen" as his job title, and "Co-Founder" loses its first half.
  */
-function parsePeople(details: string, photos: unknown, feed: string, recordId: string): ProgramPerson[] {
+function parsePeople(
+  details: string,
+  photos: unknown,
+  feed: string,
+  recordId: string,
+  semicolonSplits = false
+): ProgramPerson[] {
   const entries = details
-    .split("·")
+    .split(semicolonSplits ? /[·;]/ : /·/)
     .map((x) => x.trim())
     // A PLACEHOLDER IS NOT A PERSON. Several Board Summit rows carry "TBC" in the moderator cell
     // while the booking is open, and without this the embed draws a circle with a "T" in it and
@@ -566,10 +613,23 @@ function parsePeople(details: string, photos: unknown, feed: string, recordId: s
     : [];
   const aligned = atts.length === entries.length;
 
+  // An en/em dash anywhere, or a hyphen with a space after it. See the note above on why the hyphen
+  // needs that space: surnames and "Co-Founder" contain hyphens and must not be cut in half.
+  const DASH = /[–—]|-(?=\s)/;
+
   return entries.map((entry, i) => {
     const comma = entry.indexOf(",");
-    const name = comma === -1 ? entry : entry.slice(0, comma).trim();
-    const meta = comma === -1 ? "" : entry.slice(comma + 1).trim();
+    const dash = entry.search(DASH);
+    // Whichever separator appears first wins, so a comma-style entry parses exactly as it always did
+    // and a dash-style one stops treating the job title as part of the name.
+    const cut =
+      dash !== -1 && (comma === -1 || dash < comma)
+        ? { at: dash, len: entry.slice(dash).match(DASH)?.[0].length ?? 1 }
+        : comma !== -1
+          ? { at: comma, len: 1 }
+          : null;
+    const name = cut ? entry.slice(0, cut.at).trim() : entry;
+    const meta = cut ? entry.slice(cut.at + cut.len).trim() : "";
     // ?v=<attachment id> picks this person's face out of a shared cell — see lib/photo.ts.
     const photo = aligned && atts[i]?.id ? photoUrl(feed, recordId, undefined, atts[i].id) : null;
     return { name, meta, photo };
@@ -717,10 +777,10 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
       // declares those fields, so every other Airtable programme is unchanged.
       if (f.speakerDetails || f.moderatorDetails) {
         const speakers = f.speakerDetails
-          ? parsePeople(str(r[f.speakerDetails]), f.speakerPhoto ? r[f.speakerPhoto] : null, PHOTO_FEED, rec.id)
+          ? parsePeople(str(r[f.speakerDetails]), f.speakerPhoto ? r[f.speakerPhoto] : null, PHOTO_FEED, rec.id, cfg.semicolonSplitsPeople)
           : [];
         const moderators = f.moderatorDetails
-          ? parsePeople(str(r[f.moderatorDetails]), f.moderatorPhoto ? r[f.moderatorPhoto] : null, PHOTO_FEED, rec.id)
+          ? parsePeople(str(r[f.moderatorDetails]), f.moderatorPhoto ? r[f.moderatorPhoto] : null, PHOTO_FEED, rec.id, cfg.semicolonSplitsPeople)
           : [];
         if (speakers.length || moderators.length) s.onStage = { speakers, moderators };
       }

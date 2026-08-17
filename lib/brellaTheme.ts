@@ -127,6 +127,26 @@ export function isOpening(s: { name?: string } | null | undefined): boolean {
 // wind glyph had to pass.
 export const OPENING_ICON_PATHS: string[] = ["M6 3l14 9-14 9z"];
 
+// THE MARK FOR "THIS ONE HAS A PROGRAMME DOCUMENT" — Lucide file-text, on any card whose session
+// carries `programmeUrl` (lib/sessionProgrammes.ts).
+//
+// WHY THE CARD NEEDS IT AT ALL. The link itself lives in the dialog, which is correct: it is a
+// 3 MB PDF and no card should be a launcher for one. But nothing on the board said the document
+// existed, so the only way to find it was to press an all-day block on the off-chance — which is
+// how Auri, who asked for the link himself, concluded on 2026-08-17 that it had not been added
+// ("on here there is no link whatsoever"). If he cannot find it, no attendee will.
+//
+// A MARK, NOT A LINK. The card is already a <button> that opens the dialog, and an anchor nested
+// inside it is both invalid and a coin-flip for which one a tap hits. This says "there is a run of
+// show behind this card"; the dialog hands it over.
+export const PROGRAMME_LABEL = "Programme";
+export const PROGRAMME_ICON_PATHS: string[] = [
+  "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z",
+  "M14 2v4a2 2 0 0 0 2 2h4",
+  "M16 13H8",
+  "M16 17H8",
+];
+
 // Lucide building-2, for the "Hosted by <partner>" line on a side event. Shared here rather
 // than written twice, for the same reason the stage icons are: the embed emits raw SVG strings
 // and cannot render the page's React component.

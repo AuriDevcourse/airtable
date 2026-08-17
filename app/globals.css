@@ -1833,6 +1833,20 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   letter-spacing: 0.08em; text-transform: uppercase;
   line-height: 1.4;
 }
+/* THE PROGRAMME MARK reuses .bp-breath for its shape and its stage colour, and changes two things.
+   It sits at the BOTTOM of a list card (margin flipped) because it is a footnote about the card, not
+   a kicker saying what kind of session this is. And it is quieter — a 12% wash instead of 20% —
+   because "there is a PDF behind this" must not outrank the session's own title. */
+.bp-doc {
+  margin: 8px 0 0;
+  background: color-mix(in srgb, var(--track, #B49BFF) 12%, transparent);
+}
+/* Inside the all-day block the badge is the only thing under a two-line title, so it gets air
+   above it rather than the list card's tighter stack. */
+.bp-tl__allDayCard .bp-doc { margin-top: 10px; }
+/* In a timeline card's title the mark needs no rule of its own: ProgrammeIcon carries
+   .bp-breath__icon, so the baseline nudge and the stage colour above already apply to it. */
+
 /* On a card list, the whole tile also carries the violet edge, so a breathwork break does not
    have to be read to be spotted. */
 .bp-card[data-breathwork],

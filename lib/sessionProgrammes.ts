@@ -33,12 +33,18 @@ type SessionProgramme = {
   /** Must be https. See sanitise() below for why that is enforced here and not only in the UI. */
   url: string;
   /**
-   * What the link says. Written out per entry rather than defaulted, because "programme" is not
-   * always the honest word: a run of show, a schedule and a workshop plan are different documents
-   * and the visitor is entitled to know which one they are about to open.
+   * What the link says.
+   *
+   * ONE WORDING FOR ALL OF THEM, "See the full program (PDF)", Auri's words on 2026-08-17. It was
+   * per-entry before, on the reasoning that a run of show and a workshop plan are different
+   * documents; with six of them on one board that just produced six slightly different sentences
+   * for the same action. The field stays so a genuinely different document can say so.
    */
   label: string;
 };
+
+/** What every entry says unless it has a reason not to. See SessionProgramme.label. */
+const SEE_FULL = "See the full program (PDF)";
 
 const PROGRAMMES: SessionProgramme[] = [
   // BEYOND UNICORNS, Event Room 1, 26 August, hosted by Closing Loops. Their own PDF, uploaded to
@@ -51,7 +57,73 @@ const PROGRAMMES: SessionProgramme[] = [
   {
     match: /^beyond unicorns\b/,
     url: "https://techbbq.dk/wp-content/uploads/2026/08/Closing-Loops-TechBBQ.pdf",
-    label: "Open the full programme (PDF)",
+    label: SEE_FULL,
+  },
+  // NORDIC IPO & STOCK MARKET DAY, Event Room 3, 26 August, organised by the Association of Listed
+  // Companies. THE WORST BLOCK ON THE BOARD until this link: five hours, 12:30-17:30, with a
+  // fourteen-character description ("Session by FBV"), no speakers and nothing inside it.
+  //
+  // THE PDF IS NOT A SUMMARY, IT IS THE WHOLE PROGRAMME: fourteen timed items and 25 named
+  // speakers, from the 12:30 networking to the closing bell at 16:55. Which means this link is a
+  // stopgap and the run of show should be typed into the Sessions table the way NASS and the Policy
+  // Stage were — see progress.md. Note the PDF ends at 17:15 where Brella books the room to 17:30.
+  {
+    match: /^nordic ipo\b/,
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/Nordic-IPO-2026_Program_A4_Midnight-2pages.pdf",
+    label: SEE_FULL,
+  },
+  // AI THAT SELLS (Microsoft), Event Room 4, 27 August. The Brella description already lists the
+  // seven agenda items and puts a time on NONE of them; the PDF is the same list with the times on
+  // it (14:30 doors, 14:40 Microsoft's opening, 14:50 Antler/Speedinvest, 15:20 the Anthropic demo,
+  // 15:50 roundtables, 16:30 drinks).
+  {
+    match: /^ai that sells\b/,
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/TechBBQ-Ai-that-sells.pdf",
+    label: SEE_FULL,
+  },
+  // CREATIVE BUSINESS CUP, both blocks, Event Room 5 on 26 and 27 August. Two entries and not one:
+  // the two days are separate Brella rows, and a regex loose enough to catch both would also catch
+  // the sub-sessions pushed inside them.
+  //
+  // THE SAME DOCUMENT COVERS BOTH DAYS, so both point at the programme overview rather than at
+  // `CBC_2026_Program.pdf`, which is also uploaded and is the SUPERSEDED version — it has the
+  // weekdays wrong (Tue 26 / Wed 27, when 26 August 2026 is a Wednesday) and times that no longer
+  // hold. It is deliberately not linked from anywhere.
+  //
+  // WHICH FILE IS BEHIND THIS URL MATTERS. The copy on techbbq.dk today is the 14 August export;
+  // Creative Business Network sent a revision on 17 August that drops the 09:15 Day 2 welcome. When
+  // that one is uploaded OVER this filename, this entry needs no edit — see progress.md.
+  {
+    match: /^creative business cup\b/,
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/CBC26-@TechBBQ-programme-overview.pdf",
+    label: SEE_FULL,
+  },
+  {
+    // "creativity" pins this to the parent block. The pushed sub-session is titled exactly
+    // "CBC Global Finals", so /^cbc global finals\b/ alone would put the link on both.
+    match: /^cbc global finals creativity\b/,
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/CBC26-@TechBBQ-programme-overview.pdf",
+    label: SEE_FULL,
+  },
+  // BOARD SUMMIT by Boardway, Event Room 1, 27 August. Brella carries the whole day as ONE all-day
+  // row with 31 people heaped on it and no times — the same shape as Beyond Unicorns above, and the
+  // reason a visitor cannot tell that Viktor Axelsen is on at 09:45 and Jakob Riis at 14:00.
+  //
+  // UNLIKE BEYOND UNICORNS, THE TIMED VERSION ALSO EXISTS AS DATA: 14 sessions hand-typed in the
+  // Sessions table, with moderators and speakers named per session, served at
+  // /api/program?event=board. Since 2026-08-17 lib/boardOverride.ts substitutes those into the
+  // Brella column, so the board draws the real agenda and this all-day row becomes the dashed band
+  // around it.
+  //
+  // THE LINK IS KEPT ANYWAY, and moves onto the sessions with it (Auri, 2026-08-17: "if we have
+  // speakers and everything, let's add it up, but make sure to have also pdf program"). The document
+  // holds things no session row does — the session formats ("Keynote 20+10 min"), the pitch running
+  // order — and after the substitution the all-day row is a band nobody can press, so a link only on
+  // this row would be a link nobody can reach.
+  {
+    match: /^board summit\b/,
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/Board-Summit-Program-2026.pdf",
+    label: SEE_FULL,
   },
 ];
 
