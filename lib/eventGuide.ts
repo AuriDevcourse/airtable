@@ -106,7 +106,9 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             kind: "p",
             lead: "Address:",
-            text: "Entrance 1, Emma Gads Vej 23, Copenhagen S, Denmark",
+            // 25, not 23 (Auri, 2026-08-17). The only address in this file, so it is the only place
+            // it had to change — but it was wrong on a public page, and the venue's own entrance.
+            text: "Entrance 1, Emma Gads Vej 25, Copenhagen S, Denmark",
           },
           {
             kind: "list",
@@ -119,8 +121,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
         ],
-        image: `${IMG}/2024/11/Exhibition-hall-at-TechBBQ.webp`,
-        alt: "The TechBBQ exhibition hall at Bella Center Copenhagen, full of stands and attendees",
+        // 2026 photo (Auri, 2026-08-17), replacing the 2024 exhibition-hall shot. Better on its own
+        // terms for a panel about the VENUE: the old one was an interior that could be any hall, this
+        // is the building an attendee has to recognise from the street.
+        image: `${IMG}/2026/08/Venue.jpg`,
+        alt: "The Bella Center facade under a large TechBBQ banner, with attendees arriving at the Entrance 1 revolving doors",
       },
       {
         key: "entrance",
@@ -137,12 +142,18 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             lead: "What to look for:",
             items: [
               "Signage directing TechBBQ attendees from the moment you arrive",
-              "Check-in and the Info Desk visible immediately as you enter",
+              // Same correction as the venue-layout list: the Info Desk is in Hall E, not at the door.
+              "Check-in visible immediately as you enter",
             ],
           },
         ],
-        image: `${IMG}/2025/01/TechBBQ-Entrance-Logo.webp`,
-        alt: "The TechBBQ entrance signage at Bella Center Copenhagen",
+        // THE SAME FILE AS THE VENUE PANEL, deliberately (Auri, 2026-08-17: "entrance the same").
+        // It works here because the photo happens to answer both questions: the doors in it are
+        // labelled "Entrance 1", which is the one thing this panel exists to help somebody find.
+        // The cost is two adjacent tabs showing the same picture — say the word and Entrance goes
+        // back to TechBBQ-Entrance-Logo.webp.
+        image: `${IMG}/2026/08/Venue.jpg`,
+        alt: "The Entrance 1 revolving doors at Bella Center Copenhagen, under the TechBBQ banner",
       },
       {
         key: "transportation",
@@ -174,8 +185,8 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
         ],
-        image: `${IMG}/2025/01/Ed-West.webp`,
-        alt: "Attendees arriving at TechBBQ",
+        image: `${IMG}/2026/08/Copy-of-27091709A1-TechBBQ-2025-scaled.jpg`,
+        alt: "An attendee stepping out of a car outside the venue, with bicycles parked at a rack behind",
       },
       {
         key: "access",
@@ -261,20 +272,28 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             kind: "list",
             lead: "Roughly where things are:",
             items: [
-              "Check-in, wardrobe and the Info Desk: straight ahead from Entrance 1",
+              // THE INFO DESK MOVED OUT OF THIS LINE. It used to read "Check-in, wardrobe and the
+              // Info Desk: straight ahead from Entrance 1", which the 2026-08-17 update contradicts
+              // — the desk is in Hall E. Two panels said it sat by check-in, and both are corrected;
+              // a guide that puts the help desk in two places is worse than one that names neither.
+              "Check-in and wardrobe: straight ahead from Entrance 1",
               "Event Rooms 1 to 6, the Investor Lounge and the exhibition: hall C",
-              "Grill Sessions and the pre-after party: hall E",
+              "The Info Desk, Grill Sessions and the pre-after party: hall E",
               "The BBQ Stage, the Founders Lounge and the Matchmaking Area: halls C3 and C4",
             ],
           },
           {
             kind: "p",
             lead: "On the day:",
-            text: "Printed maps and signage are up throughout the venue, and the Info Desk near check-in can point you anywhere.",
+            // PRINTED MAPS DROPPED and the app's map named instead (Auri, 2026-08-17). Promising a
+            // paper map that may not be there is the same mistake as promising the barbecue.
+            text: "Signage is up throughout the venue, and the Info Desk in Hall E can point you anywhere. Via the TechBBQ app you will also find the virtual map.",
           },
         ],
-        image: `${IMG}/2024/11/Exhibition-hall-at-TechBBQ.webp`,
-        alt: "Overview of the TechBBQ exhibition hall layout",
+        // An elevated view, which is the right kind of picture for a panel about GETTING AROUND —
+        // it shows the halls as a layout rather than as a wall of people at eye level.
+        image: `${IMG}/2026/08/Copy-of-IMG_3701-2-scaled.jpg`,
+        alt: "An elevated view across a busy TechBBQ hall, showing stands, seating areas and the walkways between them",
       },
       {
         key: "stage-program",
@@ -317,9 +336,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             kind: "list",
             lead: "Pick up early:",
+            // Both days corrected on 2026-08-17: the 20th now opens an hour earlier and closes half
+            // an hour later, and the 24th has real hours and the full address instead of just the
+            // venue name.
             items: [
-              "Thursday, August 20th, 12:00 – 18:00 at Matrikel 1 Café (outdoor area)",
-              "Monday, August 24th at Bella Center Copenhagen",
+              "Thursday, August 20th, 11:00 – 18:30 at Matrikel 1 Café (outdoor area)",
+              "Monday, August 24th, 14:00 – 18:00 at Bella Center, Entrance 1, Emma Gads Vej 25, 2300 Copenhagen S",
             ],
           },
           {
@@ -327,7 +349,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             lead: "Pickup options:",
             items: [
               "Individual attendees can collect their own badge",
-              "Partners may collect all badges for their company in bulk",
+              // BULK COLLECTION IS THE 20TH ONLY (Auri, 2026-08-17). Unqualified, this line read as a
+              // standing offer, so a partner could turn up on the 26th expecting to collect for a
+              // whole company. The date is named rather than "the pre-badge day", because a partner
+              // reading this has no reason to know which day that is.
+              "Partners may collect all badges for their company in bulk, on Thursday the 20th only",
             ],
           },
           {
@@ -375,8 +401,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             text: "Already have one with payment connected? Head straight to the fast-track line.",
           },
         ],
-        image: `${IMG}/2025/01/cloak-room.jpg`,
-        alt: "The Keypitt wardrobe and cloak room at TechBBQ",
+        // The best match in the whole set: the Keypitt™ Fast track sign is IN the photo, which is the
+        // one thing this panel is selling.
+        image: `${IMG}/2026/08/Copy-of-27091109C1-TechBBQ-2025-scaled.jpg`,
+        alt: "Attendees handing jackets over at the Keypitt wardrobe desks, under a Keypitt Fast track sign, with coat racks behind",
       },
       {
         key: "lost-and-found",
@@ -386,7 +414,7 @@ export const GUIDE_SECTIONS: GuideSection[] = [
           {
             kind: "p",
             lead: "During the event:",
-            text: "Visit the Info Desk. Our team will help you, and found items are handed in there.",
+            text: "Visit the Info Desk in Hall E. Our team will help you, and found items are handed in there.",
           },
           {
             kind: "p",
@@ -394,23 +422,32 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             text: "Email us at [info@techbbq.org](mailto:info@techbbq.org).",
           },
         ],
-        image: `${IMG}/2025/01/lost-and-found.webp`,
-        alt: "The TechBBQ info desk where lost and found items are handled",
+        // A CLEAR IMPROVEMENT ON WHAT WAS HERE. The old file was a Silent Events crew member holding
+        // an armful of headphones, under alt text claiming it was "the TechBBQ info desk where lost
+        // and found items are handled" — a description of a photo nobody had looked at. This one is
+        // actually staff at a desk helping somebody, which is what the panel tells you to do.
+        //
+        // The coat racks behind them make it read as the wardrobe rather than the Info Desk in Hall E.
+        // Flagged to Auri; still better than the headphones.
+        image: `${IMG}/2026/08/Copy-of-28103228C3-TechBBQ-2025-scaled.jpg`,
+        alt: "Two TechBBQ staff members at a service desk, with rows of tagged coats on racks behind them",
       },
       {
         key: "info-desk",
         tab: "Info Desk",
         title: "Ask us anything",
         blocks: [
-          { kind: "p", lead: "Where:", text: "Next to the check-in area." },
+          { kind: "p", lead: "Where:", text: "You will find us in Hall E." },
           {
+            // Thursday now runs an hour later than Wednesday (Auri, 2026-08-17). Note the wardrobe
+            // next door still closes at 18:00 on the 27th — see the note in the Keypitt panel.
             kind: "list",
             lead: "Opening hours:",
-            items: ["8:00 – 18:00 on Wednesday 26th", "8:00 – 18:00 on Thursday 27th"],
+            items: ["8:00 – 18:00 on Wednesday 26th", "8:00 – 19:00 on Thursday 27th"],
           },
         ],
-        image: `${IMG}/2025/01/info-desk.jpg`,
-        alt: "TechBBQ staff at the info desk",
+        image: `${IMG}/2026/08/Copy-of-27100543C1-TechBBQ-2025-scaled.jpg`,
+        alt: "TechBBQ staff working at laptops behind a desk, helping attendees",
       },
       {
         key: "media-policy",
@@ -443,11 +480,15 @@ export const GUIDE_SECTIONS: GuideSection[] = [
       {
         key: "food-beverage",
         tab: "Food & Beverage",
-        title: "BBQ Experience",
+        // THE TITLE HAD TO GO WITH THE COPY. Auri, 2026-08-17: "maybe we should not promise a BBQ".
+        // The old body promised "barbecue setups for you to enjoy", and a heading reading "BBQ
+        // Experience" over a paragraph that carefully avoids promising a barbecue promises it louder
+        // than the paragraph can take it back. So the panel now says what is actually there.
+        title: "Food and drink on site",
         blocks: [
           {
             kind: "p",
-            text: "Staying true to our name and heritage, TechBBQ features barbecue setups for you to enjoy. Alongside the barbecue there is a large food court, several cafés and coffee points across the venue, and a kiosk.",
+            text: "There is a large food court, several cafés and coffee points across the venue, and a kiosk. The food court and the cafés serve a selection of hot and cold food, including a brisket option in the food court.",
           },
           {
             kind: "p",
@@ -486,8 +527,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             text: "We care about sustainability, so please bring a reusable bottle and refill it at the stations rather than using single-use cups.",
           },
         ],
-        image: `${IMG}/2025/01/water.webp`,
-        alt: "A water refill station at TechBBQ",
+        // NOT a picture of a tap, and that is why it fits: this panel's title is "Free water in the
+        // GARDEN HALL", and the photo is the Garden Hall — glass roof, planting up the walls, the long
+        // benches. It shows somebody where to go, which a close-up of a refill station cannot.
+        image: `${IMG}/2026/08/Copy-of-27120416C1-TechBBQ-2025-scaled.jpg`,
+        alt: "The Garden Hall under its glass roof, with long benches full of attendees eating and drinking",
       },
       {
         key: "payments",
@@ -555,8 +599,11 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             text: "Most meetings are arranged before the event begins, so set your profile up early.",
           },
         ],
-        image: `${IMG}/2024/11/Networking-tables-at-TechBBQ.jpg`,
-        alt: "Attendees networking at tables during TechBBQ",
+        // The NUMBERED matchmaking tables, which is the platform's output rather than its interface —
+        // you book a meeting in the app and then stand at table 14. Would suit the Table Reservation
+        // panel equally well; that panel and Brella currently share one photo between them.
+        image: `${IMG}/2026/08/Copy-of-28115820C3-TechBBQ-2025-scaled.jpg`,
+        alt: "A hall of numbered meeting tables, with pairs of attendees talking at them",
       },
       {
         key: "brella",
@@ -648,33 +695,40 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             text: "We hope you can be present at the event, and we know work does not always wait.",
           },
         ],
-        image: `${IMG}/2025/01/workspaces.webp`,
-        alt: "A workspace area at TechBBQ",
+        image: `${IMG}/2026/08/Copy-of-IMG_3405-scaled.jpg`,
+        alt: "Attendees working on laptops at tall shared work benches with stools",
       },
       {
         key: "relaxation",
         tab: "Relaxation",
-        eyebrow: "Re-charging zone",
+        // RENAMED from the Re-Charging Zone to the Longevity Lounge (Auri, 2026-08-17). All three
+        // places it was named are changed together — the eyebrow, the list lead and the two body
+        // paragraphs — because half a rename reads as two different rooms.
+        eyebrow: "Longevity Lounge",
         title: "A quieter room",
         blocks: [
           {
             kind: "list",
-            lead: "In the Re-Charging Zone:",
+            lead: "In the Longevity Lounge:",
+            // Biohacking devices KEPT. Auri's note listed only the first two and was cut off
+            // mid-word, so this is not evidence the third is gone. Ask before dropping it.
             items: ["Guided meditation", "Breathwork sessions", "Biohacking devices"],
           },
           {
             kind: "p",
             lead: "Why:",
-            text: "Two days of networking is a lot. The zone is somewhere to release tension and get your focus back.",
+            text: "Two days of networking is a lot. The lounge is somewhere to release tension and get your focus back.",
           },
           {
             kind: "p",
             lead: "Partner:",
-            text: "The zone is co-hosted by [One Thirty Labs](https://onethirtylabs.com).",
+            // One Thirty Labs kept, wording only. Whether they still co-host the room under its new
+            // name is not something a rename can answer — check before the guide goes out.
+            text: "The lounge is co-hosted by [One Thirty Labs](https://onethirtylabs.com).",
           },
         ],
         image: `${IMG}/2024/11/Guided-meditation-at-TechBBQ.jpg`,
-        alt: "A guided meditation session in the TechBBQ re-charging zone",
+        alt: "A guided meditation session in the quiet room at TechBBQ",
       },
     ],
   },
@@ -730,8 +784,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
         ],
-        image: `${IMG}/2024/11/Networking-and-exploration-at-TechBBQ-exhibition.jpg`,
-        alt: "The TechBBQ exhibition area at Bella Center Copenhagen",
+        // A CCTV camera and a sprinkler head are not photographable without looking like a warning
+        // notice, so this is the humane version of the same fact: one person walking a wide, clear,
+        // unobstructed hall. It would also answer the Accessibility panel's "wide, clear walkways"
+        // bullet better than anything currently on offer — see the note there.
+        image: `${IMG}/2026/08/Copy-of-27093727B1-TechBBQ-2025-scaled.jpg`,
+        alt: "An attendee walking through a wide, clear hall at Bella Center Copenhagen",
       },
       {
         key: "first-aid",
@@ -816,6 +874,12 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             items: [
               "Drugs or narcotics",
               "Weapons or firearms",
+              // Added 2026-08-17, Auri's question ("should we add animals if it is not service
+              // animal?"). Worded as an exception rather than a ban: under the Danish Disability Act
+              // a service animal is not a pet, and a flat "no animals" on a public page reads as
+              // turning away a guide dog. Assistance animals are named too — a psychiatric service
+              // dog is not what most readers picture from "service animal".
+              "Animals, unless it is a service or assistance animal",
               "Glass or deposit bottles, bring a reusable water bottle instead",
               "Professional filming equipment without prior approval",
               "Walkie-talkies or portable speakers",
@@ -825,8 +889,10 @@ export const GUIDE_SECTIONS: GuideSection[] = [
             ],
           },
         ],
-        image: `${IMG}/2024/11/Full-audience-at-TechBBQ-session.webp`,
-        alt: "A full audience at a TechBBQ session",
+        // A neutral exhibition-floor photo, like the audience shot it replaces. Nothing illustrates a
+        // list of banned items without looking like an accusation, so the picture stays scenery.
+        image: `${IMG}/2026/08/Copy-of-27101335D1-TechBBQ-2025-scaled.jpg`,
+        alt: "Two attendees talking in front of an exhibition stand on the TechBBQ show floor",
       },
     ],
   },

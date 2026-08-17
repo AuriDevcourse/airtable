@@ -4,6 +4,167 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+> **SESSION LETTERS COLLIDED on 2026-08-17.** Two people wrote handoff entries in parallel, so there
+> are two (w)s and two (x)s below. Entries are newest-first; trust the ORDER, not the letter.
+
+## SESSION (z) · 2026-08-17 · BEYOND BETA'S LOGO BROKE ITS TILE · PARTNER DATA AUDITED (READ-ONLY)
+
+**CURRENT STATE.** One code change, uncommitted: `LOGO_SCALE["Beyond Beta"]` in `lib/partners.ts`,
+**1.96 → 0.94**. Verified in the browser — the mark now sits 257x140 inside a 309x185 tile with no
+overflow. Everything else this session was READ-ONLY analysis of Airtable; nothing was written there.
+
+**THE LOGO BUG, and it will recur.** 1.96 was correct when Beyond Beta's file was a thin wordmark in a
+mostly-empty canvas. The partner replaced it with a TIGHT CROP: `scripts/measure-logo-ink.mjs` now
+reports **ink at 100% of the image box**, AR 5.05, `cap` 0.94. The old nudge was doubling a logo that
+already reached its own edges. **A stale nudge is worse than none** — re-run that script whenever a
+partner replaces artwork.
+
+**DO NOT "FIX" SKYTEK OR PSV.** A DOM sweep of all 191 logos flags Skytek (2.11) and PSV (2.92) as
+overflowing their tile's bounding box. They are correct. Their files are 77% and 88% transparent
+margin, so only the empty box overflows and no ink leaves the tile — PSV sits at 2.92 against a cap of
+3.19, Skytek exactly on its cap. **Comparing `getBoundingClientRect()` to the tile is the wrong test
+for this wall**; the ink measurement is the right one.
+
+**PARTNER DATA FINDINGS (nothing changed, these are for Auri to action)**
+- **rebriQ and "Improve Business" are ONE partner.** Partners 2026 calls it "rebriQ by Improve
+  Business" (`rec7CNLgVenUt1LVh`, id 2886). The deliverables view has both as separate rows, one
+  ticked. Delete one rather than ticking the other.
+- The three unticked rows with no Company Link resolve by Partner ID:
+  Global Stratalogues → `recDHm8Qsl13EZbH3` · Knowledgeboard → `recXehwBIIWOvLcQD` ·
+  rebriQ → `rec7CNLgVenUt1LVh`. All three are Confirmed in Partners 2026.
+- **Knowledgeboard is duplicated in Partners 2026 too**: a stray lowercase "knowledgeboard"
+  (`recB6q1C1ljczEA23`, id 2939, To Be Contacted) beside the confirmed row.
+- **21 Confirmed partners have no deliverables row** (209 confirmed vs 200 rows). Seven are Community
+  Partnerships (AI Oresund, French Tech Copenhagen, Lithuanian Professionals, Lithuanian Youth
+  Society, Mentorspace Lithuania, ProWoc, REBBLS). Six have NO type set so no tier can resolve. Three
+  are Add-on/Tailored, which the wall filters out anyway. Several read as line items rather than
+  partners ("Ada Ventures **promo**", "Business Turku **upsell**"). **DPIIT shares Partner ID 2060
+  with the existing Embassy of India row**, so it is probably one relationship under two names.
+- Earlier in the session the view went 213 → 200 rows as Auri deleted duplicates live. **Zero
+  duplicates now remain among the ticked rows.** Numbers in older entries are stale by design.
+
+**GOTCHAS**
+- `viwDhqsDpfEf0PRyI` is **"2026 Overview", the whole 2,655-row pipeline**, NOT a confirmed list.
+  "Confirmed" is a GROUP inside it. Filter `{Status 2026}="Confirmed"` instead, or you diff the entire
+  CRM against the wall and get 2,306 false positives.
+- `measure-logo-ink.mjs` needs the dev server up and matches on a loose name filter; "Beyond Beta"
+  quoted returned nothing while `beyond` worked.
+- Building over a running dev server fails with `Cannot find module '../chunks/ssr/[turbopack]_runtime.js'`.
+  Stop the dev server and `rm -rf .next` first.
+
+**NEXT STEPS**
+1. **Finish the deploy.** `4dcdfa0` is on `origin/main` but production still runs the old build —
+   `npx vercel login` then `npx vercel --prod`. The push alone triggered no build, and the commit
+   author is Auri's normal identity, so check Project Settings → Git rather than assuming the
+   Hobby author-block.
+2. After deploying, **re-copy the NISS embed into Elementor** — `PEOPLE=false` is baked into the
+   pasted snippet and no deploy reaches it.
+3. Commit the Beyond Beta fix; it is not in `4dcdfa0`.
+4. Link the three Company Links above, and resolve rebriQ vs Improve Business.
+5. Decide which of the 21 confirmed-but-missing partners deserve a wall row.
+6. Two NISS faces still blocked by DUPLICATE roster rows: Archana Jahagirdar, Anand Unnikrishnan.
+
+**FILE POINTERS** · `lib/partners.ts` (`LOGO_SCALE`) · `lib/logoFit.ts` (area rule, nudge ceiling 3) ·
+`scripts/measure-logo-ink.mjs` · deliverables view `viw7FVbsTb9IRaWF0` · Partners 2026
+`tbl9V6ZtxEbR4uELC`.
+
+---
+
+## SESSION (z) · 2026-08-17 · EVENT GUIDE: AURI'S CORRECTIONS, PLUS THREE CONTRADICTIONS THEY EXPOSED
+
+**CURRENT STATE.** `lib/eventGuide.ts` carries Auri's 2026-08-17 corrections. All 15 changes verified
+in the live `/api/event-guide` feed, `/event-guide` returns 200, `tsc` clean. One file, so the page,
+the API and the pasted embed all move together. Not committed.
+
+**APPLIED AS GIVEN**
+| Panel | Change |
+|---|---|
+| Venue | Emma Gads Vej **23 → 25**. Wrong street number on a public page, and it was the venue's own entrance. |
+| Badge Claim | 20 Aug now **11:00 – 18:30**; 24 Aug now **14:00 – 18:00** with the full address instead of just "Bella Center Copenhagen". |
+| Badge Claim | Bulk partner collection is **the 20th only**. Unqualified it read as a standing offer, so a partner could arrive on the 26th expecting to collect for a whole company. |
+| Lost & Found | Info Desk **in Hall E**. |
+| Info Desk | Where: "You will find us in Hall E". Thursday hours **18:00 → 19:00**. |
+| Venue Layout | Printed maps dropped, the app's virtual map named instead. |
+| Prohibited Items | **"Animals, unless it is a service or assistance animal"** added. |
+| Relaxation | Re-Charging Zone **→ Longevity Lounge**, all four mentions plus the eyebrow and the image alt. |
+
+**THREE THINGS THE CORRECTIONS BROKE, fixed in the same pass:**
+1. **The Info Desk was in two places.** Venue Layout said "Check-in, wardrobe and the Info Desk:
+   straight ahead from Entrance 1" and the Entrance panel said "Check-in and the Info Desk visible
+   immediately as you enter". Both now name Hall E or drop the desk. A guide that puts the help desk
+   in two places is worse than one that names neither.
+2. **The panel title outlived its copy.** "Maybe we should not promise a BBQ" fixed the paragraph but
+   left the heading reading **BBQ Experience**, which promises the barbecue louder than a careful
+   paragraph can take it back. Retitled **"Food and drink on site"**; the tab stays "Food & Beverage".
+3. **"Signage are up"** → "Signage is up". Auri's wording, his grammar slip.
+
+**IMAGES SWAPPED (four of the five Auri sent).** All five URLs return 200. I opened each one before
+writing its `alt`, because the old alt text was describing photos nobody had looked at — see Lost &
+Found below.
+
+| Panel | New file | Alt now says |
+|---|---|---|
+| Venue | `2026/08/Venue.jpg` | Bella Center facade under the TechBBQ banner, attendees at the Entrance 1 doors |
+| Entrance | **the same file** | the Entrance 1 revolving doors |
+| Transportation | `Copy-of-27091709A1-…` | an attendee stepping out of a car, bicycles racked behind |
+| Venue Map | `Copy-of-IMG_3701-2-…` | an elevated view across a hall, stands and walkways |
+| Lost & Found | `Copy-of-28103228C3-…` | two staff at a service desk, tagged coats on racks behind |
+
+- **Entrance reuses the Venue file** because Auri said "entrance the same", and it works: the doors in
+  that photo are labelled Entrance 1. The cost is two adjacent tabs with one picture.
+- **Lost & Found was the worst image in the guide** and nobody had noticed: the old file was a Silent
+  Events crew member holding an armful of headphones, under alt text claiming it showed "the TechBBQ
+  info desk where lost and found items are handled". Invented alt text on a public page. The new photo
+  reads as the wardrobe (coat racks) rather than the Info Desk in Hall E, and is still far better.
+
+**SEVEN MORE SWAPPED** (second batch, same session). All URLs 200, every photo opened before its
+`alt` was written. **12 of the guide's 30 panels are now on 2026 photography**; the other 18 are still
+2024/2025.
+
+| Panel | New file | What the photo actually is |
+|---|---|---|
+| Wardrobe | `Copy-of-27091109C1-…` | the Keypitt desks with the **Fast track sign in shot** — best match in either batch |
+| Info Desk | `Copy-of-27100543C1-…` | staff at laptops behind a desk |
+| Water Stations | `Copy-of-27120416C1-…` | **the Garden Hall itself**, glass roof and planting. The panel is titled "Free water in the Garden Hall", so this shows somebody where to go in a way a close-up of a tap cannot |
+| Event Platform | `Copy-of-28115820C3-…` | the **numbered** matchmaking tables: the platform's output, not its interface |
+| Workspaces | `Copy-of-IMG_3405-scaled.jpg` | laptops on tall shared benches (note: no `-TechBBQ-2025` in this filename, unlike the rest) |
+| Facility Safety | `Copy-of-27093727B1-…` | one person in a wide, clear hall |
+| Prohibited Items | `Copy-of-27101335D1-…` | two attendees at a stand; scenery, like the audience shot it replaces |
+
+**A BETTER ANSWER FOR THE ACCESSIBILITY PANEL FELL OUT OF THIS.** `Copy-of-27093727B1` (now on Facility
+Safety) is a wide, clear, unobstructed walkway with one person crossing it — which is literally the
+Accessibility panel's "Wide, clear walkways" bullet. If Auri wants that panel refreshed, this photo
+answers it; the badge-on-a-table below does not.
+
+**`2024/07/Networking-at-TechBBQ.jpg` IS USED TWICE**, on Brella and Table Reservation. Pre-existing,
+not introduced here, and the Event Platform photo above would suit Table Reservation if it needs one.
+
+**NOT SWAPPED · `Copy-of-27100938C1-TechBBQ-2025-scaled.jpg`, meant for "access".** That panel is the
+**Accessibility** panel (accessible entrances, lifts, service animals, a support phone number) and the
+photo is **a 2025 badge on a lanyard lying on a table**. Putting it there would say nothing about
+access and would delete the one image whose job is to show it. It is also the only PORTRAIT file in the
+set (1707×2560; the other four are landscape), so it will crop differently from every other panel.
+It belongs on **Badge Claim**, which currently uses `2025/01/badge-claim.webp`. Waiting on Auri.
+
+**PAGE WEIGHT.** The four "-scaled" files are 2560px and 436 KB to 953 KB each, against the 100-200 KB
+WebP they replace. Nothing renders them at that size. Worth WebP versions before the guide is busy.
+
+**OPEN QUESTIONS — none of these are guesses I should have made:**
+1. **"hot and warm food"** was written as **"hot and cold food"**. Hot and warm is the same thing
+   twice; cold is what a food court actually adds. Confirm.
+2. **"Biohacking devices" KEPT** in the Longevity Lounge. Auri's list gave two items and was cut off
+   mid-word ("Breathwork sessio"), so it is not evidence the third is gone.
+3. **Is One Thirty Labs still co-hosting** the room under its new name? A rename cannot answer that.
+4. **The wardrobe still closes at 18:00 on Thursday** while the Info Desk now runs to 19:00. Attendees
+   with coats in the wardrobe have an hour where the desk is open and their jacket is locked up.
+   Check-in also still reads 9:00 – 18:00 both days.
+
+**FILE POINTERS** · `lib/eventGuide.ts` is the whole guide: `GUIDE_SECTIONS`, one entry per tab.
+`lib/eventGuideSnippet.ts` renders it for WordPress and needed no change. `app/event-guide/page.tsx`
+is the preview.
+
+---
+
 ## SESSION (y) · 2026-08-17 · TWO DESCRIPTIONS WRITTEN INTO BRELLA
 
 `brella-set-descriptions.mjs`, dry run by default, `--commit` applied 2026-08-17. Copy from Auri.
@@ -247,27 +408,9 @@ re-checks is a dead link in front of attendees.
 
 ---
 
-## SESSION (x) · 2026-08-17 · BEYOND BETA'S LOGO BROKE OUT OF ITS TILE · A STALE NUDGE
+## SESSION (x-dup, superseded) · BEYOND BETA · moved to (z) at the top
 
-**FIXED.** `LOGO_SCALE["Beyond Beta"]` in `lib/partners.ts`: **1.96 → 0.94**. Verified in the browser,
-the mark now sits 257x140 inside a 309x185 tile with no overflow on either axis.
-
-**THE CAUSE, and it will happen again to someone else.** That 1.96 was correct when the file was a
-thin wordmark inside a mostly-empty canvas. The partner replaced the artwork with a TIGHT CROP:
-`scripts/measure-logo-ink.mjs` now reports **ink at 100% of the image box**, AR 5.05, `cap` 0.94. So
-the old nudge was doubling a logo that already reached its own edges. **A stale nudge is worse than
-none** — re-run that script whenever a partner replaces their logo, exactly as the LOGO_SCALE header
-already says.
-
-**WHAT NOT TO "FIX".** A DOM check of all 191 logos flags **Skytek Nordics (2.11)** and **PSV (2.92)**
-as overflowing their tile's bounding box. They are correct and must be left alone: their files are
-88% and 77% transparent margin, so only the empty box overflows and no ink leaves the tile. The ink
-script confirms it — PSV sits at 2.92 against a cap of 3.19, Skytek at 2.11 exactly on its cap.
-Comparing `getBoundingClientRect()` to the tile is the WRONG test for this wall; the ink measurement
-is the right one.
-
-**FILE POINTERS** · `lib/partners.ts` (`LOGO_SCALE`) · `lib/logoFit.ts` (the area rule, nudge ceiling
-3) · `scripts/measure-logo-ink.mjs` (`node scripts/measure-logo-ink.mjs <name>`, needs the dev server).
+See SESSION (z).
 
 ---
 
