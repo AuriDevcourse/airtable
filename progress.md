@@ -4,6 +4,11 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+> **Newest first. Sessions from 2026-08-13 and earlier are in
+> [`progress-archive.md`](progress-archive.md)** — this file was split on 2026-08-17 at 486KB,
+> because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
+> two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
+
 ## SESSION · 2026-08-17 · THE PUBLIC FAQ ON techbbq.dk, 11 EDITS · NO REPO CODE CHANGED
 
 **CURRENT STATE.** `techbbq.dk/faq` (WordPress post **15331**, Elementor) is corrected, saved and
