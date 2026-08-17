@@ -4,6 +4,128 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (y) · 2026-08-17 · TWO DESCRIPTIONS WRITTEN INTO BRELLA
+
+`brella-set-descriptions.mjs`, dry run by default, `--commit` applied 2026-08-17. Copy from Auri.
+Both rows verified by READING THEM BACK — a 200 from this API is not evidence that a field landed.
+
+| Timeslot | Was | Now |
+|---|---|---|
+| 975699 · Nordic IPO & Stock Market Day | **empty** | 5 paragraphs, 923 chars |
+| 975697 · Board Summit by Boardway | one line: the document name | 2 paragraphs, 337 chars |
+
+**NORDIC IPO IS PURE GAIN.** Content was empty, which is why the block read as five hours with a
+title and nothing else. It now shows on techbbq.dk too (938 chars with Brella's subtitle line) beside
+the PDF link. Combined with session (x), Event Room 3 goes from the worst block on the board to a
+described session with a full programme one press away.
+
+**BOARD SUMMIT COST TWO THINGS, both flagged to Auri:**
+
+1. **THE WRITE DESTROYED A HYPERLINK AND THE API CANNOT PUT ONE BACK.** The row's only content was
+   the line "Boardway_TechBBQ_Program_2026", and that text was a LINK to the programme on Google
+   Drive (`drive.google.com/file/d/1VDre9Bcf7tsKNrWr8XL9OdrjSy8bCGtz`). `content` writes as a plain
+   string, which produces an empty entityMap, and the Draft.js shape is rejected outright. So the
+   script restates the URL as **plain text on a second line**, pointing at our own copy on techbbq.dk
+   rather than at Drive. One action in Brella's admin turns it back into a link; deleting the line
+   leaves Auri's copy verbatim.
+2. **IT DOES NOT REACH techbbq.dk.** `lib/boardOverride.ts` (session (x)) drops this row, so the
+   blurb lives in the attendee app only. **This is new**: the Policy Stage's dropped row holds 42
+   characters, the document's filename, so nothing was ever lost there. A programme blurb on the
+   dashed band is the fix and it is not written.
+
+**ONE EDIT TO AURI'S COPY, disclosed:** "their capital needs evolve — and a stock market listing"
+became "evolve, and a stock market listing". His own no-em-dash rule, applied to his own text.
+
+**GOTCHA** · pinned timeslot ids are the rot risk here, so the script ABORTS if an id is missing or
+its title has changed. The 15:35 Investor Reverse Pitch was deleted and recreated during NASS, which
+changed its id; writing a description onto whatever row now holds a stale id is worse than writing
+none.
+
+---
+
+## SESSION (x) · 2026-08-17 · SIX PROGRAMMES LINKED · THE BOARD SUMMIT COLUMN IS REAL NOW
+
+**BRANCH** `board-summit-programme-link`, continuing session (w).
+
+**CURRENT STATE.** Five PDFs wired, one wording for all of them, and the Board Summit column on the
+Brella board is the real 14-session agenda instead of a blank rectangle. **Verified against the live
+feed: 280 sessions, 14 in Day 3 Event Room 1, 19 sessions carrying a PDF link, Brella's all-day Board
+Summit row gone.** Nothing deployed.
+
+**THE DEV SERVER IS SERVING 500 ON EVERY ROUTE, AND IT IS NOT THESE CHANGES.** `.next/BUILD_ID` and
+`.next/trace` were written at 15:36 while `next dev --turbopack` (pid 11560) was running. That is the
+documented conflict — a production build writing into the dev server's `.next` — and it takes down
+`/`, `/program` and `/api/*` alike. `tsc --noEmit` is clean and the feed capture above was taken after
+every edit. **Fix: restart `npm run dev`.** Do not run `next build` while dev is running.
+
+**1 · FIVE PDFs, ONE WORDING.** All in `lib/sessionProgrammes.ts`. The label is now the shared
+constant `SEE_FULL` = **"See the full program (PDF)"** (Auri's words). It was per-entry before, which
+with six entries just meant six slightly different sentences for one action.
+
+| Session | Match | File |
+|---|---|---|
+| Beyond Unicorns | `^beyond unicorns` | `Closing-Loops-TechBBQ.pdf` |
+| Board Summit | `^board summit` | `Board-Summit-Program-2026.pdf` |
+| **Nordic IPO & Stock Market Day** | `^nordic ipo` | `Nordic-IPO-2026_Program_A4_Midnight-2pages.pdf` |
+| **AI That Sells** (Microsoft) | `^ai that sells` | `TechBBQ-Ai-that-sells.pdf` |
+| **CBC Initial Pitching** | `^creative business cup` | `CBC26-@TechBBQ-programme-overview.pdf` |
+| **CBC Global Finals** | `^cbc global finals creativity` | same file |
+
+The CBC Global Finals regex carries `creativity` on purpose: the pushed sub-session is titled exactly
+"CBC Global Finals", so `^cbc global finals\b` would put the link on both the parent and the child.
+
+**2 · `lib/boardOverride.ts`** · the fourth substitution, modelled on `policyOverride` and
+`nassOverride`, wired in `app/api/program/route.ts` after the NASS merge with its own try/catch.
+Drops Brella's all-day Event Room 1 row on the 27th and puts the 14 Airtable sessions in the column,
+each with `programme: "Board Summit"` (which earns the dashed whole-day band), moderators-then-
+speakers, and **`programmeUrl` on every row including Check-in and the break**.
+
+The PDF on every session is not decoration: dropping Brella's all-day row drops the only pressable
+thing that carried the link, because the band that replaces it is derived and cannot be clicked. Auri
+asked for both ("if we have speakers and everything, let's add it up, but make sure to have also pdf
+program").
+
+**BAND MARGIN IS ZERO AT THE END.** The 14 sessions run 09:00 to 16:00, and `spansMorningToEvening`
+needs start ≤ 11:00 and end ≥ 16:00. If Boardway ever moves Closing Remarks to end at 15:50, the
+column silently loses its band and stops announcing itself as a whole-day programme.
+
+**3 · TWO PDFs ARE MORE THAN A LINK — they contain agendas we do not have as data:**
+- **Nordic IPO** · the PDF is the WHOLE programme: **14 timed items and 25 named speakers** (Sara
+  Sjölin/Bloomberg, Adam Kostyal/Nasdaq, Øivind Amundsen/Euronext Oslo, Sander Janca-Jensen/Flatpay,
+  Kjetil Houg/Folketrygdfondet…), 12:30 networking through the 16:55 closing bell. Typing it into the
+  Sessions table the way NASS and the Policy Stage were is the real fix. Note it ends **17:15** where
+  Brella books the room to 17:30.
+- **AI That Sells** · the PDF has the times the Brella description lacks (14:30 doors, 14:40
+  Microsoft, 14:50 Antler/Speedinvest, 15:20 Anthropic demo, 15:50 roundtables, 16:30 drinks).
+
+**4 · THE CBC FILE ON techbbq.dk IS THE OLD ONE.** `CBC26-@TechBBQ-programme-overview.pdf` is
+byte-identical (md5 `3ec8e307…`) to `Downloads/CBC26 @TechBBQ - programme overview.pdf`, PDF
+creationDate **14 August**. The **17 August** revision is the `(1)` copy, still not uploaded. Upload
+it OVER the same filename and no code changes. `CBC_2026_Program.pdf` is also uploaded and is
+deliberately linked from nowhere: wrong weekdays, superseded times.
+
+**5 · STILL MISSING, AND IT NEEDS A DECISION** (Auri supplied the content, 2026-08-17):
+- **Event Room 4, 26 August = Defence & Dual Use Summit** (`techbbq.dk/defencedualuse-summit/`).
+  Programme is `09:30 – 17:30 | Summit Sessions (TBA)` — one block, no agenda yet. The 27th's Defence
+  Tech & Cyber Arena DOES have times (09:30 keynote, 09:40 panel, 10:00 fireside, 10:15 keynote,
+  10:30 roundtables) plus the 08:00 Royal Reception, which is already on the board as a side event.
+- **Event Room 6, 27 August = Dansk Svensk Summit (TechBBQ), 09:30–14:00.** Title and span only.
+
+Both rooms are **EMPTY IN BRELLA**, so neither a PDF link nor an override helps: there is no row to
+hang anything on. Two ways in, and it is Auri's call: **push the blocks to Brella** (fixes the
+attendee app too, which matters more than our board, but writes to the live event) or **type them
+into the Sessions table and add an override** (our board only). Recommended: push to Brella, since an
+attendee looking at Event Room 4 on the 26th currently sees nothing at all.
+
+**6 · NOT DOING** (Auri): Northstar Pitch finalists ("we have it in mind for now, but we dont do it"),
+the Fundraising Bootcamp workshop ("should be fine"), Future of Fintech descriptions ("seems to be
+fine").
+
+**FILE POINTERS** · `lib/sessionProgrammes.ts` (six entries, `SEE_FULL`) · `lib/boardOverride.ts` ·
+`app/api/program/route.ts` (the fourth merge).
+
+---
+
 ## SESSION (w) · 2026-08-17 · BOARD SUMMIT: PDF LINK + THE 4 MISSING PEOPLE · CBC PROGRAMME CHANGED
 
 **BRANCH** `board-summit-programme-link`, off `main` (which was carrying session (v)'s uncommitted
@@ -122,6 +244,30 @@ re-checks is a dead link in front of attendees.
 (`AgendaOptions.doc`, `escapeHtml`, the `.tbbq-agenda__doc` CSS, `var DOC`) · `app/program/page.tsx`
 (the `board` entry's `doc`, `CopyAgendaEmbed`, the dashboard link) ·
 `scripts/board-summit-fill-roles.mjs` (rerunnable, idempotent).
+
+---
+
+## SESSION (x) · 2026-08-17 · BEYOND BETA'S LOGO BROKE OUT OF ITS TILE · A STALE NUDGE
+
+**FIXED.** `LOGO_SCALE["Beyond Beta"]` in `lib/partners.ts`: **1.96 → 0.94**. Verified in the browser,
+the mark now sits 257x140 inside a 309x185 tile with no overflow on either axis.
+
+**THE CAUSE, and it will happen again to someone else.** That 1.96 was correct when the file was a
+thin wordmark inside a mostly-empty canvas. The partner replaced the artwork with a TIGHT CROP:
+`scripts/measure-logo-ink.mjs` now reports **ink at 100% of the image box**, AR 5.05, `cap` 0.94. So
+the old nudge was doubling a logo that already reached its own edges. **A stale nudge is worse than
+none** — re-run that script whenever a partner replaces their logo, exactly as the LOGO_SCALE header
+already says.
+
+**WHAT NOT TO "FIX".** A DOM check of all 191 logos flags **Skytek Nordics (2.11)** and **PSV (2.92)**
+as overflowing their tile's bounding box. They are correct and must be left alone: their files are
+88% and 77% transparent margin, so only the empty box overflows and no ink leaves the tile. The ink
+script confirms it — PSV sits at 2.92 against a cap of 3.19, Skytek at 2.11 exactly on its cap.
+Comparing `getBoundingClientRect()` to the tile is the WRONG test for this wall; the ink measurement
+is the right one.
+
+**FILE POINTERS** · `lib/partners.ts` (`LOGO_SCALE`) · `lib/logoFit.ts` (the area rule, nudge ceiling
+3) · `scripts/measure-logo-ink.mjs` (`node scripts/measure-logo-ink.mjs <name>`, needs the dev server).
 
 ---
 
