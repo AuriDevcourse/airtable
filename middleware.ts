@@ -33,6 +33,11 @@ const PUBLIC_PATHS = new Set([
   "/api/investor-speakers",
   "/api/fintech-speakers",
   "/api/policy-stage",
+  // Same reasoning as /api/policy-stage, and listed here the day the route was written rather than
+  // after it broke: the WordPress embed fetches it cross-origin and a browser fetch() cannot answer
+  // a Basic auth challenge. The unfinished rows it can also report (needsRole) are gated inside the
+  // route on the dashboard password, exactly like ?pending=1 on /api/interns.
+  "/api/board-summit",
   "/api/program",
   "/api/life-science",
   "/api/ls-startups",

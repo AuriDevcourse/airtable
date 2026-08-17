@@ -190,6 +190,14 @@ export const SECTIONS: PageSection[] = [
         note: "Speakers, moderators and keynotes for the fintech day.",
         keywords: "finance banking payments",
       },
+      {
+        // Event Room 1, so it belongs here beside the Policy Stage rather than in Projects: the
+        // section is a PLACE. Its sessions are on /program; this is the roster behind them.
+        href: "/board-summit",
+        label: "Board Summit",
+        note: "Board members and chairs · Event Room 1, hosted by Boardway.",
+        keywords: "boardway board chair governance directors",
+      },
     ],
   },
   // Neither a roster nor an agenda: these are for the team, not for the website.

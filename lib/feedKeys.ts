@@ -23,6 +23,7 @@ export const FEED_KEYS: Record<string, string[]> = {
   partners: ["partners"],
   "partner-events": ["partnerevents"],
   "policy-stage": ["policy-stage"],
+  "board-summit": ["board-summit"],
   "life-science": ["lifescience:"],
   "ls-startups": ["ls-startups"],
   "fintech-speakers": ["fintech-speakers"],
