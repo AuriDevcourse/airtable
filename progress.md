@@ -180,7 +180,53 @@ techbbq.dk CORS pin does not block it) carrying the built snippet plus a theme d
 parent, underline intact, colour brighter than the body**. Same result on `/event-guide`, all 5 at 13px.
 The test page is deleted; the recipe is this paragraph.
 
+**SECOND PASS, SAME DAY: `!important` EVERYWHERE IT WAS MISSING** (Auri: "I think we do need to use
+sometimes important"). The first pass fixed the anchor and left three leaks, all found by turning the
+test theme up to `!important` on every property of every element:
+
+1. **The reset's `font-size/line-height/font-weight:inherit` had no `!important`**, so a theme's
+   `p{font-size:19px!important}` beat it and the panel scaled up. Now `inherit!important`.
+2. **That change raised the stakes on every class rule below it.** `.eg-h` is the h2,
+   `.eg-panel__title` the h3, `.eg-eyebrow`/`.eg-lead`/`.eg-day` are p, `.eg-tags li` is an li — all in
+   the reset's selector list. Without `!important` on their own font declarations the reset would have
+   flattened every heading, pill and lead line to 16px regular. Eight rules gained it. **With
+   `!important` on both sides, specificity decides and a class beats an element, which is the order we
+   want.** If you add a class rule setting font-size, font-weight or line-height on one of those six
+   elements, it needs `!important` or it will not apply.
+3. **THE LEAK THAT MATTERED MOST: `div`, `section` and `span` were never claimed.** Every reset says
+   `font-*:inherit`, which faithfully inherits whatever the DIV above it computed. Under
+   `div{font-family:Georgia!important;font-size:19px!important}` the eyebrow came out Georgia and the
+   venue-details list came out 19px, because its `ul` sits inside an unclassed wrapper div. They now
+   have their own **font-properties-only** rule. Not the box model, on purpose: `.eg-section` carries
+   `margin:0 auto 88px` without `!important`, so a `margin:0!important` there would flatten the layout.
+   That is why it is a separate rule rather than three more selectors on the reset.
+
+Also `font-style` and `text-align` on the root, which a theme's italic and centring were overriding.
+
+**MEASURED AFTER, under a theme setting every property `!important` on a, p, h2, h3, ul, li, figure,
+div and span (Georgia 19px 800 italic uppercase centred, links blue and undecorated):**
+
+| Element | Computed |
+|---|---|
+| `.eg-h` | 38px, 600, Onest, centred, normal |
+| `.eg-panel__title` | 24px, 600, Onest |
+| `.eg-eyebrow` | 10px, 600, Inter, uppercase (was **Georgia**) |
+| `.eg-body p` | 13px, 400, Inter, normal (was 19px/800/Georgia/italic) |
+| `.eg-list li` | 13px (was **19px**) |
+| `.eg-tags li` | 9px, 600, uppercase |
+| `.eg-tab` | 13px, 500, Inter |
+| all 5 links | **zero** mismatched properties vs parent, underline intact |
+
+**NOT hardened: `app/globals.css`.** The dashboard has no hostile theme and controls its own cascade;
+`!important` there would be cargo-cult. Its only change is `font: inherit` on `.eg-body a`.
+
 **GOTCHAS**
+- **TWO DEV SERVERS WERE RUNNING FOR THIS REPO** and both were writing into one `.next`, which threw
+  ENOENT on `_buildManifest.js.tmp` and `app-paths-manifest.json` and 500'd `/api/event-guide` for
+  several minutes. Look for two `next dev --turbopack` processes before blaming the code:
+  `wmic process where "name='node.exe'" get processid,commandline | grep airtable`, then check which
+  pid owns 3000 with `netstat -ano | grep :3000`. Kill the one that owns nothing, clear `.next`,
+  restart. Same family as the build-over-dev conflict in session (x).
 - **NO BACKTICKS IN COMMENTS INSIDE THESE SNIPPET FILES.** The whole stylesheet is a template literal,
   so a backtick in prose ends the string. `tsc` caught it (TS1005 at the line); the browser would have
   got a syntax error and a blank widget.

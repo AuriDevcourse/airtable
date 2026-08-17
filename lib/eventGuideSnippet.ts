@@ -69,7 +69,7 @@ export function buildEventGuideSnippet({
        !important throughout this block is not defensiveness for its own sake: the techbbq.dk
        theme sets h2,h3 font-family with !important, and !important is the only thing that
        outranks !important. Every one of these is scoped to this widget's own id. */
-    font-size:16px!important;line-height:1.5!important;font-weight:400;font-style:normal;text-align:left;
+    font-size:16px!important;line-height:1.5!important;font-weight:400!important;font-style:normal!important;text-align:left!important;
     color:var(--fg)!important;background:var(--ground)!important;
     width:100%;max-width:none;margin:0;
     padding:clamp(28px,5vw,56px) clamp(16px,4vw,24px);
@@ -81,17 +81,41 @@ export function buildEventGuideSnippet({
   #${id} h2,#${id} h3,#${id} p,#${id} ul,#${id} li,#${id} figure{
     margin:0!important;padding:0!important;border:0;background:none;color:inherit;
     font-family:inherit!important;text-transform:none!important;letter-spacing:normal!important;
-    text-align:left!important;font-style:normal;
-    /* Inherited, not fixed: every real size comes from a class below, which outranks this. A
-       theme rule like p{font-size:19px} lands ON the element and would otherwise beat the 13px
-       this inherits from .eg-body. */
-    font-size:inherit;line-height:inherit;font-weight:inherit;
+    text-align:left!important;font-style:inherit!important;
+    /* Inherited, not fixed: every real size comes from a class below.
+       !important AS OF 2026-08-17 (Auri: "I think we do need to use sometimes important"). Plain
+       inherit, with no !important, lost to a theme's p{font-size:19px!important} — measured — and the
+       whole panel scaled up with it. Only !important outranks !important.
+       THIS RAISED THE STAKES ON EVERY CLASS RULE BELOW. .eg-h is the h2, .eg-panel__title the h3,
+       .eg-eyebrow/.eg-lead/.eg-day are p and .eg-tags li is an li — all of them in the selector list
+       above. So each of their font declarations now carries !important too. With !important on both
+       sides, specificity decides and a class beats an element, which is the order we want; with it on
+       only this side, this rule would flatten every heading, pill and lead line in the guide to 16px
+       regular. If you add a class rule that sets font-size, font-weight or line-height on one of
+       these six elements, it needs !important or it will not apply. */
+    font-size:inherit!important;line-height:inherit!important;font-weight:inherit!important;
   }
   /* 2. NOTHING PAINTS A BACKGROUND UNLESS IT ASKS TO. The first paste landed under a theme with
      section,div{background:#fff}, which put a white block behind the copy inside an otherwise
      dark panel — the computed styles on the root and the panel were all correct and it still
      looked broken. The three elements that DO want a colour re-assert it with !important. */
   #${id} div,#${id} section,#${id} span{background:none!important}
+  /* THE CONTAINERS HAD TO BE CLAIMED TOO, and this was the leak that made the rest look fixed while
+     it was not. Every reset above is on the elements that HOLD TEXT, and each of them says
+     font-*:inherit — which faithfully inherits whatever the DIV above it computed. A theme with
+     div{font-family:Georgia!important;font-size:19px!important} therefore poisoned the guide through
+     its own wrappers: the eyebrow came out Georgia, and the venue-details list came out 19px because
+     its ul sits inside an unclassed div. Measured 2026-08-17 under a test theme.
+     FONT PROPERTIES ONLY. Nothing about the box model, because .eg-section carries margin:0 auto 88px
+     without !important and .eg-panel its own padding — a margin:0!important here would flatten the
+     whole layout. That is why this is a separate rule and not three more selectors on the reset above.
+     text-align is inherited on purpose so a theme's text-align:center cannot re-centre body copy,
+     while .eg-h keeps its own centring with !important. */
+  #${id} div,#${id} section,#${id} span{
+    font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;
+    font-style:inherit!important;line-height:inherit!important;letter-spacing:inherit!important;
+    text-transform:none!important;text-align:inherit!important;
+  }
   #${id} ul{list-style:none!important}
   #${id} li:before{content:none}
   #${id} img{max-width:100%!important;border:0!important;border-radius:0!important;box-shadow:none!important;display:block}
@@ -128,7 +152,7 @@ export function buildEventGuideSnippet({
      container query support; the second uses cqi (1% of THIS widget's width) and overrides it
      where supported. A viewport-based clamp printed a 38px heading inside a 370px Elementor
      column, which is how this was found. */
-  #${id} .eg-h{font-size:clamp(26px,4vw,38px);font-size:clamp(23px,5.4cqi,38px);line-height:1.1!important;text-align:center!important;margin:0 0 22px!important}
+  #${id} .eg-h{font-size:clamp(26px,4vw,38px)!important;font-size:clamp(23px,5.4cqi,38px)!important;line-height:1.1!important;text-align:center!important;margin:0 0 22px!important}
   #${id} .eg-tabs{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:0 0 22px;padding:0;list-style:none}
   #${id} .eg-tab{font:500 13px/1 "Inter",ui-sans-serif,system-ui,sans-serif!important;color:var(--fg)!important;background:transparent!important;border:1px solid var(--border)!important;border-radius:999px!important;padding:9px 15px!important;width:auto!important;height:auto!important;cursor:pointer;text-transform:none!important;letter-spacing:normal!important;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
   #${id} .eg-tab:hover{background:var(--card2)!important}
@@ -146,13 +170,13 @@ export function buildEventGuideSnippet({
      what lets an unvisited panel measure the same as a visited one. */
   #${id} .eg-panel__media{margin:0!important;border-radius:12px;overflow:hidden;background:var(--card2)!important;aspect-ratio:5/4}
   #${id} .eg-panel__media img{width:100%!important;height:100%!important;max-width:none!important;display:block;object-fit:cover;object-position:50% 30%}
-  #${id} .eg-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--fg);margin:0 0 18px!important}
+  #${id} .eg-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px!important;font-weight:600!important;letter-spacing:.14em!important;text-transform:uppercase!important;color:var(--fg);margin:0 0 18px!important}
   #${id} .eg-eyebrow:before{content:"";width:5px;height:5px;border-radius:50%;background:var(--acc);flex:0 0 auto}
-  #${id} .eg-panel__title{font-size:clamp(19px,2.4vw,24px);font-size:clamp(18px,3.4cqi,24px);line-height:1.2!important;margin:0 0 12px!important}
-  #${id} .eg-body{font-size:13px;line-height:1.6;color:var(--muted)}
+  #${id} .eg-panel__title{font-size:clamp(19px,2.4vw,24px)!important;font-size:clamp(18px,3.4cqi,24px)!important;line-height:1.2!important;margin:0 0 12px!important}
+  #${id} .eg-body{font-size:13px!important;line-height:1.6!important;color:var(--muted)}
   #${id} .eg-body>*+*{margin-top:10px!important}
   #${id} .eg-body p{margin:0}
-  #${id} .eg-lead{color:var(--fg);font-weight:600}
+  #${id} .eg-lead{color:var(--fg);font-weight:600!important}
   /* The underline carries !important for the mirror-image reason: a theme with a{text-decoration:none}
      would strip the one signal that survives for a reader who cannot see the colour difference.
      Colour alone is never the affordance (SECURITY.md r9). */
@@ -162,10 +186,10 @@ export function buildEventGuideSnippet({
   #${id} .eg-list li{position:relative;padding-left:13px!important}
   #${id} .eg-list li+li{margin-top:4px!important}
   #${id} .eg-list li:before{content:"";position:absolute;left:2px;top:.62em;width:3px;height:3px;border-radius:50%;background:var(--muted)}
-  #${id} .eg-day{color:var(--fg);font-weight:600;margin:0 0 4px!important}
+  #${id} .eg-day{color:var(--fg);font-weight:600!important;margin:0 0 4px!important}
   #${id} .eg-schedule+.eg-schedule{margin-top:14px!important}
   #${id} .eg-tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0!important;padding:0;list-style:none!important}
-  #${id} .eg-tags li{font-size:9px;font-weight:600;letter-spacing:.09em!important;text-transform:uppercase!important;color:#d0d0d0;border:1px solid var(--border)!important;border-radius:4px;padding:4px 7px!important;line-height:1}
+  #${id} .eg-tags li{font-size:9px!important;font-weight:600!important;letter-spacing:.09em!important;text-transform:uppercase!important;color:#d0d0d0;border:1px solid var(--border)!important;border-radius:4px;padding:4px 7px!important;line-height:1!important}
   #${id} .eg-tags li:before{content:none}
   /* THE COLLAPSE, asked of the WIDGET's width rather than the screen's. This is the rule that a
      narrow Elementor column needs and a viewport media query cannot give. */
