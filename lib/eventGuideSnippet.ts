@@ -95,7 +95,25 @@ export function buildEventGuideSnippet({
   #${id} ul{list-style:none!important}
   #${id} li:before{content:none}
   #${id} img{max-width:100%!important;border:0!important;border-radius:0!important;box-shadow:none!important;display:block}
-  #${id} a{background:none;box-shadow:none;border:0}
+  /* A LINK IS BODY TEXT THAT HAPPENS TO BE CLICKABLE.
+     NO BACKTICKS IN THIS COMMENT. It lives inside a template literal, and one terminates the
+     string — tsc caught it, the browser would have got a syntax error.
+     The theme reset above lists h2, h3, p, ul, li and figure, and NOT the anchor, which is how the
+     KeyPass link in the Wardrobe panel ended up a size larger and in a different typeface than
+     the sentence it sits in (Auri, 2026-08-17: "we just switch the styling"). A theme rule like
+     a{font-family:…;font-size:19px;font-weight:700} lands ON the anchor, and an element-level
+     declaration beats the 13px Inter the anchor should be inheriting from .eg-body. Nothing was
+     wrong with our CSS; it simply never claimed these properties, so the theme kept them.
+     Every font property is therefore pinned to inherit, not to a value: the link has to track
+     whatever its container is, which is 13px muted body copy here and could be a list item or a
+     lead line elsewhere. The only things a link is allowed to differ by are the brighter colour
+     and the underline, both set on .eg-body a below. */
+  #${id} a{
+    background:none;box-shadow:none;border:0;
+    font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;
+    font-style:inherit!important;line-height:inherit!important;letter-spacing:inherit!important;
+    text-transform:none!important;
+  }
   #${id} button{
     -webkit-appearance:none;appearance:none;
     margin:0;font-family:inherit;text-transform:none;letter-spacing:normal;
@@ -135,7 +153,10 @@ export function buildEventGuideSnippet({
   #${id} .eg-body>*+*{margin-top:10px!important}
   #${id} .eg-body p{margin:0}
   #${id} .eg-lead{color:var(--fg);font-weight:600}
-  #${id} .eg-body a{color:var(--fg)!important;background:none!important;box-shadow:none!important;text-decoration:underline;text-underline-offset:2px}
+  /* The underline carries !important for the mirror-image reason: a theme with a{text-decoration:none}
+     would strip the one signal that survives for a reader who cannot see the colour difference.
+     Colour alone is never the affordance (SECURITY.md r9). */
+  #${id} .eg-body a{color:var(--fg)!important;background:none!important;box-shadow:none!important;text-decoration:underline!important;text-underline-offset:2px!important;text-decoration-thickness:1px!important}
   #${id} .eg-body a:hover{opacity:.75}
   #${id} .eg-list{margin:0;padding:0;list-style:none}
   #${id} .eg-list li{position:relative;padding-left:13px!important}

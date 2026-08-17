@@ -5,7 +5,87 @@ techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ev
 reaching the browser.
 
 > **SESSION LETTERS COLLIDED on 2026-08-17.** Two people wrote handoff entries in parallel, so there
-> are two (w)s and two (x)s below. Entries are newest-first; trust the ORDER, not the letter.
+> are two (w)s, two (x)s and two (z)s below. Entries are newest-first; trust the ORDER, not the
+> letter. The alphabet has run out — later entries use (aa), (ab), … .
+
+## SESSION (aa) · 2026-08-17 · 23 PARTNER ROWS + 5 COMPANY LINKS WRITTEN TO AIRTABLE · JYSKE BANK → PIONEER
+
+**CURRENT STATE.** Every confirmed partner now has a Partner Deliverables 2026 row: **211 confirmed,
+0 missing, 220 rows**. Company Links: **8 empty → 3**, and the 3 left cannot be linked rather than
+were skipped for caution. Jyske Bank Growth now renders in the **Pioneer** band, not Core.
+
+**WRITTEN TO AIRTABLE TODAY — a git revert does NOT undo any of it.**
+- 21 rows created, then 2 more (The Energy Consortium IIT Madras `rectnu6tS97RH2zYI`; Greeks in the
+  Nordics `rec2WNf1a3YskerWf`). Auri then deleted 4 of the first batch, deliberately.
+- 5 `Company Link` cells filled.
+- Nothing was ticked "Put on web" and no logo was touched.
+
+**TWO NEW SCRIPTS** (both dry-run by default, `--commit` to write)
+- `scripts/add-missing-deliverables.mjs` — creates a deliverables row for every confirmed partner
+  that lacks one.
+- `scripts/link-company-links.mjs` — fills empty `Company Link` cells by Partner ID.
+
+**THE TRAP THAT NEARLY UNDID AURI'S WORK.** "Idempotent" is not "safe to re-run". The add script
+skips what already exists, and **a row Auri DELETED looks exactly like a row that was never
+created** — so the second run was about to resurrect all four deletions. Hence `NEVER_CREATE`
+(ids 62, 2550, 272, 1444) with a written reason per id. Any script that reconciles two tables by
+absence needs this list, or it will fight the human.
+
+**WHY THOSE FOUR ARE NOT PARTNERS.** The CRM files an upsell or add-on as **its own row with the deal
+name appended** — "Ada Ventures promo" (62) beside "Ada Ventures" (2103), "Business Turku Oy Ab
+upsell" (2550) beside "Business Turku Oy Ab" (2196). They are second INVOICE LINES, not second
+companies, and a name match misses them because of the suffix. Plus "CPH Fintech" (272) = Copenhagen
+Fintech Lab (1468), already live, and Novo Nordisk Denmark AS (1444), which Auri does not want on the
+wall (it is genuinely distinct from Novo Nordisk Foundation, id 2091, Prime).
+
+**THE LINKER'S GUARD, and why it is not optional.** A shared Partner ID does NOT prove two rows are
+the same company: deliverables "AWS Startups" carries id **2222, which belongs to NVIDIA** in the
+CRM. Linking on the id alone would have filed AWS under NVIDIA, silently and permanently. So a match
+must also share a NAME TOKEN, with generic words (network, group, ventures, denmark, …) excluded so
+"…Network" cannot match anything else ending in Network.
+
+**MATCH ON THE ID, NOT THE LABEL.** Two rows were unfindable by name and instant by id:
+"Professional Women of Colour Network (ProWoc)" is filed as "ProWoc - Professional Women of Colour",
+and "rebriQ" as "rebriQ by Improve Business".
+
+**JYSKE BANK → PIONEER** · `TIER_EXCEPTIONS` in `lib/partners.ts`. The band comes from DEAL SIZE, and
+their 2026 deal of 157,500 reads as Core at any reading. But the CRM's own
+`Partnership Success Tier/Type 2026` says "Pioneer Partner" and the deliverables
+`Partnership Type 2026` says "Pioneer " — two human-set columns already agreed, only the
+price-derived one dissented. That clears the table's documented bar ("the deal cannot express the
+tier"). Delete the entry if the deal is ever repriced.
+
+**GOTCHAS**
+- `Partnership Type 2026` means DIFFERENT things in the two tables and shares no vocabulary. The add
+  script translates via `TYPE_MAP` and leaves the cell BLANK where no mapping exists — a blank type
+  means no tier resolves and the row stays off the wall, which is the honest state.
+- The CRM type field is a MULTI-select and the mappable value is not always first: FailForward is
+  `["Barter Deal", "Community Partnership (Non-commercial)"]`. Reading `[0]` threw away the half that
+  translates.
+- **There is almost nothing to copy from Partners 2026.** Of the 21: ZERO logos, ZERO LinkedIn URLs,
+  ONE website (Cherry Ventures). The new rows are shells; the logo still has to come from the partner.
+- Prior-year rows in the FULL deliverables table (3,811 rows, not the 220-row view) DO carry this
+  data. Copenhagen Fintech and FailForward both already have white SVGs there.
+- Greeks in the Nordics was added via `FORCE_INCLUDE` while its CRM status still reads "Contract
+  Sent". Delete that entry once the status is corrected.
+
+**NEXT STEPS**
+1. **Finish the deploy** — `4dcdfa0` is on `origin/main` but production still runs the old build.
+   `npx vercel login`, then `npx vercel --prod`. Beyond Beta and Jyske Bank are NOT in that commit.
+2. Re-copy the NISS embed into Elementor after deploying (`PEOPLE=false` is baked into the paste).
+3. **Fix AWS Startups' Partner ID** — 2222 is NVIDIA's. Pick the real AWS row (four exist, all "To Be
+   Contacted"), confirm it, correct the id. That id is also the Brella key.
+4. Crescita Partners and Erhvervsfremmebestyrelsen have **Partner ID 0** and cannot link; Crescita has
+   no CRM row at all under any spelling.
+5. Set the CRM status for Greeks in the Nordics to Confirmed.
+6. **Consider reading `Partnership Success Tier/Type 2026` instead of hardcoding TIER_EXCEPTIONS** —
+   it already said Pioneer for Jyske Bank unaided. Check how widely it is filled first.
+
+**FILE POINTERS** · `scripts/add-missing-deliverables.mjs` (`NEVER_CREATE`, `FORCE_INCLUDE`,
+`TYPE_MAP`) · `scripts/link-company-links.mjs` (the name-token guard) · `lib/partners.ts`
+(`TIER_EXCEPTIONS`, `LOGO_SCALE`) · deliverables view `viw7FVbsTb9IRaWF0` · CRM `tbl9V6ZtxEbR4uELC`.
+
+---
 
 ## SESSION (z) · 2026-08-17 · BEYOND BETA'S LOGO BROKE ITS TILE · PARTNER DATA AUDITED (READ-ONLY)
 
@@ -67,6 +147,53 @@ for this wall**; the ink measurement is the right one.
 **FILE POINTERS** · `lib/partners.ts` (`LOGO_SCALE`) · `lib/logoFit.ts` (area rule, nudge ceiling 3) ·
 `scripts/measure-logo-ink.mjs` · deliverables view `viw7FVbsTb9IRaWF0` · Partners 2026
 `tbl9V6ZtxEbR4uELC`.
+
+---
+
+## SESSION (aa) · 2026-08-17 · THE EMBED'S LINKS WERE WEARING THE HOST THEME'S FONT
+
+**CURRENT STATE.** Links in the event guide now render as body text that happens to be clickable, in
+both surfaces. Proved under a deliberately hostile theme in a real browser: every font property on the
+anchor matches its parent exactly, where before the theme won. Not committed.
+
+**THE BUG.** Auri, 2026-08-17, with a screenshot of the Wardrobe panel: the KeyPass link sat inside a
+13px Inter sentence rendering a size larger, bolder and in a different typeface. Nothing was wrong with
+our CSS. It simply never claimed those properties:
+- `lib/eventGuideSnippet.ts` has a THEME RESET listing `h2, h3, p, ul, li, figure` and **not the
+  anchor**. Its only anchor rule was `a{background:none;box-shadow:none;border:0}`.
+- So a host rule like `a{font-family:Georgia;font-size:21px;font-weight:800}` lands ON the element,
+  and an element-level declaration beats the 13px the anchor should inherit from `.eg-body`.
+
+**THE FIX.** Every font property pinned to `inherit!important` on the scoped anchor selector, so a link
+TRACKS ITS CONTAINER rather than matching a fixed value — it has to work inside 13px muted body copy, a
+list item and a lead line. The only things a link may differ by are the brighter colour and the
+underline, and the underline now carries `!important` too, because a theme with
+`a{text-decoration:none}` would strip the one signal that survives for a reader who cannot see the
+colour difference (SECURITY.md r9: colour alone is never the affordance).
+
+`app/globals.css` `.eg-body a` gets `font: inherit` for the same reason. It has no hostile theme to
+defend against, but the preview stops being a preview if the two drift.
+
+**VERIFIED, not reasoned about.** A throwaway page under `public/` (same origin, so the feed's
+techbbq.dk CORS pin does not block it) carrying the built snippet plus a theme demanding Georgia 21px
+800 uppercase blue with no underline. All 5 links: **zero mismatched font properties against their
+parent, underline intact, colour brighter than the body**. Same result on `/event-guide`, all 5 at 13px.
+The test page is deleted; the recipe is this paragraph.
+
+**GOTCHAS**
+- **NO BACKTICKS IN COMMENTS INSIDE THESE SNIPPET FILES.** The whole stylesheet is a template literal,
+  so a backtick in prose ends the string. `tsc` caught it (TS1005 at the line); the browser would have
+  got a syntax error and a blank widget.
+- **The reset's `font-size:inherit` on `p` has no `!important`**, so my test theme's
+  `p{font-size:19px!important}` did beat it and the whole panel scaled up. Deliberately not changed:
+  that comment explains why `inherit` was chosen, techbbq.dk's theme only uses `!important` on h2/h3
+  font-family, and my test was more hostile than reality. Since links now track their parent, the guide
+  stays internally consistent even when a theme does resize it.
+- Only `.eg-body a` is styled. A link anywhere else in the guide would inherit the reset but get no
+  colour or underline; there are none today.
+
+**FILE POINTERS** · `lib/eventGuideSnippet.ts` (the `#id a` reset and `.eg-body a`) ·
+`app/globals.css` (`.eg-body a`, around line 3142).
 
 ---
 

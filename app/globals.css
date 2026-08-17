@@ -3139,7 +3139,18 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .eg-body > * + * { margin-top: 10px; }
 .eg-body p { margin: 0; }
 .eg-lead { color: var(--color-foreground); font-weight: 600; }
-.eg-body a { color: var(--color-foreground); text-decoration: underline; text-underline-offset: 2px; }
+/* Font properties pinned to inherit for the same reason as the embed (lib/eventGuideSnippet.ts): a
+   link is body text that happens to be clickable, and the only things it may differ by are the
+   brighter colour and the underline. The preview has no hostile theme to defend against, but the two
+   surfaces have to look identical or this page stops being a preview of anything. */
+.eg-body a {
+  color: var(--color-foreground);
+  font: inherit;
+  letter-spacing: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
 .eg-body a:hover { opacity: 0.75; }
 
 .eg-list { margin: 0; padding: 0; list-style: none; }

@@ -204,11 +204,22 @@ function noContractTier(company: string): string | null {
 //
 // THE BAR FOR ADDING HERE: the deal cannot express the tier, not the deal disagrees with someone.
 // If Skytek's deal is ever priced, delete this entry — the deal wins.
+// Jyske Bank Growth — Pioneer, by Auri's explicit call (2026-08-17), and it clears the bar above
+// rather than merely disagreeing with the formula. Their 2026 deal is 157,500, which the deal-size
+// formula reads as Core and can never read as anything else at that price. But the CRM's own
+// `Partnership Success Tier/Type 2026` on `recvMhIh17Jx3EkHo` says "Pioneer Partner", and the
+// deliverables row's `Partnership Type 2026` says "Pioneer " — so two human-set columns already
+// agree on Pioneer and only the price-derived one says Core. The deal cannot express what was
+// agreed, which is exactly the case this table exists for.
+//
+// If the deal is ever repriced into the Pioneer band, delete this entry — the deal wins.
 const TIER_EXCEPTIONS: Record<string, string> = {
   "skytek nordics aps": "Core",
   "industriens fond": "Prime",
   "erhvervsfremmebestyrelsen": "Prime",
   humandone: "Challenger",
+  // Keyed on the deliverables `Company` value, lowercased — "Jyske Bank Growth", not "Jyske Bank".
+  "jyske bank growth": "Pioneer",
 };
 
 function tierException(company: string): string | null {
@@ -324,7 +335,6 @@ const LOGO_SCALE: Record<string, number> = {
   PSV: 2.92,
   "INCUBA x KITCHEN": 2.29,
   "Skytek Nordics ApS": 2.11,
-  "Beyond Beta": 1.96,
   Flatpay: 1.83,
   IDA: 1.8,
   Nordea: 1.71, // "Nordea Startup & Growth" — lots of internal whitespace in the file
@@ -343,6 +353,15 @@ const LOGO_SCALE: Record<string, number> = {
   // next to their neighbours. The nudge takes them back to what `contain` would give.
   "Innovation Centre Denmark": 1.19,
   "Creative Business Network": 1.17,
+  // BELOW 1, and the only entry here that shrinks a padded mark rather than growing it. Beyond Beta
+  // sat at 1.96 because its old file was a thin wordmark inside a square canvas. The artwork was
+  // replaced with a tight crop — measure-logo-ink now reports ink at 100% of the image box, AR 5.05
+  // — so that same nudge was doubling a logo that already reached its own edges, and it broke out of
+  // the tile (Auri, 2026-08-17). 0.94 is the script's `cap`: the largest nudge whose ink still fits.
+  //
+  // THE LESSON THIS ROW EXISTS TO TEACH: a stale nudge is worse than none. Re-run
+  // `node scripts/measure-logo-ink.mjs <name>` whenever a partner replaces their logo.
+  "Beyond Beta": 0.94,
 };
 
 // Serve a LOCAL file instead of whatever sits in Airtable. Erhvervshus Sjælland's tile carries
