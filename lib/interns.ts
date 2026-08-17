@@ -65,6 +65,25 @@ import { INTERN_DEPARTMENTS } from "@/lib/internDepartments";
 // mid-word, and never silently: an over-long pitch is logged so somebody can ask them to trim it.
 const PITCH_MAX = 220;
 
+// THE LINE BREAKS ARE THE MEANING (Auri, 2026-08-17). Interns write these fields as lists: a
+// heading, then one "●" or "-" per thing they do. Collapsing every whitespace run into a space, as
+// this used to, turns six bullets into one 600-character sentence with stray glyphs in it — which is
+// exactly how Irina's read. So the run of spaces INSIDE a line is collapsed and the line breaks
+// survive. Two or more blank lines become one, so a double-spaced paste does not open a hole.
+//
+// The consumer decides what to draw: app/interns/page.tsx parses these lines into headings and a
+// list, and the WordPress embed lets HTML collapse them back to spaces, which is what it did
+// before. Nothing downstream is required to care.
+function cleanLines(raw: string): string {
+  return raw
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t ]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function clampPitch(raw: string, who: string): string {
   const text = raw.replace(/\s+/g, " ").trim();
   if (text.length <= PITCH_MAX) return text;
@@ -82,6 +101,11 @@ export type Intern = {
   photo: string | null;
   responsibilities: string;
   pitch: string;
+  // The pitch as the intern actually wrote it, uncut. The card version above is capped at 220
+  // characters for the wall on techbbq.dk; the dashboard needs the whole thing, because it is the
+  // one place somebody reads a pitch to decide whether to ask them to trim it. Stripped from the
+  // public feed in app/api/interns/route.ts — the embed must never be able to draw it.
+  pitchFull: string;
   lookingFor: string;
   availableFrom: string | null; // ISO date, or null when they did not say
   linkedin: string | null;
@@ -135,6 +159,9 @@ function mapRecord(rec: AirtableRecord): Intern {
   const f = rec.fields;
   const name = str(f["Name"]);
   const attachmentId = firstAttachmentId(f["Photo"]);
+  // The capped card pitch stays a single collapsed line, byte for byte what the embed served
+  // before. Only the dashboard copy keeps the paragraph breaks the intern typed.
+  const pitch = str(f["Pitch"]);
   return {
     id: rec.id,
     name,
@@ -144,8 +171,9 @@ function mapRecord(rec: AirtableRecord): Intern {
     // ~2 hours, so a cached feed would serve dead images (lib/photo.ts). ?v= makes a REPLACED
     // photo appear immediately instead of sitting behind a week of CDN cache.
     photo: firstPhoto(f["Photo"]) ? photoUrl("interns", rec.id, undefined, attachmentId ?? undefined) : null,
-    responsibilities: str(f["Responsibilities"]).replace(/\s+/g, " ").trim(),
-    pitch: clampPitch(str(f["Pitch"]), name || rec.id),
+    responsibilities: cleanLines(str(f["Responsibilities"])),
+    pitch: clampPitch(pitch, name || rec.id),
+    pitchFull: cleanLines(pitch),
     lookingFor: str(f["Looking for"]).replace(/\s+/g, " ").trim(),
     availableFrom: str(f["Available from"]).slice(0, 10) || null,
     linkedin: normalizeLinkedInUrl(f["LinkedIn"]),
@@ -254,6 +282,7 @@ export async function fetchInterns({
         photo: null,
         responsibilities: "",
         pitch: "",
+        pitchFull: "",
         lookingFor: "",
         availableFrom: null,
         linkedin: null,

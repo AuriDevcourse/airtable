@@ -2724,18 +2724,50 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    96 is the ceiling for this layout: at 3 across the card's content box is ~330px, so anything
    larger starts squeezing a two-line name into three. */
 .ip-card__head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+
+/* ROUNDED SQUARE, not a circle (Auri, 2026-08-17). The brand's shape language is a soft-radius
+   square for anything that frames content and a pill for anything you press. A circular avatar
+   belongs to neither. 14px matches the card it sits in. */
 .ip-card__photo {
   flex: 0 0 auto;
   width: 96px; height: 96px;
-  border-radius: 9999px;
+  border-radius: 14px;
   object-fit: cover; object-position: 50% 30%;
   background: var(--color-card-2);
 }
-.ip-card__photo--empty { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 9999px; background: var(--color-card-2); }
+.ip-card__photo--empty { flex: 0 0 auto; width: 96px; height: 96px; border-radius: 14px; background: var(--color-card-2); }
+/* Name, role and the LinkedIn button in one left-aligned column beside the photo. align-items is
+   flex-start so the button is the width of its own label rather than the width of the column. */
+.ip-card__who { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .ip-card__name { margin: 0; font-family: var(--font-heading); font-size: 17px; font-weight: 600; line-height: 1.25; color: #fff; }
 .ip-card__role { margin: 4px 0 0; color: var(--color-muted); font-size: 12.5px; line-height: 1.4; }
 
 .ip-card__pitch { margin: 0; color: rgba(255,255,255,0.88); font-family: var(--font-body); font-size: 14px; font-weight: 400; line-height: 1.55; }
+
+/* ─── THE LONG FIELDS, AS THEY WERE TYPED ───────────────────────────────────────────────────
+   Blocks parsed out of the Airtable text by app/interns/page.tsx: a title line, bullet runs, and
+   paragraphs. Margins are set on the blocks rather than on the container so the last one never
+   leaves a gap above whatever follows it in the card. */
+.ip-rt__para { margin: 0 0 9px; }
+.ip-rt__heading {
+  margin: 0 0 7px;
+  color: var(--color-foreground);
+  font-family: var(--font-heading); font-weight: 600;
+  font-size: 12.5px; letter-spacing: 0.01em; line-height: 1.35;
+}
+/* Hanging bullets: the marker sits in the padding so a wrapped line lines up under the first word
+   instead of under the dot. */
+.ip-rt__list { margin: 0 0 9px; padding-left: 16px; list-style: none; }
+.ip-rt__list > li { position: relative; margin-bottom: 5px; }
+.ip-rt__list > li::before {
+  content: "";
+  position: absolute; left: -12px; top: 0.55em;
+  width: 4px; height: 4px; border-radius: 9999px;
+  background: var(--color-red-orange);
+}
+.ip-rt__list > li:last-child { margin-bottom: 0; }
+.ip-rt__para:last-child, .ip-rt__heading:last-child, .ip-rt__list:last-child { margin-bottom: 0; }
+.ip-rt__list strong, .ip-rt__para strong { color: var(--color-foreground); font-weight: 600; }
 
 /* The ask, boxed and labelled so a recruiter skimming twenty cards can read only these. */
 .ip-card__ask {
@@ -2752,8 +2784,26 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .ip-card__askText { display: block; color: var(--color-foreground); font-size: 13px; line-height: 1.45; }
 
-.ip-card__does { margin: 14px 0 0; color: var(--color-muted); font-size: 12.5px; line-height: 1.5; }
-.ip-card__does strong { color: #c9c9c9; font-weight: 500; }
+/* RESPONSIBILITIES, folded away (Auri, 2026-08-17). It is the longest field on the card and the
+   one nobody reads twenty times over, so the closed state says only that it is there and the
+   chevron opens it. Same disclosure pattern as .cadence on the front page: a native <details>,
+   its default marker removed, the chevron rotating to stand in for it. */
+.ip-does { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+.ip-does__summary {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; list-style: none;
+  color: var(--color-muted);
+  font-family: var(--font-heading); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  transition: color .2s;
+}
+.ip-does__summary::-webkit-details-marker { display: none; }
+.ip-does__summary:hover { color: var(--color-foreground); }
+.ip-does__summary:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 3px; border-radius: 6px; }
+/* Pushed to the far edge so every card's chevron sits on the same vertical line down the grid. */
+.ip-does__summary > svg { flex: none; margin-left: auto; transition: transform .18s; }
+.ip-does[open] .ip-does__summary > svg { transform: rotate(90deg); }
+.ip-does__body { margin: 9px 0 0; color: var(--color-muted); font-size: 12.5px; line-height: 1.5; }
 
 .ip-card__foot {
   display: flex; align-items: center; justify-content: space-between;
@@ -2772,6 +2822,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .ip-card__li:hover { background: var(--color-foreground); border-color: var(--color-foreground); color: #0d0d0d; }
 .ip-card__li svg { width: 14px; height: 14px; fill: currentColor; }
+/* The same pill, sized down to sit under a name without competing with it. */
+.ip-card__li--head { margin-top: 8px; padding: 6px 11px; font-size: 11px; gap: 6px; }
+.ip-card__li--head svg { width: 12px; height: 12px; }
 
 /* The reason chip on a pending card. Named states, not a generic "incomplete": each one has a
    different person who has to act, which is the only useful thing a worklist can tell you. */
@@ -2784,6 +2837,22 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   color: var(--color-muted);
 }
 .ip-chip--consent { border-color: #5e101a; color: #ff6b57; }
+
+/* The door to the table. This dashboard is read-only: everything it asks for is fixed in Airtable,
+   so the link sits under the title rather than at the foot of the page. A pill, because it is a
+   thing you press. */
+.ip-atlink {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin: 18px 0 4px; padding: 9px 15px;
+  border: 1px solid var(--color-border); border-radius: 9999px;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  font-family: var(--font-heading); font-size: 12.5px; font-weight: 600; line-height: 1;
+  text-decoration: none;
+  transition: background .2s, border-color .2s;
+}
+.ip-atlink:hover { background: var(--color-card-2); border-color: #3d3d3d; }
+.ip-atlink:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 2px; }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THE INTERN FORM (/interns/apply)

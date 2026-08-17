@@ -81,9 +81,11 @@ export function buildInternsEmbedSnippet({
      the pitch is the point, so the face is an avatar and the text gets the space.
      96px, up from 64 (Auri, 2026-08-08: "have the pictures bigger"). Keep in step with
      .ip-card__photo in app/globals.css. 96 is the ceiling for this layout: at 3 across the card's
-     content box is ~330px, so anything larger squeezes a two-line name into three. */
+     content box is ~330px, so anything larger squeezes a two-line name into three.
+     Rounded square, not a circle (Auri, 2026-08-17): soft-radius squares frame content, pills are
+     what you press. Takes effect on techbbq.dk only once the embed is copied out again. */
   #${id} .tbbq-ip__head{display:flex!important;align-items:center!important;gap:16px!important;margin:0 0 16px!important;padding:0!important}
-  #${id} .tbbq-ip__photo{flex:0 0 auto!important;width:96px!important;height:96px!important;border-radius:9999px!important;object-fit:cover!important;object-position:50% 30%!important;background:var(--card2)!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;display:block!important}
+  #${id} .tbbq-ip__photo{flex:0 0 auto!important;width:96px!important;height:96px!important;border-radius:14px!important;object-fit:cover!important;object-position:50% 30%!important;background:var(--card2)!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;display:block!important}
   #${id} .tbbq-ip__who{min-width:0!important}
   #${id} .tbbq-ip__name{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important}
   #${id} .tbbq-ip__role{margin:4px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12.5px!important;line-height:1.4!important}

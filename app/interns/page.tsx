@@ -24,6 +24,10 @@ type Intern = {
   photo: string | null;
   responsibilities: string;
   pitch: string;
+  // Only ever present on the dashboard read: the route strips it from the public feed. The card
+  // below prefers it, so this page shows the pitch as written while the embed keeps the 220-char
+  // version. Optional in the type because a cached payload from before this shipped will not have it.
+  pitchFull?: string;
   lookingFor: string;
   availableFrom: string | null;
   linkedin: string | null;
@@ -65,6 +69,135 @@ function LinkedInIcon() {
   );
 }
 
+// Stroke icons, drawn through one wrapper so weight and joins cannot drift icon to icon — the same
+// arrangement as app/page.tsx. Lucide geometry: chevron-right, table, arrow-up-right.
+function Icon({ children, size = 16 }: { children: React.ReactNode; size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function ChevronRight({ size = 14 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="m9 18 6-6-6-6" />
+    </Icon>
+  );
+}
+
+function TableIcon({ size = 14 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M3 9h18M3 15h18M12 3v18" />
+    </Icon>
+  );
+}
+
+function ArrowUpRight({ size = 14 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <path d="M7 17 17 7M7 7h10v10" />
+    </Icon>
+  );
+}
+
+// ─── FORMATTED THE WAY IT WAS TYPED ──────────────────────────────────────────────────────────
+// Interns write their responsibilities as a list: a title line, then one bullet per thing they do,
+// with whatever glyph their keyboard offered ("●", "-", "*", "1."). Rendered as one paragraph, six
+// bullets read as a single run-on sentence with punctuation scattered through it, which is what was
+// on the page before (Auri, 2026-08-17: "difficult to understand because it's not formatted").
+//
+// So the text is parsed back into blocks. This is a deliberately small subset of Markdown — bullet
+// lines, a **bold** heading, paragraphs — and it is rendered as REACT NODES, never as HTML. There is
+// no dangerouslySetInnerHTML anywhere near it: this is text a person typed into Airtable, and
+// running it through an HTML parser would make a form field into a script tag.
+const BULLET = /^(?:[-–—*•●○▪‣·]|\d+[.)])\s+/;
+const BOLD_LINE = /^\*\*(.+)\*\*$/;
+
+type Block =
+  | { kind: "heading"; text: string }
+  | { kind: "para"; text: string }
+  | { kind: "list"; items: string[] };
+
+function parseBlocks(raw: string): Block[] {
+  const blocks: Block[] = [];
+
+  for (const line of raw.split("\n")) {
+    const text = line.trim();
+    if (!text) continue;
+
+    // Consecutive bullets join the list already open, so a run of them is one <ul> rather than six.
+    if (BULLET.test(text)) {
+      const item = text.replace(BULLET, "").trim();
+      if (!item) continue;
+      const last = blocks[blocks.length - 1];
+      if (last && last.kind === "list") last.items.push(item);
+      else blocks.push({ kind: "list", items: [item] });
+      continue;
+    }
+
+    const bold = text.match(BOLD_LINE);
+    blocks.push(bold ? { kind: "heading", text: bold[1].trim() } : { kind: "para", text });
+  }
+
+  // A short first line with no closing punctuation is a job title, not a sentence: "SPEAKER AND
+  // MEDIA LEAD", "Partnerships & Marketing Coordinator". Promoted to a heading only when something
+  // follows it, so a one-line entry ("Program curation and stage management") stays plain text
+  // instead of becoming a heading for nothing.
+  const first = blocks[0];
+  if (blocks.length > 1 && first && first.kind === "para" && first.text.length <= 60 && !/[.!?:,]$/.test(first.text)) {
+    blocks[0] = { kind: "heading", text: first.text };
+  }
+
+  return blocks;
+}
+
+// **bold** inside a line, as nodes. Anything else Markdown can do is left as the characters the
+// intern typed: half-rendered Markdown is worse than none.
+function inline(text: string): React.ReactNode {
+  const parts = text.split("**");
+  if (parts.length < 3) return text;
+  return parts.map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
+}
+
+function RichText({ text, className }: { text: string; className?: string }) {
+  const blocks = parseBlocks(text);
+  if (blocks.length === 0) return null;
+  return (
+    <div className={className}>
+      {blocks.map((b, i) => {
+        if (b.kind === "list") {
+          return (
+            <ul key={i} className="ip-rt__list">
+              {b.items.map((item, j) => (
+                <li key={j}>{inline(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+        return (
+          <p key={i} className={b.kind === "heading" ? "ip-rt__heading" : "ip-rt__para"}>
+            {inline(b.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 function InternCard({ p }: { p: Intern }) {
   const meta = [p.role, p.department].filter(Boolean).join(" · ");
   const from = niceDate(p.availableFrom);
@@ -77,13 +210,31 @@ function InternCard({ p }: { p: Intern }) {
         ) : (
           <div className="ip-card__photo--empty" />
         )}
-        <div style={{ minWidth: 0 }}>
+        {/* LinkedIn sits with the NAME (Auri, 2026-08-17), not in the footer. It identifies the
+            person, so it belongs where you read who they are; the footer keeps the one thing that is
+            about availability rather than identity. */}
+        <div className="ip-card__who">
           <h3 className="ip-card__name">{p.name}</h3>
           {meta && <p className="ip-card__role">{meta}</p>}
+          {p.linkedin && (
+            <a
+              className="ip-card__li ip-card__li--head"
+              href={p.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`${p.name} on LinkedIn`}
+            >
+              <LinkedInIcon />
+              LinkedIn
+            </a>
+          )}
         </div>
       </div>
 
-      {p.pitch && <p className="ip-card__pitch">{p.pitch}</p>}
+      {/* The pitch AS WRITTEN on the dashboard, not the 220-character card version. This page is
+          where somebody reads a pitch to judge it, and a judgement made on a sentence ending in an
+          ellipsis is a judgement about the wrong text. techbbq.dk still gets the capped one. */}
+      <RichText className="ip-card__pitch" text={p.pitchFull || p.pitch} />
 
       {p.lookingFor && (
         <div className="ip-card__ask">
@@ -92,10 +243,17 @@ function InternCard({ p }: { p: Intern }) {
         </div>
       )}
 
+      {/* Responsibilities are the long field and the one nobody reads on every card, so the card
+          says only that they EXIST and opens on a press. A native <details> rather than useState:
+          it is keyboard-operable, announces its own expanded state, and survives a re-render. */}
       {p.responsibilities && (
-        <p className="ip-card__does">
-          <strong>At TechBBQ:</strong> {p.responsibilities}
-        </p>
+        <details className="ip-does">
+          <summary className="ip-does__summary">
+            <span>Responsibilities</span>
+            <ChevronRight />
+          </summary>
+          <RichText className="ip-does__body" text={p.responsibilities} />
+        </details>
       )}
 
       {p.pending && (
@@ -104,26 +262,25 @@ function InternCard({ p }: { p: Intern }) {
         </span>
       )}
 
-      <div className="ip-card__foot">
-        <p className="ip-card__from">{from ? `Available from ${from}` : ""}</p>
-        {p.linkedin && (
-          <a
-            className="ip-card__li"
-            href={p.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`${p.name} on LinkedIn`}
-          >
-            <LinkedInIcon />
-            LinkedIn
-          </a>
-        )}
-      </div>
+      {/* Rendered only when there is a date. With LinkedIn moved up to the name, a card with no
+          date would otherwise draw an empty padded strip along its bottom edge. The margin-top:auto
+          lives on this element, so cards without one simply end after their content. */}
+      {from && (
+        <div className="ip-card__foot">
+          <p className="ip-card__from">Available from {from}</p>
+        </div>
+      )}
     </article>
   );
 }
 
 const ALL = "all";
+
+// Straight to the table this page reads. Pinned here rather than built from AIRTABLE_BASE_ID,
+// for the same reason the table id is pinned in lib/interns.ts: a stale env value would send
+// somebody to a base that is not this one. Neither id is a credential — without the token they
+// open nothing you were not already logged into.
+const AIRTABLE_URL = "https://airtable.com/appgXNjXJqpk9Ebxd/tbl5VhWYQ6FeXfoJy";
 
 export default function InternsPage() {
   const [active, setActive] = useState<string>(ALL);
@@ -153,6 +310,16 @@ export default function InternsPage() {
           <h1>
             Our <span className="text-tbbq-gradient">interns</span>
           </h1>
+
+          {/* This dashboard is read-only. Every fix it names — a missing photo, an unticked box —
+              is made in Airtable, so the door to Airtable belongs next to the title rather than at
+              the bottom of a page somebody has to scroll to find it. */}
+          <a className="ip-atlink" href={AIRTABLE_URL} target="_blank" rel="noopener noreferrer">
+            <TableIcon />
+            Open the Intern Pool in Airtable
+            <ArrowUpRight />
+          </a>
+
           <p className="lede">
             The interns running TechBBQ 2026, pitched to whoever is hiring. A card goes live when
             the intern has ticked <strong>Consent to publish</strong>, uploaded a photo and been

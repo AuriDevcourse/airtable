@@ -22,6 +22,17 @@ export const OPTIONS = corsPreflight;
 
 const KEY = "interns";
 
+// `pitchFull` is the pitch as written, with no 220-character cap, and it leaves the server ONLY on
+// an authenticated dashboard read. Two reasons, and the second is the one that matters: the embed's
+// card is built for one breath of text, and a field that exists in the JSON is a field somebody
+// eventually renders. Stripped here rather than never fetched, so the same cached Airtable read
+// still serves both audiences.
+function stripFullPitch<T extends { pitchFull: string }>(intern: T): Omit<T, "pitchFull"> {
+  const { pitchFull, ...rest } = intern;
+  void pitchFull;
+  return rest;
+}
+
 export async function GET(req: NextRequest) {
   const gate = feedGate(req, KEY);
   if (!gate.ok) return gate.res;
@@ -37,7 +48,9 @@ export async function GET(req: NextRequest) {
     const wantsPending =
       req.nextUrl.searchParams.get("pending") !== null &&
       isDashboardRequest(req.headers.get("authorization"));
-    const live = wantsPending ? all : all.filter((i) => !("pending" in i && i.pending));
+    const live = wantsPending
+      ? all
+      : all.filter((i) => !("pending" in i && i.pending)).map(stripFullPitch);
 
     // ?department=Marketing narrows to one team, validated against the known list so an unknown
     // value serves everyone rather than returning an empty page that looks like a broken feed.
