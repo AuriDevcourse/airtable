@@ -24,7 +24,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
 import { pickLogo } from "@/lib/logoPick";
-import { str } from "@/lib/fields";
+import { firstTag, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
 
@@ -204,7 +204,10 @@ export async function fetchLsStartups(): Promise<LsStartup[]> {
       // cache immediately instead of waiting out the proxy's 24h max-age.
       logo: logo ? photoUrl("ls-startups", rec.id, undefined, logo.id) : null,
       categories,
-      country: str(f["Country"]),
+      // firstTag, not str: `Country` is a MULTI-select, so it arrives as ["Denmark"] and str()
+      // returns "" for arrays — every one of the 44 startups was emitting country:"". Same trap as
+      // `Role` in lib/policystage.ts. `npm run audit:fields` is what found it.
+      country: firstTag(f["Country"]),
       verticals: tags(f["Industry Vertical"]),
     });
   }

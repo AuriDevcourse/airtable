@@ -19,7 +19,7 @@
 // internal project data; none of it is read here.
 
 import { fetchWithTimeout } from "@/lib/http";
-import { firstAttachmentId, firstPhoto, linkedinUrl, numOrNull, str } from "@/lib/fields";
+import { firstAttachmentId, firstPhoto, firstTag, linkedinUrl, numOrNull, str } from "@/lib/fields";
 import { photoUrl } from "@/lib/photo";
 
 const API = "https://api.airtable.com/v0";
@@ -41,6 +41,10 @@ const SAFE_FIELDS = [
   "Job Title",
   "Company",
   "Profile Picture",
+  // Both LinkedIn columns, because mapRecord reads both in preference order. Requesting only the
+  // handle made the first argument permanently undefined — Airtable returns nothing you did not ask
+  // for, so a row with only the full URL filled would have lost its link.
+  "Link to LinkedIn",
   "LinkedIn Handle",
   "Role",
   "Hierarchy",
@@ -124,7 +128,10 @@ export async function fetchPolicyStage(): Promise<PolicyStagePerson[]> {
       continue;
     }
 
-    const role = str(f["Role"]);
+    // firstTag, not str: `Role` is a MULTI-select in Airtable, so the cell arrives as ["Speaker"]
+    // and str() returns "" for an array — which silently unpublished all 31 people. firstTag reads
+    // either shape, so a conversion back to single-select would not break this again.
+    const role = firstTag(f["Role"]);
     if (!(POLICY_ROLES as readonly string[]).includes(role)) {
       // Named, not silently dropped: a blank Role is a row waiting for a human, and "our speaker is
       // missing" is the complaint this line answers before it is made.

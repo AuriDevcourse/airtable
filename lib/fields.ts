@@ -8,7 +8,18 @@
 
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 
-/** Trimmed string, or "" for anything that isn't a string (missing/number/array cells). */
+/**
+ * Trimmed string, or "" for anything that isn't a string (missing/number/array cells).
+ *
+ * WATCH THE ARRAY CASE. A MULTI-select cell arrives as `["Speaker"]`, so str() gives you "" and
+ * nothing throws. That silently unpublished the entire Policy Stage (31 people, all 5 of the roles
+ * read as blank) and blanked `country` on all 44 Life Science startups. Airtable lets anyone flip
+ * single-select to multi-select from the UI, and TypeScript cannot see it because the cell is
+ * `unknown` either way.
+ *
+ * Use `firstTag()` for anything select-shaped — it reads both, so a later conversion is harmless.
+ * `npm run audit:fields` checks every field read in lib/ against its real type in the base.
+ */
 export function str(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
 }

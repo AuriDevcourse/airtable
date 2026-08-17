@@ -4,6 +4,117 @@ Server-side proxy that exposes a **safe slice** of the TechBBQ Airtable as JSON,
 techbbq.dk (WordPress + Elementor) can show speakers without the token or PII ever
 reaching the browser.
 
+## SESSION (u) · 2026-08-17 · THE SAME BUG, MADE UNREPEATABLE · `npm run audit:fields`
+
+**CURRENT STATE.** A schema audit now cross-checks **every** Airtable field this repo reads against
+its real type in the base. It found a **second live instance** of the session (t) bug, which is fixed.
+All feeds verified, `tsc --noEmit` clean. Nothing written to Airtable, nothing deployed.
+
+**WHY.** Session (t) fixed `/policy-stage` by hand. That fixes one field. The actual problem is that
+Airtable lets anyone flip single-select to multi-select from the UI, the cell silently changes from
+`"Speaker"` to `["Speaker"]`, `str()` returns `""`, and **nothing throws, nothing type-errors, no test
+fails**. The feed just quietly serves nothing. It cannot be caught by reading the code, because the
+code looks right.
+
+**THE NEW GUARD** · `scripts/check-field-types.mjs`, run with **`npm run audit:fields`**.
+Pulls the live base schema (53 tables) and checks all 64 lib files for:
+1. **Reader vs real type** · `str()` on a multi-select / attachment / linked-record is BROKEN, since
+   those arrive as arrays. Also `num()` on text, `firstPhoto()` on a non-attachment, and so on.
+2. **Fields that no longer exist** · a renamed or mistyped column reads as empty forever.
+3. **Fields read but never requested** · Airtable returns only what `fields[]` asks for, so reading a
+   column absent from the allow-list gives `undefined` every time.
+Exits **1** on anything BROKEN, so it can gate CI. Handles formula/rollup unwrapping via
+`options.result.type`, and both allow-list spellings (a `SAFE_FIELDS` array and inline
+`params.append("fields[]", …)`).
+
+**WHAT IT CAUGHT** (beyond the known Policy Stage one)
+- **`lib/lsstartups.ts` · `Country` is a multi-select read with `str()`.** Verified live: **all 44**
+  Life Science startups were emitting `country: ""`. Fixed to `firstTag()`. Not visible on
+  `/ls-startups` (logos only, by Auri's instruction), but the API served the empty string to anyone
+  consuming it.
+- **`lib/policystage.ts` · `Link to LinkedIn` read but not requested.** Closed by adding it to
+  `SAFE_FIELDS`. Was harmless only because all 31 rows happen to have `LinkedIn Handle` filled.
+
+**ALSO** · `lib/fields.ts` · the `str()` docstring now spells out the array trap and points at
+`firstTag()` and the audit command, since that docstring is where the next person looks.
+
+**VERIFIED**
+- `npm run audit:fields` → "Every field read matches its Airtable type." exit 0
+- `/api/ls-startups` → 44 startups, **0 empty countries** (3Sonic → Denmark, Ai2Ai Oy → Finland)
+- `/api/policy-stage?role=all` → 31, `{Speaker: 28, Moderator: 3}`, 0 missing LinkedIn
+- `npx tsc --noEmit` → clean
+
+**GOTCHAS**
+- The audit needs the sops env. `npm run audit:fields` wraps it; plain `node scripts/…` exits 2.
+- It reads the **live** base, so a schema change makes it fail on a branch that did not change. That
+  is the point, but it means a red audit is not always your diff's fault.
+- It only scans `lib/`. Field reads inside `scripts/*.mjs` and the one-off `*.mjs` at the repo root
+  are not covered.
+- Still unresolved from (t): `Role` offers **Keynote / Managing Partner / Host** but `POLICY_ROLES`
+  allows only Speaker and Moderator. The audit cannot catch that one, it is a values question, not a
+  types question. A person tagged only `Keynote` still vanishes with a log line.
+
+**NEXT STEPS**
+1. Decide the Keynote / Managing Partner / Host question and either extend `POLICY_ROLES` or leave it.
+2. Add `npm run audit:fields` to CI (or a pre-deploy step) so a UI-side field change fails loudly
+   instead of emptying a public page.
+3. Consider widening the scan to `scripts/` and the root `*.mjs` writers, which touch the same tables.
+4. Fill `Hierarchy` on the Policy Stage rows if alphabetical order is not wanted.
+5. Ship · both fixes are still dev-server only, no deploy has run.
+
+**FILE POINTERS** · `scripts/check-field-types.mjs` (the audit) · `package.json` (`audit:fields`) ·
+`lib/fields.ts` (`str` vs `firstTag`, now documented) · `lib/lsstartups.ts:207` ·
+`lib/policystage.ts` (SAFE_FIELDS + the role read).
+
+---
+
+## SESSION (t) · 2026-08-17 · POLICY STAGE SERVED ZERO PEOPLE · ONE-LINE FIX, NOW 31
+
+**CURRENT STATE.** `/policy-stage` and `/api/policy-stage` return all **31 people (28 Speakers,
+3 Moderators)**. Before this session both returned **0**. Nothing was written to Airtable; one code
+file changed.
+
+**WHAT WAS DONE.** Auri opened `/policy-stage`, saw nothing, and pointed at the Airtable view
+(`viwfIcQFDNQ9ggSqx`) where every row is filled. The data was fine, the reader was not.
+
+**THE BUG.** `Role` in `tblTecOBecLQCNIeD` is a **multipleSelects** field, so the cell arrives as
+`["Speaker"]`. `lib/policystage.ts` read it with `str()`, which returns `""` for an array by design.
+Every row then failed the `Speaker | Moderator` allow-list and was skipped. The log line said
+`31 row(s) are not published because their Role is not Speaker or Moderator: ... (no role yet)`,
+which reads like an Airtable gap and is not one. **A "no role yet" log on a full table means a field
+TYPE mismatch, not missing data** — check the shape before chasing the humans.
+
+**THE FIX** · `lib/policystage.ts:126` · `str(f["Role"])` → `firstTag(f["Role"])`. `firstTag` already
+existed in `lib/fields.ts` for exactly this and reads both shapes, so a conversion back to
+single-select cannot re-break it. Import on line 22 widened.
+
+**GOTCHAS**
+- **`Role` now offers five options** · Speaker, Moderator, Keynote, Managing Partner, Host. Only the
+  first two are in `POLICY_ROLES`. A person tagged only `Keynote` still vanishes silently, the same
+  way all 31 just did. Not hit today because every row is Speaker or Moderator.
+- **`Hierarchy` is empty on all 31 rows**, so the page is pure alphabetical (Adina Schildt Gillion
+  first). Curated order needs that column filled in Airtable, no code change.
+- **`Link to LinkedIn` is read but never requested.** Line 137 passes `f["Link to LinkedIn"]` to
+  `linkedinUrl()`, but the field is absent from `SAFE_FIELDS`, so it is always `undefined` and only
+  `LinkedIn Handle` ever counts. Harmless today (all 31 have the handle), latent otherwise.
+- Dev server needs the sops env: `npm run dev`, not `next dev`. `npm run dev:plain` skips secrets and
+  the feeds 503.
+
+**NEXT STEPS**
+1. Decide whether `Keynote` / `Managing Partner` / `Host` should map into the Speaker tab or stay
+   unpublished, then either extend `POLICY_ROLES` or leave the log line as the warning.
+2. Add `"Link to LinkedIn"` to `SAFE_FIELDS` in `lib/policystage.ts` to close the latent gap.
+3. Audit the other feed libs for the same `str()`-on-a-multi-select trap: `grep -n 'str(f\["' lib/*.ts`
+   and check each against the field type in the base schema.
+4. Fill `Hierarchy` in Airtable if the Policy Stage should not be alphabetical.
+5. Ship it · this only exists on the dev server so far, no deploy was run.
+
+**FILE POINTERS** · `lib/policystage.ts` (source + publish rules) · `app/api/policy-stage/route.ts`
+(role filter, `groups` contract for the tabbed embed) · `app/policy-stage/page.tsx` (tabs, copy-embed,
+refresh) · `lib/fields.ts` (`str` vs `firstTag`, the whole point of this session).
+
+---
+
 ## SESSION (s) · 2026-08-14 · DEADLINES TABLE AUDITED AGAINST THE LIVE SITE · READ-ONLY, NOTHING WRITTEN
 
 **NOTHING WAS WRITTEN ANYWHERE.** No Airtable writes, no code changes. The token in `.env.local` is

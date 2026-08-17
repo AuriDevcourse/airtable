@@ -7,6 +7,7 @@
     "dev": "sops exec-env secrets.enc.env \"next dev --turbopack\"",
     "dev:plain": "next dev --turbopack",
     "dev:webpack": "sops exec-env secrets.enc.env \"next dev\"",
+    "audit:fields": "sops exec-env secrets.enc.env \"node scripts/check-field-types.mjs\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
