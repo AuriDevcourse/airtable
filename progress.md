@@ -9,12 +9,88 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-18 · MEDITATION BREAKS ON `/brella-program`: VIOLET, FLOORED, ON TOP
+
+**CURRENT STATE.** The eight meditation breaks on `/brella-program` are violet again, floored to a
+pressable height and drawn in front of the cards around them. **Committed and pushed: `d276a55` on
+`origin/main`**, which also carried the Denmark-Sweden Summit session below it (that entry's
+"nothing deployed; nothing committed" line is now out of date — see step 1 under NEXT).
+
+**THE BUG AURI REPORTED.** "These Meditation breaks, 3 Minute Arrival Meditation, can you make them
+purple and put them on top so they are not hidden by other sessions."
+
+**THE MACHINERY ALREADY EXISTED AND WAS MATCHING A WORD THE FEED NO LONGER USES.** `lib/brellaTheme.ts`
+has had a band treatment since 2026-08-05: a 24px height floor (`BREATH_MIN_PX`), `zIndex: 3`, and
+`layOutColumn()` in `components/ProgramTimeline.tsx` padding the covered card's text down past the
+band so nothing ends up underneath anything. It fired on `BREATHWORK_RE = "breathwork"`. The 2026
+Brella feed contains **zero** sessions with that word: all eight breaks are named "3 Minute Arrival
+Meditation" or "Meditation & Talk Break!". So every break fell back to an ordinary card — 3 minutes
+is 9px of axis, under the 24px target size WCAG 2.2 asks of anything pressable, and in front of one
+neighbour and behind the next depending on DOM order. Nothing was broken; the pattern had gone stale
+under the data.
+
+**THE FIX IS THREE LINES IN `lib/brellaTheme.ts`.** No component changed.
+
+1. `BREATHWORK_RE = "breathwork|meditation"`. Verified against the live feed: **8 of 300 sessions
+   match, no false hits** (checked "Copenhagen Fintech Meetup", "Stage Opening", "Welcome to
+   TechBBQ 2026!" among them). "breathwork" stays in the pattern because the 2025 programme used it.
+2. `BREATHWORK_LABEL = "Meditation"`, so the badge says what the card is.
+3. `sessionColor()` returns `BREATHWORK_COLOR` (#B49BFF) for them and `sessionColor2()` returns
+   `undefined`, so the card is flat violet with no gradient.
+
+**POINT 3 REVERSES THE 2026-08-06 DECISION** that a break wears its stage's colour (orange on the BBQ
+Stage, green on Founders). The reason for going back: the badge and the wind glyph alone did not
+separate eight 3-minute cards from the talks around them, and violet is the one hue no stage uses.
+Both decisions are written into the comment above `sessionColor()` rather than only here — the next
+person to flip this needs to find the history at the code, not in a 300KB handoff.
+
+**IT ALSO ENDED A DRIFT.** `lib/brellaEmbedSnippet.ts` never stopped painting breaks violet
+(`if(isBreath(s))return "--track:"+BREATH_COLOR;`), so the dashboard and the copied embed had been
+showing the same break in two different colours since 2026-08-06.
+
+**GOTCHAS FOR WHOEVER TOUCHES THIS NEXT.**
+
+- **The matcher is the name, and the name is the partner's to change.** This is the second time the
+  wording moved under the pattern. If the breaks vanish into the board again, check
+  `BREATHWORK_RE` against the live feed before assuming the layout broke.
+- **`isOpening()` excludes breathwork by construction**, so widening the meditation pattern narrows
+  the opening one. Nothing in the 2026 schedule matches both; a session called "Opening Meditation"
+  would render as a meditation break, which is the intended precedence.
+- **The CSS needed no change** because `.bp-tl__card[data-breathwork]` in `app/globals.css` is built
+  entirely on `var(--track)`, which `sessionVars()` sets from `sessionColor()`.
+- **NOT visually verified.** The Playwright MCP browser profile was locked by another session
+  (`mcp-chrome-b32b429`, "Browser is already in use"). `npx tsc --noEmit` is clean repo-wide, and
+  the regex plus the feed were checked against the real data, but nobody has looked at the board.
+- **`next build` was NOT run**, deliberately: a dev server is up on :3000 and building against a live
+  dev server is the orphaned-`next dev` trap.
+
+**FILE POINTERS.** `lib/brellaTheme.ts` (the whole change: `BREATHWORK_RE`, `BREATHWORK_LABEL`,
+`sessionColor`, `sessionColor2`) · `components/ProgramTimeline.tsx` (`layOutColumn`, `BREATH_MIN_PX`,
+the `zIndex: 3` on `band`, `BreathBadge`) · `lib/brellaEmbedSnippet.ts` (`isBreath`, `BREATH_COLOR`) ·
+`app/globals.css` (`.bp-tl__card[data-breathwork]`, ~line 1821).
+
+**NEXT.**
+
+1. **Confirm the Vercel deploy went green.** `d276a55` is on `origin/main` and the repo is
+   Vercel-linked, so the push likely triggered production. The commit carries the interns feed and
+   `/program` work that had been sitting uncommitted, so this is a bigger deploy than the meditation
+   change suggests.
+2. **Look at the board.** `/brella-program`, BBQ Stage ~11:54 and Campfire ~12:13 on day 1. Check the
+   violet card sits in front and the talk under it starts its text below the band.
+3. **Check the copied embed matches**, since the whole point of the colour change was to end the
+   dashboard-vs-embed drift.
+4. **Decide on the untracked files**, still uncommitted: two partner logos
+   (Danmarks_erhvervsfremmebestyrelse, Novo Nordisk Foundation) which are probably wanted, five
+   `scripts/*.mjs`, and `public/partner-logos/_verification_temp` which looks like scratch output and
+   should probably be gitignored.
+
 ## SESSION · 2026-08-18 · DENMARK-SWEDEN SUMMIT: AIRTABLE, /program, AND BRELLA'S MISSING SECOND DAY
 
 **CURRENT STATE.** The Denmark-Sweden Summit (Event Room 6, 27 August, organised by Øresundsinstituttet
 and Greater Copenhagen) now exists on all three surfaces: **8 session rows in Airtable with 17 photos**,
 a **tenth tab on `/program`** rendering every face, and **8 timeslots live in Brella** where Event Room 6
-previously had no second day at all. Verified end to end. Nothing deployed; nothing committed.
+previously had no second day at all. Verified end to end. **Committed and deployed on 2026-08-18 as
+part of `d276a55`** (see the session above); this entry originally read "nothing deployed; nothing committed".
 
 **1 · AIRTABLE · `scripts/seed-denmark-sweden-summit.mjs`** — creates the 8 rows in `Sessions`
 (`tblSlpTzDi2oVYwqv`) with `Name of the Event = "Denmark-Sweden Summit"`, `Event Room 6`,
