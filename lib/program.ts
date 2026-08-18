@@ -450,6 +450,35 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // DENMARK-SWEDEN SUMMIT — Day 2, Event Room 6. Organised by Øresundsinstituttet and Greater
+  // Copenhagen; its run of show was typed into the Sessions table on 2026-08-18 by
+  // scripts/seed-denmark-sweden-summit.mjs (eight rows, 12 people).
+  //
+  // NO `facesFrom` AND NO `facesFromView` ON PURPOSE. These 12 speakers are the organisers' guests,
+  // not TechBBQ registrations, so they are in neither the CRM roster nor any presenter form — a join
+  // would match nobody. Their headshots were uploaded straight onto the session rows instead, one per
+  // speaker in name order, which is the Policy Stage arrangement and needs no extra config: the
+  // photo proxy feed for this table ("policy-program" in lib/photo.ts) already covers Speaker Photo
+  // and Moderator Photo for every programme filed here.
+  //
+  // Trine Grönlund moderates the whole programme, so she is the moderator on all six content
+  // sessions. The reception and the closing carry no moderator, which is why they simply render
+  // without a line-up.
+  "denmark-sweden": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Denmark-Sweden Summit"',
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   // NASS 2026 — the Nordic Africa Startup Summit, Day 2 in Event Room 2. Same Sessions table and the
   // same hand-typed people fields as the Policy Stage above: its agenda arrived as a run-of-show
   // spreadsheet and was typed in on 2026-08-12, so the session rows carry "Speaker Details" text and

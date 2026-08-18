@@ -9,6 +9,282 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-18 · DENMARK-SWEDEN SUMMIT: AIRTABLE, /program, AND BRELLA'S MISSING SECOND DAY
+
+**CURRENT STATE.** The Denmark-Sweden Summit (Event Room 6, 27 August, organised by Øresundsinstituttet
+and Greater Copenhagen) now exists on all three surfaces: **8 session rows in Airtable with 17 photos**,
+a **tenth tab on `/program`** rendering every face, and **8 timeslots live in Brella** where Event Room 6
+previously had no second day at all. Verified end to end. Nothing deployed; nothing committed.
+
+**1 · AIRTABLE · `scripts/seed-denmark-sweden-summit.mjs`** — creates the 8 rows in `Sessions`
+(`tblSlpTzDi2oVYwqv`) with `Name of the Event = "Denmark-Sweden Summit"`, `Event Room 6`,
+`When Is it = Day 2`, and uploads each headshot onto the row that person speaks on. Dry run by default;
+REFUSES to run twice while rows with that event name exist, because a session row has no natural key
+and a second `--apply` would silently double the programme.
+
+Descriptions are EMPTY on purpose: the source run of show has none, and writing programme copy for a
+partner's event is not a script's call.
+
+**2 · THE PHOTOS CAME IN AT UP TO 16MB.** Airtable's `uploadAttachment` endpoint caps at 5MB, so the 13
+files in "Dansk-svenska talarbilder TechBBQ" were resized to 800x800 JPEGs (~60-100KB) before upload —
+square crop, centred horizontally, biased 30% down so a portrait keeps the face rather than the chest.
+Five were eyeballed including the widest landscape original. Trine Grönlund shipped two photos; "1" is
+the headshot, "2" is a casual shot holding a book.
+
+**PAIRING IS BY INDEX AND THE RENDERER IS UNFORGIVING.** `parsePeople` in `lib/program.ts` drops EVERY
+photo on a row when the name count and photo count disagree, rather than risk the wrong face on the
+wrong person. So the upload order has to match the name order, and `uploadAttachment` APPENDS one file
+per call — which is what makes sequential calls the ordering mechanism. The five-person panel is where
+this would have failed quietly.
+
+**NO SEMICOLONS IN `Speaker Details`.** Anne-Louise Thon-Jensen's two roles are joined with a COMMA
+("Partner and Co-Founder at SDG Invest & Vår Ventures, Board Member at Minc"). Only the FIRST comma
+splits name from title, so later commas are free — but some programmes opt into splitting people on
+";" and that would have invented a nameless seventh panellist.
+
+**3 · `/program` · the tenth tab.** `"denmark-sweden"` in `PROGRAM_SOURCES` (`lib/program.ts`) and in
+`EVENTS` + `EventKey` (`app/program/page.tsx`). Theme `navy`, heading "August 27th", sub "Event Room 6",
+`people: true`. Organisers and partners are deliberately NOT on the page (Auri).
+
+**NO `facesFrom` AND NO `facesFromView`.** These 12 are the organisers' guests, not TechBBQ
+registrations, so they are in neither the CRM roster nor any presenter form and a join would match
+nobody. Their faces ride on the session rows instead, which needs no config: the `policy-program` photo
+feed in `lib/photo.ts` already covers `Speaker Photo` and `Moderator Photo` for everything in this table.
+
+**4 · THE TAB BAR SCROLLS NOW (`.seg--scroll` in `app/globals.css`).** Ten programmes stopped fitting one
+row and `.seg` is a single inline-flex row that never wraps, so the bar ran past the card and gave the
+whole page a horizontal scrollbar. Still `inline-flex`, NOT `flex`: a block-level flex child stretches
+the pill background across the full container with the buttons floating in the middle of it.
+`flex-shrink: 0` on the buttons, or the labels squash to two lines instead of scrolling.
+
+**5 · BRELLA HAD NO 27 AUGUST IN EVENT ROOM 6 AT ALL.** The track `🔹 Event Room 6` (id **43423**) held 13
+timeslots, every one of them on the 26th (Deep Tech Event Day).
+`scripts/brella-push-denmark-sweden.mjs` created the 8 missing ones, reading titles and times from
+`/api/program?event=denmark-sweden` rather than retyping them, so Brella cannot drift from techbbq.dk.
+Created ids **#990584-#990591**, read back from Brella afterwards rather than trusting the POST bodies.
+
+**BRELLA STORES UTC AND COPENHAGEN IS UTC+2 IN AUGUST.** 12:00 local is `10:00:00.000Z`. This was
+CHECKED against live 27-August rows before writing, not assumed: Event Room 2's `07:25Z` renders as
+09:25 and `08:45Z` as 10:45. Getting it wrong shifts a public schedule by two hours.
+
+**WATCH THE DAY NUMBERING, THE TWO SURFACES DISAGREE.** Brella derives "Day N" from whichever dates
+exist in its feed and it has a 25 August, so **Brella calls 27 August "Day 3"** while `/brella-program`
+and Airtable call it **Day 2**. Same date, different label. Filter on the DATE, never the day number.
+
+**6 · `ROOM_DAY_PROGRAMMES` in `lib/brellaSections.ts`** gained
+`{ room: "Event Room 6", date: "27 August", programme: "Denmark-Sweden Summit" }`. Event Room 6 now runs
+two different programmes on two days off ONE plain track, so the track name cannot tell them apart and
+`programmeOf()` would have labelled both days "Deep Tech Event Day".
+
+**NO "ALL DAY" BAND ON THIS ONE, AND THAT IS CORRECT.** The derived band only draws when a programme
+spans the day (`lo <= MORNING_BY && hi >= EVENING_FROM` in `lib/brellaEmbedSnippet.ts`). This one runs
+12:00-14:35. The `programme` label is on all 8 sessions in the feed regardless.
+
+**VERIFIED.** 8 Airtable rows with room/day/type correct and all 17 photos fetched at 200, 800x800, with
+thumbnails · the feed returns 8 sessions with 17 faces and all 17 proxy URLs serve `image/*` · the panel
+shows its five faces against the right five names · all TEN programmes still serve (`niss` 13, `nass` 22,
+`fintech` 8, `policy` 15, `board` 14, `pension-summit` 10, `family-office` 7, `lp-forum` 11,
+`investor-day` 9, `denmark-sweden` 8) · Brella's Event Room 6 reads 13 on the 26th and 8 on the 27th ·
+`tsc --noEmit` clean.
+
+**NEXT STEPS.**
+1. **SPEAKERS ARE NOT LINKED IN BRELLA.** The integration API exposes no speaker-assignment route
+   (probed at length in `brella-push.mjs`), so all 12 have to be attached by hand in the Brella UI.
+   `node scripts/brella-push-denmark-sweden.mjs --plan` prints the per-session checklist.
+2. Brella's 8 sessions carry no descriptions and no speakers, so they show up in the
+   "which rooms still look incomplete" panel on `/brella-program`. Expected, not a fault.
+3. Nothing is committed and nothing is deployed. `/program`'s new tab is dev-only until then.
+4. If Øresundsinstituttet sends session descriptions, they go in `Description` and appear on both
+   surfaces with no code change.
+
+## SESSION · 2026-08-18 · THE SPEAKER GALLERY SHOWS FACES, AND THE FILTER WAS AN `or`
+
+**CURRENT STATE. DONE.** `Speakers Available 2026` (`viwG7ZfVITFa3s3Ue`) serves **every 2026
+`I am a: = Speaker` submission, and every single one has a photo. 86 records, 86 faces, 0 blank tiles**,
+all fully ingested with thumbnails generated. Verified as an exact SET match against the Speaker rows in
+`2026 - Media Interview Requests` (`viw4PKkUXGobSuvVO`), not just an equal count: 0 missing, 0 extra,
+0 non-Speaker, 0 created outside 2026. Live in the PR base. The Hub-sync blocker from earlier today is
+gone, because the gallery no longer needs the Hub at all.
+
+**THE COUNT IS 86 TODAY AND WILL MOVE.** It read 87 mid-session and dropped to 86 while the work was in
+progress. Nothing was deleted: the 2026 row count held at 109 and the split went 87/22 to 86/23, so one
+person's `I am a:` was corrected from Speaker to Media in Airtable and the gallery followed. Do not
+treat a changed count as a bug. Re-derive it from the filter.
+
+**ALL SPEAKERS, EVEN IF ONE LATER HAS NO FACE.** An earlier pass had a third condition,
+`Speaker Photo is not empty`. It was REMOVED on purpose: it hid 7 real speakers from the media, and a
+blank tile with a name beats a missing person. Do not put it back, even though every tile happens to
+have a photo right now.
+
+**THE POPULATION, SETTLED.** The gallery shows exactly one thing: whoever ticked `I am a: Speaker` on
+`Speaker & Media Matchmaking 2026` (`viwJlwqd2BlG2qwzA`) and therefore lands in
+`2026 - Media Interview Requests` (`viw4PKkUXGobSuvVO`). Not the wider applicant pool.
+
+**1 · `Speaker Photo` (`fldXzJsG66kEvbxwc`)** — a REAL `multipleAttachments` field on
+`PR/Program Matchmaking`, and now the gallery's cover. This is the whole fix. Both earlier plans were
+dead ends: a lookup of the Hub's attachments cannot be a cover, and moving the gallery onto
+`Speaker Hub 1:1` is blocked by that table being externally synced. The submissions table is native and
+writable, so the photo belongs here.
+
+**2 · `scripts/fill-speaker-photos.mjs`** — fills it from two sources, in priority order: the Hub via
+the existing `Speaker Profile` link (73 rows), then the Marketing base roster matched on a normalised
+name (7 rows, incl. the `Cecilia Bonefedeld-Dahl` typo via an explicit alias map). Dry run by default,
+`--apply` to write, skips rows that already have a photo. Filled 80 of 86; all 80 ingested with
+thumbnails generated, three fetched back at 200 to prove the bytes serve.
+
+**3 · THE FILTER WAS AN `or`, WHICH IS WHY THE VIEW SERVED 242 ROWS.** The two conditions were
+`I am a: is Speaker` **or** `Attachments (from Speaker Profile) is not empty`. That is what pulled in 92
+rows from 2022 and 63 from 2025 — not a missing year filter, an `or`. It now reads:
+
+    Where  I am a:   is              Speaker
+    and    Created   is on or after  1/1/2026
+
+Two conditions, nothing about photos. The `Created` bound also kills the 2022 duplicate of
+Henriette Kirkegaard, who submitted again in 2026 under the same name.
+
+**4 · THE HUB IS A STALE PARTIAL COPY OF THE MARKETING ROSTER.** The real speaker roster is
+`appgXNjXJqpk9Ebxd` / `Marketing Project Overview` / view `Speakers` (`viwfIcQFDNQ9ggSqx`): 525 rows,
+497 distinct people, 522 with a Profile Picture, fed by the `Speakers for Different Projects` form
+across 14 projects. `Speaker Hub 1:1` holds 148 records — 135 of the 210 TechBBQ Summit applicants, 10
+of the other 287, and 6 people found nowhere in Marketing. So the 6 who blocked earlier today
+(Sara Rywe, Fabrizio Del Maffeo, Agnessa Pedersen, Jonathan Sanders, Howard Wright, Yoav Orlev) were
+never missing a photo; they were missing from a sync. Their faces came straight out of Marketing.
+**Nobody needs to chase the Hub's sync source for this gallery.**
+
+**THE ROSTERS USE FULLER NAMES THAN THE FORM.** Three people looked photo-less and were not. The
+form takes whatever they typed; the roster has their full name. Each match was confirmed against the
+Company on the submission, never on the name alone, and went into the script's `ALIASES` map rather
+than any fuzzy matching, because a wrong face on a media-facing gallery is worse than a blank tile:
+
+| form says | roster has | confirmed by |
+|---|---|---|
+| `Rustamova` | Ula Rustamova | Level Zero Health |
+| `Naama Harari` (x2 rows) | Naama Harari Uzan | Wix |
+| `Katrine Arevad` | Katrine Arevad W. R. | KvindeKompagniet |
+| `Christie Kristensen` | Christie H. Kristensen | Danske Bank A/S |
+| `Henriette Kirkegaard` | Henriette Schultz Kirkegaard | Zephyra |
+
+The Company check earns its keep on Christie: a DIFFERENT Christie Kristensen submitted as Media from
+Pantrium Podcast, and there is an unrelated Thomas Kristensen in the roster.
+
+**WHEN A TILE IS BLANK, SEARCH THE MARKETING ROSTER FOR A SUBSTRING OF THE NAME BEFORE CONCLUDING THE
+PHOTO DOES NOT EXIST.** All 6 people who first looked photo-less had a photo the whole time, under a
+fuller name. Zero of them needed a manual upload.
+
+**NEXT STEPS.**
+1. Nothing to upload. Every tile has a face.
+2. `Speakers` on the media form still points at `Speakers 1:1` (`viwP58QXZiQncyzdH`), UNFILTERED — all
+   148 Hub records show in the live media picker. Repoint it, ideally at the new gallery view.
+3. Delete the duplicates: Cecilie Waagner Falkenstrøm appears 3x in the gallery, Naama Harari 2x.
+4. Re-run `fill-speaker-photos.mjs` after any new speaker submission; it only touches empty rows.
+
+**GOTCHA.** Airtable attachment URLs expire a couple of hours after they are read, and the write hands
+Airtable a URL to fetch server-side. Read and write in the same run. Ingestion is also ASYNC: right
+after the apply, 15 of the 80 had no `size` or `type` yet and looked like failures. They were done 45
+seconds later. Do not "fix" a fresh apply.
+
+## SESSION · 2026-08-18 · SPEAKER 1:1 GALLERY: LINKING THE FORM TO THE FACES
+
+**CURRENT STATE.** 73 of the 86 2026 speaker submissions now carry a `Speaker Profile` link to their
+`Speaker Hub 1:1` record. Written to the live PR base. The gallery views themselves are NOT built yet,
+and the work is BLOCKED on one question (see step 3).
+
+**THE PROBLEM.** The gallery `Speakers Available 2026` (`viwG7ZfVITFa3s3Ue`) sits on
+`PR/Program Matchmaking` (`tblJYAh4MT3NMeOeD`), which has no attachment field, so it shows no faces.
+An Airtable gallery cover MUST be an attachment field on the SAME table — a lookup of attachments
+cannot be a cover. So that gallery can never show photos, no matter what is looked up into it.
+
+The fix is to flip the direction: build the gallery on `Speaker Hub 1:1` (`tblvpTxZqA5pUlDDY`), where
+every one of the 148 records already has a photo, bio and job title, and pull the "this person
+confirmed they are a speaker" signal across a link.
+
+**WHAT THE DATA ACTUALLY SAID.** `Speakers Available 2026` is filtered only on `I am a: = Speaker`,
+with NO year filter: 242 records, of which 92 are from 2022 and 63 from 2025. Only 87 rows (83 unique
+people) are real 2026 submissions. Fixing that filter is its own task.
+
+**1 · `Speaker Profile` (`fldVJwWtMIjfgq7Dk`)** — new single link on `PR/Program Matchmaking` ->
+`Speaker Hub 1:1`. Deliberately NOT the existing `Speakers` field (`fldc6PS99yUdSb9WE`): that one means
+"this media person wants to interview these speakers" and would poison the filter.
+
+**2 · `scripts/link-speaker-profiles.mjs`** — matches submitters to Hub records on a normalised name
+(diacritics and titles stripped, so "Dr. Ahmed Ismail" hits "Ahmed Ismail"). Dry run by default,
+`--apply` to write. Skips rows that already have a link, so re-running is safe. 73 matched exactly;
+they resolve to 71 distinct people because Cecilie Waagner Falkenstrom submitted three times.
+
+**3 · BLOCKED: `Speaker Hub 1:1` IS AN EXTERNALLY SYNCED TABLE.** Creating records in it returns
+`INVALID_PERMISSIONS: the underlying table is externally synced`. So the 6 people who are in the
+Supabase roster with photos but missing from the Hub CANNOT be added through the API — they have to be
+added at whatever feeds the sync. That source is not discoverable through the API; it has to be read off
+the table's sync settings in the Airtable UI. `scripts/sync-speaker-hub-1on1.mjs` is written and its dry
+run is correct, but its write path is dead until the source is known.
+
+**STILL UNLINKED (13 rows).**
+- 1 typo, safe to link by hand: form says `Cecilia Bonefedeld-Dahl`, Hub says `Cecilia Bonefeld-Dahl`.
+- 6 in the Supabase roster with photos, blocked by the sync: Sara Rywe, Fabrizio Del Maffeo,
+  Agnessa Pedersen, Jonathan Sanders, Howard Wright, Yoav Orlev.
+- 5 with no photo anywhere, need a record built by hand: Katrine Arevad, Naama Harari (2 duplicate rows),
+  Christie Kristensen, Blake Brodie, and a row whose Name is just "Rustamova".
+
+**NEXT STEPS.**
+1. Read the sync source off `Speaker Hub 1:1` in the Airtable UI, then add the 6 there.
+2. Link `Cecilia Bonefeld-Dahl` by hand.
+3. On `Speaker Hub 1:1`, add a lookup of `I am a:` and of `Created` through `PR/Program Matchmaking 2`
+   (`fldZH23BDyK8xuG6o`, the auto-created reverse of `Speaker Profile`).
+4. Build a gallery view there filtered to those lookups, cover image = `Attachments`.
+5. Point the form's `Speakers` field at that view via "Limit record selection to a view". It currently
+   points at `Speakers 1:1` (`viwP58QXZiQncyzdH`), which is UNFILTERED — all 148 Hub records show in the
+   live media picker today.
+6. Add a year filter to `Speakers Available 2026` so it stops serving 2022 and 2025.
+
+**GOTCHA.** Adding records to the Hub table grows the live media picker immediately, because
+`Speakers 1:1` has no filter. Do step 5 before any bulk resync of the roster.
+
+**DUPLICATES TO DELETE.** Cecilie Waagner Falkenstrom x3, Naama Harari x2, in the 2026 speaker rows.
+
+## SESSION · 2026-08-17 · INTERN POOL: THE MANAGER, AND A NEW ORDER ON EVERY LOAD
+
+**CURRENT STATE.** `/interns` names each intern's manager, the name opens that manager's LinkedIn,
+and the grid is in a different order on every page load. Verified on the dev server, not deployed.
+The intern-pool chapter itself is in
+[`progress-archive.md`](progress-archive.md) — "The manager, added 2026-08-17" there carries the
+privacy reasoning, which is the part not to unpick.
+
+**1 · THE MANAGER (`Manager (internal) Reference`)**
+
+A LINK field to `#TechBBCuties`, so Airtable returns record ids; `fetchManagers()` in `lib/interns.ts`
+resolves them (`Name` + `LinkedIn` only) in one extra request per cache miss, chunked at 50 ids, and
+never throws — a failed lookup drops the manager line, not the page. The field is
+`managers: InternManager[]`, a list, because the column permits several.
+
+It stays INTERNAL by two independent mechanisms: the column is only appended to `fields[]` when
+`includePending` is set (dashboard password), and `stripInternal()` in the route removes `managers`
+alongside `pitchFull` so it cannot reappear through the shared cache. The manager's LinkedIn is not
+a new exposure — `/api/team` already publishes staff LinkedIn and the team embed renders it.
+
+**2 · A DIFFERENT ORDER EVERY LOAD**
+
+Whoever leads the wall gets read the most, and the department-then-name sort handed that to the same
+intern every time.
+
+- `app/interns/page.tsx` — mount-fixed seed + seeded LCG shuffle, the idiom Speakers 2026, NASS and
+  the investor pages already use. Fixed per MOUNT, not per render, so a revalidation or a department
+  pill cannot re-jump the grid mid-read. Live and pending shuffle separately, since the page draws
+  them as two sections.
+- `lib/internsEmbedSnippet.ts` — Fisher-Yates over the array once on load, so every techbbq.dk
+  visitor gets a different first card. **Takes effect only once the embed is copied out again.**
+- `lib/interns.ts` still sorts and must keep sorting: the feed is cached and CDN-cached, so a
+  server-side shuffle would freeze ONE order for everybody until the cache rolled over, and
+  `useCachedList`'s diffed "changes" count needs the same list back twice.
+
+**VERIFIED** (dev server, 12 live interns): dashboard feed carried all 12 managers with profile URLs
+and the public feed had no `managers` key at all · 12 anchors rendered with correct hrefs, aria-labels
+and a visible focus ring, zero plain-text fallbacks · 5 page loads gave 5 distinct orders with the
+same 12 people · the order held across an in-page "Refresh from Airtable" · 4 loads of the built
+embed gave 4 distinct orders · `tsc --noEmit` clean.
+
+**NOT DONE.** Three interns (Riccardo, Rui Lin, Zsófia) render a blank photo tile and the page logs
+a 404 from the photo proxy. Pre-existing, untouched, worth a look.
+
 ## SESSION · 2026-08-17 · THE PUBLIC FAQ ON techbbq.dk, 11 EDITS · NO REPO CODE CHANGED
 
 **CURRENT STATE.** `techbbq.dk/faq` (WordPress post **15331**, Elementor) is corrected, saved and

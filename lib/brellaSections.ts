@@ -255,6 +255,11 @@ const ROOM_DAY_PROGRAMMES: { room: string; date: string; programme: string }[] =
   // the room went unlabelled and the derived all-day band never appeared. Its own ROOM_ALIASES
   // entry above still stands for the day a real track shows up (Auri, 2026-08-11).
   { room: "Event Room 6", date: "26 August", programme: "Deep Tech Event Day" },
+  // Event Room 6 now runs a SECOND programme on the 27th. Its eight sessions were pushed to the
+  // plain "🔹 Event Room 6" track on 2026-08-18 (scripts/brella-push-denmark-sweden.mjs), so the
+  // track name says nothing about which of the two days you are looking at and programmeOf() would
+  // label both of them "Deep Tech Event Day". Matching on the DATE is what separates them.
+  { room: "Event Room 6", date: "27 August", programme: "Denmark-Sweden Summit" },
 ];
 
 /** The programme running in a room on a given day, when only the room and date can say. */

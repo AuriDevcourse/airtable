@@ -63,9 +63,14 @@ export const SECTION_COLORS: Record<string, string> = {
 //
 // Violet because nothing else in the palette is violet: orange, blue, yellow and green are all
 // spoken for by stages, and a fifth warm tint would just read as a sixth stage.
-export const BREATHWORK_RE = "breathwork";
+//
+// MATCHED ON "meditation" TOO, and in the 2026 feed that is the only word that hits: all eight
+// breaks are named "3 Minute Arrival Meditation" or "Meditation & Talk Break!", none say
+// breathwork. So the badge reads "Meditation". "breathwork" stays in the pattern because the
+// 2025 programme used it and a returning session should not silently lose its treatment.
+export const BREATHWORK_RE = "breathwork|meditation";
 export const BREATHWORK_COLOR = "#B49BFF";
-export const BREATHWORK_LABEL = "Breathwork";
+export const BREATHWORK_LABEL = "Meditation";
 
 const BREATHWORK_RX = new RegExp(BREATHWORK_RE, "i");
 
@@ -205,25 +210,28 @@ export function trackColor2(room: string): string | undefined {
 /**
  * A session's accent: its section's colour when it declares one, else its track's.
  *
- * BREATHWORK NO LONGER OVERRIDES THIS. It used to return violet, on the reasoning that a break
- * is a thing running ACROSS the stages and so should not wear any one stage's colour. Auri
- * reversed that on 2026-08-06: a break on the BBQ Stage is orange, on the Founders Stage green,
- * the same rule the openings already follow. What separates the two treatments is now the badge
- * and the icon — the wind glyph and the word "Breathwork" — not the hue.
+ * MEDITATION BREAKS OVERRIDE IT AND COME BACK VIOLET (Auri, 2026-08-18). This flipped twice:
+ * violet first, then the stage's own colour on 2026-08-06 so a break on the BBQ Stage was
+ * orange, now violet again. The reason for going back is that the badge and the wind glyph
+ * alone did not separate the breaks from the talks around them — eight 3-minute cards wearing
+ * four stage colours read as eight more sessions. Violet is the one hue no stage uses.
  *
- * BREATHWORK_COLOR is kept and still exported: the embed's legacy pill styling references it,
- * and it is the one record of what the violet was if the decision is ever revisited.
+ * The embed (lib/brellaEmbedSnippet.ts) never stopped painting them violet, so this also ends a
+ * drift where the dashboard and the copied snippet showed the same break in two colours.
  */
 export function sessionColor(s: { room: string; section?: string; name?: string }): string {
+  if (isBreathwork(s)) return BREATHWORK_COLOR;
   return (s.section && SECTION_COLORS[s.section]) || trackColor(s.room);
 }
 
 /**
- * Gradient second stop. Section colours are flat, so this is track-only — and breathwork now
- * gets the gradient too, because a break on the Life Science stage is that stage's card.
+ * Gradient second stop. Section colours are flat, so this is track-only. Meditation breaks are
+ * flat as well: the violet above is the whole point of the card, and a gradient running off it
+ * into a stage tint would put the stage colour back on a card that just stopped wearing one.
  */
 export function sessionColor2(
   s: { room: string; section?: string; name?: string }
 ): string | undefined {
+  if (isBreathwork(s)) return undefined; // flat violet, same as the section colours
   return s.section && SECTION_COLORS[s.section] ? undefined : trackColor2(s.room);
 }

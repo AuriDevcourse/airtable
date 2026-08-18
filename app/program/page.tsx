@@ -442,7 +442,8 @@ type EventKey =
   | "pension-summit"
   | "family-office"
   | "lp-forum"
-  | "investor-day";
+  | "investor-day"
+  | "denmark-sweden";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -565,6 +566,18 @@ const EVENTS: {
     theme: "beam",
     people: true,
   },
+  // DENMARK-SWEDEN SUMMIT, Day 2 in Event Room 6. Every row is the same afternoon in the same room,
+  // so heading and venue are fixed here rather than drawn from the data, like NASS and Fintech above.
+  // `navy` at Auri's pick. `people` because all six content sessions name their line-up and carry the
+  // headshots the organisers supplied. The organisers and partners are deliberately NOT on this page.
+  {
+    key: "denmark-sweden",
+    label: "Denmark-Sweden Summit",
+    heading: "August 27th",
+    sub: "Event Room 6",
+    theme: "navy",
+    people: true,
+  },
 ];
 
 // The agenda has its own snippet builder, so it gets its own copy button rather than
@@ -659,7 +672,10 @@ export default function ProgramPage() {
             , which is the one installed on techbbq.dk.
           </p>
 
-          <div className="seg" role="tablist" aria-label="Program" style={{ marginTop: 28 }}>
+          {/* `seg--scroll`: ten programmes no longer fit one row, and .seg's single inline-flex row
+              overflowed the card and pushed the whole page sideways. The pill bar scrolls itself
+              now — see app/globals.css. */}
+          <div className="seg seg--scroll" role="tablist" aria-label="Program" style={{ marginTop: 28 }}>
             {EVENTS.map((e) => (
               <button
                 key={e.key}

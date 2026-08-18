@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HeroBackdrop } from "@/components/HeroBackdrop";
 import { RefreshButton } from "@/components/RefreshButton";
 import { useCachedList, useFreshUrl } from "@/lib/useCachedList";
@@ -31,6 +31,10 @@ type Intern = {
   lookingFor: string;
   availableFrom: string | null;
   linkedin: string | null;
+  // Dashboard only, like pitchFull: the route strips it from the public feed and the embed never
+  // sees it. Optional in the type because a cached payload from before this shipped will not have
+  // it, and a list because the Airtable link field allows more than one.
+  managers?: { id: string; name: string; linkedin: string | null }[];
   // Dashboard only. Its presence means "not on techbbq.dk".
   pending?: "no-consent" | "not-on-web" | "no-photo" | "expired" | "no-date";
 };
@@ -102,6 +106,17 @@ function TableIcon({ size = 14 }: { size?: number }) {
     <Icon size={size}>
       <rect width="18" height="18" x="3" y="3" rx="2" />
       <path d="M3 9h18M3 15h18M12 3v18" />
+    </Icon>
+  );
+}
+
+// Lucide user-round. The manager line is the one thing on the card that is about US rather than the
+// intern, so it carries a mark that says "a person here" without a second label.
+function UserIcon({ size = 12 }: { size?: number }) {
+  return (
+    <Icon size={size}>
+      <circle cx="12" cy="8" r="5" />
+      <path d="M20 21a8 8 0 0 0-16 0" />
     </Icon>
   );
 }
@@ -201,6 +216,9 @@ function RichText({ text, className }: { text: string; className?: string }) {
 function InternCard({ p }: { p: Intern }) {
   const meta = [p.role, p.department].filter(Boolean).join(" · ");
   const from = niceDate(p.availableFrom);
+  // Defaulted here rather than at every use: a payload cached before this field existed has no
+  // `managers` key at all, and the footer asks for its length.
+  const managers = p.managers ?? [];
   return (
     <article className={"ip-card" + (p.pending ? " ip-card--pending" : "")}>
       <div className="ip-card__head">
@@ -262,12 +280,46 @@ function InternCard({ p }: { p: Intern }) {
         </span>
       )}
 
-      {/* Rendered only when there is a date. With LinkedIn moved up to the name, a card with no
-          date would otherwise draw an empty padded strip along its bottom edge. The margin-top:auto
-          lives on this element, so cards without one simply end after their content. */}
-      {from && (
+      {/* Rendered only when there is something to put in it. With LinkedIn moved up to the name, a
+          card with neither a date nor a manager would otherwise draw an empty padded strip along its
+          bottom edge. The margin-top:auto lives on this element, so cards without one simply end
+          after their content.
+
+          The MANAGER is internal (Auri, 2026-08-17) and sits here rather than up with the name for
+          that reason: this card is the intern's pitch, and who they report to is TechBBQ's own note
+          in the margin. It is the answer to "who chases them for the missing photo", which is what
+          this page is for. techbbq.dk never receives the field — see app/api/interns/route.ts. */}
+      {(from || managers.length > 0) && (
         <div className="ip-card__foot">
-          <p className="ip-card__from">Available from {from}</p>
+          {from ? <p className="ip-card__from">Available from {from}</p> : <span />}
+          {managers.length > 0 && (
+            <p className="ip-card__mgr">
+              <UserIcon />
+              <span className="ip-card__mgrLabel">Manager</span>
+              {managers.map((m, i) => (
+                <span key={m.id || i}>
+                  {i > 0 && <span className="ip-card__mgrSep"> · </span>}
+                  {/* Pressable only when we HAVE a profile. A styled span that looks like a link
+                      and does nothing is the worse failure, so the no-LinkedIn case renders as
+                      plain text rather than a dead <a>. The label says whose profile it is, because
+                      "Manager" repeated down a screen tells a screen reader nothing. */}
+                  {m.linkedin ? (
+                    <a
+                      className="ip-card__mgrLink"
+                      href={m.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${m.name} on LinkedIn`}
+                    >
+                      {m.name}
+                    </a>
+                  ) : (
+                    m.name
+                  )}
+                </span>
+              ))}
+            </p>
+          )}
         </div>
       )}
     </article>
@@ -292,11 +344,42 @@ export default function InternsPage() {
   const { data, loading, revalidating, error, revalidateError, updated, changes } =
     useCachedList<Intern>("interns:all", url, "interns");
 
-  const interns = data ?? [];
+  // ─── A DIFFERENT ORDER EVERY REFRESH (Auri, 2026-08-17) ──────────────────────────────────
+  // Whoever is first on the wall gets read the most, and the feed's department-then-name sort made
+  // that the same person every single time. So the order is re-rolled on each page load. Same
+  // approach as Speakers 2026, NASS and the investor pages, and the embed on techbbq.dk shuffles
+  // too — that is the copy that recruiters actually see.
+  //
+  // The seed is fixed for this MOUNT, not per render: a revalidation landing while somebody reads,
+  // or a press on a department pill, must not re-jump the grid under them. A refresh re-rolls it.
+  // The server cannot do this — /api/interns is cached and CDN-cached, so a shuffle up there would
+  // freeze one order for every visitor until the cache expired.
+  const [seed] = useState(() => Math.floor(Math.random() * 233280) || 1);
+  const interns = useMemo(() => {
+    let s = seed;
+    const rand = () => ((s = (s * 9301 + 49297) % 233280), s / 233280);
+    const shuffle = (arr: Intern[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    };
+    const all = data ?? [];
+    // The two blocks shuffle SEPARATELY and stay in that order, because the page draws them as two
+    // sections: the live grid first, "Not on the site yet" under it. Shuffling the whole list would
+    // not mix them into one grid, it would just scramble which pending card leads the second block.
+    return [...shuffle(all.filter((p) => !p.pending)), ...shuffle(all.filter((p) => p.pending))];
+  }, [data, seed]);
+
   const live = interns.filter((p) => !p.pending);
   const pending = interns.filter((p) => p.pending);
 
-  const depts = Array.from(new Set(interns.map((p) => p.department).filter(Boolean)));
+  // Sorted for the tab row only. The GRID is deliberately random, but a filter row that reshuffles
+  // its own pills every load is just hard to hit twice.
+  const depts = Array.from(new Set(interns.map((p) => p.department).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  );
   const shown = active === ALL ? interns : interns.filter((p) => p.department === active);
   const shownLive = shown.filter((p) => !p.pending);
   const shownPending = shown.filter((p) => p.pending);

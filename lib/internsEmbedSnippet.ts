@@ -165,6 +165,18 @@ ${originDecl("  ")}
     return h;
   }
 
+  // A DIFFERENT ORDER FOR EVERY VISITOR (Auri, 2026-08-17). The first card on the wall is the one
+  // that gets read, and the feed's own sort would hand that to the same intern on every view. Done
+  // here rather than server-side because /api/interns is cached and CDN-cached: a shuffle up there
+  // would freeze one order for everybody until the cache rolled over.
+  //
+  // Shuffles the ARRAY once on load, not per render, so pressing a department pill re-filters
+  // without re-jumping the cards that stay on screen.
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+    return a;
+  }
+
   function render(){
     var list=active==="all"?all:all.filter(function(p){return p.department===active;});
     grid.innerHTML=list.map(card).join("");
@@ -194,7 +206,7 @@ ${originDecl("  ")}
   fetch(ORIGIN+PATH,{headers:{Accept:"application/json"}})
     .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
     .then(function(d){
-      all=(d&&d.interns)||[];
+      all=shuffle((d&&d.interns)||[]);
       buildFilters();
       render();
     })

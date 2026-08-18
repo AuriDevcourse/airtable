@@ -14,9 +14,10 @@
 //      leave this server, whatever else is filled in. GDPR lawful basis for publishing personal
 //      data of a private individual is their consent, and consent that lives in someone's memory
 //      of a conversation is not consent. See SECURITY r6/r18.
-//   2. `Email` AND `Manager (internal)` ARE NEVER REQUESTED. They are not in SAFE_FIELDS, so they
-//      never reach this process, let alone the JSON. A recruiter contacts them on LinkedIn. An
-//      email address on an indexed page is a spam magnet, and it is the intern who pays for it.
+//   2. `Email` IS NEVER REQUESTED. It is not in SAFE_FIELDS, so it never reaches this process, let
+//      alone the JSON. A recruiter contacts them on LinkedIn. An email address on an indexed page
+//      is a spam magnet, and it is the intern who pays for it. The manager is read too (Auri,
+//      2026-08-17) but ONLY on the dashboard read — see INTERNAL_FIELDS below.
 //   3. IT EXPIRES BY ITSELF. See `Show until`.
 //
 // Adding a field here is therefore a privacy decision, not a plumbing one. Check it against the
@@ -35,8 +36,12 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 // Pinned in code, not env — a stale env table id silently breaks the feed.
 const TABLE = "tbl5VhWYQ6FeXfoJy"; // Intern Pool
 
-// PUBLIC allow-list. Note the absentees and keep them absent: `Email`, `Manager (internal)`,
-// `Notes` and `Assignee` are internal columns on this table and must never be requested.
+// Pinned for the same reason. #TechBBCuties, the staff directory the manager link points into —
+// the same table lib/team.ts reads.
+const TEAM_TABLE = "tbldWne3PnvebIwif";
+
+// PUBLIC allow-list. Note the absentees and keep them absent: `Email`, `Notes` and `Assignee` are
+// internal columns on this table and must never be requested.
 const SAFE_FIELDS = [
   "Name",
   "Role",
@@ -51,6 +56,25 @@ const SAFE_FIELDS = [
   "Consent to publish",
   "Put on web",
 ];
+
+// ─── INTERNAL, DASHBOARD-ONLY ────────────────────────────────────────────────────────────
+// Requested ONLY when `includePending` is set, which the route only honours behind the dashboard
+// password. So on the public path this column is not in the query string at all, exactly like
+// `Email`, and no amount of downstream forgetfulness can put it on techbbq.dk.
+//
+// It is a LINK to #TechBBCuties, so Airtable hands back record ids ("recyhx…"). The names AND the
+// manager's LinkedIn are resolved below; a link field cannot be read as text.
+//
+// The LinkedIn URL comes from the staff table, where it is already public — /api/team publishes it
+// and the team embed on techbbq.dk renders it. So it is public info about a colleague, read here
+// purely to make the manager's name pressable. It still rides on the internal `managers` field and
+// is stripped from the public intern feed with it: a manager has no business appearing on an
+// intern's card on techbbq.dk, whether as text or as a link.
+//
+// Why read it: the dashboard is a worklist, and every line of it ends in someone chasing an
+// intern for a photo or a ticked box. Naming the manager says WHO does the chasing. The public
+// card still says nothing about who they report to — that is TechBBQ's org chart, not their pitch.
+const MANAGER_FIELD = "Manager (internal) Reference";
 
 // Re-exported so a server-side caller can get the feed and the list from one import. The list
 // itself lives in lib/internDepartments.ts, which has no server imports — the "Copy embed code"
@@ -109,6 +133,23 @@ export type Intern = {
   lookingFor: string;
   availableFrom: string | null; // ISO date, or null when they did not say
   linkedin: string | null;
+  // Who at TechBBQ this intern reports to, resolved from the link to #TechBBCuties. INTERNAL:
+  // filled only on a `includePending` (dashboard) read and stripped from the public feed in
+  // app/api/interns/route.ts, the same treatment as `pitchFull`.
+  //
+  // A LIST, not one name, because the Airtable field is a link field and permits several. Empty on
+  // a public read, when the link is unset, and when the staff table could not be reached — the
+  // dashboard simply draws no manager line in all three cases.
+  managers: InternManager[];
+};
+
+/** A manager as the card needs them: a name to read and, when we have one, a profile to open. */
+export type InternManager = {
+  id: string;
+  name: string;
+  // From #TechBBCuties, where it is already public (see MANAGER_FIELD). null when they have not
+  // filled one in, and the card then renders the name as plain text rather than a dead link.
+  linkedin: string | null;
 };
 
 /**
@@ -155,7 +196,66 @@ function isExpired(showUntil: string, now: Date = new Date()): boolean {
   return showUntil.slice(0, 10) < today;
 }
 
-function mapRecord(rec: AirtableRecord): Intern {
+// Record ids out of a link field. Airtable gives `["recA","recB"]`, and an unset link gives
+// nothing at all rather than an empty array.
+function linkIds(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.startsWith("rec")) : [];
+}
+
+/**
+ * rec id → name and LinkedIn, read from #TechBBCuties.
+ *
+ * One request for the whole page rather than one per intern, and no `filterByFormula` gate on
+ * Active/Archive: a manager who has left is still the answer to "whose intern is this", and
+ * filtering them out would leave a blank where the useful name was.
+ *
+ * NEVER THROWS. A manager label is a convenience on a worklist; the intern list is the page. If
+ * the staff table is slow or unhappy, this logs and returns what it has, every card renders with
+ * no manager line, and nobody stares at "Could not load" because a nice-to-have failed.
+ */
+async function fetchManagers(ids: string[]): Promise<Map<string, InternManager>> {
+  const names = new Map<string, InternManager>();
+  const unique = [...new Set(ids)];
+  if (!unique.length) return names;
+
+  // Chunked because the ids go into a formula in the URL, and a long enough URL is a 422 rather
+  // than a truncated answer. 50 ids is ~1.5kB of formula, comfortably inside Airtable's limit.
+  for (let i = 0; i < unique.length; i += 50) {
+    const chunk = unique.slice(i, i + 50);
+    const params = new URLSearchParams();
+    params.set("pageSize", "100");
+    params.set("filterByFormula", `OR(${chunk.map((id) => `RECORD_ID()='${id}'`).join(",")})`);
+    // Two fields and no more. #TechBBCuties holds phone numbers and private notes (see the header
+    // of lib/team.ts) and none of it has any business in this process.
+    params.append("fields[]", "Name");
+    params.append("fields[]", "LinkedIn");
+
+    try {
+      const res = await fetchWithTimeout(
+        `${API}/${BASE_ID}/${TEAM_TABLE}?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${TOKEN}` }, cache: "no-store" }
+      );
+      if (!res.ok) {
+        console.error("[interns] manager lookup failed", res.status, await res.text());
+        continue;
+      }
+      const data = (await res.json()) as { records: AirtableRecord[] };
+      for (const rec of data.records) {
+        const name = str(rec.fields["Name"]);
+        // Through normalizeLinkedInUrl, the same helper every other feed uses: staff type these by
+        // hand, so a bare "linkedin.com/in/x" or a trailing space is normal and would otherwise
+        // render as a relative href that navigates the dashboard to a 404 of itself.
+        if (name) names.set(rec.id, { id: rec.id, name, linkedin: normalizeLinkedInUrl(rec.fields["LinkedIn"]) });
+      }
+    } catch (err) {
+      console.error("[interns] manager lookup errored", err);
+    }
+  }
+
+  return names;
+}
+
+function mapRecord(rec: AirtableRecord, managers: Map<string, InternManager>): Intern {
   const f = rec.fields;
   const name = str(f["Name"]);
   const attachmentId = firstAttachmentId(f["Photo"]);
@@ -177,7 +277,16 @@ function mapRecord(rec: AirtableRecord): Intern {
     lookingFor: str(f["Looking for"]).replace(/\s+/g, " ").trim(),
     availableFrom: str(f["Available from"]).slice(0, 10) || null,
     linkedin: normalizeLinkedInUrl(f["LinkedIn"]),
+    managers: managerList(f[MANAGER_FIELD], managers),
   };
+}
+
+// An id the staff table did not return is dropped rather than printed raw: "recyhxjTWiApQ1A3v" on a
+// card is worse than no manager line. Two managers, which the link field allows, read as both.
+function managerList(v: unknown, managers: Map<string, InternManager>): InternManager[] {
+  return linkIds(v)
+    .map((id) => managers.get(id))
+    .filter((m): m is InternManager => Boolean(m));
 }
 
 /**
@@ -209,6 +318,8 @@ export async function fetchInterns({
     const params = new URLSearchParams();
     params.set("pageSize", "100");
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
+    // The one internal column, asked for only on the dashboard read. See MANAGER_FIELD.
+    if (includePending) params.append("fields[]", MANAGER_FIELD);
     if (offset) params.set("offset", offset);
 
     const res = await fetchWithTimeout(
@@ -226,6 +337,11 @@ export async function fetchInterns({
     records.push(...data.records);
     offset = data.offset;
   } while (offset);
+
+  // One lookup for the whole page, after the intern rows are in and only for the ids actually
+  // used. On a public read nothing was requested, so there is nothing to resolve and no second
+  // Airtable call at all.
+  const managers = await fetchManagers(records.flatMap((r) => linkIds(r.fields[MANAGER_FIELD])));
 
   const out: (Intern | PendingIntern)[] = [];
   const noConsent: string[] = [];
@@ -263,17 +379,18 @@ export async function fetchInterns({
     if (pending === "expired") expired.push(`${name} (until ${showUntil})`);
 
     if (!pending) {
-      out.push(mapRecord(rec));
+      out.push(mapRecord(rec, managers));
       continue;
     }
     // THE ONE GATE THAT IS ABSOLUTE. Everything else can be shown to the dashboard as a worklist;
     // a record without consent is not ours to render anywhere, not even behind a password, because
     // the dashboard is where somebody would copy the pitch out of.
     if (includePending && pending !== "no-consent") {
-      out.push({ ...mapRecord(rec), pending });
+      out.push({ ...mapRecord(rec, managers), pending });
     } else if (includePending) {
       // Named, not silent — "why is my card not up" has to have an answer. Name only: no pitch,
-      // no photo, no LinkedIn.
+      // no photo, no LinkedIn. The MANAGER stays, though: this row exists so somebody chases the
+      // consent tick, and the manager is who does it. It is TechBBQ's own data, not the intern's.
       out.push({
         id: rec.id,
         name,
@@ -286,6 +403,7 @@ export async function fetchInterns({
         lookingFor: "",
         availableFrom: null,
         linkedin: null,
+        managers: managerList(f[MANAGER_FIELD], managers),
         pending,
       });
     }
@@ -306,7 +424,13 @@ export async function fetchInterns({
     console.info(`[interns] ${expired.length} intern(s) are past their "Show until" date: ${expired.join(", ")}`);
   }
 
-  // Grouped by department on the page, so sort by department then name and let the UI slice it.
+  // A STABLE BASE ORDER, not the order anybody sees. Both consumers re-roll it on every load for
+  // fair exposure (2026-08-17) — see the shuffle in app/interns/page.tsx and the one in
+  // lib/internsEmbedSnippet.ts. This sort survives because a cached feed and a diffed "changes"
+  // count need the same list to come back the same way twice; randomising HERE would also freeze one
+  // order into the cache for every visitor at once, which is the opposite of the point.
+  //
+  // Department then name.
   // localeCompare with the department index first keeps the bands in the order above rather than
   // alphabetical, which would put Event before Management and read as a ranking nobody chose.
   out.sort((a, b) => {

@@ -22,14 +22,26 @@ export const OPTIONS = corsPreflight;
 
 const KEY = "interns";
 
-// `pitchFull` is the pitch as written, with no 220-character cap, and it leaves the server ONLY on
-// an authenticated dashboard read. Two reasons, and the second is the one that matters: the embed's
-// card is built for one breath of text, and a field that exists in the JSON is a field somebody
-// eventually renders. Stripped here rather than never fetched, so the same cached Airtable read
-// still serves both audiences.
-function stripFullPitch<T extends { pitchFull: string }>(intern: T): Omit<T, "pitchFull"> {
-  const { pitchFull, ...rest } = intern;
+// Two fields leave the server ONLY on an authenticated dashboard read.
+//
+// `pitchFull` is the pitch as written, with no 220-character cap. Two reasons, and the second is
+// the one that matters: the embed's card is built for one breath of text, and a field that exists
+// in the JSON is a field somebody eventually renders.
+//
+// `managers` is who the intern reports to at TechBBQ, with the manager's LinkedIn so the dashboard
+// can make the name pressable. It belongs on the worklist, where somebody has to chase a missing
+// photo, and nowhere near techbbq.dk — an intern's card is their pitch, not our org chart.
+// lib/interns.ts does not even request the column unless `includePending` is set, so on a public
+// read this is already empty; stripping it keeps the key itself out of the public shape.
+//
+// Both stripped here rather than never fetched, so the same cached Airtable read serves both
+// audiences.
+function stripInternal<T extends { pitchFull: string; managers: unknown }>(
+  intern: T
+): Omit<T, "pitchFull" | "managers"> {
+  const { pitchFull, managers, ...rest } = intern;
   void pitchFull;
+  void managers;
   return rest;
 }
 
@@ -50,7 +62,7 @@ export async function GET(req: NextRequest) {
       isDashboardRequest(req.headers.get("authorization"));
     const live = wantsPending
       ? all
-      : all.filter((i) => !("pending" in i && i.pending)).map(stripFullPitch);
+      : all.filter((i) => !("pending" in i && i.pending)).map(stripInternal);
 
     // ?department=Marketing narrows to one team, validated against the known list so an unknown
     // value serves everyone rather than returning an empty page that looks like a broken feed.
