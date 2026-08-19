@@ -247,9 +247,7 @@ The dedupe was checked on Partner ID **and** normalized name (legal suffixes str
    against a real write) and `lib/partners.ts` (Skytek). The Beyond Beta fix from 2026-08-17 may
    still be uncommitted too — check before branching.
 5. DONE — Flatpay, Copenhagen and Business region Gothenburg are deleted from `LOGO_SCALE`.
-6. Commit the `Exceptions` change, then merge and deploy:
-   `git checkout main && git merge partner-deliverables-and-logo-scales && npx vercel --prod`.
-   Nothing reaches techbbq.dk until that runs.
+6. DONE — both commits are on main and live in production (see SHIPPED above).
 7. **Make the stale-nudge check automatic.** FIVE occurrences in three days is not a coincidence,
    it is a missing test. Add a CI step (or a cron) that runs `measure-logo-ink.mjs` over the wall and
    FAILS when any `LOGO_SCALE` entry exceeds that logo's current `cap`. The filter is one awk line:
@@ -366,10 +364,23 @@ transparent margin overflowed the bounding box and no ink left the tile. **That 
 the artwork, not the partner.** That entry also called PSV fine at 2.92 against 12% ink. Also true of the old file, also superseded
 the moment Auri re-exported it.
 
-**COMMITTED.** `666cd90` on branch **`partner-deliverables-and-logo-scales`** carries the logo-scale
-changes and the deliverables script. **The `Exceptions` work is NOT in it** — it came after the
-commit and is still uncommitted. Nothing is pushed and nothing is deployed, so techbbq.dk still
-shows the old scales and the old tiers.
+**SHIPPED, AND PRODUCTION IS VERIFIED.** Both commits are on `origin/main` and live:
+
+- `8ff9436` logo scales + the deliverables contact copy
+- `ab142d7` the `Exceptions` tier override
+
+**A PARALLEL SESSION WAS EDITING THIS REPO AT THE SAME TIME.** The logo commit was authored here as
+`666cd90` on the branch and reached main as **`8ff9436`** — a different hash, i.e. somebody rebased or
+cherry-picked it across and pushed, alongside two intern-embed commits (`7f24b89`, `5b3b41a`). The
+branch was re-pointed at the new main under us, so the `Exceptions` commit fast-forwarded cleanly and
+nothing was lost, but **check `git log --oneline -5` before assuming your local commit is the one that
+shipped.** The intern/globals/programFaces files that were dirty in the tree all session were
+committed by that other session, not here.
+
+**A PUSH TO MAIN DOES TRIGGER A VERCEL BUILD.** The 2026-08-17 note saying it did not is out of date.
+Production was polled after the push and returns Flatpay 1, PSV 1, Skytek 0.97, Copenhagen 1,
+Business region Gothenburg 1, Highbridge Law Firm Challenger, rebriQ Challenger — so techbbq.dk now
+matches localhost with no `vercel --prod` and no Elementor re-paste.
 
 **FILE POINTERS.** `scripts/add-missing-deliverables.mjs` (the whole job; header comment carries the
 2026-08-17 history) · `lib/partners.ts` + `app/partners/page.tsx` (the wall these rows feed) ·
