@@ -63,6 +63,13 @@ function key(name: string): string {
 }
 
 /**
+ * The same fold, exported for the consumers that group programme PEOPLE rather than look up a face:
+ * lib/programPeople.ts turns an agenda into a roster and has to decide when two session rows are
+ * naming one person. Aliased rather than renamed so every call inside this module still reads `key`.
+ */
+export const foldName = key;
+
+/**
  * A MIDDLE NAME IS NOT A DIFFERENT PERSON. A roster people fill in themselves carries the name they
  * sign documents with — "Jamie Thurston Wyngaard", "Jesper Vesten Drescher", "Simon C. Mears" —
  * while the agenda types the name they are announced by. Exact keys never meet, and both pages then

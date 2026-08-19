@@ -152,6 +152,17 @@ export const SECTIONS: PageSection[] = [
         keywords: "lp forum investor day pension insurance vc nordic family office",
       },
       {
+        // WHO is on stage at each project, next to /program which says WHAT is on. Filed under
+        // Projects rather than Speakers because it is per project and has a tab per project, and
+        // because some of these people exist in no speaker table at all — their names and headshots
+        // were typed onto the session rows. See lib/programPeople.ts.
+        href: "/project-speakers",
+        label: "Project speakers",
+        note: "Speakers and moderators per project, read off each project's own agenda rows.",
+        keywords:
+          "denmark sweden summit niss nass fintech policy board pension family office lp forum investor day moderators line-up roster agenda",
+      },
+      {
         href: "/partners",
         label: "Partners 2026",
         note: "The partner logo wall · Airtable “Partner Deliverables 2026”.",

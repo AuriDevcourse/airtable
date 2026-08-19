@@ -9,6 +9,95 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-19 · REGISTER BUTTONS ON TWO AGENDAS · NEW /project-speakers · DENMARK-SWEDEN INTO THE CRM
+
+**CURRENT STATE.** **ALL OF IT IS ON `main` AND DEPLOYED.** Two commits: `a9e3a71` (the Register
+buttons) and the project-speakers commit that carries the page, the feed, the CRM overlay and
+`scripts/seed-denmark-sweden-crm.mjs`. `npx tsc --noEmit` clean; the page and the generated embed were
+both verified in Chrome against the live feeds. techbbq.dk shows none of it yet — the two agenda
+embeds keep their old markup until somebody re-copies them from the deployed dashboard and re-pastes
+into Elementor.
+
+**NOT ON MAIN, ON PURPOSE.** The branch `partner-deliverables-and-logo-scales` still holds the logo
+wall (`666cd90`) and intern embed (`b1d05ba`) commits, unreviewed and unpushed. Main was taken from
+`a9e3a71`, so a later merge of that branch will conflict on this file's top section — keep the newest
+entry and drop the duplicate.
+
+**THE ASK, in the order it arrived.** A clickable Register button on the Fintech 09:30 breakfast and
+on NISS · then "create something like Project Programs but for speakers, starting with Denmark-Sweden"
+· then cards should carry name, job title and company only, with the single moderator inside the
+speaker grid under a label · then the Denmark-Sweden people added to the CRM · then, once Auri had
+filled their titles and LinkedIn there, the roster had to READ from the CRM.
+
+**WHAT CHANGED.**
+
+1. **`cta: {url, label, slot}` on the agenda builder** (`lib/agendaSnippet.ts`, wired in
+   `app/program/page.tsx`). A filled button in the programme's accent, printed inside the row whose
+   `timeSlot` matches `slot` (matched loosely, so a dash or a space cannot miss) and above the list
+   when nothing matches, so a retimed session cannot take the button away with it. The snippet also
+   DROPS the raw sign-up URL from a description that carries it — printed and buttoned is the same
+   instruction twice. Fintech → `luma.com/1k0s1iv7`, NISS → `luma.com/7fflalfl`.
+2. **`lib/programPeople.ts` — the agenda IS the roster.** It flattens a programme's sessions into
+   people: one entry per person per role, dedup by the same folded name the face lookup uses, fullest
+   billing line wins, first real photo wins. `PROGRAMME_PROJECTS` is the canonical ten-project list.
+   Moderators sort first and carry `tag: "Moderator"`; there are NO role tabs (Auri: a tab holding one
+   card is a click that hides a person).
+3. **`/api/program-speakers?event=<key>&role=all|Speaker|Moderator`.** It reuses the
+   `program:<source>` cache entry `/api/program` already fills, so the roster costs no extra Airtable
+   read and cannot disagree with the agenda. A missing or unknown `?event=` is a 400 listing the valid
+   keys rather than a silent fallback onto another project's people.
+4. **The CRM overlay.** `fetchCrmPeople` reads Marketing Project Overview (allow-listed fields,
+   filtered server-side on `Project Name`, paginated, 10s, failure returns what it has) and
+   `enrichFromCrm` overlays it: **the CRM wins on job title, company and LinkedIn; the agenda wins on
+   the photo**, because the session row holds the file the organisers supplied. `crmProjectsFor()`
+   REUSES `facesFrom` from `lib/program.ts` and only adds the extras, so the two lists cannot drift.
+   Cached under `crm-people:<projects>`, fetched in parallel with the agenda, `?fresh=` drops both.
+5. **12 rows created in the CRM** by `scripts/seed-denmark-sweden-crm.mjs` (dry run by default,
+   `--apply` to write, re-runnable, reads the people from the Sessions table rather than a hardcoded
+   list). `Project Name` = Event Room 6, `Session Name` = Denmark-Sweden Summit, `Role` per person,
+   photo pulled from the session-row attachment (12/12 downloaded). `Job Title` holds the agenda's
+   line VERBATIM and `Company` was left empty — Auri's call, because splitting that source means
+   inferring where a title ends. He then filled title, company and LinkedIn by hand, which is what
+   step 4 now reads.
+
+**GOTCHAS FOR THE NEXT PERSON.**
+
+- **`fields[]` must be appended one per name.** `new URLSearchParams({"fields[]": [...]})` joins the
+  array with commas and Airtable reads the whole comma string as ONE field name, then 422s the request
+  and kills it. Cost 20 minutes.
+- **`Project Name` is a SINGLE select.** You cannot "also" file somebody under a second project; the
+  table's convention (see `lib/eventrooms.ts`) is one ROW per project assignment.
+- **Do NOT file Event Room 6 people under the "Event Room 5,6,7" option** to make them appear in a
+  view. That value is the Policy Stage's key (`lib/policystage.ts`) and would put them on the Policy
+  Stage roster on techbbq.dk.
+- **A browser can serve a stale copy of a feed URL** whose default you have just changed — it looked
+  exactly like one person missing from the embed. Hard-reload before believing a count.
+- Regex backslashes inside `lib/agendaSnippet.ts` must be doubled: the snippet is a TS template
+  literal, so `\r?\n` in the source is what reaches the browser as `\r?\n`.
+
+**WHAT IS STILL OPEN.**
+
+1. **Airtable UI, one click:** the "Event Room Speakers" view (`viwLptcHWF3Wce6Im`) does not show the
+   12 new rows. Its filter enumerates `Project Name` values and never had an Event Room 6 option.
+   Ruled out by test: Company (patched one row, no effect, reverted), LinkedIn, and the
+   `Event Room` / `Which Event Room` fields. The API cannot read or edit view filters. The rows ARE
+   visible in the **Speakers** view `viwfIcQFDNQ9ggSqx`.
+2. **Review and commit the three CRM-overlay files**, then deploy.
+3. **Re-copy both agenda embeds** from the deployed dashboard and re-paste into Elementor, or the
+   Register buttons never reach techbbq.dk.
+4. **NISS reads 0 CRM rows** (`Project Name = "NISS"` matches nothing; its people live in the NISS
+   table behind `facesFromView`). No regression — its 46 people keep their agenda lines — and the
+   overlay picks them up with no code change if marketing ever files them. The page says how many
+   people have no CRM row so this is visible rather than mysterious.
+5. Consider ONE per-project page combining the agenda and the roster; they now share one source.
+
+**FILE POINTERS.** `lib/agendaSnippet.ts` (cta) · `app/program/page.tsx` (the two cta entries) ·
+`lib/programPeople.ts` (roster + CRM overlay) · `app/api/program-speakers/route.ts` ·
+`app/project-speakers/page.tsx` · `scripts/seed-denmark-sweden-crm.mjs` · `lib/pages.ts` (menu entry) ·
+`lib/programFaces.ts` (now exports `foldName`).
+
+---
+
 ## SESSION · 2026-08-18 · MEDITATION BREAKS ON `/brella-program`: VIOLET, FLOORED, ON TOP
 
 **CURRENT STATE.** The eight meditation breaks on `/brella-program` are violet again, floored to a
