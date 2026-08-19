@@ -96,6 +96,7 @@ const THEMES = {
     tagInk: "#fff",
     tagBorder: "transparent",
     border: "rgba(255,38,0,.45)",
+    docBorder: "transparent",
     glow: "rgba(255,38,0,.10)",
     bg: "transparent",
     rowBorder: "rgba(255,255,255,.09)",
@@ -117,6 +118,7 @@ const THEMES = {
     tagInk: "#93C5FD",
     tagBorder: "rgba(37,99,235,.55)",
     border: "rgba(37,99,235,.45)",
+    docBorder: "rgba(37,99,235,.55)",
     glow: "rgba(37,99,235,.10)",
     bg: "#111827",
     rowBorder: "#1E293B",
@@ -143,6 +145,7 @@ const THEMES = {
     tagInk: "#fff",
     tagBorder: "transparent",
     border: "rgba(96,165,250,.32)",
+    docBorder: "transparent",
     glow: "rgba(59,130,246,.16)",
     bg: "#0B1220",
     rowBorder: "rgba(147,180,232,.14)",
@@ -171,6 +174,7 @@ const THEMES = {
     tagInk: "#fff",
     tagBorder: "transparent",
     border: "rgba(255,255,255,.14)",
+    docBorder: "transparent",
     glow: "rgba(255,38,0,.12)",
     bg: "#0a0a0a",
     rowBorder: "rgba(255,255,255,.12)",
@@ -198,6 +202,7 @@ const THEMES = {
     tagInk: "#fff",
     tagBorder: "transparent",
     border: "rgba(255,0,40,.45)",
+    docBorder: "transparent",
     glow: "rgba(255,0,40,.10)",
     bg: "transparent",
     rowBorder: "rgba(255,255,255,.09)",
@@ -223,6 +228,7 @@ const THEMES = {
     tagInk: "#fff",
     tagBorder: "transparent",
     border: "rgba(160,180,220,.18)",
+    docBorder: "transparent",
     glow: "rgba(255,38,0,.12)",
     bg: "#04060e",
     rowBorder: "rgba(160,180,220,.14)",
@@ -247,21 +253,32 @@ const THEMES = {
   // background-clip:text over a solid paints exactly that solid, so the shared CSS below needs no
   // branch for it.
   //
-  // OUTLINED TAGS, like `blue` and unlike the fire themes' filled pills. This tab was modelled on
-  // Future of Fintech and keeps its structure; and #f8991d filled once per row would put a bar of
-  // orange down the page, where "highlights" is what was asked for.
+  // THE TAG IS FILLED, NOT OUTLINED — see .tbbq-agenda__tag below, which paints `background-image:
+  // var(--grad)` unconditionally for every theme. This was written as an outlined tag first, with
+  // `tagInk` set to #f8991d, and the result was an orange label on an orange pill: the type of every
+  // session was invisible on the page Auri pasted (2026-08-19, screenshot). The `blue` theme is the
+  // only one that gets away with tinted tag ink, and only barely — #93C5FD on its #2563EB fill is
+  // 1.7:1, which is not legible either.
   //
-  // CONTRAST. #f8991d on black is 9.6:1, so it can carry the tag ink, the border and the accent
-  // without a lighter variant. The CTA is the one place it inverts: white on #f8991d is 2.2:1 and
-  // fails AA, so the filled button takes near-black ink instead at 8.6:1 — the opposite fix from every
-  // other theme here, which darkens the fill and keeps white. The colour Auri named stays exact.
+  // So the ink is near-black, as it is on the CTA and for the same reason: #f8991d cannot be darkened
+  // without becoming a different colour than the one asked for, and white on it is 2.2:1. Near-black
+  // gives 8.6:1 on the fill. Every other theme solves this by keeping white and darkening its own
+  // fill, which is why this is the only entry here with dark tag ink.
+  //
+  // `tagBorder` is transparent because the pill is filled; the PDF LINK keeps its own visible outline
+  // through `docBorder`, which is why that token exists. The two used to share `tagBorder`, so fixing
+  // one broke the other.
+  //
+  // CONTRAST OF THE REST. #f8991d on black is 9.6:1, so the accent carries the date heading, the link
+  // and the panel border with no lighter variant needed.
   amber: {
     ink: "#F5F5F5",
     muted: "#9C9691",
     acc: "#f8991d",
     grad: "linear-gradient(120deg,#f8991d,#f8991d)",
-    tagInk: "#f8991d",
-    tagBorder: "rgba(248,153,29,.55)",
+    tagInk: "#111111",
+    tagBorder: "transparent",
+    docBorder: "rgba(248,153,29,.55)",
     border: "rgba(248,153,29,.45)",
     glow: "rgba(248,153,29,.10)",
     bg: "#000000",
@@ -369,7 +386,7 @@ export function buildAgendaSnippet({
      accent colour and with a border that brightens on hover, because this one is clickable and the
      note is not. focus-visible is spelled out: WordPress themes routinely kill the default outline,
      and this is the only interactive thing in the embed. */
-  #${id} .tbbq-agenda__doc{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--acc);text-decoration:none;border:1px solid ${t.tagBorder};border-radius:9999px;padding:8px 17px;margin:0 0 22px 6px;transition:border-color .15s,background-color .15s}
+  #${id} .tbbq-agenda__doc{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--acc);text-decoration:none;border:1px solid ${t.docBorder};border-radius:9999px;padding:8px 17px;margin:0 0 22px 6px;transition:border-color .15s,background-color .15s}
   #${id} .tbbq-agenda__doc:hover{border-color:var(--acc);background:rgba(255,255,255,.05)}
   #${id} .tbbq-agenda__doc:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
   #${id} .tbbq-agenda__doc svg{flex:none;width:16px;height:16px}

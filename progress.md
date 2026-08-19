@@ -97,6 +97,17 @@ the FIRST photo and keeps it; only the loose keys (`shortKey`/`pairKey`) still c
    rather than `gold`'s `#0a0a0a` --garage because black was the word. Verified in a generated embed on
    a LIGHT host page: panel `rgb(0,0,0)`, and #f8991d on the heading (via background-clip:text), all
    four type tags, the PDF link and the panel border.
+   **THE TAG IS FILLED, WHICH THIS GOT WRONG ONCE.** `.tbbq-agenda__tag` paints
+   `background-image:var(--grad)` for EVERY theme, so `tagInk` has to contrast against the fill. It was
+   first written as an outlined tag with `tagInk: "#f8991d"`, which put an orange label on an orange
+   pill — the session type was invisible on the page Auri pasted, and the local check missed it by
+   reading `backgroundColor` (transparent) instead of the gradient that actually fills it. **Verify a
+   fill by measuring the gradient, or by looking at a screenshot.** Ink is now `#111111`, 8.6:1.
+   **NEW TOKEN · `docBorder`.** The PDF link's outline used to come from `tagBorder`, so making the
+   filled pill's border transparent would have erased the link's. They are separate now. Every existing
+   theme's `docBorder` is set to what it painted before, so no other tab moved — which also records
+   that **five of the seven themes draw that link with a TRANSPARENT border** (only `blue` and `amber`
+   outline it). If Auri wants the link visible everywhere, that is now a one-value-per-theme change.
    **THE CTA INVERTS, and this is the bit to remember.** Every other theme darkens its fill to keep a
    white label; #f8991d is the colour Auri named, so darkening it would change it. White on #f8991d is
    2.2:1 and fails AA, so the filled button takes near-black ink at 8.6:1 instead. `CTA_FILL` in
