@@ -26,7 +26,8 @@ export type AgendaOptions = {
   // "gold" = the Day 0 look: the fire gradient on a SOLID near-black, from the designed pages.
   // "beam" = the same, on Investor Day's blue-black ground.
   // "crimson" = NASS 2026: one flat #FF0028 instead of the fire gradient.
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
+  // "amber" = AWS x NVIDIA: #f8991d highlights on a true black ground.
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson" | "amber";
   // Per-type Lucide icons in the titles. Default true; the Fintech design omits them.
   icons?: boolean;
   // Oversized title on Session Type = "Opening". Default true (the NISS look);
@@ -232,6 +233,45 @@ const THEMES = {
     // instead of the gradient: white on #ce0f2e clears AA.
     ctaBg: "#ce0f2e",
     ctaInk: "#fff",
+  },
+  // AWS x NVIDIA · "The Agentic AI Era". BLACK GROUND, #f8991d HIGHLIGHTS (Auri, 2026-08-19: "for
+  // specifically aws x nvidia event the program has to be black with this colour highlights f8991d").
+  // The hosts' own colour, not a TechBBQ one — this is the first tab that drops the brand accent
+  // entirely, which is right for a partner takeover carrying its own identity.
+  //
+  // `bg` is TRUE BLACK, not `gold`'s #0a0a0a --garage: Auri asked for black. Solid rather than
+  // transparent for the same reason as navy/gold — the panel has to bring its own dark ground to a
+  // techbbq.dk section that is light, and cannot borrow one.
+  //
+  // ONE FLAT COLOUR, so `grad` is a single-stop gradient — the trick `blue` and `crimson` already use.
+  // background-clip:text over a solid paints exactly that solid, so the shared CSS below needs no
+  // branch for it.
+  //
+  // OUTLINED TAGS, like `blue` and unlike the fire themes' filled pills. This tab was modelled on
+  // Future of Fintech and keeps its structure; and #f8991d filled once per row would put a bar of
+  // orange down the page, where "highlights" is what was asked for.
+  //
+  // CONTRAST. #f8991d on black is 9.6:1, so it can carry the tag ink, the border and the accent
+  // without a lighter variant. The CTA is the one place it inverts: white on #f8991d is 2.2:1 and
+  // fails AA, so the filled button takes near-black ink instead at 8.6:1 — the opposite fix from every
+  // other theme here, which darkens the fill and keeps white. The colour Auri named stays exact.
+  amber: {
+    ink: "#F5F5F5",
+    muted: "#9C9691",
+    acc: "#f8991d",
+    grad: "linear-gradient(120deg,#f8991d,#f8991d)",
+    tagInk: "#f8991d",
+    tagBorder: "rgba(248,153,29,.55)",
+    border: "rgba(248,153,29,.45)",
+    glow: "rgba(248,153,29,.10)",
+    bg: "#000000",
+    rowBorder: "rgba(255,255,255,.10)",
+    // Warm greys, as in `gold` and unlike `crimson`: beside an amber accent a cool grey reads as a
+    // second, bluer colour.
+    time: "#E6DFD6",
+    noteInk: "#CFC7BD",
+    ctaBg: "#f8991d",
+    ctaInk: "#111111",
   },
 } as const;
 

@@ -89,6 +89,19 @@ the FIRST photo and keeps it; only the loose keys (`shortKey`/`pairKey`) still c
 - **The clipboard cannot be read from an automated browser** without a permission grant, so verify a
   copy button by generating the snippet from a script instead of clicking it.
 
+6. **A NEW `amber` THEME** (`lib/agendaSnippet.ts`), #f8991d highlights on TRUE BLACK (Auri,
+   2026-08-19: "for specifically aws x nvidia event the program has to be black with this colour
+   highlights f8991d"). The first tab that carries neither the TechBBQ fire gradient nor a TechBBQ blue,
+   which is right for a partner takeover with its own identity; it keeps Future of Fintech's STRUCTURE
+   (outlined tags, no icons, no oversized opening) and changes only the palette. `bg` is `#000000`
+   rather than `gold`'s `#0a0a0a` --garage because black was the word. Verified in a generated embed on
+   a LIGHT host page: panel `rgb(0,0,0)`, and #f8991d on the heading (via background-clip:text), all
+   four type tags, the PDF link and the panel border.
+   **THE CTA INVERTS, and this is the bit to remember.** Every other theme darkens its fill to keep a
+   white label; #f8991d is the colour Auri named, so darkening it would change it. White on #f8991d is
+   2.2:1 and fails AA, so the filled button takes near-black ink at 8.6:1 instead. `CTA_FILL` in
+   `app/program/page.tsx` mirrors it, and carries the same note.
+
 **NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Copy the **AWS x NVIDIA** agenda embed from the
 DEPLOYED dashboard for whatever page marketing wants it on. 3. **OPEN QUESTION for Auri:** now that the
 timed agenda exists as data, should the Brella board SUBSTITUTE it the way `lib/boardOverride.ts` does

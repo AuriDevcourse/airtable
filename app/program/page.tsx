@@ -403,6 +403,10 @@ const CTA_FILL: Record<string, { bg: string; ink: string }> = {
   gold: { bg: "#ce0f2e", ink: "#fff" },
   beam: { bg: "#ce0f2e", ink: "#fff" },
   crimson: { bg: "#CC0020", ink: "#fff" },
+  // THE ONE THAT INVERTS. Every entry above darkens the fill to keep a white label; #f8991d is the
+  // colour Auri named for AWS x NVIDIA and darkening it would change it, so the label goes near-black
+  // instead — 8.6:1, where white on it is 2.2:1. See the `amber` theme in lib/agendaSnippet.ts.
+  amber: { bg: "#f8991d", ink: "#111111" },
 };
 
 /** Lucide `ticket`, inlined: this repo carries no lucide-react (see components/FeedSource.tsx). */
@@ -532,7 +536,7 @@ const EVENTS: {
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson" | "amber";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
@@ -611,9 +615,11 @@ const EVENTS: {
   // hosts' PDF on 2026-08-19; see PROGRAM_SOURCES["aws-nvidia"] in lib/program.ts for the four rows
   // and why the 14:20 slot is one of them rather than two.
   //
-  // The BLUE theme, like Future of Fintech: it is the same room on the same day, and the fire gradient
-  // is the summit's own look rather than a partner's. `bigOpening` off because the 13:30 talk is a
-  // 40-minute session like the others, not an opening.
+  // THE `amber` THEME: #f8991d highlights on true black (Auri, 2026-08-19). The hosts' own colour, so
+  // this is the first tab that carries neither the TechBBQ fire gradient nor a TechBBQ blue — a partner
+  // takeover with its own identity. It kept Fintech's STRUCTURE (outlined tags, no icons, no oversized
+  // opening) because it is the same room on the same day; only the palette is the partner's.
+  // `bigOpening` off because the 13:30 talk is a 40-minute session like the others, not an opening.
   //
   // `doc` is the same PDF the Brella board links (lib/sessionProgrammes.ts), so a reader who meets
   // this programme on either surface can reach it. The typed agenda below it is the fuller answer —
@@ -623,7 +629,7 @@ const EVENTS: {
     label: "AWS x NVIDIA",
     heading: "August 27th",
     sub: "Event Room 3 · Hall C",
-    theme: "blue",
+    theme: "amber",
     icons: false,
     bigOpening: false,
     people: true,
@@ -742,7 +748,7 @@ function CopyAgendaEmbed({
   heading?: string;
   note?: string;
   sub?: string;
-  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson";
+  theme?: "orange" | "blue" | "navy" | "gold" | "beam" | "crimson" | "amber";
   icons?: boolean;
   bigOpening?: boolean;
   people?: boolean;
