@@ -382,6 +382,87 @@ function NissRoster({ sessions }: { sessions: Session[] }) {
   );
 }
 
+/**
+ * Loose timeslot fold, the same rule as slotKey() in the embed: everything but digits and colons
+ * goes, so "09:30 – 10:00" and "09:30–10:00" are one key and a hand-typed slot never has to guess
+ * which dash the table used.
+ */
+const slotKey = (v: string) => String(v ?? "").replace(/[^0-9:]/g, "");
+
+/**
+ * The register button's fill per theme, mirroring THEMES in lib/agendaSnippet.ts so the dashboard
+ * preview shows the colour the embed will actually paint on techbbq.dk.
+ */
+const CTA_FILL: Record<string, { bg: string; ink: string }> = {
+  // SOLIDS, not the fire gradient the type pills use: a filled button needs 4.5:1 for its label and
+  // white on the gradient's #fa7000 end is 2.5:1. Each value is the dark end of that theme's own
+  // range, so the colour stays the brand's and the contrast clears AA.
+  orange: { bg: "#ce0f2e", ink: "#fff" },
+  blue: { bg: "#2563EB", ink: "#fff" },
+  navy: { bg: "#1E40AF", ink: "#fff" },
+  gold: { bg: "#ce0f2e", ink: "#fff" },
+  beam: { bg: "#ce0f2e", ink: "#fff" },
+  crimson: { bg: "#CC0020", ink: "#fff" },
+};
+
+/** Lucide `ticket`, inlined: this repo carries no lucide-react (see components/FeedSource.tsx). */
+function TicketIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flex: "none", width: 16, height: 16 }}
+    >
+      <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+      <path d="M13 5v2" />
+      <path d="M13 11v2" />
+      <path d="M13 17v2" />
+    </svg>
+  );
+}
+
+/** The sign-up button under a session, in that programme's accent. Same shape as the embed's. */
+function RegisterButton({
+  cta,
+  theme = "orange",
+}: {
+  cta: { url: string; label: string };
+  theme?: string;
+}) {
+  const fill = CTA_FILL[theme] ?? CTA_FILL.orange;
+  return (
+    <a
+      href={cta.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 9,
+        marginTop: 14,
+        padding: "11px 22px",
+        borderRadius: 9999,
+        background: fill.bg,
+        color: fill.ink,
+        fontFamily: "var(--font-heading)",
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: ".02em",
+        textDecoration: "none",
+      }}
+    >
+      <TicketIcon />
+      {cta.label}
+    </a>
+  );
+}
+
 /** Moderator first, then speakers — the order a reader wants on a panel of four. */
 function OnStage({ st }: { st: NonNullable<Session["onStage"]> }) {
   // A LONE PERSON CARRYING A ROLE NAMES THAT ROLE. The event's host opens alone and sits in
@@ -455,6 +536,10 @@ const EVENTS: {
   bigOpening?: boolean;
   people?: boolean;
   doc?: { url: string; label: string };
+  // SIGN-UP BUTTON on one session (or above the list when `slot` is unset). See AgendaOptions.cta in
+  // lib/agendaSnippet.ts. Rendered here as well as in the embed, so the link can be checked without
+  // pasting the snippet into WordPress first.
+  cta?: { url: string; label: string; slot?: string };
 }[] = [
   // `people` since 2026-08-17: NISS carries `onStage` on two of its thirteen sessions (2 moderators
   // + 6 speakers) and the dashboard has always rendered them. The embed did not, because it gates
@@ -466,6 +551,14 @@ const EVENTS: {
     heading: "August 26th",
     note: "Access to the program on 26th of August is for the holders of TechBBQ tickets only",
     people: true,
+    // Sign-up sits on the arrival slot, the row a reader is on when they are deciding to come
+    // (Auri, 2026-08-19). The Luma page is NISS's own registration, on top of the TechBBQ ticket the
+    // note above already asks for.
+    cta: {
+      url: "https://luma.com/7fflalfl",
+      label: "Register",
+      slot: "09:00–09:30",
+    },
   },
   // NASS 2026 — Nordic Africa Startup Summit, all of it Day 2 in Event Room 2, so the heading is
   // fixed here rather than drawn from the data (every row is the same day). `people` because the
@@ -497,6 +590,14 @@ const EVENTS: {
     icons: false,
     bigOpening: false,
     people: true,
+    // The breakfast row's description already carried this Luma link as raw text. As a button it is
+    // clickable in the embed, and the snippet drops the printed URL from the description so the
+    // instruction is not given twice (Auri, 2026-08-19).
+    cta: {
+      url: "https://luma.com/1k0s1iv7",
+      label: "Register",
+      slot: "09:30 – 10:00",
+    },
   },
   // THE POLICY STAGE is the first programme that names its people. It came from a PDF, so the
   // Sessions table carries "Speaker Details" and "Moderator Details" as text plus a photo cell, and
@@ -592,6 +693,7 @@ function CopyAgendaEmbed({
   bigOpening,
   people,
   doc,
+  cta,
 }: {
   path: string;
   heading?: string;
@@ -602,12 +704,13 @@ function CopyAgendaEmbed({
   bigOpening?: boolean;
   people?: boolean;
   doc?: { url: string; label: string };
+  cta?: { url: string; label: string; slot?: string };
 }) {
   const [copied, setCopied] = useState(false);
 
   function copy() {
     const uid = "tbbq-" + Math.random().toString(36).slice(2, 8);
-    const code = buildAgendaSnippet({ uid, path, heading, note, sub, theme, icons, bigOpening, people, doc }).replace(/__ORIGIN__/g, embedOrigin());
+    const code = buildAgendaSnippet({ uid, path, heading, note, sub, theme, icons, bigOpening, people, doc, cta }).replace(/__ORIGIN__/g, embedOrigin());
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -640,6 +743,13 @@ export default function ProgramPage() {
     "sessions"
   );
   const sessions = data ?? [];
+  const cfg = EVENTS.find((e) => e.key === event);
+  const cta = cfg?.cta;
+  // Which row the button belongs to. A slot that matches nothing falls back to above the list, the
+  // same rule the embed uses, so a renamed timeslot loses the placement and never the button.
+  const ctaRow = cta?.slot
+    ? sessions.some((s) => slotKey(s.timeSlot) === slotKey(cta.slot!))
+    : false;
 
   // Group by day, preserving the API's day → time order. Single-day programs (NISS)
   // have day="" and render as one unlabeled group.
@@ -701,6 +811,7 @@ export default function ProgramPage() {
               bigOpening={EVENTS.find((e) => e.key === event)?.bigOpening}
               people={EVENTS.find((e) => e.key === event)?.people}
               doc={EVENTS.find((e) => e.key === event)?.doc}
+              cta={EVENTS.find((e) => e.key === event)?.cta}
             />
             <span className="lede" style={{ margin: 0, fontSize: 13 }}>
               Copies an Elementor snippet with the {EVENTS.find((e) => e.key === event)?.label} agenda.
@@ -749,6 +860,13 @@ export default function ProgramPage() {
                 </a>
               </p>
             )}
+            {/* Event-wide sign-up, or a slot that no longer matches a row: the button still shows,
+                above the list, rather than disappearing with the timeslot it was pinned to. */}
+            {cta && (!cta.slot || !ctaRow) && (
+              <div>
+                <RegisterButton cta={cta} theme={cfg?.theme} />
+              </div>
+            )}
             <ProgrammeGaps event={event} sessions={sessions} />
             {days.map(({ day, items }) => (
               <section key={day || "single-day"} style={{ marginTop: 28 }}>
@@ -776,12 +894,28 @@ export default function ProgramPage() {
                           {[s.type, s.room].filter(Boolean).join(" · ")}
                         </p>
                       )}
-                      {s.description && (
-                        <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--color-muted)", whiteSpace: "pre-line" }}>
-                          {s.description}
-                        </p>
-                      )}
+                      {(() => {
+                        // The raw sign-up URL is dropped from the text wherever the button carries
+                        // it, exactly as the embed does — printed and buttoned is the same
+                        // instruction twice.
+                        const text =
+                          cta && s.description.includes(cta.url)
+                            ? s.description
+                                .split(/\r?\n/)
+                                .filter((l) => !l.includes(cta.url))
+                                .join("\n")
+                                .trim()
+                            : s.description;
+                        return text ? (
+                          <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--color-muted)", whiteSpace: "pre-line" }}>
+                            {text}
+                          </p>
+                        ) : null;
+                      })()}
                       {s.onStage && <OnStage st={s.onStage} />}
+                      {cta && ctaRow && slotKey(s.timeSlot) === slotKey(cta.slot!) && (
+                        <RegisterButton cta={cta} theme={cfg?.theme} />
+                      )}
                     </div>
                   </article>
                 ))}

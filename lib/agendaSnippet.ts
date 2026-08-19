@@ -55,6 +55,18 @@ export type AgendaOptions = {
   // snippet is pasted into WordPress by hand and lives there uncorrected, so a bad value has to fail
   // at copy time rather than on a public page.
   doc?: { url: string; label: string };
+  // THE SIGN-UP BUTTON, for a programme whose session needs its own registration on top of a TechBBQ
+  // ticket (Future of Fintech's networking breakfast, NISS's arrival). Rendered as a filled button in
+  // the programme's accent colour, so it reads as the one thing on the panel you can click.
+  //
+  // `slot` is the timeSlot of the row it belongs under, matched loosely — the feed writes
+  // "09:30 – 10:00" in one table and "09:00–09:30" in another, and a hand-typed slot should not have
+  // to guess which dash and which spaces. Leave `slot` unset and the button sits above the list, next
+  // to the note, as an event-wide call to action.
+  //
+  // Same https-only rule as `doc`: a bad URL is dropped at copy time rather than pasted into
+  // WordPress and left there.
+  cta?: { url: string; label: string; slot?: string };
 };
 
 /**
@@ -88,6 +100,11 @@ const THEMES = {
     rowBorder: "rgba(255,255,255,.09)",
     time: "#d8d0c7",
     noteInk: "#cfc6bd",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #ce0f2e clears AA.
+    ctaBg: "#ce0f2e",
+    ctaInk: "#fff",
   },
   // Fintech keeps its flat blue. `grad` is a single-stop "gradient" so the shared CSS below can use
   // one variable unconditionally — background-clip:text over a solid paints exactly the solid.
@@ -104,6 +121,11 @@ const THEMES = {
     rowBorder: "#1E293B",
     time: "#CBD5E1",
     noteInk: "#CBD5E1",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #2563EB clears AA.
+    ctaBg: "#2563EB",
+    ctaInk: "#fff",
   },
   // THE BOARD SUMMIT. Fintech's blue reads as a slide deck; a boardroom agenda wants weight, so the
   // ground drops to a near-black navy and the accent becomes a three-stop gradient like the orange
@@ -125,6 +147,11 @@ const THEMES = {
     rowBorder: "rgba(147,180,232,.14)",
     time: "#C3D4EE",
     noteInk: "#C3D4EE",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #1E40AF clears AA.
+    ctaBg: "#1E40AF",
+    ctaInk: "#fff",
   },
   // THE DAY 0 PROGRAMMES — LP Forum, the Pension & Insurance Summit and the Nordic Family Office
   // Summit. Their designed pages (program.css, `body.is-forum` / `is-pension` / `is-family`) are all
@@ -148,6 +175,11 @@ const THEMES = {
     rowBorder: "rgba(255,255,255,.12)",
     time: "#e8ded3",
     noteInk: "#cfc6bd",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #ce0f2e clears AA.
+    ctaBg: "#ce0f2e",
+    ctaInk: "#fff",
   },
   // NASS 2026 · Nordic Africa Startup Summit. ONE FLAT COLOUR, #FF0028 (Auri, 2026-08-12), not the
   // three-stop fire gradient every other Day 1/Day 2 programme uses. `grad` is therefore a
@@ -172,6 +204,11 @@ const THEMES = {
     // second, muddier accent.
     time: "#d7d3d4",
     noteInk: "#c8c3c4",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #CC0020 clears AA.
+    ctaBg: "#CC0020",
+    ctaInk: "#fff",
   },
   // TECHBBQ INVESTOR DAY, the one Day 0 page with a different backdrop: the blue beam
   // (`body.is-investor` swaps bg-program.jpg for bg-beam.jpg and scrims it with #04060e/#020308), so
@@ -190,6 +227,11 @@ const THEMES = {
     rowBorder: "rgba(160,180,220,.14)",
     time: "#dfe4ec",
     noteInk: "#c6ccd8",
+    // The register button is FILLED, so its ink needs 4.5:1 against the fill and the fire
+    // gradient cannot give that (white on #fa7000 is 2.5:1). Hence a solid from the same brand range
+    // instead of the gradient: white on #ce0f2e clears AA.
+    ctaBg: "#ce0f2e",
+    ctaInk: "#fff",
   },
 } as const;
 
@@ -234,6 +276,7 @@ export function buildAgendaSnippet({
   bigOpening = true,
   people = false,
   doc,
+  cta,
 }: AgendaOptions = {}): string {
   const id = uid || "tbbq-program";
   const t = THEMES[theme];
@@ -249,6 +292,16 @@ export function buildAgendaSnippet({
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>';
   const docHtml = docHref
     ? `<a class="tbbq-agenda__doc" href="${escapeHtml(docHref)}" target="_blank" rel="noopener noreferrer">${DOC_ICON}${escapeHtml(doc!.label)}</a>`
+    : "";
+
+  // THE REGISTER BUTTON. Same https guard as the document link above, and the same reason: this markup
+  // is pasted into WordPress by hand, so a bad URL has to die here and not on techbbq.dk.
+  const ctaHref = cta && /^https:\/\//i.test(cta.url.trim()) ? cta.url.trim() : "";
+  // Lucide `ticket`, inline like every other icon in this embed (no external scripts on the page).
+  const CTA_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>';
+  const ctaHtml = ctaHref
+    ? `<a class="tbbq-agenda__cta" href="${escapeHtml(ctaHref)}" target="_blank" rel="noopener noreferrer">${CTA_ICON}${escapeHtml(cta!.label)}</a>`
     : "";
 
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
@@ -280,6 +333,14 @@ export function buildAgendaSnippet({
   #${id} .tbbq-agenda__doc:hover{border-color:var(--acc);background:rgba(255,255,255,.05)}
   #${id} .tbbq-agenda__doc:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
   #${id} .tbbq-agenda__doc svg{flex:none;width:16px;height:16px}
+  /* THE REGISTER BUTTON, filled with the theme gradient like the type pill rather than outlined like
+     the document link. It is the only thing on the panel a reader is asked to DO, so it carries the
+     accent as a background instead of borrowing it for text. Sits inside its row, under the
+     description, at the size of a real button. */
+  #${id} .tbbq-agenda__cta{display:inline-flex;align-items:center;gap:9px;margin:14px 0 2px;font-family:"Onest",sans-serif;font-size:14px;font-weight:700;letter-spacing:.02em;color:${t.ctaInk};background:${t.ctaBg};border:0;border-radius:9999px;padding:11px 22px;text-decoration:none;transition:filter .15s,transform .15s}
+  #${id} .tbbq-agenda__cta:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  #${id} .tbbq-agenda__cta:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+  #${id} .tbbq-agenda__cta svg{flex:none;width:16px;height:16px}
   #${id} .tbbq-agenda__row{display:grid;grid-template-columns:150px 1fr;gap:20px;padding:18px 6px;border-bottom:1px solid ${t.rowBorder};align-items:start}
   #${id} .tbbq-agenda__row:last-child{border-bottom:0}
   #${id} .tbbq-agenda__time{font-family:"Onest",sans-serif;font-weight:600;font-size:15px;color:${t.time};letter-spacing:.03em;padding-top:4px;white-space:nowrap}
@@ -314,6 +375,12 @@ ${endpointDecl(path, "  ")}
   // Already-escaped markup, built and https-checked in buildAgendaSnippet. Empty when the programme
   // has no document.
   var DOC = ${JSON.stringify(docHtml)};
+  // The register button, also finished markup. CTA_SLOT names the row it belongs under (empty = above
+  // the list); CTA_URL is kept separately so the raw link the Airtable description already carries can
+  // be dropped from the text — printed as well as buttoned, it is the same instruction twice.
+  var CTA = ${JSON.stringify(ctaHtml)};
+  var CTA_SLOT = ${JSON.stringify(ctaHtml ? (cta!.slot || "") : "")};
+  var CTA_URL = ${JSON.stringify(ctaHref)};
   var ICONS = ${JSON.stringify(icons ? ICONS : {})};
   var BIG_OPENING = ${bigOpening ? "true" : "false"};
   var PEOPLE = ${people ? "true" : "false"};
@@ -351,6 +418,19 @@ ${endpointDecl(path, "  ")}
     }
     return out;
   }
+  // Loose timeslot match, so CTA_SLOT can be typed the way a human reads it. Everything but digits
+  // and colons goes: "09:30 – 10:00", "09:30–10:00" and "9:30-10:00" all fold to the same key.
+  function slotKey(v){return String(v==null?"":v).replace(/[^0-9:]/g,"");}
+  // The Airtable description for the breakfast already ends in "please sign up here: <url>". With a
+  // button beside it that is the same instruction twice, so the line carrying the CTA link is dropped
+  // from the text and only the button remains.
+  function desc(v){
+    var d=String(v==null?"":v);
+    if(CTA_URL&&d.indexOf(CTA_URL)!==-1){
+      d=d.split(/\\r?\\n/).filter(function(l){return l.indexOf(CTA_URL)===-1;}).join("\\n");
+    }
+    return d.trim();
+  }
   // A 429/502 still returns JSON ({error:...}), so without an r.ok check the page said
   // "Program coming soon." during an outage instead of admitting it could not load.
   fetch(ENDPOINT).then(function(r){
@@ -368,6 +448,12 @@ ${endpointDecl(path, "  ")}
     // Under the note, above the first row: read once, before the scanning starts. NOT esc()'d —
     // it is finished markup from the server, and escaping it would print the anchor as text.
     if(DOC)html+='<div>'+DOC+'</div>';
+    // A CTA with no slot is event-wide and sits here, above the first row. With a slot it belongs to
+    // one session and is printed inside that row instead — see the loop below.
+    if(CTA&&!CTA_SLOT)html+='<div>'+CTA+'</div>';
+    // A slot that matches nothing would silently swallow the button, so it falls back to the top.
+    var ctaRow=CTA&&CTA_SLOT?list.some(function(x){return slotKey(x.timeSlot)===slotKey(CTA_SLOT);}):false;
+    if(CTA&&CTA_SLOT&&!ctaRow)html+='<div>'+CTA+'</div>';
     var day="";
     for(var i=0;i<list.length;i++){
       var s=list[i];
@@ -379,8 +465,9 @@ ${endpointDecl(path, "  ")}
       html+='<div class="tbbq-agenda__row"><div class="tbbq-agenda__time">'+esc(s.timeSlot)+'</div><div>'
         +(s.type?'<span class="tbbq-agenda__tag">'+esc(s.type)+'</span>':'')
         +'<div class="tbbq-agenda__title'+big+'">'+icon(s.type)+esc(s.name)+'</div>'
-        +(s.description?'<p class="tbbq-agenda__desc">'+esc(s.description)+'</p>':'')
+        +(desc(s.description)?'<p class="tbbq-agenda__desc">'+esc(desc(s.description))+'</p>':'')
         +people(s.onStage)
+        +(ctaRow&&slotKey(s.timeSlot)===slotKey(CTA_SLOT)?CTA:'')
         +'</div></div>';
     }
     root.innerHTML=html;
