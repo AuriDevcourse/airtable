@@ -16,8 +16,8 @@
 //      of a conversation is not consent. See SECURITY r6/r18.
 //   2. `Email` IS NEVER REQUESTED. It is not in SAFE_FIELDS, so it never reaches this process, let
 //      alone the JSON. A recruiter contacts them on LinkedIn. An email address on an indexed page
-//      is a spam magnet, and it is the intern who pays for it. The manager is read too (Auri,
-//      2026-08-17) but ONLY on the dashboard read — see INTERNAL_FIELDS below.
+//      is a spam magnet, and it is the intern who pays for it. The manager is read too and, since
+//      2026-08-19, published — see MANAGER_FIELD for what that does and does not expose.
 //   3. IT EXPIRES BY ITSELF. See `Show until`.
 //
 // Adding a field here is therefore a privacy decision, not a plumbing one. Check it against the
@@ -57,23 +57,25 @@ const SAFE_FIELDS = [
   "Put on web",
 ];
 
-// ─── INTERNAL, DASHBOARD-ONLY ────────────────────────────────────────────────────────────
-// Requested ONLY when `includePending` is set, which the route only honours behind the dashboard
-// password. So on the public path this column is not in the query string at all, exactly like
-// `Email`, and no amount of downstream forgetfulness can put it on techbbq.dk.
+// ─── THE MANAGER, NOW PUBLIC (Auri, 2026-08-19) ──────────────────────────────────────────
+// Read on EVERY call, public read included. It was dashboard-only for two days; the embed on
+// techbbq.dk now draws the manager line too, so that the wall a recruiter sees and the worklist
+// somebody works from are the same card. See the header of app/api/interns/route.ts.
 //
 // It is a LINK to #TechBBCuties, so Airtable hands back record ids ("recyhx…"). The names AND the
 // manager's LinkedIn are resolved below; a link field cannot be read as text.
 //
-// The LinkedIn URL comes from the staff table, where it is already public — /api/team publishes it
-// and the team embed on techbbq.dk renders it. So it is public info about a colleague, read here
-// purely to make the manager's name pressable. It still rides on the internal `managers` field and
-// is stripped from the public intern feed with it: a manager has no business appearing on an
-// intern's card on techbbq.dk, whether as text or as a link.
+// WHAT THIS DOES AND DOES NOT EXPOSE. The name and the LinkedIn URL both come from the staff table,
+// where /api/team already publishes them and the team embed on techbbq.dk already renders them. So
+// this publishes nothing about a colleague that the site did not already carry. It does NOT reach
+// any of the other columns on that table — the lookup asks for two fields and no more, and
+// #TechBBCuties holds phone numbers and private notes (see the header of lib/team.ts).
 //
-// Why read it: the dashboard is a worklist, and every line of it ends in someone chasing an
-// intern for a photo or a ticked box. Naming the manager says WHO does the chasing. The public
-// card still says nothing about who they report to — that is TechBBQ's org chart, not their pitch.
+// Why it is on the card at all: on the dashboard it answers "who chases them for the missing
+// photo"; on techbbq.dk it answers "who at TechBBQ can vouch for this person", which is the same
+// question a recruiter asks next.
+//
+// The `Email` column is still not in SAFE_FIELDS and is still never requested. That gate stands.
 const MANAGER_FIELD = "Manager (internal) Reference";
 
 // Re-exported so a server-side caller can get the feed and the list from one import. The list
@@ -95,9 +97,9 @@ const PITCH_MAX = 220;
 // exactly how Irina's read. So the run of spaces INSIDE a line is collapsed and the line breaks
 // survive. Two or more blank lines become one, so a double-spaced paste does not open a hole.
 //
-// The consumer decides what to draw: app/interns/page.tsx parses these lines into headings and a
-// list, and the WordPress embed lets HTML collapse them back to spaces, which is what it did
-// before. Nothing downstream is required to care.
+// The consumer decides what to draw. Both of them now parse these lines into headings and a list:
+// app/interns/page.tsx in parseBlocks, lib/internsEmbedSnippet.ts in richText, deliberately the
+// same subset of Markdown. Nothing downstream is required to care.
 function cleanLines(raw: string): string {
   return raw
     .replace(/\r\n?/g, "\n")
@@ -125,21 +127,19 @@ export type Intern = {
   photo: string | null;
   responsibilities: string;
   pitch: string;
-  // The pitch as the intern actually wrote it, uncut. The card version above is capped at 220
-  // characters for the wall on techbbq.dk; the dashboard needs the whole thing, because it is the
-  // one place somebody reads a pitch to decide whether to ask them to trim it. Stripped from the
-  // public feed in app/api/interns/route.ts — the embed must never be able to draw it.
+  // The pitch as the intern actually wrote it, uncut. Both cards LEAD with the capped 220-character
+  // version above, which is what keeps a row of cards the same height, and reveal this one behind a
+  // "Read full pitch" press (Auri, 2026-08-19). Published on the public feed for that reason.
   pitchFull: string;
   lookingFor: string;
   availableFrom: string | null; // ISO date, or null when they did not say
   linkedin: string | null;
-  // Who at TechBBQ this intern reports to, resolved from the link to #TechBBCuties. INTERNAL:
-  // filled only on a `includePending` (dashboard) read and stripped from the public feed in
-  // app/api/interns/route.ts, the same treatment as `pitchFull`.
+  // Who at TechBBQ this intern reports to, resolved from the link to #TechBBCuties. Published on
+  // both feeds since 2026-08-19 — see MANAGER_FIELD.
   //
-  // A LIST, not one name, because the Airtable field is a link field and permits several. Empty on
-  // a public read, when the link is unset, and when the staff table could not be reached — the
-  // dashboard simply draws no manager line in all three cases.
+  // A LIST, not one name, because the Airtable field is a link field and permits several. Empty
+  // when the link is unset and when the staff table could not be reached — both cards simply draw
+  // no manager line in either case.
   managers: InternManager[];
 };
 
@@ -318,8 +318,8 @@ export async function fetchInterns({
     const params = new URLSearchParams();
     params.set("pageSize", "100");
     for (const field of SAFE_FIELDS) params.append("fields[]", field);
-    // The one internal column, asked for only on the dashboard read. See MANAGER_FIELD.
-    if (includePending) params.append("fields[]", MANAGER_FIELD);
+    // Asked for on every read now, public included. See MANAGER_FIELD.
+    params.append("fields[]", MANAGER_FIELD);
     if (offset) params.set("offset", offset);
 
     const res = await fetchWithTimeout(
@@ -339,7 +339,7 @@ export async function fetchInterns({
   } while (offset);
 
   // One lookup for the whole page, after the intern rows are in and only for the ids actually
-  // used. On a public read nothing was requested, so there is nothing to resolve and no second
+  // used. An unset manager link resolves nothing, so a pool where nobody has one costs no second
   // Airtable call at all.
   const managers = await fetchManagers(records.flatMap((r) => linkIds(r.fields[MANAGER_FIELD])));
 

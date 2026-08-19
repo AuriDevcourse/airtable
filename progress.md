@@ -9,6 +9,48 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-19 · INTERN EMBED BROUGHT IN STEP WITH THE DASHBOARD
+
+**CURRENT STATE.** **ON `main`.** `npx tsc --noEmit` clean. Verified in Chrome: the dashboard at
+`/interns` and a standalone harness of the generated snippet, both with the disclosure open and the
+pitch expanded. THE EMBED ON techbbq.dk KEEPS THE OLD MARKUP until somebody presses "Copy embed
+code" on the DEPLOYED dashboard and re-pastes the block into the Elementor HTML widget. Nothing on
+the public site changes until that paste happens.
+
+**THE ASK.** Auri pasted the embed into Elementor and the card was not the card on the dashboard:
+responsibilities were one flat paragraph instead of a chevron disclosure, and there was no manager
+line. "Make sure the copy embed copies exactly the way it is."
+
+**WHAT CHANGED, and two of these were decisions rather than bugs.**
+
+1. **Responsibilities are now a `<details>` disclosure in the embed**, with the rotating chevron and
+   the bullet/heading parser. `richText()` in `lib/internsEmbedSnippet.ts` is a deliberate port of
+   `parseBlocks`/`RichText` in `app/interns/page.tsx` — the same small Markdown subset, the same
+   promote-the-first-short-line rule. Every piece of intern text goes through `esc()`; no field text
+   is ever put into markup unescaped.
+2. **The manager line is now PUBLIC** (Auri's call, reversing 2026-08-17). `MANAGER_FIELD` is
+   requested on every read in `lib/interns.ts`, and `stripInternal` is gone from
+   `app/api/interns/route.ts`. Name and LinkedIn both come from #TechBBCuties, where `/api/team`
+   already publishes them, so nothing new about a colleague is exposed. `Email` is still never
+   requested and the consent gate has not moved.
+3. **Both cards now lead with the 220-character pitch and reveal the full one behind "Read full
+   pitch"** (`.ip-more` / `.tbbq-ip__more`). The dashboard used to print `pitchFull` outright. The
+   button appears only when the full version is genuinely longer, so a short pitch gets none.
+   `pitchFull` therefore goes out on the public feed now too.
+4. **LinkedIn moved from the embed's footer up under the name**, matching the dashboard, and the
+   footer is drawn only when there is a date or a manager to put in it.
+
+**GOTCHA FOR THE NEXT PERSON.** The snippet is a TS template literal, so every regex backslash in
+the inline script has to be doubled (`\\d`, `\\s`, `\\n`) or it silently becomes a literal letter.
+Also `[hidden]{display:none!important}` is in the snippet's CSS on purpose: WordPress themes set
+`display` on everything and the "hidden" half of the pitch was otherwise visible.
+
+**NEXT STEPS.** 1. Let the Vercel deploy of `main` finish. 2. Press "Copy embed code" on the DEPLOYED
+dashboard, not localhost, or the block bakes in a localhost origin WordPress cannot reach. 3. Paste
+it into the Elementor HTML widget on techbbq.dk, replacing the old block.
+
+---
+
 ## SESSION · 2026-08-19 · REGISTER BUTTONS ON TWO AGENDAS · NEW /project-speakers · DENMARK-SWEDEN INTO THE CRM
 
 **CURRENT STATE.** **ALL OF IT IS ON `main` AND DEPLOYED.** Two commits: `a9e3a71` (the Register
@@ -95,6 +137,7 @@ filled their titles and LinkedIn there, the roster had to READ from the CRM.
 `lib/programPeople.ts` (roster + CRM overlay) · `app/api/program-speakers/route.ts` ·
 `app/project-speakers/page.tsx` · `scripts/seed-denmark-sweden-crm.mjs` · `lib/pages.ts` (menu entry) ·
 `lib/programFaces.ts` (now exports `foldName`).
+
 ---
 
 ## SESSION · 2026-08-19 · 8 NEW PARTNERS ADDED TO DELIVERABLES · LOGO WALL RE-BASELINED

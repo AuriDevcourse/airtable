@@ -55,11 +55,14 @@ export function buildInternsEmbedSnippet({
 
 <style>
   #${id}{--bg:#0d0d0d;--fg:#f2f2f2;--muted:#9a9a9c;--border:#2a2a2a;--card:#131313;--card2:#1a1a1a;
-    --accent:#FF2600;
+    --accent:#FF2600;--orange:#fa7000;
     --head:'Onest',ui-sans-serif,system-ui,sans-serif;--sans:'Inter',ui-sans-serif,system-ui,sans-serif;
     display:block!important;${transparent ? "" : "background:var(--bg)!important;padding:32px 24px!important;border-radius:20px!important;"}
     font-family:var(--sans)!important;color:var(--fg)!important;box-sizing:border-box}
   #${id} *{box-sizing:border-box}
+  /* WordPress themes set display on almost everything, and two of the pieces below are toggled by
+     the hidden attribute. Without this the "hidden" half of the pitch is on screen anyway. */
+  #${id} [hidden]{display:none!important}
   #${id} .tbbq-ip__status{margin:0 0 18px!important;padding:0!important;color:var(--muted)!important;font-size:14px!important}
 
   /* DEPARTMENT PILLS. Same shape as the other embeds' filter rows. */
@@ -86,28 +89,86 @@ export function buildInternsEmbedSnippet({
      what you press. Takes effect on techbbq.dk only once the embed is copied out again. */
   #${id} .tbbq-ip__head{display:flex!important;align-items:center!important;gap:16px!important;margin:0 0 16px!important;padding:0!important}
   #${id} .tbbq-ip__photo{flex:0 0 auto!important;width:96px!important;height:96px!important;border-radius:14px!important;object-fit:cover!important;object-position:50% 30%!important;background:var(--card2)!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;display:block!important}
-  #${id} .tbbq-ip__who{min-width:0!important}
+  /* Name, role and the LinkedIn pill in one left-aligned column beside the photo. align-items is
+     flex-start so the pill is the width of its own label, not of the column. */
+  #${id} .tbbq-ip__who{min-width:0!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important}
   #${id} .tbbq-ip__name{margin:0!important;padding:0!important;font-family:var(--head)!important;font-size:17px!important;font-weight:600!important;line-height:1.25!important;color:#fff!important}
   #${id} .tbbq-ip__role{margin:4px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12.5px!important;line-height:1.4!important}
 
   /* THE PITCH, and it is the largest text in the card on purpose. */
   #${id} .tbbq-ip__pitch{margin:0!important;padding:0!important;color:rgba(255,255,255,.88)!important;font-family:var(--sans)!important;font-size:14px!important;font-weight:400!important;line-height:1.55!important}
 
+  /* ─── THE LONG FIELDS, AS THEY WERE TYPED ──────────────────────────────────────────────
+     Interns write these as lists: a title line, then one bullet per thing they do. Rendered as one
+     paragraph they read as a run-on sentence with stray glyphs in it, so the script parses the
+     lines back into blocks. Keep in step with .ip-rt__* in app/globals.css. Margins sit on the
+     blocks, never the container, so the last one leaves no gap above whatever follows. */
+  #${id} .tbbq-ip__rtPara{margin:0 0 9px!important;padding:0!important}
+  #${id} .tbbq-ip__rtHeading{margin:0 0 7px!important;padding:0!important;color:var(--fg)!important;font-family:var(--head)!important;font-weight:600!important;font-size:12.5px!important;letter-spacing:.01em!important;line-height:1.35!important}
+  /* Hanging bullets: the marker sits in the padding so a wrapped line lines up under the first word
+     rather than under the dot. */
+  #${id} .tbbq-ip__rtList{margin:0 0 9px!important;padding:0 0 0 16px!important;list-style:none!important}
+  #${id} .tbbq-ip__rtList>li{position:relative!important;margin:0 0 5px!important;padding:0!important;list-style:none!important}
+  #${id} .tbbq-ip__rtList>li:before{content:""!important;position:absolute!important;left:-12px!important;top:.55em!important;width:4px!important;height:4px!important;border-radius:9999px!important;background:var(--accent)!important}
+  #${id} .tbbq-ip__rtList>li:last-child{margin-bottom:0!important}
+  #${id} .tbbq-ip__rtPara:last-child,#${id} .tbbq-ip__rtHeading:last-child,#${id} .tbbq-ip__rtList:last-child{margin-bottom:0!important}
+  #${id} .tbbq-ip__rtList strong,#${id} .tbbq-ip__rtPara strong{color:var(--fg)!important;font-weight:600!important}
+
+  /* "Read full pitch". The capped pitch is what keeps a row of cards the same height, so the full
+     text is a press away rather than on the card (Auri, 2026-08-19). A text button, not a pill: the
+     LinkedIn pill is the thing you are meant to press on this card. */
+  /* align-self, because the card is a column flex container and a stretched button centres its own
+     label. text-align belongs with it: a button's text centres by default. */
+  #${id} .tbbq-ip__more{appearance:none!important;cursor:pointer!important;display:inline-block!important;align-self:flex-start!important;text-align:left!important;margin:8px 0 0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:11px!important;font-weight:700!important;letter-spacing:.08em!important;text-transform:uppercase!important;line-height:1.2!important;text-decoration:underline!important;text-decoration-color:rgba(255,255,255,.28)!important;text-underline-offset:3px!important;transition:color .18s,text-decoration-color .18s}
+  #${id} .tbbq-ip__more:hover{color:var(--fg)!important;text-decoration-color:currentColor!important}
+  #${id} .tbbq-ip__more:focus-visible{outline:2px solid var(--orange)!important;outline-offset:3px!important;border-radius:4px!important}
+
   /* The ask. Boxed and labelled so a recruiter skimming twenty cards can read only these. */
   #${id} .tbbq-ip__ask{margin:14px 0 0!important;padding:11px 13px!important;border:0!important;border-left:3px solid var(--accent)!important;border-radius:0 8px 8px 0!important;background:rgba(255,38,0,.07)!important}
   #${id} .tbbq-ip__askLabel{display:block!important;margin:0 0 3px!important;padding:0!important;font-family:var(--head)!important;font-size:10px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;color:var(--accent)!important}
   #${id} .tbbq-ip__askText{display:block!important;margin:0!important;padding:0!important;color:var(--fg)!important;font-size:13px!important;line-height:1.45!important}
 
-  #${id} .tbbq-ip__does{margin:14px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12.5px!important;line-height:1.5!important}
-  #${id} .tbbq-ip__doesLabel{color:#c9c9c9!important;font-weight:500!important}
+  /* RESPONSIBILITIES, FOLDED AWAY. The longest field on the card and the one nobody reads twenty
+     times over, so the closed state says only that it is there. A native <details>: keyboard
+     operable, announces its own expanded state, and needs no script. Keep in step with .ip-does in
+     app/globals.css. */
+  #${id} .tbbq-ip__does{display:block!important;margin:14px 0 0!important;padding:12px 0 0!important;border-top:1px solid var(--border)!important}
+  #${id} .tbbq-ip__doesSummary{display:flex!important;align-items:center!important;gap:8px!important;margin:0!important;padding:0!important;cursor:pointer!important;list-style:none!important;color:var(--muted)!important;font-family:var(--head)!important;font-size:10px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important;transition:color .2s}
+  #${id} .tbbq-ip__doesSummary::-webkit-details-marker{display:none!important}
+  #${id} .tbbq-ip__doesSummary::marker{content:""!important}
+  #${id} .tbbq-ip__doesSummary:hover{color:var(--fg)!important}
+  #${id} .tbbq-ip__doesSummary:focus-visible{outline:2px solid var(--orange)!important;outline-offset:3px!important;border-radius:6px!important}
+  /* Pushed to the far edge so every card's chevron sits on the same vertical line down the grid. */
+  #${id} .tbbq-ip__chev{flex:none!important;width:14px!important;height:14px!important;margin-left:auto!important;fill:none!important;stroke:currentColor!important;transition:transform .18s}
+  #${id} .tbbq-ip__does[open] .tbbq-ip__chev{transform:rotate(90deg)}
+  #${id} .tbbq-ip__doesBody{margin:9px 0 0!important;padding:0!important;color:var(--muted)!important;font-size:12.5px!important;line-height:1.5!important}
 
   /* margin-top:auto is what pins this to the bottom of an uneven row. */
   #${id} .tbbq-ip__foot{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;flex-wrap:wrap!important;margin:18px 0 0!important;padding:0!important}
   #${id} .tbbq-ip__card .tbbq-ip__foot{margin-top:auto!important;padding-top:18px!important}
   #${id} .tbbq-ip__from{margin:0!important;padding:0!important;color:var(--muted)!important;font-size:11.5px!important;line-height:1.3!important}
+
+  /* WHO AT TECHBBQ THIS INTERN REPORTS TO (Auri, 2026-08-19). To the right of the date, muted, so it
+     reads as an annotation on the card rather than part of the pitch. The label recedes and the NAME
+     is the part you read, which is why the name is brighter than the date beside it. Keep in step
+     with .ip-card__mgr in app/globals.css. */
+  #${id} .tbbq-ip__mgr{display:inline-flex!important;align-items:center!important;gap:6px!important;margin:0 0 0 auto!important;padding:0!important;color:rgba(255,255,255,.78)!important;font-size:11.5px!important;line-height:1.3!important}
+  #${id} .tbbq-ip__mgrIcon{flex:none!important;width:12px!important;height:12px!important;color:var(--muted)!important;fill:none!important;stroke:currentColor!important}
+  #${id} .tbbq-ip__mgrLabel{color:var(--muted)!important;font-family:var(--head)!important;font-size:9.5px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important}
+  /* Underlined on an offset rather than coloured: at 11.5px in a card footer that is the only
+     affordance that reads as pressable without pulling the eye off the LinkedIn pill above. */
+  #${id} .tbbq-ip__mgrLink{color:inherit!important;background:none!important;text-decoration:underline!important;text-decoration-color:rgba(255,255,255,.3)!important;text-underline-offset:3px!important;transition:color .18s,text-decoration-color .18s}
+  #${id} .tbbq-ip__mgrLink:hover{color:var(--orange)!important;text-decoration-color:currentColor!important}
+  #${id} .tbbq-ip__mgrLink:focus-visible{outline:2px solid var(--orange)!important;outline-offset:3px!important;border-radius:4px!important;text-decoration-color:transparent!important}
+  #${id} .tbbq-ip__mgrSep{color:var(--muted)!important}
+
   #${id} .tbbq-ip__li{display:inline-flex!important;align-items:center!important;gap:7px!important;margin:0!important;padding:9px 14px!important;border:1px solid var(--border)!important;border-radius:9999px!important;background:transparent!important;color:var(--fg)!important;font-family:var(--head)!important;font-size:12px!important;font-weight:600!important;line-height:1!important;text-decoration:none!important;box-shadow:none!important;transition:background .2s,border-color .2s,color .2s}
   #${id} .tbbq-ip__li:hover{background:var(--fg)!important;border-color:var(--fg)!important;color:#0d0d0d!important}
   #${id} .tbbq-ip__li svg{width:14px!important;height:14px!important;display:block!important;fill:currentColor!important}
+  /* The same pill, sized down to sit under a name without competing with it (Auri, 2026-08-17:
+     LinkedIn belongs with the name, where you read WHO somebody is). */
+  #${id} .tbbq-ip__li--head{margin:8px 0 0!important;padding:6px 11px!important;gap:6px!important;font-size:11px!important}
+  #${id} .tbbq-ip__li--head svg{width:12px!important;height:12px!important}
 
   @media(max-width:1024px){#${id} .tbbq-ip__grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
   @media(max-width:640px){#${id} .tbbq-ip__grid{grid-template-columns:1fr!important}}
@@ -145,25 +206,130 @@ ${originDecl("  ")}
   }
 
   var LI='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.45-2.13 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/></svg>';
+  // Lucide chevron-right and user-round, drawn with the same weight and joins as the dashboard's.
+  var CHEV='<svg class="tbbq-ip__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+  var USER='<svg class="tbbq-ip__mgrIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>';
+
+  // ─── FORMATTED THE WAY IT WAS TYPED ────────────────────────────────────────────────────
+  // A port of parseBlocks/RichText in app/interns/page.tsx, and it has to stay a port: the two
+  // cards are meant to be the same card. Interns write the long fields as a list — a title line,
+  // then one bullet per thing they do, with whatever glyph their keyboard offered. As one
+  // paragraph that reads as a run-on sentence with punctuation scattered through it.
+  //
+  // A deliberately small subset of Markdown: bullet lines, a **bold** heading, paragraphs. Every
+  // piece of the intern's text goes through esc() before it is concatenated, and only the tags
+  // this function writes itself are HTML. Nothing here ever puts raw field text into markup.
+  var BULLET=/^(?:[-–—*•●○▪‣·]|\\d+[.)])\\s+/;
+  var BOLD_LINE=/^\\*\\*(.+)\\*\\*$/;
+
+  // **bold** inside a line. Anything else Markdown can do is left as the characters they typed:
+  // half-rendered Markdown is worse than none.
+  function inlineHtml(text){
+    var parts=String(text).split("**");
+    if(parts.length<3)return esc(text);
+    return parts.map(function(part,i){return i%2?"<strong>"+esc(part)+"</strong>":esc(part);}).join("");
+  }
+
+  function richText(raw){
+    var blocks=[];
+    String(raw==null?"":raw).split("\\n").forEach(function(line){
+      var text=line.trim();
+      if(!text)return;
+      // Consecutive bullets join the list already open, so a run of them is one <ul>, not six.
+      if(BULLET.test(text)){
+        var item=text.replace(BULLET,"").trim();
+        if(!item)return;
+        var last=blocks[blocks.length-1];
+        if(last&&last.kind==="list")last.items.push(item);
+        else blocks.push({kind:"list",items:[item]});
+        return;
+      }
+      var bold=text.match(BOLD_LINE);
+      blocks.push(bold?{kind:"heading",text:bold[1].trim()}:{kind:"para",text:text});
+    });
+    // A short first line with no closing punctuation is a job title, not a sentence. Promoted only
+    // when something follows it, so a one-line entry stays plain text instead of a lone heading.
+    var first=blocks[0];
+    if(blocks.length>1&&first&&first.kind==="para"&&first.text.length<=60&&!/[.!?:,]$/.test(first.text)){
+      blocks[0]={kind:"heading",text:first.text};
+    }
+    return blocks.map(function(b){
+      if(b.kind==="list"){
+        return '<ul class="tbbq-ip__rtList">'+b.items.map(function(i){return "<li>"+inlineHtml(i)+"</li>";}).join("")+"</ul>";
+      }
+      return '<p class="'+(b.kind==="heading"?"tbbq-ip__rtHeading":"tbbq-ip__rtPara")+'">'+inlineHtml(b.text)+"</p>";
+    }).join("");
+  }
+
+  function collapse(s){return String(s==null?"":s).replace(/\\s+/g," ").trim();}
 
   function card(p){
     var meta=[p.role,p.department].filter(Boolean).join(" · ");
+    var mgrs=p.managers||[];
     var h='<article class="tbbq-ip__card">';
     h+='<div class="tbbq-ip__head">';
     if(p.photo){h+='<img class="tbbq-ip__photo" src="'+esc(p.photo)+'" alt="'+esc(p.name)+'" loading="lazy" decoding="async">';}
+    // LinkedIn sits with the NAME, not in the footer: it identifies the person, so it belongs where
+    // you read who they are. The footer keeps what is about availability rather than identity.
     h+='<div class="tbbq-ip__who"><h3 class="tbbq-ip__name">'+esc(p.name)+'</h3>';
     if(meta)h+='<p class="tbbq-ip__role">'+esc(meta)+'</p>';
+    if(p.linkedin)h+='<a class="tbbq-ip__li tbbq-ip__li--head" href="'+esc(p.linkedin)+'" target="_blank" rel="noopener noreferrer" aria-label="'+esc(p.name)+' on LinkedIn">'+LI+'LinkedIn</a>';
     h+='</div></div>';
-    if(p.pitch)h+='<p class="tbbq-ip__pitch">'+esc(p.pitch)+'</p>';
+    // THE CAPPED PITCH LEADS, always. The full one is rendered beside it and revealed on a press,
+    // and only when there is more to read — a pitch already under the cap gets no button, because a
+    // "Read full pitch" that expands to the same sentence is a broken promise.
+    if(p.pitch){
+      var full=collapse(p.pitchFull).length>collapse(p.pitch).length?p.pitchFull:"";
+      h+='<div class="tbbq-ip__pitch tbbq-ip__pitchShort">'+esc(p.pitch)+'</div>';
+      if(full){
+        h+='<div class="tbbq-ip__pitch tbbq-ip__pitchFull" hidden>'+richText(full)+'</div>';
+        h+='<button type="button" class="tbbq-ip__more" aria-expanded="false">Read full pitch</button>';
+      }
+    }
     if(p.lookingFor)h+='<div class="tbbq-ip__ask"><span class="tbbq-ip__askLabel">Looking for</span><span class="tbbq-ip__askText">'+esc(p.lookingFor)+'</span></div>';
-    if(p.responsibilities)h+='<p class="tbbq-ip__does"><span class="tbbq-ip__doesLabel">At TechBBQ:</span> '+esc(p.responsibilities)+'</p>';
-    h+='<div class="tbbq-ip__foot">';
+    if(p.responsibilities){
+      h+='<details class="tbbq-ip__does"><summary class="tbbq-ip__doesSummary"><span>Responsibilities</span>'+CHEV+'</summary>';
+      h+='<div class="tbbq-ip__doesBody">'+richText(p.responsibilities)+'</div></details>';
+    }
+    // Drawn only when there is something to put in it. With LinkedIn moved up to the name, a card
+    // with neither a date nor a manager would otherwise show an empty padded strip along its edge.
     var from=niceDate(p.availableFrom);
-    h+='<p class="tbbq-ip__from">'+(from?"Available from "+esc(from):"")+'</p>';
-    if(p.linkedin)h+='<a class="tbbq-ip__li" href="'+esc(p.linkedin)+'" target="_blank" rel="noopener noreferrer" aria-label="'+esc(p.name)+' on LinkedIn">'+LI+'LinkedIn</a>';
-    h+='</div></article>';
+    if(from||mgrs.length){
+      h+='<div class="tbbq-ip__foot">';
+      h+=from?'<p class="tbbq-ip__from">Available from '+esc(from)+'</p>':'<span></span>';
+      if(mgrs.length){
+        h+='<p class="tbbq-ip__mgr">'+USER+'<span class="tbbq-ip__mgrLabel">Manager</span><span>';
+        h+=mgrs.map(function(m){
+          // Pressable only when we HAVE a profile: a styled span that looks like a link and does
+          // nothing is the worse failure. The label names whose profile it is, because "Manager"
+          // repeated down a screen tells a screen reader nothing.
+          return m.linkedin
+            ?'<a class="tbbq-ip__mgrLink" href="'+esc(m.linkedin)+'" target="_blank" rel="noopener noreferrer" aria-label="'+esc(m.name)+' on LinkedIn">'+esc(m.name)+'</a>'
+            :esc(m.name);
+        }).join('<span class="tbbq-ip__mgrSep"> · </span>');
+        h+='</span></p>';
+      }
+      h+='</div>';
+    }
+    h+='</article>';
     return h;
   }
+
+  // "Read full pitch". Bound ONCE to the grid rather than per card, so it survives every re-render
+  // the department pills cause.
+  grid.addEventListener("click",function(e){
+    var btn=e.target&&e.target.closest?e.target.closest(".tbbq-ip__more"):null;
+    if(!btn)return;
+    var art=btn.closest(".tbbq-ip__card");
+    var shortEl=art&&art.querySelector(".tbbq-ip__pitchShort");
+    var fullEl=art&&art.querySelector(".tbbq-ip__pitchFull");
+    if(!shortEl||!fullEl)return;
+    var opening=fullEl.hasAttribute("hidden");
+    if(opening){fullEl.removeAttribute("hidden");shortEl.setAttribute("hidden","");}
+    else{shortEl.removeAttribute("hidden");fullEl.setAttribute("hidden","");}
+    btn.setAttribute("aria-expanded",String(opening));
+    btn.textContent=opening?"Show less":"Read full pitch";
+  });
 
   // A DIFFERENT ORDER FOR EVERY VISITOR (Auri, 2026-08-17). The first card on the wall is the one
   // that gets read, and the feed's own sort would hand that to the same intern on every view. Done

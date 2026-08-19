@@ -22,28 +22,23 @@ export const OPTIONS = corsPreflight;
 
 const KEY = "interns";
 
-// Two fields leave the server ONLY on an authenticated dashboard read.
+// ─── ONE SHAPE FOR BOTH AUDIENCES (Auri, 2026-08-19) ────────────────────────────────────
+// `pitchFull` and `managers` used to be stripped here so techbbq.dk could not draw them. Both now
+// go out on the public read as well, because the embed renders both:
 //
-// `pitchFull` is the pitch as written, with no 220-character cap. Two reasons, and the second is
-// the one that matters: the embed's card is built for one breath of text, and a field that exists
-// in the JSON is a field somebody eventually renders.
+//   `pitchFull` backs the "Read full pitch" toggle. The card still LEADS with the 220-character
+//   version — that is what keeps a row of cards the same height — and the full text is revealed
+//   only when a reader presses for it.
 //
-// `managers` is who the intern reports to at TechBBQ, with the manager's LinkedIn so the dashboard
-// can make the name pressable. It belongs on the worklist, where somebody has to chase a missing
-// photo, and nowhere near techbbq.dk — an intern's card is their pitch, not our org chart.
-// lib/interns.ts does not even request the column unless `includePending` is set, so on a public
-// read this is already empty; stripping it keeps the key itself out of the public shape.
+//   `managers` is who the intern reports to at TechBBQ, with the manager's LinkedIn. Published on
+//   Auri's call so the wall on techbbq.dk reads exactly like the dashboard. The name and profile
+//   both come from #TechBBCuties, where /api/team already publishes them, so this exposes nothing
+//   that is not already on the team wall.
 //
-// Both stripped here rather than never fetched, so the same cached Airtable read serves both
-// audiences.
-function stripInternal<T extends { pitchFull: string; managers: unknown }>(
-  intern: T
-): Omit<T, "pitchFull" | "managers"> {
-  const { pitchFull, managers, ...rest } = intern;
-  void pitchFull;
-  void managers;
-  return rest;
-}
+// `Email` is still never requested at all — see lib/interns.ts. That gate has not moved.
+//
+// The consent gate has not moved either: an intern who has not ticked it is reduced to a bare name
+// in lib/interns.ts before this route sees them, and pending rows never leave on a public read.
 
 export async function GET(req: NextRequest) {
   const gate = feedGate(req, KEY);
@@ -60,9 +55,7 @@ export async function GET(req: NextRequest) {
     const wantsPending =
       req.nextUrl.searchParams.get("pending") !== null &&
       isDashboardRequest(req.headers.get("authorization"));
-    const live = wantsPending
-      ? all
-      : all.filter((i) => !("pending" in i && i.pending)).map(stripInternal);
+    const live = wantsPending ? all : all.filter((i) => !("pending" in i && i.pending));
 
     // ?department=Marketing narrows to one team, validated against the known list so an unknown
     // value serves everyone rather than returning an empty page that looks like a broken feed.

@@ -2780,6 +2780,27 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 .ip-card__pitch { margin: 0; color: rgba(255,255,255,0.88); font-family: var(--font-body); font-size: 14px; font-weight: 400; line-height: 1.55; }
 
+/* "Read full pitch" (Auri, 2026-08-19). Both cards lead with the 220-character pitch, which is what
+   keeps a row of cards the same height, and reveal the version the intern wrote on a press. A text
+   button rather than a pill: the LinkedIn pill is the thing on this card you are meant to press.
+   Keep in step with .tbbq-ip__more in lib/internsEmbedSnippet.ts. */
+.ip-more {
+  /* align-self, because the card is a column flex container and a stretched button centres its own
+     label. text-align belongs with it: a button's text centres by default. */
+  align-self: flex-start; text-align: left;
+  margin-top: 8px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  color: var(--color-muted);
+  font-family: var(--font-heading); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.2;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.28);
+  text-underline-offset: 3px;
+  transition: color .18s, text-decoration-color .18s;
+}
+.ip-more:hover { color: var(--color-foreground); text-decoration-color: currentColor; }
+.ip-more:focus-visible { outline: 2px solid var(--color-orange, #fa7000); outline-offset: 3px; border-radius: 4px; }
+
 /* ─── THE LONG FIELDS, AS THEY WERE TYPED ───────────────────────────────────────────────────
    Blocks parsed out of the Airtable text by app/interns/page.tsx: a title line, bullet runs, and
    paragraphs. Margins are set on the blocks rather than on the container so the last one never

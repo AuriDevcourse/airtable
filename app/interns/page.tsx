@@ -24,16 +24,15 @@ type Intern = {
   photo: string | null;
   responsibilities: string;
   pitch: string;
-  // Only ever present on the dashboard read: the route strips it from the public feed. The card
-  // below prefers it, so this page shows the pitch as written while the embed keeps the 220-char
-  // version. Optional in the type because a cached payload from before this shipped will not have it.
+  // The pitch as written, uncut. Behind the "Read full pitch" button on both cards. Optional in the
+  // type because a cached payload from before this shipped will not have it.
   pitchFull?: string;
   lookingFor: string;
   availableFrom: string | null;
   linkedin: string | null;
-  // Dashboard only, like pitchFull: the route strips it from the public feed and the embed never
-  // sees it. Optional in the type because a cached payload from before this shipped will not have
-  // it, and a list because the Airtable link field allows more than one.
+  // Who at TechBBQ they report to. On both feeds since 2026-08-19. Optional in the type because a
+  // cached payload from before this shipped will not have it, and a list because the Airtable link
+  // field allows more than one.
   managers?: { id: string; name: string; linkedin: string | null }[];
   // Dashboard only. Its presence means "not on techbbq.dk".
   pending?: "no-consent" | "not-on-web" | "no-photo" | "expired" | "no-date";
@@ -213,9 +212,22 @@ function RichText({ text, className }: { text: string; className?: string }) {
   );
 }
 
+// Whitespace collapsed, so "is the full version longer" is a question about words rather than about
+// the line breaks lib/interns.ts keeps in `pitchFull` and strips from `pitch`.
+function collapse(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
 function InternCard({ p }: { p: Intern }) {
+  // The pitch opens closed on every card. Local to the card, so opening one leaves the rest of the
+  // grid where it was.
+  const [openPitch, setOpenPitch] = useState(false);
   const meta = [p.role, p.department].filter(Boolean).join(" · ");
   const from = niceDate(p.availableFrom);
+  // A button only when there is genuinely more to read: a "Read full pitch" that expands to the
+  // same sentence is a broken promise. Both cards make this call the same way.
+  const pitchFull = p.pitchFull || "";
+  const hasMorePitch = collapse(pitchFull).length > collapse(p.pitch).length;
   // Defaulted here rather than at every use: a payload cached before this field existed has no
   // `managers` key at all, and the footer asks for its length.
   const managers = p.managers ?? [];
@@ -249,10 +261,27 @@ function InternCard({ p }: { p: Intern }) {
         </div>
       </div>
 
-      {/* The pitch AS WRITTEN on the dashboard, not the 220-character card version. This page is
-          where somebody reads a pitch to judge it, and a judgement made on a sentence ending in an
-          ellipsis is a judgement about the wrong text. techbbq.dk still gets the capped one. */}
-      <RichText className="ip-card__pitch" text={p.pitchFull || p.pitch} />
+      {/* THE CAPPED PITCH LEADS, on both cards (Auri, 2026-08-19). 220 characters is what keeps a
+          row of cards the same height and readable in one breath. But a judgement made on a
+          sentence ending in an ellipsis is a judgement about the wrong text, so the version the
+          intern actually wrote is one press away — here and in the embed, same button, same rule
+          for when it appears. */}
+      {p.pitch &&
+        (openPitch && hasMorePitch ? (
+          <RichText className="ip-card__pitch" text={pitchFull} />
+        ) : (
+          <p className="ip-card__pitch">{p.pitch}</p>
+        ))}
+      {hasMorePitch && (
+        <button
+          type="button"
+          className="ip-more"
+          aria-expanded={openPitch}
+          onClick={() => setOpenPitch((v) => !v)}
+        >
+          {openPitch ? "Show less" : "Read full pitch"}
+        </button>
+      )}
 
       {p.lookingFor && (
         <div className="ip-card__ask">
@@ -285,10 +314,10 @@ function InternCard({ p }: { p: Intern }) {
           bottom edge. The margin-top:auto lives on this element, so cards without one simply end
           after their content.
 
-          The MANAGER is internal (Auri, 2026-08-17) and sits here rather than up with the name for
-          that reason: this card is the intern's pitch, and who they report to is TechBBQ's own note
-          in the margin. It is the answer to "who chases them for the missing photo", which is what
-          this page is for. techbbq.dk never receives the field — see app/api/interns/route.ts. */}
+          The MANAGER sits here rather than up with the name because it is TechBBQ's own note in the
+          margin of somebody else's pitch. On this page it answers "who chases them for the missing
+          photo". It is PUBLISHED on techbbq.dk as well since 2026-08-19 (Auri) — the embed draws the
+          same line, see app/api/interns/route.ts for what that does and does not expose. */}
       {(from || managers.length > 0) && (
         <div className="ip-card__foot">
           {from ? <p className="ip-card__from">Available from {from}</p> : <span />}
