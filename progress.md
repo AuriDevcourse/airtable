@@ -158,11 +158,22 @@ linked as a document; its sessions already carry real times on the board.
 
 ## SESSION · 2026-08-19 · `/team` NO LONGER REQUIRES THE `Active Team Member` CHECKBOX
 
-**CURRENT STATE.** On branch **`team-gate-active-checkbox`**, not merged. `npx tsc --noEmit` clean.
-Verified against live Airtable and against `http://localhost:3000/api/team?fresh=1`: **27 → 29
-people**, the two added are **Nadja Schwabach** (Project Controller, Finance) and **Ida Nørgaard**
-(Head of Projects, Projects). Nobody was removed. `?department=Finance` still filters correctly (2:
-Nadja, Stephan Evon).
+**CURRENT STATE.** Committed and pushed on branch **`team-gate-active-checkbox`**, **NOT merged to
+`main` and NOT DEPLOYED** — so techbbq.dk still shows 27 people. `npx tsc --noEmit` clean. Verified
+against live Airtable and against `http://localhost:3000/api/team?fresh=1`: **27 → 29 people**, the
+two added are **Nadja Schwabach** (Project Controller, Finance) and **Ida Nørgaard** (Head of
+Projects, Projects). Nobody was removed. `?department=Finance` still filters correctly (2: Nadja,
+Stephan Evon). The deployed feed `https://airtable-woad.vercel.app/api/team` was checked directly
+and returns 27, which is the old gate: **a push builds nothing on this project, it needs
+`npx vercel --prod`.**
+
+**WHERE THE COMMIT ACTUALLY IS, because it is not where you would look.** Two Claude sessions were
+running in this ONE working directory at the same time, so they shared a HEAD and an index. The other
+session's `git add` swept up this session's two files, and the gate change is therefore inside
+**`ea0811b "Partner programmes: eleven PDFs on the board, and a band for AWS x NVIDIA"`** together
+with nine files of partner-programme work. Nothing is lost and `lib/team.ts` in HEAD is correct, but
+there is no commit named after this change. A branch per agent does not help when both agents sit in
+the same folder — use `git worktree` next time.
 
 **THE ASK.** Auri: a new person added in Airtable was not showing on `/team`. The cause was
 `{Active Team Member}=TRUE()` in the `fetchTeamOnce` gate, and his call was to drop that condition
@@ -197,11 +208,24 @@ shuffled body. Nadja Schwabach has **no `Email`** in Airtable, so her card rende
 mailto line. Neither is a bug; both are just what the data says.
 
 **NEXT STEPS.**
-1. Look at `/team` in the browser, both new cards, then merge `team-gate-active-checkbox` into `main`.
-2. Sanity-check with Auri that Ida Nørgaard and Nadja Schwabach are genuinely current staff. They
+1. **Deploy, or the public site keeps showing 27.** Merge `team-gate-active-checkbox` into `main`, then
+   `npx vercel login` + `npx vercel --prod`. Wait for the other session's `/program` work to be
+   committed first: `vercel --prod` uploads the WORKING DIRECTORY, not a commit, so deploying while
+   that tree is dirty ships their half-finished work to production four days before the summit.
+2. Confirm afterwards with `https://airtable-woad.vercel.app/api/team` → `count: 29`, then reload
+   `https://techbbq.dk/about-us/`. **No Elementor re-paste is needed:** the live HTML on that page
+   fetches the plain `/api/team` at render time (no `?ids=`, no `?department=`), so it picks the two up
+   by itself once production is updated.
+3. Sanity-check with Auri that Ida Nørgaard and Nadja Schwabach are genuinely current staff. They
    were unticked-but-not-archived, which is ambiguous — the change assumes not-archived means current.
-3. The 22 people in `Archive` who still have `Active Team Member` ticked are now harmless, but the
+4. The 22 people in `Archive` who still have `Active Team Member` ticked are now harmless, but the
    inconsistency is still there if anyone ever wants to trust that checkbox again.
+
+**FILE POINTERS.** `lib/team.ts` — the gate is in `fetchTeamOnce` (~line 227), and the comment above it
+carries the whole reason plus the Archive consequence. `lib/cachePolicy.ts` — `dailyTtlMs()`, why a team
+edit can lag (10 min until Aug 27, then 24h). `app/team/page.tsx` — the dashboard page and its
+`CopyEmbed` buttons. `lib/embedSnippet.ts` — the pasted snippet fetches `ENDPOINT` live, which is why a
+data change needs no re-paste and a snippet change does.
 
 ## SESSION · 2026-08-19 · INTERN EMBED BROUGHT IN STEP WITH THE DASHBOARD
 
