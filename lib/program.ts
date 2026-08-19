@@ -170,6 +170,13 @@ type AirtableSource = {
    * See lib/programFaces.ts, FaceViewSource.
    */
   facesFromView?: FaceViewSource;
+  /**
+   * Fill missing faces from the BRELLA FEED — for a partner programme whose speakers are neither in
+   * Marketing Project Overview nor in a TechBBQ registration form, because the partner attached them
+   * in Brella's own admin. Tried LAST, so a CRM headshot and a curated view still win.
+   * See lib/programFaces.ts, fetchBrellaFaces().
+   */
+  facesFromBrella?: boolean;
   fields: {
     name: string;
     day?: string;
@@ -565,6 +572,53 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // AWS x NVIDIA, "The Agentic AI Era", Event Room 3 on 27 August 13:30-17:10. TYPED IN FROM THE
+  // HOSTS' PDF on 2026-08-19 (Auri: "create another event ... for NVIDIA and AWS because we have the
+  // program, we have all the information, even the speakers").
+  //
+  // WHY IT WAS WORTH TYPING. Brella carries the four sessions with their times and their speakers,
+  // so unlike Beyond Unicorns this block was already readable — lib/derivedShells.ts draws the band
+  // and lib/sessionProgrammes.ts links the PDF. What Brella does NOT give is a page a partner can
+  // link to, which is what every other event room programme on /program has.
+  //
+  // FOUR ROWS, MATCHING BRELLA (Auri, 2026-08-19: "you can check brella the way it is done"). The
+  // 14:20-15:20 slot is two deep-dives back to back and the PDF gives ONE window for both, exactly as
+  // the Brella row does, so it stays one row with four speakers and both titles named in its
+  // description. Splitting it would have meant inventing a 14:50 boundary nobody published.
+  //
+  // No `lockedValues`: these rows carry no `Session Status`, the same as Future of Fintech's. The
+  // line-up came from the hosts' own published programme, so there is no outreach still in flight for
+  // the gate to protect.
+  "aws-nvidia": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="AWS x NVIDIA"',
+    // THE CRM FIRST, BRELLA AS THE BACKSTOP.
+    //
+    // None of these people were in Marketing Project Overview when the tab was built except Claes
+    // Radojewski, who is there for the Future of Fintech panel — they are AWS and NVIDIA staff and
+    // their guests, attached by the partner in Brella's admin. So the other nine were created under
+    // `Project Name = "Event Room 3"` on 2026-08-19, with Brella's portrait attached to each
+    // (Auri: "in here we should create those missing speakers"), which puts every face in the table
+    // marketing actually curates and lets a better headshot replace a Brella upload by editing a cell.
+    //
+    // `facesFromBrella` STAYS as the fallback rather than being removed now that the rows exist. It
+    // costs nothing when the CRM answers, and it is what keeps a late addition — a speaker the partner
+    // adds in Brella next week and nobody copies across — from rendering as an initial.
+    facesFrom: "Event Room 3",
+    facesFromBrella: true,
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      room: "Event Room",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
 } satisfies Record<string, SourceConfig>;
 
 export type ProgramSourceKey = keyof typeof PROGRAM_SOURCES;
@@ -928,11 +982,10 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
   // route so it lands inside the same `cached("program:<source>")` entry: one extra Airtable read
   // per cache fill, not one per request. A failure is logged and swallowed — an agenda with
   // initials in it is a working agenda, and this must never be what takes the programme down.
-  if (cfg.facesFrom || cfg.facesFromView) {
+  if (cfg.facesFrom || cfg.facesFromView || cfg.facesFromBrella) {
     try {
-      const { fetchProjectFaces, fetchViewFaces, applyFaces, applyHostRole } = await import(
-        "@/lib/programFaces"
-      );
+      const { fetchProjectFaces, fetchViewFaces, fetchBrellaFaces, applyFaces, applyHostRole } =
+        await import("@/lib/programFaces");
       const faces = new Map<string, string>();
       // Who the CRM flags as this event's Host, for the intro slot's label. Comes back from the same
       // read as the faces, so it costs no extra Airtable call.
@@ -946,6 +999,13 @@ export async function fetchProgram(source: ProgramSourceKey = "techbbq"): Promis
       }
       if (cfg.facesFromView) {
         for (const [k, url] of await fetchViewFaces(cfg.facesFromView)) {
+          if (!faces.has(k)) faces.set(k, url);
+        }
+      }
+      // Brella LAST, on the same "first source wins" rule: TechBBQ's own headshot of a person is the
+      // one marketing chose, and a partner's Brella upload only fills what neither table had.
+      if (cfg.facesFromBrella) {
+        for (const [k, url] of await fetchBrellaFaces()) {
           if (!faces.has(k)) faces.set(k, url);
         }
       }

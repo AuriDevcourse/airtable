@@ -9,6 +9,94 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-19 · AWS x NVIDIA IS NOW A TYPED PROGRAMME, WITH FACES OUT OF BRELLA
+
+**CURRENT STATE.** **CODE NOT COMMITTED. THE AIRTABLE ROWS ARE LIVE** — four records in the Sessions
+table and nine speakers in Marketing Project Overview, all of which exist whether or not this code
+ships. `npx tsc --noEmit` clean. Verified on
+the dashboard and in a generated embed: `/api/program?event=aws-nvidia` serves 4 sessions with
+**10 of 10 faces**, no broken images, the PDF above the list. Faces now resolve from the CRM, not Brella.
+
+**THE ASK.** Auri, with the Sessions table open: "can you create another event from Board Summit for
+NVIDIA and AWS because we have the program, we have all the information, even the speakers?" So the
+tenth `/program` tab, the way the Board Summit and Future of Fintech were built.
+
+**WHAT WAS WRITTEN TO AIRTABLE.** Four rows, `Name of the Event` = **`AWS x NVIDIA`**, `Event Room` =
+Event Room 3, `When Is it` = Day 2, no `Session Status` (this config has no gate, same as Fintech):
+`recoDEkdRNAlbk0O8` 13:30-14:10 · `recLXrL0pTizlb5nk` 14:20-15:20 · `recdfF4eWLCgKufFg` 15:30-16:10 ·
+`recU8iYA5PlPqrBQN` 16:10-17:10. Times use the table's ` – ` (en dash) and people its ` · ` separator,
+copied from the Future of Fintech rows rather than invented.
+
+**THE SPELLINGS CAME FROM BRELLA, NOT THE PDF.** Extracting the PDF's text mangles three of them —
+"Claes Radoewski", "Staer", "Christian Br?ndum" — where Brella has Claes Radojewski, Stær and Christian
+Broendum. Anything typed from that document again should be checked the same way.
+
+**THE 14:20 SLOT IS ONE ROW, NOT TWO** (Auri: "you can check brella the way it is done"). It really is
+two deep-dives back to back, but the hosts' PDF gives ONE 14:20-15:20 window for both and so does
+Brella. Both titles are named in the row's description and all four speakers sit on it. Splitting it
+would have meant inventing a 14:50 boundary nobody published.
+
+**WHAT CHANGED IN CODE.**
+
+1. **`PROGRAM_SOURCES["aws-nvidia"]` in `lib/program.ts`**, filtered on the `Name of the Event` cell
+   like every other programme in that table.
+2. **NINE SPEAKER ROWS CREATED IN THE CRM** (`Marketing Project Overview`, `tblTecOBecLQCNIeD`), under
+   `Project Name = "Event Room 3"`, `Session Name = "AWS x NVIDIA"`, `Role = Speaker`, with Brella's
+   portrait ATTACHED to each (Auri: "in here we should create those missing speakers so maybe I can
+   find it myself or with LinkedIn" — the photos did not need finding, Brella had all nine). Airtable
+   downloads an attachment given a url, so `Profile Picture` holds real files, 400x400 to 2167x2166,
+   not a hotlink. Ids: `recgqzKq1MrYsB0C0` `recoCvaGVlCQB6NCb` `recmAVNAEBKLi4hhQ` `recu9TmgyrtdRcrdG`
+   `recNEGqwtTQWimRAR` `rec4nlu9j8GrgFXCx` `recOFFEdHWF6BDgz1` `reczG8EeyWR6G6Stp` `recvJv1nY8U2dYAJS`.
+   **NINE, NOT TEN: Claes Radojewski was left alone.** He already has an Event Room 3 row with a photo
+   for the Future of Fintech panel, and `fetchOneProject()` drops a name that appears TWICE under one
+   project as ambiguous — a second row for him would have removed his face from both programmes.
+   `LinkedIn Handle` is the field the other Event Room 3 rows use (`Link to LinkedIn` is unused) and is
+   left empty on all nine; nothing reads it today.
+3. **NEW · `facesFromBrella` and `fetchBrellaFaces()`** (`lib/programFaces.ts`). Seven of the eight
+   speakers are in NEITHER face source this codebase had: they are AWS and NVIDIA staff and their
+   guests, attached by the partner in Brella's admin, so `facesFrom` finds only Claes Radojewski (and
+   only because he is also on the Fintech panel) and `facesFromView` has no registration table to
+   read. Brella has all eight portraits and the board has been drawing them all along. The new source
+   builds a name→photo map from the Brella feed and hands it to the existing `applyFaces()`; Brella's
+   `photo-url` is a plain public URL, so unlike the Airtable sources it needs no `photoUrl()` signing.
+   Tried LAST, so a TechBBQ headshot still wins where both know the person.
+4. **A tab in the `EVENTS` array** (`app/program/page.tsx`): blue theme like Future of Fintech (same
+   room, same day), `people: true`, and the same PDF the Brella board links.
+5. **`facesFrom: "Event Room 3"` AHEAD of `facesFromBrella`.** Now that the CRM rows exist the faces
+   come from the table marketing curates — verified: **10 of 10 through `/api/photo`, none from
+   brella-assets** — so a better headshot is a cell edit rather than a code change. Brella stays as the
+   backstop for a speaker the partner adds next week and nobody copies across.
+
+**THE ONE RULE THAT HAD TO DIFFER.** `fetchViewFaces()` drops a name that appears twice with different
+photos, because in a curated roster that means two people. **Brella is the opposite** and the first
+version of this dropped Claes Radojewski's face for it: Brella mints a NEW speaker record per session
+assignment, each with its own upload, so one person on three panels is three records with three urls.
+Measured over the whole feed: 16 of 595 named-with-photo speakers have more than one url, and all 16
+are plainly one well-known person on several sessions (Peter Kofler has five). So the exact key takes
+the FIRST photo and keeps it; only the loose keys (`shortKey`/`pairKey`) still clash-drop, because
+"anna berg" really can be two people.
+
+**GOTCHAS FOR THE NEXT PERSON.**
+
+- **`Name of the Event` is the contract.** Renaming that cell to anything but `AWS x NVIDIA` empties
+  the tab with no error, exactly as the other nine do.
+- **These four rows are ALSO on the Brella board**, as the four real sessions plus the declared shell
+  band (lib/derivedShells.ts). The two surfaces now describe the same afternoon from two sources. No
+  override was added, so the board still draws Brella's own rows — see NEXT STEPS.
+- **To test a pasted agenda embed locally**, generate the snippet then replace the fallback URL in the
+  generated HTML with `http://localhost:3000`; `lib/embedOriginGuard.ts` rewrites a loopback origin at
+  render time. Same trick as the Brella embed.
+- **The clipboard cannot be read from an automated browser** without a permission grant, so verify a
+  copy button by generating the snippet from a script instead of clicking it.
+
+**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Copy the **AWS x NVIDIA** agenda embed from the
+DEPLOYED dashboard for whatever page marketing wants it on. 3. **OPEN QUESTION for Auri:** now that the
+timed agenda exists as data, should the Brella board SUBSTITUTE it the way `lib/boardOverride.ts` does
+for the Board Summit? Today the board shows Brella's four rows inside the band, which is already
+correct, so this is only worth doing if the typed rows drift from Brella's. 4. Still open: **ODIN**
+(`Future of Defence Program (1).pdf`) has Brella rows but no file on techbbq.dk.
+
+
 ## SESSION · 2026-08-19 · AWS x NVIDIA GETS A BAND AND ITS PDF · A SHELL ROW THE FEED DID NOT HAVE
 
 **CURRENT STATE.** **NOT COMMITTED, NOT DEPLOYED.** `npx tsc --noEmit` clean. Verified against a live

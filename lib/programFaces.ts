@@ -363,6 +363,69 @@ export async function fetchViewFaces(src: FaceViewSource): Promise<Map<string, s
 }
 
 /**
+ * FACES OUT OF THE BRELLA FEED, for a programme whose speakers are in neither the CRM nor a
+ * registration form.
+ *
+ * AWS x NVIDIA is why this exists. Its eight speakers came in through Brella — they are AWS and
+ * NVIDIA staff plus their guests, not TechBBQ's own roster — so `facesFrom` finds one of the eight in
+ * Marketing Project Overview and `facesFromView` has no form table to read. Brella has all eight
+ * portraits, and the board has been drawing them all along; the typed agenda on /program was the only
+ * surface without them.
+ *
+ * NO PROXY AND NO TOKEN. Brella's `photo-url` is a plain public URL on brella-assets.brella.io, not a
+ * signed attachment, which is why this returns the URL straight through where fetchViewFaces() has to
+ * mint one via photoUrl(). lib/brellaprogram.ts carries the same note — if Brella ever starts signing
+ * these, both places need the same treatment.
+ *
+ * THE AMBIGUITY RULE IS LOOSER HERE THAN IN fetchViewFaces(), on purpose. That one reads a curated
+ * roster where one person has one row, so a name appearing twice really is two people and neither
+ * gets a face. Brella is the opposite: it mints a NEW speaker record per session assignment, each
+ * with its own upload, so a person on three panels is three records with three photo urls.
+ *
+ * Measured across the whole feed on 2026-08-19: 16 of 595 named-with-photo speakers carry more than
+ * one distinct url, and every one of the 16 is plainly a single well-known person on several sessions
+ * (Peter Kofler has five, Sander Janca-Jensen and Ken Villum Klausen two each). Not one looks like two
+ * people sharing a name. So the EXACT key takes the first photo it sees and keeps it — the sessions
+ * arrive chronologically, which makes "first" the earliest session's portrait and the choice stable
+ * between reads.
+ *
+ * THE LOOSE KEYS STILL CLASH-DROP, exactly as they do above: "Anna Maria Berg" and "Anna Sofie Berg"
+ * both fold to "anna berg", and that is a real collision rather than a re-upload. A wrong face is
+ * worse than an initial.
+ */
+export async function fetchBrellaFaces(): Promise<Map<string, string>> {
+  const faces = new Map<string, string>();
+  const { fetchBrellaProgram } = await import("@/lib/brellaprogram");
+  // Not cached() here: this runs inside the caller's own `program:<source>` cache entry, exactly as
+  // the two Airtable face reads do, so it costs one Brella read per cache fill.
+  const sessions = await fetchBrellaProgram();
+
+  const loose = new Map<string, string>();
+  const looseClash = new Set<string>();
+
+  for (const s of sessions) {
+    for (const p of s.speakers ?? []) {
+      const k = rosterKey(p.name);
+      if (!k || !p.photo) continue;
+      // First wins, and a second upload by the same person is simply ignored. See the note above for
+      // why this is not the clash-drop fetchViewFaces() uses.
+      if (!faces.has(k)) faces.set(k, p.photo);
+
+      for (const alt of [shortKey(k), pairKey(k)]) {
+        if (alt === k) continue;
+        if (loose.has(alt) && loose.get(alt) !== p.photo) looseClash.add(alt);
+        loose.set(alt, p.photo);
+      }
+    }
+  }
+
+  for (const [k, url] of loose) {
+    if (!faces.has(k) && !looseClash.has(k)) faces.set(k, url);
+  }
+  return faces;
+}
+
+/**
  * Fill in every missing face on a programme's `onStage` people from the CRM.
  *
  * Mutates nothing: returns new session objects, because the sessions it is handed come out of a

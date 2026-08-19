@@ -524,7 +524,8 @@ type EventKey =
   | "family-office"
   | "lp-forum"
   | "investor-day"
-  | "denmark-sweden";
+  | "denmark-sweden"
+  | "aws-nvidia";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -604,6 +605,31 @@ const EVENTS: {
       url: "https://luma.com/1k0s1iv7",
       label: "Register",
       slot: "09:30 – 10:00",
+    },
+  },
+  // AWS x NVIDIA, "The Agentic AI Era" — Event Room 3 on the 27th, 13:30-17:10. Typed in from the
+  // hosts' PDF on 2026-08-19; see PROGRAM_SOURCES["aws-nvidia"] in lib/program.ts for the four rows
+  // and why the 14:20 slot is one of them rather than two.
+  //
+  // The BLUE theme, like Future of Fintech: it is the same room on the same day, and the fire gradient
+  // is the summit's own look rather than a partner's. `bigOpening` off because the 13:30 talk is a
+  // 40-minute session like the others, not an opening.
+  //
+  // `doc` is the same PDF the Brella board links (lib/sessionProgrammes.ts), so a reader who meets
+  // this programme on either surface can reach it. The typed agenda below it is the fuller answer —
+  // it has the faces — so the document sits above the list as the hosts' own copy.
+  {
+    key: "aws-nvidia",
+    label: "AWS x NVIDIA",
+    heading: "August 27th",
+    sub: "Event Room 3 · Hall C",
+    theme: "blue",
+    icons: false,
+    bigOpening: false,
+    people: true,
+    doc: {
+      url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ-2.pdf",
+      label: "See the full program (PDF)",
     },
   },
   // THE POLICY STAGE is the first programme that names its people. It came from a PDF, so the
