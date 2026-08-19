@@ -95,6 +95,183 @@ filled their titles and LinkedIn there, the roster had to READ from the CRM.
 `lib/programPeople.ts` (roster + CRM overlay) · `app/api/program-speakers/route.ts` ·
 `app/project-speakers/page.tsx` · `scripts/seed-denmark-sweden-crm.mjs` · `lib/pages.ts` (menu entry) ·
 `lib/programFaces.ts` (now exports `foldName`).
+---
+
+## SESSION · 2026-08-19 · 8 NEW PARTNERS ADDED TO DELIVERABLES · LOGO WALL RE-BASELINED
+
+**CURRENT STATE.** **WRITTEN.** Auri approved and `--commit` ran: 8 rows created in Partner
+Deliverables 2026, view **221 → 229**, every one of the 8 verified present in the view with its
+Partner ID, contact email and Company Link. `scripts/add-missing-deliverables.mjs` now copies contact
+name and email; that script is the only file changed and is **not committed to git** yet.
+
+**THE ASK.** Same job as 2026-08-17: check confirmed partners on Partners 2026 (`tbl9V6ZtxEbR4uELC`,
+view `viwDhqsDpfEf0PRyI`) and create rows in Marketing Project Overview's Partner Deliverables 2026
+view (`tblTecOBecLQCNIeD` / `viw7FVbsTb9IRaWF0`) for any new signings. No duplicates. Must carry
+company name, Partner ID, contact information, and the Company Link back to the CRM.
+
+**THE 8.** confirmed 219 · deliverables 221 · missing 8.
+
+| Company | Partner ID | Type mapped | Contact | CRM record |
+|---|---|---|---|---|
+| AEPIFD | 2855 | Community | Jean-Louis ROCHERON · assoepifd@gmail.com | recKsPA7PmBW9Q6Cx |
+| Famly ApS | 2948 | blank (Sponsorship) | al@famly.co | recEFhPjhXLKY2Dnl |
+| Kromann Reumert | 749 | blank (no CRM type) | jhm@kromannreumert.com | recAXTlKFlBRjuww7 |
+| Eastern Peak | 2908 | Tailored | Maryna · maryna.stadnik@easternpeak.com | recAWfUB2LJmwSab5 |
+| Stinto | 2032 | blank (Projects, Barter Deal) | cr@stinto.com | rec3bXn7tfW2zgUTe |
+| One Thirty Labs | 2961 | blank (Barter Deal) | tine@onethirtylabs.com | recSXo8WfauPwHU0u |
+| SIT PORT | 2912 | Community | cholinsky@plzen.eu | rec1N3BycNhJrSCPD |
+| Get Volt | 2963 | blank (Barter Deal) | adriano.mandolini@getvolt.dk | recBC0hV1EZeLrOiW |
+
+**THE ROWS THAT WERE CREATED** (deliverables record ids, in creation order): `recvytzkaFFstljp3`
+AEPIFD · `rece2gGoccfIXVSQ6` Famly ApS · `recIh1pf07iCm4xW6` Kromann Reumert · `reccLn4QB6uYNgGIl`
+Eastern Peak · `rec2xSd5dypd1EE7L` Stinto · `recgFzjHnYmfJF3U0` One Thirty Labs · `recVIQBCe3rEmavPY`
+SIT PORT · `recjaQMAJm4XkRZ6x` Get Volt. All 8 have `Put on web = false` and no logo. If any of them
+is deleted, add its Partner ID to `NEVER_CREATE` before the next run.
+
+**TEN PRE-EXISTING DUPLICATE PARTNER IDs IN THE VIEW, NONE OF THEM OURS.** The post-write check
+counted Partner IDs across the view and found 10 ids on two rows each. Every one predates this
+session; no id from the 8 appears. Two shapes:
+
+- **Same company twice**, one row usually richer: 283 Copenhagen School of Entrepreneurship (both on
+  web), 711 Kalvebod Fælled Skole, 907 NORNORM (both on web), 1939 Radia Network (both on web),
+  996 ProWoc under two spellings, 1610 "AISTART Incubator - Business Helsinki" vs "Business
+  Helsinki", 2123 "International Workplace Group" vs "SPACES/REGUS", 2861 "Futuro Perfecto /
+  Horizon Deep Tech Summit" vs "Futuro Perfecto Innovation", 313 "Danske Bank" vs "Danske Bank
+  Growth".
+- **A wrong Partner ID**, which is worse: **2222 is on both "AWS Startups" and "NVIDIA"**, two
+  unrelated companies, so one of those rows points at the wrong CRM partner.
+
+These are name-variant duplicates, which is exactly what the name-normalizing dedupe cannot catch
+once the names differ, and the reason a rerun of this script will never see them. Merging is Auri's
+call, not the script's.
+
+**WHAT CHANGED IN THE SCRIPT: THE EMAIL IS A LOOKUP, NOT A FIELD.** The 2026-08-17 version wrote no
+contact data at all. Reading `Contact Email` gets you nothing for 6 of these 8, because the CRM only
+holds the address as `Mail` — a lookup through the linked `Contacts` record. `buildFields()` now
+takes the first filled value in newest-first order: name from `Contact Person 2026` → `Contact Name`
+→ `Marketing contact`, email from `Email 2026` → `Contact Email` → `Mail` → `Email` →
+`Email (from Contacts) 2`. Only 2 of the 8 have a name anywhere; the rest get an email and no name,
+which is the honest state.
+
+**THE DUPLICATE THAT IS NOT A DUPLICATE.** `receq21SBUTg8wWr5` is a row in the deliverables table
+whose `Company` is "One Thirty Labs" — and it is **Tine Hertz's Campfire Stage moderator
+submission**, not a partner row (`Role: Moderator`, `Session Name: Campfire Stage`, a profile
+picture, no Partner ID). Marketing Project Overview holds 3,836 rows of several unrelated kinds, so a
+name collision there proves nothing on its own. Creating the One Thirty Labs partner row is correct.
+The dedupe was checked on Partner ID **and** normalized name (legal suffixes stripped, so an existing
+"Famly" would have caught "Famly ApS") across the **whole table**, not just the view: 0 real hits.
+
+**GOTCHAS.**
+
+- **4 of 8 get a blank Partnership Type on purpose.** The CRM multi-select has Sponsorship, Projects
+  and Barter Deal; the deliverables single-select has only Academic, Challenger, Community,
+  Conqueror, Core, Core Plus, Delegation, Explorer, International, Investor, Main, Prime, `Pioneer `
+  (trailing space is real), Tailored. No mapping exists, and an invalid option is rejected by the
+  API. Kromann Reumert has no type in the CRM at all.
+- **None of the 8 has a website or a LinkedIn URL in the CRM**, so those columns stay empty.
+- **`Put on web` is never set and no logo exists**, so none of these reach the partner wall until a
+  logo is collected from the partner.
+- **"Idempotent" still means "skips what exists", not "safe to re-run after a deletion."** If Auri
+  deletes one of these 8, add its Partner ID to `NEVER_CREATE` or the next run recreates it.
+- `FORCE_INCLUDE` still holds 2925 (Greeks in the Nordics). Its CRM status is now Confirmed anyway,
+  so that entry can be deleted on the next pass.
+
+**NEXT.**
+
+1. Chase logos for the 8. Without a logo none of them can be published, regardless of the tick, and
+   `Put on web` is Auri's decision, not the script's.
+2. Fill the 4 blank Partnership Types by hand, or agree with marketing on options for Sponsorship /
+   Barter Deal / Projects and add them to `TYPE_MAP`.
+3. Decide what to do about the 10 duplicate Partner IDs above. Start with **2222 (AWS Startups vs
+   NVIDIA)**, since a shared id means one row links to the wrong partner.
+4. Commit both changed files: `scripts/add-missing-deliverables.mjs` (contact-copy, now proven
+   against a real write) and `lib/partners.ts` (Skytek). The Beyond Beta fix from 2026-08-17 may
+   still be uncommitted too — check before branching.
+5. DONE — Flatpay, Copenhagen and Business region Gothenburg are deleted from `LOGO_SCALE`.
+6. **Make the stale-nudge check automatic.** FIVE occurrences in three days is not a coincidence,
+   it is a missing test. Add a CI step (or a cron) that runs `measure-logo-ink.mjs` over the wall and
+   FAILS when any `LOGO_SCALE` entry exceeds that logo's current `cap`. The filter is one awk line:
+   rows where the `now` column is not 1 and `now > cap`. That would have caught Beyond Beta, Skytek,
+   PSV, Flatpay and Copenhagen before Auri ever saw them. The check is worth MORE after today, not
+   less: ten logos were re-exported in one afternoon, and each re-export is a chance for a nudge to
+   go stale.
+
+**SKYTEK'S LOGO: THE BEYOND BETA BUG, SECOND OCCURRENCE.** Auri: "fix skytek logo" on
+`/partners`. `LOGO_SCALE["Skytek Nordics ApS"]` was **2.11 → 0.97** in `lib/partners.ts`, and the
+header comment above that table no longer uses Skytek as its 23%-ink example (PSV does).
+
+`node scripts/measure-logo-ink.mjs skytek` now reports **ink at 100% of the image box**, AR 3.33,
+`cap` 0.97, and flags the row "already maxed". The partner replaced the padded square export with a
+tight crop, so 2.11 was adding ~345% of area to a mark already touching its own edges. Verified in
+the browser: the mark renders 200x106 inside its 245x147 `.lw-tile`, inside on both axes, and sits in
+line with TONIK and Owl Ventures on the Core row.
+
+**PSV, SAME THING, SAME DAY.** Auri: "fix PSV now as well, since I adjusted logo". Its new file also
+measures **ink 100%**, AR 2.65, `want` 1.00, `cap` 1.09 — so the nudge was **deleted from
+`LOGO_SCALE` rather than lowered**. Absent means 1, and 1 is the correct answer; a number there can
+only make it worse. Verified: PSV renders 184x97 inside its 245x147 tile, in line with Teknologisk
+Institut and Deloitte on the Core row.
+
+**THE FULL SWEEP, AND THREE MORE STALE NUDGES NOBODY HAS ASKED ABOUT YET.** A whole-wall run
+(`node scripts/measure-logo-ink.mjs`, 218 rows, ~2min, output kept in the scratchpad) was filtered to
+the rows carrying an explicit nudge and compared against each one's current `cap`. **Three exceed it,
+all measured at ink 100%, i.e. all re-exported as tight crops since the 2026-08-04 pass:**
+
+| Partner | `LOGO_SCALE` now | `cap` | rendered vs tile | verdict |
+|---|---|---|---|---|
+| **Flatpay** | 1.83 | 0.94 | **382x203 in 245x147** | worst on the wall, ink cropped |
+| **Copenhagen** | 1.38 | 0.94 | **288x153 in 245x147** | over on both axes |
+| **Business region Gothenburg** | 1.19 | 1.13 | marginal | `use` 1.00, delete the entry |
+
+Left alone on purpose: Auri asked for Skytek and PSV, not these. The one-line fix for each is the
+same as PSV's — delete the entry. `Innovation Centre Denmark` (1.19, cap 1.19) sits exactly on its
+cap and is fine.
+
+**AURI RE-EXPORTED TEN LOGOS, SO FOUR NUDGES WERE DELETED, NOT LOWERED.** After the sweep above
+Auri replaced the artwork for every padded file that had room to grow. A full re-measure
+(`node scripts/measure-logo-ink.mjs`, kept as `ink-after.txt` in the scratchpad) confirms **ten of
+the twelve now measure ink at 100% of the image box**: STHLM Music City (was 17%), SHE/THEY Club
+(19%), The Kitchen (35%), San Francisco Oy (41%), Heartcore Capital (60%), Clarma Capital (76%),
+Royal Danish Academy (37%), Mesh (91%), Business Iceland (93%), Innovation District Copenhagen (93%).
+**Not one of them needs an entry in `LOGO_SCALE`** — every `use` came back at or below 1.00, so the
+padding they were going to be nudged for is simply gone.
+
+`LOGO_SCALE` therefore LOST four rows today rather than gaining any: **PSV 2.92, Flatpay 1.83,
+Copenhagen 1.38 and "Business region Gothenburg AKA Gothenburg" 1.19, all deleted.** Absent means 1,
+which is what the ~190 other tight-crop logos on the wall use, so these now sit on exactly the same
+footing as their neighbours. Skytek keeps an explicit 0.97 and Beyond Beta 0.94 because their `cap`
+is genuinely below 1.
+
+**VERIFIED IN THE DOM, ALL 218 TILES.** Every logo named above renders inside its tile with room to
+spare (Flatpay and Copenhagen at 36px clear on both axes, PSV 61x49, Skytek 45x41). Five tiles report
+an overflowing IMAGE BOX — INCUBA x KITCHEN, Nordea, IDA, Terkko Health Hub, Adeo Web — and **all
+five are the documented false positive**: their ink is 19-52% of the file, so only transparent margin
+crosses the tile edge. That is the same trap the 2026-08-17 entry warns about. Do not "fix" them.
+
+**Two files were NOT re-exported and both are fine as they are.** Superseed still measures 82% ink at
+AR 9.23 and Business Iceland's sibling case shows why that cannot be nudged: at 9:1 the mark already
+spans the tile's width, `cap` 0.97. **Erhvervshus Sjælland (62% ink) will not change no matter what
+is uploaded to Airtable** — it is served from `LOGO_FILE_OVERRIDES` as the local EU co-funding
+frieze, so tell Auri to replace `public/Erhvervshus-frieze.png` if he wants it different.
+
+**Innovation Centre Denmark keeps its 1.19** even though its file is now a tight crop too. It sits
+exactly on `cap` 1.19, inside the tile, and the value was set for an optical reason Auri signed off
+on. `want` is 1.00, so dropping it is defensible; it was left alone rather than changed silently.
+
+**The nine nudges that are still EARNED** all measure well under 100% ink and still want growing:
+INCUBA x KITCHEN 2.29 (19% ink), IDA 1.80 (33%), Nordea 1.71 (37%), Terkko Health Hub 1.44 (52%),
+Gothenburg Tech Week 1.31 (59%), Adeo Web 1.29, Southern Sweden 1.25, advores 1.24, Creative Business
+Network 1.17. Do not touch these.
+
+**This is the second and third time a stale nudge broke a tile in three days** (Beyond Beta, 1.96 → 0.94, on
+2026-08-17). The 2026-08-17 entry's "DO NOT FIX SKYTEK OR PSV" was true of the OLD file, where only
+transparent margin overflowed the bounding box and no ink left the tile. **That verdict belonged to
+the artwork, not the partner.** That entry also called PSV fine at 2.92 against 12% ink. Also true of the old file, also superseded
+the moment Auri re-exported it.
+
+**FILE POINTERS.** `scripts/add-missing-deliverables.mjs` (the whole job; header comment carries the
+2026-08-17 history) · `lib/partners.ts` + `app/partners/page.tsx` (the wall these rows feed) ·
+`.env.local` / `secrets.enc.env` (`AIRTABLE_TOKEN`).
 
 ---
 

@@ -140,6 +140,22 @@ const buildFields = (r) => {
   // Only Cherry Ventures has one, but copy it wherever it exists.
   if (x["Website"]) fields["Link to your website"] = x["Website"];
   if (x["Company's LinkedIn Profile"]) fields["Link to LinkedIn"] = x["Company's LinkedIn Profile"];
+  // CONTACT (added 2026-08-19). The CRM keeps the same person in up to four places and none of them
+  // is reliably filled: `Contact Person 2026` is the 2026 intake field, `Contact Name` the legacy
+  // one, and the email usually only exists as `Mail` — a LOOKUP through the linked Contacts row,
+  // which is why a plain read of `Contact Email` came back empty for 6 of 8 partners. Take the first
+  // value that exists, in newest-first order, and write nothing when all of them are empty.
+  const first = (...vals) => {
+    for (const v of vals) {
+      const s = Array.isArray(v) ? v.find((y) => String(y || "").trim()) : v;
+      if (String(s || "").trim()) return String(s).trim();
+    }
+    return "";
+  };
+  const cName = first(x["Contact Person 2026"], x["Contact Name"], x["Marketing contact"]);
+  const cMail = first(x["Email 2026"], x["Contact Email"], x["Mail"], x["Email"], x["Email (from Contacts) 2"]);
+  if (cName) fields["Contact Name"] = cName;
+  if (cMail) fields["Contact Email"] = cMail;
   return { fields, srcType, mapped };
 };
 
@@ -152,6 +168,7 @@ for (const r of planned) {
     `  ${String(fields.Company).slice(0, 38).padEnd(40)}id:${String(fields["Partner ID"]).padEnd(6)}` +
       `type:${(mapped || "— left blank").padEnd(14)}` +
       `${fields["Link to your website"] ? "website " : ""}${fields["Link to LinkedIn"] ? "linkedin " : ""}` +
+      `${fields["Contact Name"] ? `name:${fields["Contact Name"]} ` : ""}${fields["Contact Email"] ? `${fields["Contact Email"]} ` : ""}` +
       `link→${r.id}`
   );
   if (!mapped && srcType) console.log(`        (CRM type "${srcType}" has no deliverables equivalent, left blank)`);

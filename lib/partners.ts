@@ -314,8 +314,11 @@ export type Partner = {
 // ─── PER-LOGO ADJUSTMENTS ───────────────────────────────────────────────────────────────
 // The area-based fitter in logoFit.ts gets a wall of mixed artwork most of the way there, but it
 // can only measure the BOUNDING BOX. It cannot see that a mark is mostly transparent margin
-// inside its own file — Skytek's wordmark occupies 23% of the square it was exported into, so
-// the fitter sizes the empty square correctly and the logo still looks tiny.
+// inside its own file: a wordmark sitting in 80% empty canvas gets its empty box sized correctly
+// and still looks tiny. Both examples this comment used to name — Skytek at 23% ink and PSV at
+// 12% — have since been re-exported as tight crops and no longer need a nudge at all, which is
+// exactly why the re-run rule below exists. INCUBA x KITCHEN (19% ink) and IDA (33%) are the
+// live examples now.
 //
 // MEASURED, NOT EYEBALLED (2026-08-04). Every value below comes from
 // `node scripts/measure-logo-ink.mjs`, which rasterises each logo, finds the bounding box of the
@@ -332,19 +335,22 @@ export type Partner = {
 const LOGO_SCALE: Record<string, number> = {
   Repodo: 0.85, // measures average but reads huge: a dense, very high-ink wordmark
   // Marks exported into a square canvas with a thin wordmark inside it. The worst offenders.
-  PSV: 2.92,
+  //
+  // FOUR ENTRIES WERE DELETED FROM THIS TABLE ON 2026-08-19, NOT LOWERED: PSV (was 2.92),
+  // Flatpay (1.83), Copenhagen (1.38) and "Business region Gothenburg AKA Gothenburg" (1.19).
+  // Auri re-exported all four as tight crops, so each now measures ink at 100% of its image box and
+  // `want` lands at or below 1.00. Absent means 1, 1 is the right answer, and it puts them on
+  // exactly the same footing as the ~190 other tight-crop logos on this wall. Do not re-add a number
+  // for any of them unless the artwork changes again.
+  //
+  // Business region Gothenburg's old comment claimed its file had "zero internal margin" and still
+  // read small. That was true of an export whose ink filled 100% of a 1.56:1 box; the fitter shrank
+  // it to 0.83 and 1.19 pushed it back. The new file measures `want` 1.00 against `cap` 1.13, so the
+  // shortfall the nudge existed to correct is gone.
   "INCUBA x KITCHEN": 2.29,
-  "Skytek Nordics ApS": 2.11,
-  Flatpay: 1.83,
   IDA: 1.8,
   Nordea: 1.71, // "Nordea Startup & Growth" — lots of internal whitespace in the file
   "Terkko Health Hub": 1.44,
-  // Zero internal margin, so the area rule shrinks it to 0.83 while padded neighbours get grown —
-  // the honest file ends up the smallest on the row (Auri: "slightly bit" too small). 1.19 brings the
-  // final scale to 0.99, which is still inside `contain`, so no pixel crops; the ceiling here is
-  // 1/0.83 = 1.20, past which it would.
-  "Business region Gothenburg AKA Gothenburg": 1.19,
-  Copenhagen: 1.38,
   "Gothenburg Tech Week": 1.31,
   "Adeo Web": 1.29,
   "Southern Sweden": 1.25,
@@ -362,6 +368,16 @@ const LOGO_SCALE: Record<string, number> = {
   // THE LESSON THIS ROW EXISTS TO TEACH: a stale nudge is worse than none. Re-run
   // `node scripts/measure-logo-ink.mjs <name>` whenever a partner replaces their logo.
   "Beyond Beta": 0.94,
+  // THE SAME BUG, SECOND OCCURRENCE (Auri, 2026-08-19: "fix skytek logo"). Skytek sat at 2.11
+  // because its file was a wordmark in 77% transparent margin. That file is gone: measure-logo-ink
+  // now reports **ink at 100% of the image box**, AR 3.33, and flags the row "already maxed". The
+  // 2.11 was therefore adding ~345% of area to a mark already touching its own edges. 0.97 is the
+  // script's `cap` and its `USE`.
+  //
+  // Note the 2026-08-17 entry above this table says "DO NOT FIX SKYTEK" — that was true of the OLD
+  // artwork, where only transparent margin overflowed the tile's bounding box and no ink left it.
+  // The verdict belonged to the file, not to the partner, and the file changed.
+  "Skytek Nordics ApS": 0.97,
 };
 
 // Serve a LOCAL file instead of whatever sits in Airtable. Erhvervshus Sjælland's tile carries
