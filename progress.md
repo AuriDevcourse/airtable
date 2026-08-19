@@ -156,7 +156,7 @@ filled their titles and LinkedIn there, the roster had to READ from the CRM.
 
 ---
 
-## SESSION · 2026-08-19 · 8 NEW PARTNERS ADDED TO DELIVERABLES · LOGO WALL RE-BASELINED
+## SESSION · 2026-08-19 · DELIVERABLES ROWS · LOGO WALL RE-BASELINED · `Exceptions` NOW READ
 
 **CURRENT STATE.** **WRITTEN.** Auri approved and `--commit` ran: 8 rows created in Partner
 Deliverables 2026, view **221 → 229**, every one of the 8 verified present in the view with its
@@ -247,13 +247,51 @@ The dedupe was checked on Partner ID **and** normalized name (legal suffixes str
    against a real write) and `lib/partners.ts` (Skytek). The Beyond Beta fix from 2026-08-17 may
    still be uncommitted too — check before branching.
 5. DONE — Flatpay, Copenhagen and Business region Gothenburg are deleted from `LOGO_SCALE`.
-6. **Make the stale-nudge check automatic.** FIVE occurrences in three days is not a coincidence,
+6. Commit the `Exceptions` change, then merge and deploy:
+   `git checkout main && git merge partner-deliverables-and-logo-scales && npx vercel --prod`.
+   Nothing reaches techbbq.dk until that runs.
+7. **Make the stale-nudge check automatic.** FIVE occurrences in three days is not a coincidence,
    it is a missing test. Add a CI step (or a cron) that runs `measure-logo-ink.mjs` over the wall and
    FAILS when any `LOGO_SCALE` entry exceeds that logo's current `cap`. The filter is one awk line:
    rows where the `now` column is not 1 and `now > cap`. That would have caught Beyond Beta, Skytek,
    PSV, Flatpay and Copenhagen before Auri ever saw them. The check is worth MORE after today, not
    less: ten logos were re-exported in one afternoon, and each re-export is a chance for a nudge to
    go stale.
+
+**THE WALL WAS IGNORING THE `Exceptions` COLUMN, AND TWO PARTNERS SAT IN THE WRONG BAND.** Auri:
+"there is the last column that says exceptions. Please look at that because this is very important."
+The Partner Deliverables 2026 view has always had a free-text `Exceptions` cell; `lib/partners.ts`
+never read it. Four rows carry one:
+
+| `Exceptions` text | partner | before | after |
+|---|---|---|---|
+| "Has to be Placed in Challenger" | Highbridge Law Firm | **Community** | Challenger |
+| "we gotta put in in the Challenger tier" | rebriQ | **Community** | Challenger |
+| "Has to be placed in Pioneer" | Jyske Bank Growth | Pioneer | Pioneer (unchanged) |
+| "Has to be in Core" | Skytek Nordics ApS | Core | Core (unchanged) |
+
+The last two were already right because `TIER_EXCEPTIONS` hardcodes them, which is the tell: **the
+partnerships team had been writing the instruction in Airtable and the code was carrying its own
+copy.** Highbridge and rebriQ had no hardcode, so nobody noticed the column was dead.
+
+**HOW IT READS PROSE.** Those four cells are four different phrasings of one instruction, so
+`exceptionTier()` does not parse them, it SCANS for the name of a band from `PARTNER_TIERS` and
+accepts the answer only when **exactly one** name appears as a whole word. Two names or none logs a
+line and falls through, because a silent guess would put a partner in a band nobody chose. Whole-word
+matching is done by checking the neighbouring characters rather than by building a regex: a ``
+inside a template literal is one keystroke from being the BACKSPACE character, which matches nothing
+and fails silently. **That exact bug was written and caught during this session** — the first version
+never matched anything, and the tool chain quietly ate the second backslash twice before the check
+was rewritten without one. It also means "corefully placed" cannot read as Core and "Community Core
+Partnership" is refused for naming two bands.
+
+**PRECEDENCE, strongest claim first:** `Exceptions` cell → `TIER_EXCEPTIONS` → the deal-size formula
+→ `NO_CONTRACT_TIERS`. A cell somebody typed this morning beats a constant compiled last week.
+Skytek's and Jyske Bank Growth's hardcodes are now redundant and kept only as a floor if the cell is
+cleared; Industriens Fond, Erhvervsfremmebestyrelsen and Humandone have no cell and must stay.
+
+**VERIFIED**: `tsc --noEmit` clean, feed still 217 partners, and the rendered page puts Highbridge and
+rebriQ under the Challenger heading, Jyske Bank under Pioneer, Skytek under Core.
 
 **SKYTEK'S LOGO: THE BEYOND BETA BUG, SECOND OCCURRENCE.** Auri: "fix skytek logo" on
 `/partners`. `LOGO_SCALE["Skytek Nordics ApS"]` was **2.11 → 0.97** in `lib/partners.ts`, and the
@@ -327,6 +365,11 @@ Network 1.17. Do not touch these.
 transparent margin overflowed the bounding box and no ink left the tile. **That verdict belonged to
 the artwork, not the partner.** That entry also called PSV fine at 2.92 against 12% ink. Also true of the old file, also superseded
 the moment Auri re-exported it.
+
+**COMMITTED.** `666cd90` on branch **`partner-deliverables-and-logo-scales`** carries the logo-scale
+changes and the deliverables script. **The `Exceptions` work is NOT in it** — it came after the
+commit and is still uncommitted. Nothing is pushed and nothing is deployed, so techbbq.dk still
+shows the old scales and the old tiers.
 
 **FILE POINTERS.** `scripts/add-missing-deliverables.mjs` (the whole job; header comment carries the
 2026-08-17 history) · `lib/partners.ts` + `app/partners/page.tsx` (the wall these rows feed) ·

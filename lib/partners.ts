@@ -99,6 +99,9 @@ const SAFE_FIELDS = [
   "Link to your website",
   // The wall's artwork. Several variants per cell; lib/logoPick.ts chooses.
   "Logo",
+  // A free-text tier instruction typed by the partnerships team. Beats every other tier source.
+  // See exceptionTier().
+  "Exceptions",
 ];
 
 // Publish rule 2, the part that can be checked from the record alone. The wall is #0d0d0d, so
@@ -213,6 +216,11 @@ function noContractTier(company: string): string | null {
 // agreed, which is exactly the case this table exists for.
 //
 // If the deal is ever repriced into the Pioneer band, delete this entry — the deal wins.
+//
+// TWO OF THESE ARE NOW REDUNDANT (2026-08-19). The `Exceptions` column says the same thing for
+// Skytek ("Has to be in Core") and Jyske Bank Growth ("Has to be placed in Pioneer"), and
+// exceptionTier() runs first, so those two entries no longer decide anything. They are kept as a
+// floor in case the cell is cleared. The other three have NO exception cell and must stay.
 const TIER_EXCEPTIONS: Record<string, string> = {
   "skytek nordics aps": "Core",
   "industriens fond": "Prime",
@@ -224,6 +232,52 @@ const TIER_EXCEPTIONS: Record<string, string> = {
 
 function tierException(company: string): string | null {
   return TIER_EXCEPTIONS[company.toLowerCase().replace(/\s+/g, " ").trim()] ?? null;
+}
+
+// ─── THE `Exceptions` COLUMN, WHICH IS WHERE THE TEAM ALREADY WRITES THESE (2026-08-19) ──
+// Auri: "there is the last column that says exceptions. Please look at that because this is very
+// important." The deliverables view has carried a free-text `Exceptions` cell all along and the
+// wall was not reading it, so two partners sat in the wrong band while the instruction to move
+// them was sitting in the record:
+//
+//   "Has to be Placed in Challenger"        Highbridge Law Firm  — was rendering as Community
+//   "we gotta put in in the Challenger tier" rebriQ              — was rendering as Community
+//   "Has to be placed in Pioneer"           Jyske Bank Growth    — already right, via the hardcode
+//   "Has to be in Core"                     Skytek Nordics ApS   — already right, via the hardcode
+//
+// THE TEXT IS PROSE, NOT AN ENUM, and it will stay prose — those four are four different phrasings
+// of one instruction. So the cell is scanned for the NAME OF A BAND rather than parsed: find every
+// tier in PARTNER_TIERS that appears in it as a whole word, and accept the answer only when exactly
+// one does. Two names or none means a human has to read it, and a silent guess in that situation
+// puts a partner in a band nobody chose.
+//
+// It runs AHEAD of TIER_EXCEPTIONS on purpose. A cell somebody typed in Airtable this morning
+// should beat a constant compiled in last week, and it makes the hardcodes for Skytek and Jyske
+// Bank Growth redundant rather than contradictory.
+function exceptionTier(raw: unknown): string | null {
+  const text = str(raw).trim();
+  if (!text) return null;
+  const haystack = text.toLowerCase();
+  // Whole-word matching WITHOUT a built regex. A word boundary escape inside a template literal is
+  // one keystroke away from being the BACKSPACE character instead, which matches nothing and fails
+  // silently; checking the neighbouring characters cannot go wrong that way. It also means a cell
+  // reading "corefully placed" or "Community Core Partnership" cannot be mistaken for an
+  // instruction — the first has no whole word, the second names two bands and is refused below.
+  const isLetter = (ch: string | undefined) => !!ch && /[a-z]/.test(ch);
+  const hits = PARTNER_TIERS.map((t) => t.name).filter((name) => {
+    const needle = name.toLowerCase();
+    for (let i = haystack.indexOf(needle); i >= 0; i = haystack.indexOf(needle, i + 1)) {
+      if (!isLetter(haystack[i - 1]) && !isLetter(haystack[i + needle.length])) return true;
+    }
+    return false;
+  });
+  if (hits.length === 1) return hits[0];
+  console.info(
+    hits.length
+      ? `[partners] Exceptions cell "${text}" names ${hits.length} tiers (${hits.join(", ")}) — ignored, someone has to pick one`
+      : `[partners] Exceptions cell "${text}" names no tier on the wall — ignored`
+  );
+  return null;
 }
 
 // Tier order, highest commitment first. Colour runs hot at the top and cools down it, so the
@@ -545,10 +599,17 @@ export async function fetchPartners({
 
     // The tier as derived from the deal, not as typed by a human — with the no-contract fallback
     // applied ONLY when the deal produced nothing. See NO_CONTRACT_TIERS.
-    // Order matters. The exception comes FIRST because it exists precisely to beat a resolved
-    // deal tier; the no-contract fallback comes last because it only fills a gap.
+    // Order matters, strongest claim first:
+    //   1. the row's own `Exceptions` cell, typed by the partnerships team for this record
+    //   2. TIER_EXCEPTIONS, the same judgement recorded in code before that column was read
+    //   3. the deal-size formula, which is the rule for everybody else
+    //   4. NO_CONTRACT_TIERS, which only fills a gap the formula left empty
     const tier =
-      tierException(company) || tierOf(f["Partnership Tier (from Tier)"]) || noContractTier(company) || "";
+      exceptionTier(f["Exceptions"]) ||
+      tierException(company) ||
+      tierOf(f["Partnership Tier (from Tier)"]) ||
+      noContractTier(company) ||
+      "";
     // No tier means no BAND, so the public wall cannot place them at all.
     //
     // It used to end here for every reader, and that made a partner INVISIBLE IN BOTH DIRECTIONS:
