@@ -9,6 +9,200 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-19 · AWS x NVIDIA GETS A BAND AND ITS PDF · A SHELL ROW THE FEED DID NOT HAVE
+
+**CURRENT STATE.** **NOT COMMITTED, NOT DEPLOYED.** `npx tsc --noEmit` clean. Verified against a live
+Brella read on both renderers: the Brella feed is **318 sessions** (was 317, the one extra is the
+declared shell) and **11 documents attach to 65 board rows** (was 10 / 60). techbbq.dk shows none of
+it until the Event Rooms embed is re-copied from the deployed dashboard.
+
+**THE ASK.** Auri: add the AWS x NVIDIA PDF to the programme, "and also mention in the program that
+from 13:30 to 17:10 AWS x Nvidia event with this transparent border that we used for all day events".
+This is NEXT STEP 3 of the session below, now that the file is on techbbq.dk.
+
+**WHAT WAS ON THE BOARD BEFORE.** Four rows in Event Room 3 on the 27th (13:30-14:10, 14:20-15:20,
+15:30-16:10 and a 16:10-17:10 "Networking"), each titled after its own topic, with no track, no tags
+and no programme name. Nothing said the afternoon was one event, and nothing linked the run of show.
+
+**WHAT CHANGED.**
+
+1. **`lib/sessionProgrammes.ts` gets an eleventh entry**, `AWS_NVIDIA-event-program-for-TechBBQ-2.pdf`,
+   matched on the **block** (ER3 · `2026-08-27` · 13:30-17:10) and not on a title — the four rows share
+   no prefix and the last is called just "Networking". The window is what keeps the PDF off Flatpay's
+   Future of Fintech, which runs 09:30-13:00 in the same room with its own document. Five rows carry
+   it (the four real ones plus the shell below); the PDF's four items match the four rows exactly.
+2. **NEW · `lib/derivedShells.ts` declares a shell row the feed does not have.** The dashed band Auri
+   asked for is what `lib/shellRule.ts` draws around any row that contains at least two strictly
+   shorter sessions filling half its span — Future of Fintech, the Creative Business Cup, the Board
+   Summit all get it from a real parent row in Brella. AWS x NVIDIA has no parent row, and the OTHER
+   band (the derived all-day one) could not help: it is built from `programme`, which these rows do not
+   carry, and it only fires for a room booked morning to evening.
+   So the parent row is declared and appended to the feed: **"AWS x NVIDIA: The Agentic AI Era",
+   13:30 - 17:10, Event Room 3**. No renderer was touched. Once the row exists, both copies of the
+   shell rule recognise its SHAPE, which means the band, the nesting and the drop from the lane pass
+   arrive on `/brella-program`, the pasted embed and `/api/program?event=brella` at once instead of on
+   whichever one got patched.
+3. **Wired in `lib/brellaprogram.ts`** AFTER the day pass and the sort, so the shell inherits the day
+   label and the feed position of the first session it wraps rather than needing a start instant
+   Brella never gave it. Its `programmeUrl` is looked up there for the same reason (it was not built
+   from a Brella row).
+
+**VERIFIED, both renderers, Event Room 3 on the 27th.** Two bands in the column, identical computed
+style — `dashed 1px` at 45% alpha over a 9% wash, `pointer-events: none`, `aria-hidden` — 09:30-13:00
+Future of Fintech and 13:30-17:10 AWS x NVIDIA. The AWS band is 660px for its 220 minutes, its four
+cards sit inside it at full column width (so it did leave the lane pass), and its caption floats into
+the empty 13:00-13:30 grid above the band (`data-labelabove="1"`) because a card starts on its own
+first minute, exactly as Future of Fintech's does. `roomGaps` reports no new gap for that room.
+
+**GOTCHAS FOR THE NEXT PERSON.**
+
+- **The band is not pressable, in either renderer.** That is deliberate and old (Auri, 2026-08-12), and
+  it is why the PDF has to be on the four real sessions: a link only on the shell would be a link
+  nobody can reach. Same reasoning as the Board Summit's.
+- **`derivedShells()` re-applies the shell rule before it adds anything** and logs loudly when a
+  declaration no longer wraps a block — a partner block moved in Brella would otherwise become an
+  empty dashed rectangle over an unrelated hour. It also suppresses itself if Brella ever gains the
+  real parent row, so a stale entry is a lie in the file rather than a second band on the board.
+- **The shell carries no `type`, no `tags` and no `programme`.** A kicker on it would put a fake tag
+  into the board's filter list; a `programme` would name it in the column sub-label and could
+  resurface as a derived all-day band. If Auri wants the Event Room 3 column to READ
+  "Future of Fintech · AWS x NVIDIA", that is the one-line change (`programme` on the shell), and it
+  is deliberately not made yet.
+- **To test the pasted embed locally** you have to defeat `lib/embedOriginGuard.ts`, which rewrites a
+  loopback origin to the deployed connector at render time. Generate the snippet, then replace the
+  fallback URL in the generated HTML with `http://localhost:3000`. Also note the builder's section key
+  is `"rooms"`, not `"Event Rooms"` — the label silently falls through to the card grid.
+
+**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Re-copy the **Event Rooms** embed from the
+DEPLOYED dashboard (the whole-program embed too, if that one is pasted anywhere). 3. Still open from the
+session below: **ODIN** (`Future of Defence Program (1).pdf`, six defence rows in ER4 on 26 Aug) has
+Brella rows but no file on techbbq.dk. 4. The Deep Tech Stage programme is still an `.xlsx`.
+
+
+## SESSION · 2026-08-19 · SEVEN NEW PARTNER PROGRAMMES LINKED ON THE BOARD · NORDIC IPO RESCUED
+
+**CURRENT STATE.** **NOT COMMITTED, NOT DEPLOYED.** `npx tsc --noEmit` clean. Verified against a live
+Brella read: **10 documents now attach to 60 board rows**, and both agenda snippets build and parse.
+techbbq.dk shows none of it until the affected embeds are re-copied from the deployed dashboard.
+
+**THE ASK.** Auri uploaded seven programme PDFs under a new naming convention
+(`<Partner>_Program_<date>.pdf`) and asked which were already linked and which were missing. The rule
+he set: **if the event is on Brella, attach the same "See the full program (PDF)" link the other event
+room programmes have. If it is not on Brella, do not touch it** — the link rides on a Brella row, so a
+programme with no rows has nowhere to hang.
+
+**WHAT IS NOT ON BRELLA, and therefore deliberately not linked.** Three partner programmes sit in the
+Partnership Success `Ready program` field with no row anywhere on the board: **Women in Tech Denmark**
+(Diversity Lounge 2.0), **NORNORM** (circular breakfast) and the **Fundraising Bootcamp** (whose
+attachment is a PNG). EY's Founders Growth Club is a Bridge Event, not an event room, so it is outside
+this too.
+
+**WHAT CHANGED.**
+
+1. **Four new entries in `lib/sessionProgrammes.ts`**: the Policy Stage (ER 5,6,7 · 27 Aug, 15 rows),
+   Plug and Play's "Small Hub, Global Ambition" (ER4 · 27 Aug, 6 rows — every row shares the title
+   prefix), Google's "Scaling Europe" (ER5 · 26 Aug) and Flatpay's "Future of Fintech" (ER3 · 27 Aug,
+   parent row only: two of its sub-rows are called "Networking Breakfast" and "Networking", which no
+   title regex can claim without also claiming rows in other rooms).
+2. **Microsoft repointed** at `Microsoft_Program_27.08.2026.pdf`. Not a re-export: the new file adds a
+   15:40-15:50 networking break and shortens the roundtable. `TechBBQ-Ai-that-sells.pdf` is still on
+   the server and is now linked from nowhere.
+3. **Creative Business Cup now has ONE FILE PER DAY**, which needed a new `date` matcher on an entry.
+   Every row of that block on both days is titled "Creative Business Cup 2026: …", so a title regex
+   cannot tell the 26th from the 27th. Day 1 → 5 rows, Day 2 → 2 rows. The combined
+   `CBC26-@TechBBQ-programme-overview.pdf` and the older `CBC_2026_Program.pdf` are both superseded and
+   now unlinked.
+4. **NORDIC IPO WAS SILENTLY BROKEN AND IS FIXED.** Its entry matched `/^nordic ipo\b/` and Brella has
+   no row by that name any more — the day is fourteen separately-titled sessions ("Welcome Opening
+   Session", "Will we see more IPOs in the near future?", two rows just called "Break") with no track,
+   no tags and no programme name. That document had been linked from nowhere. Since nothing in the
+   titles identifies the block, an entry can now match on **room + date + time window** instead:
+   ER3, `2026-08-26`, 12:30-17:15. The unrelated 09:30-11:00 session in the same room stays out
+   (verified).
+5. **`lib/policyOverride.ts` attaches the document itself**, exactly as `boardOverride` does. Its rows
+   are built from the Sessions table and never pass through the Brella mapper, and Brella's own row for
+   that room is filtered out — so a link matched against Brella would have reached nobody.
+6. **`/program` tabs**: the Policy Stage and Future of Fintech tabs now carry the same PDF above their
+   lists, the way the Board Summit already did.
+7. **DATE BUG FIXED.** The `/program` Policy Stage tab said **August 26th**. `lib/policyOverride.ts`
+   records Auri's 2026-08-07 decision that it runs on the **27th** and files it there on the board
+   (`POLICY_DAY`); the correction landed in one file and was missed in the other, so the embed on
+   techbbq.dk printed the wrong day. It now reads August 27th with the venue line.
+
+**GOTCHAS FOR THE NEXT PERSON.**
+
+- **A title regex rots.** Partners' blocks keep being split into loose rows with no track and no tags
+  (NISS, NASS, Deep Tech and now Nordic IPO all arrived that way), and a match that stops matching
+  fails SILENTLY — the link just is not there. If you add an entry, check the row count on
+  `/api/program?event=brella` afterwards rather than trusting the regex.
+- **An overridden column never reaches `sessionProgramme()`.** The Policy Stage, NASS and the Board
+  Summit are substituted from the Sessions table, so their documents have to be attached inside the
+  override, keyed on the programme name.
+- **Superseded PDFs stay on the server.** Three are now unlinked but still reachable by URL
+  (`TechBBQ-Ai-that-sells.pdf`, `CBC26-@TechBBQ-programme-overview.pdf`, `CBC_2026_Program.pdf`).
+  Nothing points at them; do not re-link one by pattern-matching a filename.
+
+**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Re-copy the affected embeds from the DEPLOYED
+dashboard: the Brella board, plus the Policy Stage and Future of Fintech agenda tabs. 3. Two partner
+programmes are ON Brella but have no file on techbbq.dk, so nothing can be linked yet — **NVIDIA +
+AWS** (`AWS_NVIDIA event program for TechBBQ (2).pdf`, four rows in ER3 on 27 Aug) and **ODIN**
+(`Future of Defence Program (1).pdf`, six defence rows in ER4 on 26 Aug). Upload both under the naming
+convention and each is a one-entry edit. 4. The Deep Tech Stage programme is an `.xlsx` and cannot be
+linked as a document; its sessions already carry real times on the board.
+
+**FILE POINTERS.** `lib/sessionProgrammes.ts` (the registry, the new `date` and `block` matchers) ·
+`lib/brellaprogram.ts` (passes the date, room and slot into the lookup) · `lib/policyOverride.ts` ·
+`app/program/page.tsx` (the two tab `doc`s and the 27th).
+
+---
+
+## SESSION · 2026-08-19 · `/team` NO LONGER REQUIRES THE `Active Team Member` CHECKBOX
+
+**CURRENT STATE.** On branch **`team-gate-active-checkbox`**, not merged. `npx tsc --noEmit` clean.
+Verified against live Airtable and against `http://localhost:3000/api/team?fresh=1`: **27 → 29
+people**, the two added are **Nadja Schwabach** (Project Controller, Finance) and **Ida Nørgaard**
+(Head of Projects, Projects). Nobody was removed. `?department=Finance` still filters correctly (2:
+Nadja, Stephan Evon).
+
+**THE ASK.** Auri: a new person added in Airtable was not showing on `/team`. The cause was
+`{Active Team Member}=TRUE()` in the `fetchTeamOnce` gate, and his call was to drop that condition
+rather than tick the box.
+
+**WHAT CHANGED.** One thing, in `lib/team.ts`. The gate went from
+
+```
+AND({Active Team Member}=TRUE(), NOT(FIND('Archive',ARRAYJOIN({Department}))), {LTV}!='YES')
+```
+
+to
+
+```
+AND(NOT(FIND('Archive',ARRAYJOIN({Department}))), {LTV}!='YES')
+```
+
+Volunteers (`LTV = YES`) are still excluded, blank `LTV` still counts as not-a-volunteer, blank
+`Name` rows are still skipped in `mapRecord`'s caller. The file's header comment was corrected too —
+it still claimed "Active" was part of the rule.
+
+**THE CONSEQUENCE, AND IT IS THE ONE THING TO REMEMBER.** `Department = Archive` is now the **only**
+guard keeping a leaver off techbbq.dk. Unticking `Active Team Member` no longer hides anybody from
+the public page. To take someone off the team, **set their Department to Archive.** The checkbox
+stays in Airtable and is still fine as an internal marker, it just has no effect on the feed. The
+trade was chosen knowingly: forgetting to tick hid people who had joined (which happened on every
+single join), forgetting to archive shows someone who left (rare, and obvious on the page itself).
+
+**WORTH KNOWING.** Ida Nørgaard's title is "Head of Projects", so `leadershipRank` gives her
+`hierarchy: 3` and she pins into the leadership block near the top of the page rather than the
+shuffled body. Nadja Schwabach has **no `Email`** in Airtable, so her card renders without the
+mailto line. Neither is a bug; both are just what the data says.
+
+**NEXT STEPS.**
+1. Look at `/team` in the browser, both new cards, then merge `team-gate-active-checkbox` into `main`.
+2. Sanity-check with Auri that Ida Nørgaard and Nadja Schwabach are genuinely current staff. They
+   were unticked-but-not-archived, which is ambiguous — the change assumes not-archived means current.
+3. The 22 people in `Archive` who still have `Active Team Member` ticked are now harmless, but the
+   inconsistency is still there if anyone ever wants to trust that checkbox again.
+
 ## SESSION · 2026-08-19 · INTERN EMBED BROUGHT IN STEP WITH THE DASHBOARD
 
 **CURRENT STATE.** **ON `main`.** `npx tsc --noEmit` clean. Verified in Chrome: the dashboard at

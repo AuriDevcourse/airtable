@@ -1,8 +1,8 @@
 // Server-only access to the "#TechBBCuties" staff directory. This table holds phone numbers,
 // private notes, responsibilities and internal task fields. Those stay OUT. Only an allow-list
 // (name/title/photo/LinkedIn/department/email) is ever requested from Airtable, and only CURRENT
-// team members (Active, not Archived, not a long term volunteer) are returned. Email is public by product decision; phone
-// and everything else remain server-private.
+// team members (not Archived, not a long term volunteer — see the gate in fetchTeamOnce) are
+// returned. Email is public by product decision; phone and everything else remain server-private.
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
@@ -213,20 +213,30 @@ async function fetchTeamOnce(departmentFilter?: string): Promise<TeamMember[]> {
   let offset: string | undefined;
 
   // Gate: current team only.
-  //   1. Active Team Member ticked, AND
-  //   2. not sitting in the Archive department (ARRAYJOIN flattens the multi-select so FIND
-  //      works on it — robust even while some archived rows are still incorrectly ticked
-  //      Active), AND
-  //   3. LTV (long term volunteer) is not YES. Volunteers are staff-adjacent but not staff,
+  //   1. not sitting in the Archive department (ARRAYJOIN flattens the multi-select so FIND
+  //      works on it), AND
+  //   2. LTV (long term volunteer) is not YES. Volunteers are staff-adjacent but not staff,
   //      so they stay off the public team list (Auri's rule, 2026-07-30).
   //
-  // Point 3 excludes YES rather than requiring NO on purpose. The rule as stated was "list
+  // Point 2 excludes YES rather than requiring NO on purpose. The rule as stated was "list
   // the NO ones", and today every row is filled in (27 NO, 1 YES, 0 blank) so the two are
   // identical — but a NEW hire whose LTV nobody set yet would silently vanish from the team
   // page under a require-NO rule. Blank means "not marked a volunteer", so they stay listed.
+  //
+  // {Active Team Member} WAS A THIRD CONDITION AND IS DELIBERATELY GONE (Auri's call,
+  // 2026-08-19). It is the field nobody remembers to tick, so a new hire with a photo, a
+  // department and an email sat invisible on techbbq.dk while every other field said they had
+  // joined. Two rows were hidden that way the day it came out: Nadja Schwabach and Ida
+  // Nørgaard, both non-Archive, both LTV=NO. The checkbox still exists in Airtable and is fine
+  // as an internal marker; it just no longer decides who is public.
+  //
+  // CONSEQUENCE, plainly: Archive is now the ONLY thing keeping a leaver off the public page.
+  // Taking someone off the team means setting their Department to Archive — unticking the
+  // checkbox does nothing here any more. That trade was made knowingly. Forgetting to tick hid
+  // people who had joined, which happened every time anyone joined; forgetting to archive shows
+  // someone who left, which is rare and visible on the page itself.
   const gate =
-    "AND({Active Team Member}=TRUE()," +
-    "NOT(FIND('Archive',ARRAYJOIN({Department})))," +
+    "AND(NOT(FIND('Archive',ARRAYJOIN({Department})))," +
     "{LTV}!='YES')";
 
   do {

@@ -590,6 +590,13 @@ const EVENTS: {
     icons: false,
     bigOpening: false,
     people: true,
+    // Flatpay's own run of show, uploaded 2026-08-19 and linked here as well as on the Brella board
+    // (lib/sessionProgrammes.ts). The typed agenda below is the fuller answer — it has the speakers —
+    // so this sits above it as the host's document rather than as the programme of record.
+    doc: {
+      url: "https://techbbq.dk/wp-content/uploads/2026/08/Flatpay_Program_27.08.2026.pdf",
+      label: "See the full program (PDF)",
+    },
     // The breakfast row's description already carried this Luma link as raw text. As a button it is
     // clickable in the embed, and the snippet drops the printed URL from the description so the
     // instruction is not given twice (Auri, 2026-08-19).
@@ -605,8 +612,18 @@ const EVENTS: {
   {
     key: "policy",
     label: "The Policy Stage",
-    heading: "August 26th",
+    // AUGUST 27th, corrected 2026-08-19. This tab said the 26th while lib/policyOverride.ts records
+    // Auri's 2026-08-07 decision that it runs on the 27th and files it there on the Brella board
+    // (POLICY_DAY = "Day 3 · 27 August"). The fix landed in one file and was missed in this one, so
+    // the embed pasted on techbbq.dk was printing the wrong day. The programme PDF Auri uploaded is
+    // named 27.08.2026 and agrees.
+    heading: "August 27th",
+    sub: "Event Rooms 5, 6 & 7",
     people: true,
+    doc: {
+      url: "https://techbbq.dk/wp-content/uploads/2026/08/PolicyStage_Program_27.08.2026.pdf",
+      label: "See the full program (PDF)",
+    },
   },
   // THE BOARD SUMMIT (Boardway), out of the same Sessions table as the Policy Stage. Dark blue
   // rather than the fire gradient (Auri, 2026-08-10) — see the `navy` theme in lib/agendaSnippet.ts.

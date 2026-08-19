@@ -48,11 +48,14 @@ export async function GET(req: NextRequest) {
       );
       withArt = all.map((e) => {
         const d = e.registerUrl ? pages.get(e.registerUrl) : undefined;
-        // THE PARTNER'S OWN ARTWORK WINS. The hand-drawn banner is a stand-in for the three side
-        // events that publish none, and it carries whatever date and venue were true the day it
-        // was drawn — so the moment a partner publishes a real og:image, theirs takes over. Same
-        // `??` order Program 2026 uses, from the same module, so the two cannot disagree.
-        const image = d?.image ?? artworkOverride(titleKey(e.title));
+        // THE HAND-DRAWN BANNER WINS, and only for the handful of titles listed in
+        // ARTWORK_OVERRIDES. An entry there is a deliberate choice to show TechBBQ's own banner,
+        // so a partner page that later publishes an og:image does not silently replace it —
+        // delete the entry when their artwork should take over. This is the `??` order
+        // lib/sideEvents.ts already used for Program 2026; this line read the other way round
+        // and the two pages printed different artwork for "Unlocking Nordic Private Markets",
+        // whose Eventbrite listing gained an og:image after the banner was drawn (2026-08-19).
+        const image = artworkOverride(titleKey(e.title)) ?? d?.image;
         return { ...e, image: image ?? null, venue: d?.venue ?? null, city: d?.city ?? null };
       });
     } catch (err) {

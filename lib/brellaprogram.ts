@@ -20,6 +20,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { sessionProgramme } from "@/lib/sessionProgrammes";
+import { derivedShells } from "@/lib/derivedShells";
 import { str } from "@/lib/fields";
 import {
   dayProgrammeOf,
@@ -360,7 +361,18 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
 
     // The host's own run of show, for an all-day row that is really a whole agenda. Null for all
     // but a couple of sessions — see lib/sessionProgrammes.ts.
-    const programme = sessionProgramme(title);
+    //
+    // `dateKey` is passed because Creative Business Cup now publishes one document per day and its
+    // two days share every title. `session.day` cannot be used here: it is filled in below, once the
+    // distinct dates are known, and is still "" at this point.
+    //
+    // The room and the slot go with it because one programme (Nordic IPO) can only be identified by
+    // where and when it runs — its fourteen rows share no title. `roomAlias(track)` is computed again
+    // below for the session itself; it is cheap and pure.
+    const programme = sessionProgramme(title, dateKey, {
+      room: roomAlias(track),
+      timeSlot,
+    });
 
     prepared.push({
       dateKey,
@@ -411,5 +423,32 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
   // label ("All day") can never scramble the order.
   prepared.sort((x, y) => x.dateKey.localeCompare(y.dateKey) || x.startIso.localeCompare(y.startIso));
 
-  return prepared.map((p) => p.session);
+  const sessions = prepared.map((p) => p.session);
+
+  // A DECLARED SHELL ROW for a partner block Brella carries only as its separate sessions —
+  // AWS x NVIDIA, Event Room 3, 13:30-17:10 on the 27th. See lib/derivedShells.ts for why this is
+  // a row in the feed rather than a change in the two renderers: the dashed band, the nesting and
+  // the drop from the lane pass all follow from lib/shellRule.ts recognising the row's SHAPE, so a
+  // row is the one edit that reaches /brella-program, the pasted embed and the API at once.
+  //
+  // AFTER the day pass and the sort, so a shell inherits the day label and the feed position of the
+  // first session it wraps instead of needing a start instant Brella never gave it.
+  const preparedById = new Map(prepared.map((p) => [p.session.id, p]));
+  for (const { session, anchorId } of derivedShells(sessions, (s) => preparedById.get(s.id)?.dateKey ?? "")) {
+    const at = sessions.findIndex((s) => s.id === anchorId);
+    const anchor = preparedById.get(anchorId);
+    if (at < 0 || !anchor) continue;
+    session.day = anchor.session.day;
+    // The shell's own run of show, keyed on the same room-and-clock block as the four sessions it
+    // wraps (lib/sessionProgrammes.ts). Set here rather than in the loop above because this row was
+    // not built from a Brella row.
+    const doc = sessionProgramme(session.name, anchor.dateKey, {
+      room: session.room,
+      timeSlot: session.timeSlot,
+    });
+    if (doc) session.programmeUrl = doc;
+    sessions.splice(at, 0, session);
+  }
+
+  return sessions;
 }

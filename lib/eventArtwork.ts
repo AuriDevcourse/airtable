@@ -10,10 +10,11 @@
  * `C:\Users\User\Desktop\Side Events\make_banner.py` — see the progress.md beside it for the
  * layout, the Gemini prompt recipe and the open items on each banner.
  *
- * THE PARTNER'S OWN ARTWORK ALWAYS WINS over an entry here — see the `??` order at both call
- * sites. So the day one of these events publishes a real og:image, theirs appears and the line
- * below becomes dead weight to delete. That direction matters: a hand-drawn banner is a stand-in,
- * not a preference, and it carries whatever the date and venue were on the day it was drawn.
+ * AN ENTRY HERE WINS over the partner's own scraped og:image — see the `??` order at both call
+ * sites, which agree since 2026-08-19. Listing a title is a deliberate choice to show TechBBQ's
+ * banner, so a ticketing page that publishes artwork later does not silently replace it. The flip
+ * side: a banner carries whatever the date and venue were on the day it was drawn, so when the
+ * partner's own artwork should take over, DELETE the line rather than leaving both in place.
  */
 import { baseUrl } from "@/lib/photo";
 
@@ -47,6 +48,8 @@ const ARTWORK_OVERRIDES: Record<string, string> = {
   "cto connect": "cto-connect.webp",
   "techbbq biotech university spinouts discussion 2026": "biotech-spinouts.webp",
   "the nordic paradox from mapping to action": "nordic-paradox.webp",
+  "techbbq run warm up with danske bank growth cykom": "techbbq-run.webp",
+  "unlocking nordic private markets": "nordic-private-markets.webp",
 };
 
 /** The banner for a title, or null when there is no hand-drawn one. Pass a titleKey(). */

@@ -30,6 +30,7 @@
 // groups on. If the day labels are ever renumbered this constant moves with them.
 import type { ProgramSession } from "@/lib/program";
 import { programmeOf, ROOM_567 } from "@/lib/brellaSections";
+import { sessionProgramme } from "@/lib/sessionProgrammes";
 // Moved out when the Nordic Africa substitution needed the same mapping. See lib/stagePeople.ts.
 import { toSpeaker } from "@/lib/stagePeople";
 
@@ -54,6 +55,17 @@ const POLICY_PROGRAMME = programmeOf("Policy Stage") ?? "Policy Stage";
 
 /** The board's day label for the Policy Stage. Auri, 2026-08-07. */
 export const POLICY_DAY = "Day 3 · 27 August";
+
+/**
+ * The Policy Stage's own PDF (Auri uploaded it on 2026-08-19), resolved through
+ * lib/sessionProgrammes.ts so the URL lives in one file and a re-upload is one edit.
+ *
+ * IT HAS TO BE ATTACHED HERE, not left to the Brella mapper, for the same reason the Board Summit's
+ * is: the rows this override substitutes are built from the Sessions table and never pass through
+ * sessionProgramme(), and Brella's own row for this room — the one that would have matched — is
+ * filtered out below.
+ */
+const POLICY_DOC = sessionProgramme(POLICY_PROGRAMME);
 
 /**
  * Replace the Brella board's Policy Stage column with the Airtable programme.
@@ -91,6 +103,10 @@ export function mergePolicyStage(
         ...mods.map((p, i) => toSpeaker(p, s.id, "Moderator", i)),
         ...spks.map((p, i) => toSpeaker(p, s.id, "Speaker", i)),
       ],
+      // On every session, including the breaks and the networking — the same rule as the Board
+      // Summit. They are part of the day the document describes, and a visitor who opens the lunch
+      // slot to see how long it is has the same right to the programme as one who opens a panel.
+      ...(POLICY_DOC ? { programmeUrl: POLICY_DOC } : {}),
     };
   });
 
