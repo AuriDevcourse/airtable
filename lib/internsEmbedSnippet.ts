@@ -58,8 +58,21 @@ export function buildInternsEmbedSnippet({
     --accent:#FF2600;--orange:#fa7000;
     --head:'Onest',ui-sans-serif,system-ui,sans-serif;--sans:'Inter',ui-sans-serif,system-ui,sans-serif;
     display:block!important;${transparent ? "" : "background:var(--bg)!important;padding:32px 24px!important;border-radius:20px!important;"}
-    font-family:var(--sans)!important;color:var(--fg)!important;box-sizing:border-box}
+    font-family:var(--sans)!important;color:var(--fg)!important;box-sizing:border-box;
+    /* The typographic BASE everything below inherits from. Declared here rather than left to the
+       host page, because the next rule makes every child inherit and inheriting a theme's 16px
+       serif is how this panel stopped looking like itself. */
+    font-size:14px!important;font-weight:400!important;font-style:normal!important;line-height:1.55!important;letter-spacing:normal!important;text-transform:none!important}
   #${id} *{box-sizing:border-box}
+  /* ─── THE THEME DOES NOT GET A VOTE ON TYPE ──────────────────────────────────────────────
+     WordPress themes style bare tags — a, p, h3, li, span — with their own font-size and family,
+     and any element here that did not restate its font was rendering at the theme's size. The
+     manager's name came out twice the height of the line it sits on (Auri, 2026-08-19).
+     inherit, not fixed values: each element then takes what its own parent sets, which is what the
+     rules below already assume. Every rule after this one overrides it, so a card element that DOES
+     declare its own size still wins — later rule, same weight. text-decoration is deliberately not
+     in here: the underlines on the links are meaningful. */
+  #${id} p,#${id} ul,#${id} li,#${id} a,#${id} span,#${id} strong,#${id} h3,#${id} summary,#${id} div,#${id} button{font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;font-style:inherit!important;line-height:inherit!important;letter-spacing:inherit!important;text-transform:inherit!important}
   /* WordPress themes set display on almost everything, and two of the pieces below are toggled by
      the hidden attribute. Without this the "hidden" half of the pitch is on screen anyway. */
   #${id} [hidden]{display:none!important}
@@ -156,8 +169,12 @@ export function buildInternsEmbedSnippet({
   #${id} .tbbq-ip__mgrIcon{flex:none!important;width:12px!important;height:12px!important;color:var(--muted)!important;fill:none!important;stroke:currentColor!important}
   #${id} .tbbq-ip__mgrLabel{color:var(--muted)!important;font-family:var(--head)!important;font-size:9.5px!important;font-weight:700!important;letter-spacing:.12em!important;text-transform:uppercase!important}
   /* Underlined on an offset rather than coloured: at 11.5px in a card footer that is the only
-     affordance that reads as pressable without pulling the eye off the LinkedIn pill above. */
-  #${id} .tbbq-ip__mgrLink{color:inherit!important;background:none!important;text-decoration:underline!important;text-decoration-color:rgba(255,255,255,.3)!important;text-underline-offset:3px!important;transition:color .18s,text-decoration-color .18s}
+     affordance that reads as pressable without pulling the eye off the LinkedIn pill above.
+     THE FONT IS PINNED TO inherit, and that is not decoration. WordPress themes style bare <a> with
+     their own font-size and family, so a link that only declares colour and underline renders at the
+     theme's link size — the manager's name came out twice the height of the line it sits on
+     (Auri, 2026-08-19). Every text link inside a card has to restate what it inherits. */
+  #${id} .tbbq-ip__mgrLink{color:inherit!important;background:none!important;font:inherit!important;letter-spacing:inherit!important;text-transform:none!important;text-decoration:underline!important;text-decoration-color:rgba(255,255,255,.3)!important;text-underline-offset:3px!important;transition:color .18s,text-decoration-color .18s}
   #${id} .tbbq-ip__mgrLink:hover{color:var(--orange)!important;text-decoration-color:currentColor!important}
   #${id} .tbbq-ip__mgrLink:focus-visible{outline:2px solid var(--orange)!important;outline-offset:3px!important;border-radius:4px!important;text-decoration-color:transparent!important}
   #${id} .tbbq-ip__mgrSep{color:var(--muted)!important}

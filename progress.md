@@ -40,10 +40,26 @@ line. "Make sure the copy embed copies exactly the way it is."
 4. **LinkedIn moved from the embed's footer up under the name**, matching the dashboard, and the
    footer is drawn only when there is a date or a manager to put in it.
 
-**GOTCHA FOR THE NEXT PERSON.** The snippet is a TS template literal, so every regex backslash in
-the inline script has to be doubled (`\\d`, `\\s`, `\\n`) or it silently becomes a literal letter.
-Also `[hidden]{display:none!important}` is in the snippet's CSS on purpose: WordPress themes set
-`display` on everything and the "hidden" half of the pitch was otherwise visible.
+5. **THE THEME DOES NOT GET A VOTE ON TYPE.** Auri pasted the new block into Elementor and the
+   manager's name rendered at roughly twice the height of the line it sits on: `.tbbq-ip__mgrLink`
+   declared colour and underline but never its font, so the theme's `a { font-size: 22px }` won. That
+   hole was everywhere an element did not restate its own type — bare `p`, `li`, `span`, `h3`. The
+   fix is a base type block on `#uid` plus one rule setting `font-family/size/weight/style/
+   line-height/letter-spacing/text-transform: inherit !important` on every text tag inside the panel.
+   `inherit`, not fixed values, so each element takes what its own parent sets; every rule after it
+   still overrides it. `text-decoration` is deliberately excluded — the underlines mean something.
+
+**GOTCHA FOR THE NEXT PERSON.** Three traps in this file, all of them silent:
+
+- The snippet is a TS template literal, so every regex backslash in the inline script has to be
+  doubled (`\\d`, `\\s`, `\\n`) or it becomes a literal letter and the parser quietly stops matching.
+- `[hidden]{display:none!important}` is there on purpose: WordPress themes set `display` on
+  everything and the "hidden" half of the pitch was otherwise on screen.
+- **Anything you add to a card must declare its own font, or inherit it explicitly.** Verified by
+  rendering the generated snippet under a deliberately hostile stylesheet (Georgia 18px base,
+  uppercase `h3`, 22px bold blue `a`, `list-style:disc` with 40px padding) and reading back computed
+  styles: every element came out at its intended size, family, colour and marker. Worth repeating
+  that harness for any future card element rather than trusting the clean-page render.
 
 **NEXT STEPS.** 1. Let the Vercel deploy of `main` finish. 2. Press "Copy embed code" on the DEPLOYED
 dashboard, not localhost, or the block bakes in a localhost origin WordPress cannot reach. 3. Paste
