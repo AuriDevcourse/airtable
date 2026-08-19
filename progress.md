@@ -11,11 +11,19 @@ reaching the browser.
 
 ## SESSION · 2026-08-19 · AWS x NVIDIA IS NOW A TYPED PROGRAMME, WITH FACES OUT OF BRELLA
 
-**CURRENT STATE.** **CODE NOT COMMITTED. THE AIRTABLE ROWS ARE LIVE** — four records in the Sessions
-table and nine speakers in Marketing Project Overview, all of which exist whether or not this code
-ships. `npx tsc --noEmit` clean. Verified on
-the dashboard and in a generated embed: `/api/program?event=aws-nvidia` serves 4 sessions with
-**10 of 10 faces**, no broken images, the PDF above the list. Faces now resolve from the CRM, not Brella.
+**CURRENT STATE.** **COMMITTED, PUSHED TO `main`, DEPLOYED.** Three commits: `060449d` (the tab and
+the Brella face source), `dc5992c` (the `amber` theme) and `bd92eff` (the invisible-label fix).
+`npx tsc --noEmit` clean. **Verified ON PRODUCTION:** `/api/program?event=aws-nvidia` serves 4 sessions
+with **10 of 10 faces**, all of them from the CRM rather than Brella. The Airtable rows are live
+independently of the code — four records in the Sessions table, nine speakers in Marketing Project
+Overview.
+
+**THE ONE THING NOT VERIFIED ON PRODUCTION: the theme, on the dashboard itself.** `/program` sits behind
+`dashboardAuth`; the local `INTERNAL_USER`/`INTERNAL_PASS` return **401** against
+airtable-woad.vercel.app and `npx vercel whoami` says **Not authorized** in this environment. The theme
+was verified locally in a generated embed — measured gradient-aware AND screenshotted — and it only ever
+reaches the COPIED SNIPPET, never the server HTML, so there was nothing a production fetch could have
+shown. Whoever opens that tab next should confirm the type labels are legible before publishing.
 
 **THE ASK.** Auri, with the Sessions table open: "can you create another event from Board Summit for
 NVIDIA and AWS because we have the program, we have all the information, even the speakers?" So the
@@ -113,20 +121,36 @@ the FIRST photo and keeps it; only the loose keys (`shortKey`/`pairKey`) still c
    2.2:1 and fails AA, so the filled button takes near-black ink at 8.6:1 instead. `CTA_FILL` in
    `app/program/page.tsx` mirrors it, and carries the same note.
 
-**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Copy the **AWS x NVIDIA** agenda embed from the
-DEPLOYED dashboard for whatever page marketing wants it on. 3. **OPEN QUESTION for Auri:** now that the
-timed agenda exists as data, should the Brella board SUBSTITUTE it the way `lib/boardOverride.ts` does
-for the Board Summit? Today the board shows Brella's four rows inside the band, which is already
-correct, so this is only worth doing if the typed rows drift from Brella's. 4. Still open: **ODIN**
-(`Future of Defence Program (1).pdf`) has Brella rows but no file on techbbq.dk.
+**NEXT STEPS.** Nothing to commit or deploy — all three commits are on `main` and live.
+
+1. **Copy the AWS x NVIDIA agenda embed from the DEPLOYED dashboard** for whatever page marketing wants
+   it on, and **look at the type labels in the paste before publishing** (see CURRENT STATE for why that
+   one thing is unverified).
+2. **Two contrast bugs found while fixing this one, NEITHER TOUCHED, both one value each.**
+   (a) Future of Fintech's type tags are `#93C5FD` on a `#2563EB` fill — **1.7:1**, badly failing AA on a
+   tab that is already live. Same structural cause as the amber bug: the pill is filled, the ink was
+   picked as though it were outlined. (b) **Five of the seven themes** (orange, navy, gold, crimson,
+   beam) draw the "See the full program (PDF)" link with a TRANSPARENT border, so it reads as bare text
+   with padding until hover — affects the Board Summit and Policy Stage tabs. `docBorder` now exists per
+   theme, so each is a single value.
+3. **`/api/program?event=<unknown>` returns 200 with the `techbbq` SAMPLE programme**, not a 404 — three
+   placeholder rows ("Opening Remarks", "Sample Panel: The Nordic Ecosystem"). A typo in a pasted
+   embed's event key therefore shows fake sessions on techbbq.dk instead of failing visibly. Raised with
+   Auri, not yet decided.
+4. **OPEN QUESTION for Auri:** now that the timed agenda exists as data, should the Brella board
+   SUBSTITUTE it the way `lib/boardOverride.ts` does for the Board Summit? Today the board draws
+   Brella's own four rows inside the band, which is already correct, so this is only worth doing if the
+   typed rows drift from Brella's.
+5. Still open: **ODIN** (`Future of Defence Program (1).pdf`) has Brella rows but no file on techbbq.dk.
 
 
 ## SESSION · 2026-08-19 · AWS x NVIDIA GETS A BAND AND ITS PDF · A SHELL ROW THE FEED DID NOT HAVE
 
-**CURRENT STATE.** **NOT COMMITTED, NOT DEPLOYED.** `npx tsc --noEmit` clean. Verified against a live
-Brella read on both renderers: the Brella feed is **318 sessions** (was 317, the one extra is the
-declared shell) and **11 documents attach to 65 board rows** (was 10 / 60). techbbq.dk shows none of
-it until the Event Rooms embed is re-copied from the deployed dashboard.
+**CURRENT STATE.** **COMMITTED AS `ea0811b`, PUSHED TO `main`, DEPLOYED AND VERIFIED THERE.**
+`npx tsc --noEmit` clean. Verified against a live Brella read on both renderers, then again on
+production: the Brella feed is **318 sessions** (was 317, the one extra is the declared shell) and
+**11 documents attach to 65 board rows** (was 10 / 60). techbbq.dk still shows none of it until the
+Event Rooms embed is re-copied from the deployed dashboard — a pasted snippet is a frozen copy.
 
 **THE ASK.** Auri: add the AWS x NVIDIA PDF to the programme, "and also mention in the program that
 from 13:30 to 17:10 AWS x Nvidia event with this transparent border that we used for all day events".
@@ -185,16 +209,19 @@ first minute, exactly as Future of Fintech's does. `roomGaps` reports no new gap
   fallback URL in the generated HTML with `http://localhost:3000`. Also note the builder's section key
   is `"rooms"`, not `"Event Rooms"` — the label silently falls through to the card grid.
 
-**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Re-copy the **Event Rooms** embed from the
-DEPLOYED dashboard (the whole-program embed too, if that one is pasted anywhere). 3. Still open from the
-session below: **ODIN** (`Future of Defence Program (1).pdf`, six defence rows in ER4 on 26 Aug) has
-Brella rows but no file on techbbq.dk. 4. The Deep Tech Stage programme is still an `.xlsx`.
+**NEXT STEPS.** Committed and deployed; nothing left in code. 1. **Re-copy the Event Rooms embed from
+the DEPLOYED dashboard** (and the whole-program embed, if that one is pasted anywhere) — this is the only
+outstanding step, and until it happens techbbq.dk shows the board without the band or the link.
+2. Still open: **ODIN** (`Future of Defence Program (1).pdf`, six defence rows in ER4 on 26 Aug) has
+Brella rows but no file on techbbq.dk. 3. The Deep Tech Stage programme is still an `.xlsx`.
 
 
 ## SESSION · 2026-08-19 · SEVEN NEW PARTNER PROGRAMMES LINKED ON THE BOARD · NORDIC IPO RESCUED
 
-**CURRENT STATE.** **NOT COMMITTED, NOT DEPLOYED.** `npx tsc --noEmit` clean. Verified against a live
-Brella read: **10 documents now attach to 60 board rows**, and both agenda snippets build and parse.
+**CURRENT STATE.** **SHIPPED.** This session's work went to `main` inside `ea0811b` on 2026-08-19 — it
+was still uncommitted in the working tree when the session above was written, so the two travelled in
+one commit — and it is live on production. `npx tsc --noEmit` clean. Verified against a live Brella
+read: **10 documents attached to 60 board rows** at the time; the session above took that to 11 / 65.
 techbbq.dk shows none of it until the affected embeds are re-copied from the deployed dashboard.
 
 **THE ASK.** Auri uploaded seven programme PDFs under a new naming convention
@@ -254,13 +281,13 @@ this too.
   (`TechBBQ-Ai-that-sells.pdf`, `CBC26-@TechBBQ-programme-overview.pdf`, `CBC_2026_Program.pdf`).
   Nothing points at them; do not re-link one by pattern-matching a filename.
 
-**NEXT STEPS.** 1. Review the diff, commit, deploy. 2. Re-copy the affected embeds from the DEPLOYED
-dashboard: the Brella board, plus the Policy Stage and Future of Fintech agenda tabs. 3. Two partner
-programmes are ON Brella but have no file on techbbq.dk, so nothing can be linked yet — **NVIDIA +
-AWS** (`AWS_NVIDIA event program for TechBBQ (2).pdf`, four rows in ER3 on 27 Aug) and **ODIN**
-(`Future of Defence Program (1).pdf`, six defence rows in ER4 on 26 Aug). Upload both under the naming
-convention and each is a one-entry edit. 4. The Deep Tech Stage programme is an `.xlsx` and cannot be
-linked as a document; its sessions already carry real times on the board.
+**NEXT STEPS.** Shipped in `ea0811b`. 1. **Re-copy the affected embeds from the DEPLOYED dashboard:**
+the Brella board, plus the Policy Stage and Future of Fintech agenda tabs. Still outstanding.
+2. **NVIDIA + AWS is DONE** — the file was uploaded and the two sessions above linked it, gave it a band
+and then typed the whole programme into the Sessions table. 3. **ODIN** is still open:
+`Future of Defence Program (1).pdf` has six defence rows in ER4 on 26 Aug and no file on techbbq.dk.
+4. The Deep Tech Stage programme is an `.xlsx` and cannot be linked as a document; its sessions already
+carry real times on the board.
 
 **FILE POINTERS.** `lib/sessionProgrammes.ts` (the registry, the new `date` and `block` matchers) ·
 `lib/brellaprogram.ts` (passes the date, room and slot into the lookup) · `lib/policyOverride.ts` ·
@@ -270,14 +297,20 @@ linked as a document; its sessions already carry real times on the board.
 
 ## SESSION · 2026-08-19 · `/team` NO LONGER REQUIRES THE `Active Team Member` CHECKBOX
 
-**CURRENT STATE.** Committed and pushed on branch **`team-gate-active-checkbox`**, **NOT merged to
-`main` and NOT DEPLOYED** — so techbbq.dk still shows 27 people. `npx tsc --noEmit` clean. Verified
-against live Airtable and against `http://localhost:3000/api/team?fresh=1`: **27 → 29 people**, the
-two added are **Nadja Schwabach** (Project Controller, Finance) and **Ida Nørgaard** (Head of
-Projects, Projects). Nobody was removed. `?department=Finance` still filters correctly (2: Nadja,
-Stephan Evon). The deployed feed `https://airtable-woad.vercel.app/api/team` was checked directly
-and returns 27, which is the old gate: **a push builds nothing on this project, it needs
-`npx vercel --prod`.**
+**CURRENT STATE.** **DEPLOYED AND VERIFIED — and this entry's original conclusion was WRONG.** It said
+a push builds nothing on this project and that the change needed `npx vercel --prod`. It did not: the
+work reached `main` inside `ea0811b`, and **`https://airtable-woad.vercel.app/api/team` now returns 29**
+with both **Nadja Schwabach** (Project Controller, Finance) and **Ida Nørgaard** (Head of Projects,
+Projects) present — checked directly on 2026-08-19 after the push. `npx tsc --noEmit` clean;
+`?department=Finance` still filters correctly (2: Nadja, Stephan Evon) and nobody was removed.
+
+**WHY THAT READ WAS WRONG, because the trap is still here.** The deployed feed really did answer 27 when
+it was checked. But the commit was sitting on `team-gate-active-checkbox`, a branch that had never been
+pushed to `main` — nothing was building because nothing had been PUSHED, not because a push does not
+build. Three separate pushes to `main` on 2026-08-19 each went live in about a minute, twice confirmed
+by polling a public feed until the number moved (317→318 sessions, then 3→4). **Vercel is wired to this
+repo and a push to `main` deploys it.** Do not reach for `npx vercel --prod`; check what branch you are
+on instead.
 
 **WHERE THE COMMIT ACTUALLY IS, because it is not where you would look.** Two Claude sessions were
 running in this ONE working directory at the same time, so they shared a HEAD and an index. The other
@@ -319,11 +352,14 @@ single join), forgetting to archive shows someone who left (rare, and obvious on
 shuffled body. Nadja Schwabach has **no `Email`** in Airtable, so her card renders without the
 mailto line. Neither is a bug; both are just what the data says.
 
-**NEXT STEPS.**
-1. **Deploy, or the public site keeps showing 27.** Merge `team-gate-active-checkbox` into `main`, then
+**NEXT STEPS.** Step 1 below is DONE — superseded by the push to `main` on 2026-08-19. Kept because the
+reasoning in it is still worth reading, and because it is wrong in an instructive way.
+1. ~~**Deploy, or the public site keeps showing 27.** Merge `team-gate-active-checkbox` into `main`, then
    `npx vercel login` + `npx vercel --prod`. Wait for the other session's `/program` work to be
    committed first: `vercel --prod` uploads the WORKING DIRECTORY, not a commit, so deploying while
-   that tree is dirty ships their half-finished work to production four days before the summit.
+   that tree is dirty ships their half-finished work to production four days before the summit.~~
+   **The merge was what mattered; `vercel --prod` was never needed.** The warning about a dirty tree is
+   still correct and is exactly why `vercel --prod` is the worse tool here: a push deploys a COMMIT.
 2. Confirm afterwards with `https://airtable-woad.vercel.app/api/team` → `count: 29`, then reload
    `https://techbbq.dk/about-us/`. **No Elementor re-paste is needed:** the live HTML on that page
    fetches the plain `/api/team` at render time (no `?ids=`, no `?department=`), so it picks the two up

@@ -2395,6 +2395,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .lw-grid--16 > *:nth-child(n + 11),
 .lw-grid--16 > *:nth-child(n + 11) > .lw-tile { grid-column: span 5; }
 
+/* A 14-tile row (Planetary Health on /ls-startups) laid out 5 + 5 + 4. Same trick as the 16-row
+   above, mirrored: 20 tracks, the first ten tiles take 4 each (five across) and the last four
+   take 5 each (four across), so the short line STRETCHES to the full width instead of leaving a
+   one-tile hole on the right. Its logos come out a touch wider than the ten above them, which is
+   why packLastLine sends the wordmarks down here rather than the compact marks. */
+.lw-grid--14 { grid-template-columns: repeat(20, minmax(0, 1fr)); }
+.lw-grid--14 > *:nth-child(-n + 10),
+.lw-grid--14 > *:nth-child(-n + 10) > .lw-tile { grid-column: span 4; }
+.lw-grid--14 > *:nth-child(n + 11),
+.lw-grid--14 > *:nth-child(n + 11) > .lw-tile { grid-column: span 5; }
+
 /* A frieze of several marks in one file (EU co-funding strip, 13:1). It takes the whole row
    and sits at the top of the tier. NOTE the span goes on the TILE, not the anchor: .lw-link is
    display:contents, so the tile is the actual grid item. A much flatter box than the 5:3
@@ -2402,14 +2413,17 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .lw-tile--wide { grid-column: 1 / -1; aspect-ratio: 9 / 1; }
 @media (max-width: 820px) { .lw-tile--wide { aspect-ratio: 7 / 1; } }
 
-/* Below the desktop breakpoint the 5 + 5 + 6 shape is off anyway — the grid drops to 4, then 3,
-   then 2 across — so the 16-row goes back to plain equal cells. The spans have to be cleared or
-   they would keep spanning tracks the narrow grid no longer has. `:nth-child(n)` is there only
-   to match the specificity of the rules above: a media query adds none of its own. */
+/* Below the desktop breakpoint the 5 + 5 + 6 and 5 + 5 + 4 shapes are off anyway — the grid
+   drops to 4, then 3, then 2 across — so both overridden rows go back to plain equal cells. The
+   spans have to be cleared or they would keep spanning tracks the narrow grid no longer has.
+   `:nth-child(n)` is there only to match the specificity of the rules above: a media query adds
+   none of its own. */
 @media (max-width: 1100px) {
   .lw-grid--fixed { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .lw-grid--16 > *:nth-child(n),
-  .lw-grid--16 > *:nth-child(n) > .lw-tile { grid-column: auto; }
+  .lw-grid--16 > *:nth-child(n) > .lw-tile,
+  .lw-grid--14 > *:nth-child(n),
+  .lw-grid--14 > *:nth-child(n) > .lw-tile { grid-column: auto; }
 }
 @media (max-width: 820px)  { .lw-grid--fixed { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 

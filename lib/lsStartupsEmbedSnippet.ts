@@ -22,9 +22,10 @@ export type LsStartupsEmbedOptions = {
 // Planetary fully green, Human Health between green and blue, Deep Tech blue.
 //
 // No `total` here, unlike the dashboard's ROWS: the public wall draws the startups that are
-// confirmed and nothing more. The categories are heading for 15 / 16 / 15, so each lands in
-// three lines — 15 is 5 + 5 + 5, and a 16th tile turns the last line six across rather than
-// spilling one lonely logo onto a fourth.
+// confirmed and nothing more. The categories are heading for 14 / 16 / 15, so each lands in
+// three lines — 15 is 5 + 5 + 5, a 16th tile turns the last line six across rather than spilling
+// one lonely logo onto a fourth, and 14 turns it four across so the short line still fills the
+// width instead of leaving a hole on the right.
 const ROWS = [
   { name: "Planetary Health", color: "#00c11a" },
   { name: "Human Health", color: "#10c8a7" },
@@ -75,6 +76,14 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__grid--16>*:nth-child(-n+10){grid-column:span 6!important}
   #${id} .tbbq-lsw__grid--16>*:nth-child(n+11){grid-column:span 5!important}
 
+  /* The 14-tile row (Planetary Health), laid out 5 + 5 + 4. The same trick mirrored: 20 tracks,
+     the first ten tiles take 4 each and the last four take 5, so the short line stretches to the
+     full width rather than stopping short with a gap on the right. Its four logos come out a
+     little wider than the ten above them, which is why packLastLine sends the wordmarks there. */
+  #${id} .tbbq-lsw__grid--14{grid-template-columns:repeat(20,minmax(0,1fr))!important}
+  #${id} .tbbq-lsw__grid--14>*:nth-child(-n+10){grid-column:span 4!important}
+  #${id} .tbbq-lsw__grid--14>*:nth-child(n+11){grid-column:span 5!important}
+
   /* A real block, NOT display:contents. A theme that rewrites the anchor's display used to
      leave the tile with no height, so max-height:100% resolved against nothing and every logo
      drew at its natural size. The fixed height below is the load-bearing rule. */
@@ -88,11 +97,12 @@ export function buildLsStartupsEmbedSnippet({
   #${id} .tbbq-lsw__tile--text{font-family:var(--head)!important;font-size:14px!important;font-weight:600!important;line-height:1.3!important;text-align:center!important;color:var(--muted)!important;border:1px dashed var(--border)!important;background:transparent!important}
 
   /* Narrow containers step down from five, so an Elementor column never crushes the logos. The
-     16-row drops its 5 + 5 + 6 spans here too, or they would keep spanning tracks the narrow
-     grid no longer has. */
+     overridden rows drop their 5 + 5 + 6 and 5 + 5 + 4 spans here too, or they would keep
+     spanning tracks the narrow grid no longer has. */
   @media(max-width:1000px){
     #${id} .tbbq-lsw__grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
-    #${id} .tbbq-lsw__grid--16>*:nth-child(n){grid-column:auto!important}
+    #${id} .tbbq-lsw__grid--16>*:nth-child(n),
+    #${id} .tbbq-lsw__grid--14>*:nth-child(n){grid-column:auto!important}
   }
   @media(max-width:780px){#${id} .tbbq-lsw__grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
   @media(max-width:560px){
@@ -193,35 +203,41 @@ ${originDecl("  ")}
     }
   }
 
-  /* WHICH logo goes on the last line of a 16-tile row. That line is six across, so its tiles
-     are narrower than the ten above it: a long wordmark put there shrinks to fit the width and
-     floats in a box that looks half empty, while a compact mark (a droplet, a square monogram)
-     loses nothing because it was height-limited anyway. So the six narrowest marks move to the
-     end and the wide wordmarks keep the five-across lines.
+  /* WHICH logos go on the last line of a row whose last line is a different width from the two
+     above it: 16 (six across) and 14 (four across).
+     On the 16-row that line is the narrowest on the page, so a long wordmark put there shrinks to
+     fit the width and floats in a box that looks half empty, while a compact mark (a droplet, a
+     square monogram) loses nothing because it was height-limited anyway — the six narrowest marks
+     move to the end. On the 14-row it is the widest line, so it wants the opposite: the four
+     widest wordmarks move down, where the extra room actually shows.
      Measured from the decoded images, not a hand-kept list of names — the wall is live Airtable
      data and a list would be wrong the next time a startup confirms. Returns false while any
      logo is still undecoded, so nothing is reordered on half the information. */
-  function packWideFirst(){
-    var grids=root.querySelectorAll(".tbbq-lsw__grid--16"),ok=true;
-    for(var i=0;i<grids.length;i++){
-      var g=grids[i],kids=[].slice.call(g.children);
-      if(kids.length!==16)continue;
-      var shaped=[],bad=false;
-      for(var j=0;j<kids.length;j++){
-        var im=kids[j].querySelector("img");
-        /* A name tile has no image. It is a line of text, so it counts as wide. */
-        var r=im?(im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0):3;
-        if(!r){bad=true;break;}
-        shaped.push({el:kids[j],r:r,i:j});
+  var PACK=[{sel:".tbbq-lsw__grid--16",n:16,last:6,dir:1},{sel:".tbbq-lsw__grid--14",n:14,last:4,dir:-1}];
+  function packLastLine(){
+    var ok=true;
+    for(var p=0;p<PACK.length;p++){
+      var cfg=PACK[p],grids=root.querySelectorAll(cfg.sel);
+      for(var i=0;i<grids.length;i++){
+        var g=grids[i],kids=[].slice.call(g.children);
+        if(kids.length!==cfg.n)continue;
+        var shaped=[],bad=false;
+        for(var j=0;j<kids.length;j++){
+          var im=kids[j].querySelector("img");
+          /* A name tile has no image. It is a line of text, so it counts as wide. */
+          var r=im?(im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:0):3;
+          if(!r){bad=true;break;}
+          shaped.push({el:kids[j],r:r,i:j});
+        }
+        if(bad){ok=false;continue;}
+        var moved={},dir=cfg.dir;
+        shaped.slice().sort(function(a,b){return dir*(a.r-b.r);}).slice(0,cfg.last).forEach(function(x){moved[x.i]=1;});
+        /* Two passes rather than one sort, so everything keeps the feed's order within its group
+           and only the chosen few move. appendChild on a node already in the grid moves it. */
+        shaped.filter(function(x){return !moved[x.i];})
+          .concat(shaped.filter(function(x){return moved[x.i];}))
+          .forEach(function(x){g.appendChild(x.el);});
       }
-      if(bad){ok=false;continue;}
-      var narrow={};
-      shaped.slice().sort(function(a,b){return a.r-b.r;}).slice(0,6).forEach(function(x){narrow[x.i]=1;});
-      /* Two passes rather than one sort, so everything keeps the feed's order within its group
-         and only the six actually move. appendChild on a node already in the grid moves it. */
-      shaped.filter(function(x){return !narrow[x.i];})
-        .concat(shaped.filter(function(x){return narrow[x.i];}))
-        .forEach(function(x){g.appendChild(x.el);});
     }
     return ok;
   }
@@ -229,7 +245,7 @@ ${originDecl("  ")}
   /* Column count changes at the breakpoints, so the tile changes shape and every scale has to
      be recomputed. Debounced: resize fires continuously while dragging, and a row of logos
      finishes loading in a burst. */
-  function layout(){packWideFirst();sizeTiles();fitLogos();}
+  function layout(){packLastLine();sizeTiles();fitLogos();}
   var fitTimer;
   function relayout(){clearTimeout(fitTimer);fitTimer=setTimeout(layout,120);}
   window.addEventListener("resize",relayout);
@@ -251,7 +267,7 @@ ${originDecl("  ")}
          confirmed and nothing else — an empty dashed box there advertises how many are still
          missing. The slots exist only on the dashboard (app/ls-startups/page.tsx), where they
          are Auri's own read of how far each category has left to go. */
-      var grid="tbbq-lsw__grid"+(items.length===16?" tbbq-lsw__grid--16":"");
+      var grid="tbbq-lsw__grid"+(items.length===16?" tbbq-lsw__grid--16":items.length===14?" tbbq-lsw__grid--14":"");
       return '<section class="tbbq-lsw__row" style="'+rowVars(row.color)+'">'
         +'<h3 class="tbbq-lsw__label">'+esc(row.name)+'</h3>'
         +'<div class="'+grid+'">'

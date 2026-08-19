@@ -46,12 +46,14 @@ type Startup = {
 // `total` is the number of startups each category will hold once every confirmation is in
 // (Auri, 2026-08-13). The wall always draws that many tiles: the confirmed logos first, then
 // dashed "More soon" slots for the ones still to come. So the row never changes shape as it
-// fills — a slot just turns into a logo — and the three rows are always 15 / 16 / 15.
+// fills — a slot just turns into a logo — and the three rows are always 14 / 16 / 15.
 //
-// Every row lands in exactly three lines. 15 is 5 + 5 + 5. 16 would spill a lone tile onto a
-// fourth line, so its last line runs six across instead (see .lw-grid--16 in globals.css).
+// Every row lands in exactly three FULL lines, with no short stub at the bottom. 15 is 5 + 5 + 5
+// on the plain grid. 14 and 16 do not divide by five, so each overrides its last line: 14 runs
+// 5 + 5 + 4 and 16 runs 5 + 5 + 6, both stretched to the full width (see .lw-grid--14 and
+// .lw-grid--16 in globals.css).
 const ROWS: { name: string; color: string; total: number }[] = [
-  { name: "Planetary Health", color: "#00c11a", total: 15 }, // fully green
+  { name: "Planetary Health", color: "#00c11a", total: 14 }, // fully green
   { name: "Human Health", color: "#10c8a7", total: 16 }, // green into blue
   { name: "Deep Tech", color: "#2BB4E1", total: 15 }, // blue
 ];
@@ -71,7 +73,7 @@ function Mark({ s }: { s: Startup }) {
         // what appears if the image itself fails.
         alt={s.company}
         // NOT lazy. A lazily-loaded logo below the fold has no naturalWidth until it is
-        // scrolled into view, and the whole layout depends on those measurements: packWideFirst
+        // scrolled into view, and the whole layout depends on those measurements: packLastLine
         // would sit on its hands and then reshuffle the row under the reader's eyes as they
         // scroll. Forty-odd small marks are worth loading up front to avoid that.
         loading="eager"
@@ -121,34 +123,44 @@ function useLogoRatios(deps: unknown[]) {
   return ratios;
 }
 
-// WHICH logo goes on the last line, for the 16-tile row only.
+// WHICH logos go on the last line, for the rows whose last line is a different width from the
+// two above it: 16 (six across, narrower) and 14 (four across, wider).
 //
-// That line is six across, so its tiles are narrower than the ten above them. A long wordmark
-// dropped there has to shrink to fit its width and ends up floating in a tile that looks
-// half-empty — which is what made Human Health read as ragged. The compact marks (a droplet, a
-// square monogram, a short name) lose nothing at six across: they were height-limited anyway.
+// On the 16-row that line is narrower than the ten above. A long wordmark dropped there has to
+// shrink to fit its width and ends up floating in a tile that looks half-empty — which is what
+// made Human Health read as ragged. The compact marks (a droplet, a square monogram, a short
+// name) lose nothing at six across: they were height-limited anyway. So `pick: "narrow"` moves
+// the narrowest marks down and leaves the wide wordmarks on the five-across lines.
 //
-// So the narrowest marks are moved to the end of the row and the wide wordmarks stay on the
-// five-across lines. Measured, not a hand-kept list, because the wall is live Airtable data and
-// a list would be wrong the next time a startup confirms. Auri, 2026-08-13.
+// On the 14-row it is the other way round: four across means the widest tiles on the page, and
+// the marks that gain from that extra width are the wordmarks. `pick: "wide"` sends those down.
+//
+// Measured, not a hand-kept list, because the wall is live Airtable data and a list would be
+// wrong the next time a startup confirms. Auri, 2026-08-13.
 //
 // A name tile (no renderable logo) counts as wide: it is a line of text and wants the room.
-function packWideFirst(items: Startup[], ratios: Record<string, number>, lastLine: number) {
+function packLastLine(
+  items: Startup[],
+  ratios: Record<string, number>,
+  lastLine: number,
+  pick: "narrow" | "wide"
+) {
   if (lastLine <= 0 || lastLine >= items.length) return items;
   const shape = (s: Startup) => (s.logo ? ratios[s.id] : 3);
   // Nothing is reordered until every logo has been measured, so the wall cannot visibly
   // reshuffle one tile at a time as the images arrive.
   if (items.some((s) => !shape(s))) return items;
 
-  const narrowest = new Set(
+  const dir = pick === "narrow" ? 1 : -1;
+  const moved = new Set(
     [...items]
-      .sort((a, b) => shape(a)! - shape(b)!)
+      .sort((a, b) => dir * (shape(a)! - shape(b)!))
       .slice(0, lastLine)
       .map((s) => s.id)
   );
   // Two passes over the original array rather than one sort, so everything keeps the feed's
   // order within its group and only the chosen few actually move.
-  return [...items.filter((s) => !narrowest.has(s.id)), ...items.filter((s) => narrowest.has(s.id))];
+  return [...items.filter((s) => !moved.has(s.id)), ...items.filter((s) => moved.has(s.id))];
 }
 
 function LogoWall({
@@ -165,15 +177,24 @@ function LogoWall({
   const soon = Math.max(0, total - items.length);
   const tiles = items.length + soon;
 
+  // How many tiles the last line holds, for the two row sizes that override it. 0 means the
+  // plain 5-across grid, where every line is the same width and nothing needs moving.
+  const lastLine = tiles === 16 ? 6 : tiles === 14 ? 4 : 0;
+
   // The slots already sit at the end of the last line, so the logos that share it are however
-  // many of the six are left over.
+  // many of those are left over.
   const ordered = useMemo(
-    () => (tiles === 16 ? packWideFirst(items, ratios, 6 - soon) : items),
-    [items, ratios, tiles, soon]
+    () =>
+      lastLine
+        ? packLastLine(items, ratios, lastLine - soon, lastLine === 6 ? "narrow" : "wide")
+        : items,
+    [items, ratios, lastLine, soon]
   );
 
   return (
-    <div className={`lw-grid lw-grid--fixed${tiles === 16 ? " lw-grid--16" : ""}`}>
+    <div
+      className={`lw-grid lw-grid--fixed${lastLine ? ` lw-grid--${tiles}` : ""}`}
+    >
       {ordered.map((s) =>
         s.website ? (
           <a
@@ -290,8 +311,9 @@ export default function LsStartupsPage() {
               <section
                 key={name}
                 className="lw-row"
-                // 5 across, Auri: seven is too many. A 16-tile row overrides its last line to
-                // six in CSS so it still finishes in three lines.
+                // 5 across, Auri: seven is too many. The 14- and 16-tile rows override their
+                // last line in CSS (four / six across) so all three still finish in three
+                // full lines.
                 style={{ "--row": color, "--cols": 5 } as React.CSSProperties}
               >
                 <h2 className="lw-row__label">{name}</h2>
