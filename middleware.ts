@@ -39,6 +39,11 @@ const PUBLIC_PATHS = new Set([
   // route on the dashboard password, exactly like ?pending=1 on /api/interns.
   "/api/board-summit",
   "/api/program",
+  // The roster side of /api/program, and public for the same reason: the pasted grid on techbbq.dk
+  // fetches it cross-origin. Listed the day the route shipped would have been better — it went out
+  // without an entry on 2026-08-19 and 401'd on the deployed dashboard, which is exactly the failure
+  // this comment block warns about.
+  "/api/program-speakers",
   "/api/life-science",
   "/api/ls-startups",
   "/api/partners",
