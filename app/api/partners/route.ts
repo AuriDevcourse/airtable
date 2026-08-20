@@ -40,7 +40,22 @@ export async function GET(req: NextRequest) {
     const wantsPending =
       req.nextUrl.searchParams.get("pending") !== null &&
       isDashboardRequest(req.headers.get("authorization"));
-    const live = wantsPending ? all : all.filter((p) => !p.pending);
+    // ROW filtering and FIELD stripping are two different jobs, and only the first was here.
+    //
+    // `pending` marks a row as not-live, so dropping those rows is enough for it. `paying` is
+    // different: it sits on rows that ARE live, so filtering cannot remove it and the commercial
+    // data would ride along into the public feed and out to the wall pasted on techbbq.dk. Auri
+    // asked for that label on /partners only (2026-08-20: "make sure it doesnt copy to embed").
+    //
+    // So the public list is REBUILT without it rather than filtered. Any future internal-only
+    // field goes in this list too — the default in this route is public, and the embeds fetching
+    // without `?pending=1` is not a safeguard, it is a coincidence of how they are written.
+    const live = wantsPending
+      ? all
+      : all
+          .filter((p) => !p.pending)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          .map(({ paying, ...pub }) => pub);
 
     // ?tier=Prime|Main|… narrows to one tier, so a page can embed a single band. Filtered
     // after the cache, like every other feed, so all variants share one Airtable fetch.

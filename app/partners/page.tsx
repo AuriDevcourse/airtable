@@ -31,6 +31,9 @@ type Partner = {
   groupRank?: number;
   // Why this one is not live yet. Only ever present on this page's authenticated read.
   pending?: "no-logo" | "not-on-web" | "no-tier";
+  // Whether the partner is paying. Same deal as `pending`: this page's authenticated read only,
+  // stripped from the public feed in app/api/partners/route.ts, and never in a copied embed.
+  paying?: "cash" | "barter";
 };
 
 // What a placeholder tile says it is waiting for. Short enough for a 5:3 tile.
@@ -40,6 +43,14 @@ const PENDING_LABEL: Record<NonNullable<Partner["pending"]>, string> = {
   // No tier means no BAND, so these cannot be drawn inside the wall at all — they get their own
   // section below it. The fix is in Airtable: a Company Link, or a Deal 2026 on the linked partner.
   "no-tier": "needs a Company Link",
+};
+
+// The paying label, INTERNAL ONLY. "Paid" is cash on the 2026 deal; "Barter" is no cash but a
+// barter deal or an add-on, which Auri counts as value given. A partner with neither gets no
+// badge, so the wall stays quiet and the badges mark the exceptions worth noticing.
+const PAYING_LABEL: Record<NonNullable<Partner["paying"]>, string> = {
+  cash: "Paid",
+  barter: "Barter",
 };
 
 // Tier order and colour come from the feed (lib/partners.ts owns them), so the page cannot
@@ -73,6 +84,13 @@ function Mark({ p }: { p: Partner }) {
         data-nofit={p.wide ? "1" : undefined}
       />
       {p.pending && <span className="lw-tile__wait">{PENDING_LABEL[p.pending]}</span>}
+      {/* Top-left, because the waiting line already owns the bottom and a partner can be both
+          paying and unticked. */}
+      {p.paying && (
+        <span className="lw-tile__pay" data-pay={p.paying}>
+          {PAYING_LABEL[p.paying]}
+        </span>
+      )}
     </span>
   ) : (
     // No artwork at all. The partner still belongs on the DASHBOARD wall so the gap is visible,
@@ -81,6 +99,13 @@ function Mark({ p }: { p: Partner }) {
     <span className="lw-tile lw-tile--text" data-pending={p.pending ?? "no-logo"}>
       {p.company}
       <span className="lw-tile__wait">{PENDING_LABEL[p.pending ?? "no-logo"]}</span>
+      {/* A paying partner with no artwork yet is the most useful badge on the page: it is the
+          logo worth chasing first. */}
+      {p.paying && (
+        <span className="lw-tile__pay" data-pay={p.paying}>
+          {PAYING_LABEL[p.paying]}
+        </span>
+      )}
     </span>
   );
 }

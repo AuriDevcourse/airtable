@@ -2606,6 +2606,35 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
    over it. */
 .lw-tile--text { position: relative; padding-bottom: 20px; }
 
+/* THE PAYING BADGE, /partners ONLY. Never in a copied embed: the field it reads is stripped from
+   the public feed in app/api/partners/route.ts.
+   Top-left, because .lw-tile__wait owns the bottom and a partner can be both paying and unticked.
+   Deliberately quiet — most of the wall is not paying, so this marks the exceptions rather than
+   competing with the logos. Not a filled pill: a solid block at this size reads as a button. */
+.lw-tile__pay {
+  position: absolute; top: 6px; left: 8px;
+  font-family: var(--font-heading);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+  pointer-events: none;
+}
+/* Cash reads in the tier's own colour, so it sits inside the band's identity instead of
+   introducing a tenth hue to a wall that already has nine. Barter stays neutral: it is value
+   given, not money in, and the two should not look the same at a glance. */
+.lw-tile__pay[data-pay="cash"] { color: var(--row, var(--color-accent)); }
+.lw-tile__pay[data-pay="barter"] { color: var(--color-muted); opacity: 0.6; }
+/* The tile is the positioning context for both badges. .lw-tile already needs it for the waiting
+   line, but a logo tile without a pending state never got it. */
+.lw-tile { position: relative; }
+@media (prefers-reduced-motion: no-preference) {
+  .lw-link:hover .lw-tile__pay { opacity: 1; }
+}
+
 /* ─── THE DAILY CHECK (app/page.tsx) ───────────────────────────────────────────────────────
    One TILE per area, each showing the number techbbq.dk would render right now.
 

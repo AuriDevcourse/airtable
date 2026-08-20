@@ -88,8 +88,97 @@ const BASE_ID = process.env.AIRTABLE_BASE_ID;
 const TABLE = "tblTecOBecLQCNIeD"; // Marketing Project Overview
 const VIEW = "viw7FVbsTb9IRaWF0"; // Partner Deliverables 2026
 
+// ─── WHO IS PAYING, FOR THE DASHBOARD ONLY ──────────────────────────────────────────────
+// Auri, 2026-08-20: "All the partners that are paying. Can you have a small label ... make sure it
+// doesnt copy to embed, i just wna to see here."
+//
+// The amount is NOT on the deliverables table. Its 114 fields carry Partnership Type and three
+// tier lookups and no deal figure at all, so this is a second read of Partners 2026, joined on
+// `Company Link` (see the note on fetchPaying for why not `Partner ID`).
+//
+// FILTERED TO CONFIRMED, WHICH IS NOT A DETAIL. `partners` is in NEAR_LIVE_FEEDS, so the cache
+// turns over every 60 seconds; an unfiltered scan of that table is 2,750 rows and would spend
+// ~28 Airtable requests a minute to learn nothing. Confirmed is ~220 rows, about 3 pages, and a
+// partner who is not Confirmed is not on the wall anyway.
+//
+// BARTER IS REPORTED SEPARATELY rather than folded into "paying". Auri's rule is that barter deals
+// and add-ons count as value given, but a barter partner and a partner who wired money are
+// different conversations, so the label says which.
+//
+// THE TIER ALONE CANNOT ANSWER THIS. `Partnership Tier (Based on Deal Size)` is a formula whose
+// Community branch means Deal 2026 = 0, so the band tells you "zero cash" but not whether the
+// partner gave anything else — and the paid Community-typed partners (19 of them, 2.25M DKK) sit
+// in the bands above, indistinguishable from commercial deals of the same size.
+const CRM_TABLE = "tbl9V6ZtxEbR4uELC"; // Partners 2026
+const CRM_SAFE_FIELDS = ["Deal 2026", "Partnership Type 2026", "Add-ons"];
+
+// KEYED ON THE CRM RECORD ID, NOT ON `Partner ID`, and that is the whole correctness story here.
+//
+// The obvious join is `Partner ID`, and it is wrong on this data. Measured 2026-08-20:
+//
+//   AWS Startups              Partner ID 2222, NO Company Link. 2222 belongs to NVIDIA, so the
+//                             label read NVIDIA's 261.000 DKK and badged AWS Startups as paying.
+//   European Investment Fund  Partner ID 1744, Company Link -> "EIF" (id 404, deal 0, No Deal).
+//                             The two identifiers name different partners, so the badge and the
+//                             tier disagreed on the same tile.
+//
+// Ten Partner IDs in this view sit on two rows each and at least one is simply wrong, so a
+// Partner ID join attributes one company's money to another. `Company Link` is the real relation
+// and it is already what `Partnership Tier (from Tier)` resolves through, so keying on it means
+// the badge and the band can never contradict each other. No link, no label.
+export type Paying = "cash" | "barter";
+
+async function fetchPaying(): Promise<Map<string, Paying>> {
+  const out = new Map<string, Paying>();
+  if (!TOKEN || !BASE_ID) return out;
+
+  let offset: string | undefined;
+  do {
+    const u = new URL(`${API}/${BASE_ID}/${CRM_TABLE}`);
+    u.searchParams.set("pageSize", "100");
+    u.searchParams.set("filterByFormula", '{Status 2026}="Confirmed"');
+    for (const f of CRM_SAFE_FIELDS) u.searchParams.append("fields[]", f);
+    if (offset) u.searchParams.set("offset", offset);
+
+    // No explicit timeout, matching the deliverables read below: fetchWithTimeout's own default
+    // applies, and this file has never declared one of its own.
+    const res = await fetchWithTimeout(u.toString(), {
+      headers: { Authorization: `Bearer ${TOKEN}` },
+      cache: "no-store",
+    });
+    // NOT fatal, deliberately. The label is an internal convenience; the wall itself has to render
+    // either way, so a failure here means no labels rather than no partners.
+    if (!res.ok) {
+      console.error("[partners] paying lookup failed", res.status, "— rendering without labels");
+      return new Map();
+    }
+
+    const body = (await res.json()) as {
+      records?: { id: string; fields: Record<string, unknown> }[];
+      offset?: string;
+    };
+    for (const rec of body.records ?? []) {
+      const id = rec.id;
+      if (!id) continue;
+      const deal = Number(rec.fields["Deal 2026"] ?? 0);
+      const types = Array.isArray(rec.fields["Partnership Type 2026"])
+        ? (rec.fields["Partnership Type 2026"] as unknown[]).map(String)
+        : [];
+      const addons = Array.isArray(rec.fields["Add-ons"]) ? rec.fields["Add-ons"] : [];
+      if (deal > 0) out.set(id, "cash");
+      else if (types.some((t) => /barter|add-?on/i.test(t)) || addons.length) out.set(id, "barter");
+    }
+    offset = body.offset;
+  } while (offset);
+
+  return out;
+}
+
 const SAFE_FIELDS = [
   "Company",
+  // The link to the CRM row. Read for the paying label, which resolves through the SAME relation
+  // the tier lookup uses so the two can never disagree. See fetchPaying().
+  "Company Link",
   // Read for the logs only. It no longer gates anything and it never set the tier — the deal does.
   "Partnership Type 2026",
   // The tier, looked up from Partners 2026 where a formula derives it from Deal 2026.
@@ -371,6 +460,15 @@ export type Partner = {
   // stable sort preserves the shuffled order, not this feed's order, and the marks of one
   // partnership came out in a different sequence on every load.
   groupRank?: number;
+  // Is this partner paying, and how. "cash" = Deal 2026 > 0, "barter" = no cash but a barter deal
+  // or an add-on attached, absent = neither.
+  //
+  // DASHBOARD ONLY. This is commercial data and it must never reach techbbq.dk. It is not enough
+  // that the embeds fetch without `?pending=1`: app/api/partners/route.ts caches ONE read with the
+  // pending rows included and then only FILTERS ROWS for the public response, so every field on a
+  // live partner is public by default. The route strips this one explicitly — see the note there
+  // before adding any other internal field to this type.
+  paying?: "cash" | "barter";
 };
 
 // ─── PER-LOGO ADJUSTMENTS ───────────────────────────────────────────────────────────────
@@ -575,6 +673,10 @@ export async function fetchPartners({
     throw new PartnersError("Airtable env vars are not set on the server.", 503);
   }
 
+  // Fetched alongside the deliverables rows rather than per row: one filtered pass over the CRM,
+  // then an in-memory lookup by Partner ID. See fetchPaying().
+  const paying = await fetchPaying();
+
   const records: AirtableRecord[] = [];
   let offset: string | undefined;
 
@@ -614,6 +716,13 @@ export async function fetchPartners({
     const f = rec.fields;
     const company = str(f["Company"]);
     if (!company) continue;
+
+    // Whether this partner is paying, from the CRM pass above, resolved through `Company Link` —
+    // the same relation the tier comes from. A row with no link gets no label rather than a guessed
+    // one: that is what stops AWS Startups (no link, Partner ID belonging to NVIDIA) from wearing
+    // NVIDIA's deal.
+    const crmId = Array.isArray(f["Company Link"]) ? String((f["Company Link"] as unknown[])[0] ?? "") : "";
+    const pays = crmId ? paying.get(crmId) : undefined;
 
     // Not public yet. Checked before anything else, so an embargoed partner cannot leak through
     // a tier, a logo or a website link.
@@ -722,6 +831,8 @@ export async function fetchPartners({
           website: brand.site,
           group: company,
           groupRank: drawn,
+          // The whole partnership is one deal, so every tile in the group carries the same label.
+          ...(pays ? { paying: pays } : {}),
           ...(LOGO_SCALE[brand.label] ? { scale: LOGO_SCALE[brand.label] } : {}),
         });
         drawn++;
@@ -799,6 +910,7 @@ export async function fetchPartners({
           : safeUrl(f["Link to your website"]),
       ...(pending ? { pending } : {}),
       ...(override?.wide ? { wide: true } : {}),
+      ...(pays ? { paying: pays } : {}),
       ...(LOGO_SCALE[company] ? { scale: LOGO_SCALE[company] } : {}),
     });
   }
