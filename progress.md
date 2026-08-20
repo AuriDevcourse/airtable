@@ -22,10 +22,8 @@ on the Challenger band before merging, because `main` auto-deploys.
    they read well at that size, then merge `partners-multi-logo` into `main`.
 2. **Create the two deliverables rows** for the new signings: `node scripts/add-missing-deliverables.mjs
    --commit`. Dry run says **missing 2**, MinnieMe (2964) and Go Globie (2913).
-3. **Commit `scripts/add-missing-deliverables.mjs`.** Still untracked after THREE sessions of use, and
-   its `NEVER_CREATE` list is now the only record of which deliverables rows were deleted on purpose.
-   Lose the file and the next run resurrects duplicate logos. This is the highest-risk untracked file
-   in the repo.
+3. ~~Commit the deliverables script.~~ **Done** — `fce564f`. It was already tracked since `1d38d3e`;
+   the 2026-08-19 entry below claiming it is "not committed to git yet" is STALE, do not trust it.
 4. **Martin Lidegaard has no session.** Confirmed Policy Stage speaker, in the CRM since 2026-08-05
    (`recZeP0n40KH77715`, Danish Minister for Business and Competitiveness), publishing on the roster
    feed, and on **zero** Sessions rows. Brella has the same gap: he is on the umbrella row only. Ask
@@ -136,7 +134,8 @@ fields in the UI between turns, so re-read the schema before every read, not jus
 happened · `app/partners/page.tsx` — the shuffle-then-sort · `lib/partnersEmbedSnippet.ts` and
 `lib/partnersBareEmbedSnippet.ts` — the same sort, twice more · `lib/program.ts` — `parsePeople`
 alignment, `PROGRAM_SOURCES` for `policy` and `aws-nvidia` · `lib/cachePolicy.ts` — the two cadences
-and `NEAR_LIVE_FEEDS` · `scripts/add-missing-deliverables.mjs` — **untracked**, `NEVER_CREATE`.
+and `NEAR_LIVE_FEEDS` · `scripts/add-missing-deliverables.mjs` — `NEVER_CREATE`, and the only record
+of which deliverables rows were deleted deliberately.
 
 ## SESSION · 2026-08-19 · ALL LOGOS: ONE TABLE THAT HOLDS EVERY 2026 PARTNER LOGO
 
