@@ -9,6 +9,68 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-20 · BRELLA IS NOW THE SOURCE OF TRUTH, AND THAT KILLED 33 DUPLICATE SESSIONS
+
+**CURRENT STATE.** Branch **`brella-source-of-truth`**, cut from `main`, **uncommitted**,
+`npx tsc --noEmit` clean. Verified against the running dev server on :3001. `/api/program?event=brella`
+went **351 to 318** sessions and every `board-*` / `nass-*` / `policy-*` id is gone from the feed.
+`partners-multi-logo` is untouched and still waiting on Auri's eye on the Challenger band; note that
+this file on THAT branch has a 2026-08-20 entry of its own, so the two need merging in order.
+
+**THE BUG AURI SPOTTED.** Event Room 1 on 27 August showed **30 sessions where 16 exist**, Event Room 2
+showed **42 where 21 exist**: every session twice, under two slightly different names and sometimes
+five minutes apart. It was NOT a Brella data problem, which is the first thing to rule out next time:
+the ids gave it away, `brella-990573` sitting next to `board-rec8jTgKuYM1s0Ga2` at the same 09:00 slot.
+
+**ROOT CAUSE: A DERIVED DAY LABEL USED AS A KEY.** The three overrides dropped Brella's rows by
+matching `day === "Day 3 · 27 August"`. That label is DERIVED in lib/brellaprogram.ts by numbering
+whichever dates are in the feed, so when Brella gained a 24 August row the 27th silently became
+**"Day 4"**, the filter stopped matching, nothing was dropped, and both copies rendered.
+lib/brellaSections.ts already warns about exactly this ("Never surface Brella's number"). The
+overrides were the code that had not been told. **Match on the DATE, never on Brella's Day N.**
+
+**THE RULE NOW, in new lib/overlayEnrich.ts.** Brella decides which sessions exist, their titles,
+times, room and location. The Airtable programme may only FILL WHAT BRELLA LEAVES EMPTY: speakers,
+a description, the programme label, the PDF. Paired on room + date + start minute. It can never add
+a row, rename one or move one. lib/policyOverride.ts, lib/nassOverride.ts and lib/boardOverride.ts
+now call it instead of substituting; app/api/program/route.ts comments say "pairing", not
+"substitution".
+
+**WHAT EACH OVERRIDE IS ACTUALLY WORTH NOW, measured rather than guessed.**
+
+- **Event Room 2 / Nordic Africa: still essential.** Brella's 21 rows name **0** speakers; Airtable
+  fills **48 seats across 17 sessions**. Keep it.
+- **Event Room 1 / Board Summit: nearly done.** Brella already carries all **66** speaker seats
+  itself. The override now contributes only the PDF and the column sub-label.
+- **Rooms 5,6,7 / Policy Stage: the delete condition in that file's header is basically met.** Brella
+  has all 15 timed rows AND **68** speaker seats. The override contributes only the PDF and the
+  sub-label. Its 16 Brella rows had been thrown away entirely before this change.
+
+**THREE AIRTABLE ROWS ARE NOW DROPPED, and each one logs its own `console.warn` on load.** Two are
+harmless five-minute start drift where Brella already has the session and its speakers (Human
+Judgment in AI 11:20 vs 11:25, CLOUD Act 13:45 vs 13:50). The third is real: **Nordic Africa's 15:35
+"Investor Reverse Pitch: Unlocking Africa's Scalability Potential" does not exist in Brella at all**
+and therefore no longer reaches the board. Add it in Brella rather than reviving the substitution.
+
+**TWO GENUINE BRELLA DATA BUGS FOR SOMEBODY WITH ADMIN, unchanged by this work.** Event Room 2 on the
+27th carries the 16:35 reception TWICE (`brella-973372` "After Event Reception with Light
+Entertainment" and `brella-984513` "After-Event Networking: Reception with Light Entertainment").
+That is the CLASH the incomplete-rooms panel flags, and the board now shows it twice because Brella
+does. And Brella's location list holds two records for one room: "Meeting Room 20 at TechBBQ" and
+"Meeting Room 20, on the first floor at TechBBQ".
+
+**NEXT STEPS, in order.**
+
+1. **Look at `/brella-program`, Event Rooms, DAY 2**, rooms 1, 2 and 5,6,7. Confirm the columns read
+   right, then merge `brella-source-of-truth`. `main` auto-deploys, so this is the gate.
+2. **Add the 15:35 Investor Reverse Pitch to Brella**, Event Room 2, 27 August. Then the NASS warning
+   goes quiet.
+3. **Delete one of the two 16:35 reception rows in Brella**, and merge the two Meeting Room 20
+   location records.
+4. **Decide whether boardOverride and policyOverride still earn their keep.** Both are now only a PDF
+   and a label. If the PDF can hang off Brella's own umbrella row through lib/sessionProgrammes.ts,
+   both files can go, which is what policyOverride's header has been asking for since 2026-08-07.
+
 ## SESSION · 2026-08-19 · ALL LOGOS: ONE TABLE THAT HOLDS EVERY 2026 PARTNER LOGO
 
 **CURRENT STATE.** **LIVE IN AIRTABLE, no code, nothing to deploy.** New table `All Logos`

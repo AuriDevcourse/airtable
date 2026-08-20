@@ -96,12 +96,14 @@ export async function GET(req: NextRequest) {
         console.error("[/api/program] side events unavailable, falling back to Brella", err);
       }
 
-      // THE POLICY STAGE IS THE SECOND MERGE, and a substitution rather than a pairing.
+      // THE POLICY STAGE IS THE SECOND MERGE, and since 2026-08-20 it is a PAIRING and not a
+      // substitution: BRELLA IS THE SOURCE OF TRUTH for this board and Airtable fills only what
+      // Brella leaves empty. The three merges below all work that way now. See
+      // lib/overlayEnrich.ts for the rule and for the duplicate-sessions bug that forced it.
       //
-      // Brella holds the whole stage as one all-day row with 28 speakers heaped on it, which on
-      // a timeline claims the day and says nothing about it. The real 15 sessions live in
-      // Airtable and are already served at ?event=policy. See lib/policyOverride.ts — including
-      // why it is temporary and how to remove it.
+      // Brella heaps this stage's 28 speakers onto one all-day umbrella row, so its own timed rows
+      // name nobody; Airtable names a moderator and speakers per session, served at ?event=policy.
+      // See lib/policyOverride.ts, including why it is temporary and how to remove it.
       //
       // Done HERE, beside the side events, for the reason written above them: every variant of
       // this endpoint must agree about what the programme is, or the page and the embed drift.
@@ -113,7 +115,7 @@ export async function GET(req: NextRequest) {
         console.error("[/api/program] policy stage unavailable, leaving Brella's own", err);
       }
 
-      // NORDIC AFRICA IS THE THIRD MERGE, and the same kind of substitution.
+      // NORDIC AFRICA IS THE THIRD MERGE, and the same kind of pairing.
       //
       // Brella's 21 rows for Event Room 2 on the 27th name NOT ONE speaker; Airtable's 22 sessions
       // name a moderator and speakers on 17 of them, with faces. Scoped to that ONE day, so Nordic
@@ -129,11 +131,11 @@ export async function GET(req: NextRequest) {
         console.error("[/api/program] NASS programme unavailable, leaving Brella's own", err);
       }
 
-      // THE BOARD SUMMIT IS THE FOURTH MERGE, and the same substitution again.
+      // THE BOARD SUMMIT IS THE FOURTH MERGE, and the same pairing again.
       //
-      // Brella holds it as one all-day row in Event Room 1 on the 27th with 31 speakers on it and no
-      // times. Airtable's 14 sessions name a moderator and speakers on 12 of them, with faces, and
-      // carry the PDF link on every row. See lib/boardOverride.ts.
+      // Brella carries all 14 slots in Event Room 1 on the 27th plus an all-day umbrella row with 31
+      // speakers on it. Airtable's 14 sessions name a moderator and speakers on 12 of them, with
+      // faces, and carry the PDF link. See lib/boardOverride.ts.
       //
       // Its own try/catch, so a failing Board Summit read cannot take NASS, the Policy Stage or the
       // side events down with it.

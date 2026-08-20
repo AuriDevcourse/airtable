@@ -4,6 +4,11 @@
 // stage until I tell otherwise"). When Brella's own Policy Stage entry is filled in properly,
 // remove the mergePolicyStage() call in app/api/program/route.ts and this file goes with it.
 //
+// HALFWAY THERE, 2026-08-20. Brella is now the source of truth for this board, so this file no
+// longer overwrites anything: it fills the speakers into Brella's own Policy Stage rows and drops
+// any Airtable session Brella has no slot for. Watch the [policyOverride] warning in the server log:
+// the day it reports 0 dropped and 0 enriched, Brella has the stage in full and this file can go.
+//
 // ─── WHAT WAS WRONG ─────────────────────────────────────────────────────────────────────
 // Brella carries the entire Policy Stage as ONE all-day row — "Policy Stage: Shaping the Future
 // of European Startups", 28 speakers attached to it in a single heap. On a timeline that is the
@@ -15,9 +20,10 @@
 // per session. It is already served at /api/program?event=policy and rendered by the agenda
 // embed. Only the Brella board could not see it.
 //
-// So the column is SUBSTITUTED rather than supplemented: every Brella session in ROOM_567 is
-// dropped and the Airtable sessions take their place. Merging the two would leave the all-day
-// block sitting behind the real sessions, which is exactly the thing being fixed.
+// SUPERSEDED, 2026-08-20. Brella's own timed rows for this stage now exist, so the Airtable copy no
+// longer takes the column: BRELLA IS THE SOURCE OF TRUTH and Airtable fills only what Brella leaves
+// empty. The rule is in lib/overlayEnrich.ts. Brella's all-day umbrella row is Brella's own and now
+// stays. It never pairs with anything, because an all-day slot has no start time to pair on.
 //
 // ─── THE DAY IS PINNED HERE, AND IT HAD TO BE ASKED ─────────────────────────────────────
 // The Sessions table has NO date column — only `Time Slot` — because it was typed up from a
@@ -26,13 +32,15 @@
 // 2026-08-07: **27 August**, so Brella's placement was right and the embed's heading is the
 // thing that is wrong. Fix that in the embed, not here.
 //
-// Written as the board's own day string rather than a date, because that is what the timeline
-// groups on. If the day labels are ever renumbered this constant moves with them.
+// Written as a DATE and not as the board's "Day N" string. The label is derived from whichever
+// dates are in the Brella feed, so it renumbers itself and matching on it is what produced the
+// duplicate sessions in the other two rooms. lib/overlayEnrich.ts reads the date out of the label.
 import type { ProgramSession } from "@/lib/program";
 import { programmeOf, ROOM_567 } from "@/lib/brellaSections";
 import { sessionProgramme } from "@/lib/sessionProgrammes";
 // Moved out when the Nordic Africa substitution needed the same mapping. See lib/stagePeople.ts.
 import { toSpeaker } from "@/lib/stagePeople";
+import { enrichWithOverlay } from "@/lib/overlayEnrich";
 
 /**
  * "Policy Stage", taken from ROOM_ALIASES rather than typed again here.
@@ -53,29 +61,29 @@ import { toSpeaker } from "@/lib/stagePeople";
  */
 const POLICY_PROGRAMME = programmeOf("Policy Stage") ?? "Policy Stage";
 
-/** The board's day label for the Policy Stage. Auri, 2026-08-07. */
-export const POLICY_DAY = "Day 3 · 27 August";
+/** The DATE the Policy Stage runs, never Brella's "Day N". Auri, 2026-08-07. */
+export const POLICY_DATE = "27 August";
 
 /**
  * The Policy Stage's own PDF (Auri uploaded it on 2026-08-19), resolved through
  * lib/sessionProgrammes.ts so the URL lives in one file and a re-upload is one edit.
  *
- * IT HAS TO BE ATTACHED HERE, not left to the Brella mapper, for the same reason the Board Summit's
- * is: the rows this override substitutes are built from the Sessions table and never pass through
- * sessionProgramme(), and Brella's own row for this room — the one that would have matched — is
- * filtered out below.
+ * STILL ATTACHED HERE, now that Brella's rows are the ones being published: sessionProgramme() is
+ * keyed on the session TITLE, and the individual Policy Stage rows are not titled "Policy Stage", so
+ * only the umbrella row would ever have matched it. Applied to the whole room, breaks included.
  */
 const POLICY_DOC = sessionProgramme(POLICY_PROGRAMME);
 
 /**
- * Replace the Brella board's Policy Stage column with the Airtable programme.
+ * Fill the gaps in Brella's Policy Stage column from the Airtable programme.
+ *
+ * BRELLA WINS ON EVERY FACT IT HAS: titles, times, room, location. Airtable supplies the speakers
+ * and moderators named per session, which is what Brella heaps onto one umbrella row instead.
  *
  * MODERATORS FIRST, matching the agenda embed: they open the session, and on a panel of four
  * the reader wants to know who is steering before who is talking.
  *
- * A policy source that returns nothing leaves Brella's own sessions alone. That is the safe
- * failure: an all-day block is poor, an empty Policy Stage column is worse, and this runs on
- * every load of a public board.
+ * A policy source that returns nothing leaves Brella's own sessions alone.
  */
 export function mergePolicyStage(
   brella: ProgramSession[],
@@ -83,32 +91,38 @@ export function mergePolicyStage(
 ): ProgramSession[] {
   if (!policy.length) return brella;
 
-  const sessions: ProgramSession[] = policy.map((s) => {
+  const overlay: ProgramSession[] = policy.map((s) => {
     const mods = s.onStage?.moderators ?? [];
     const spks = s.onStage?.speakers ?? [];
     return {
       ...s,
-      // Namespaced so an id can never collide with a Brella one ("brella-975878").
-      id: `policy-${s.id}`,
-      day: POLICY_DAY,
-      // Rooms 5, 6 and 7 are one space and one column. Naming it via the shared constant keeps
-      // this and the column definition from drifting apart.
-      room: ROOM_567,
-      // Names the column's sub-label AND earns the dotted whole-day band. See POLICY_PROGRAMME.
-      programme: POLICY_PROGRAMME,
-      // parseSlot() accepts the en dash the Sessions table uses, so the slot needs no rewriting
-      // — only the trailing spaces some cells carry.
+      // parseSlot() accepts the en dash the Sessions table uses, so the slot needs no rewriting,
+      // only the trailing spaces some cells carry. Read for PAIRING now, not published.
       timeSlot: s.timeSlot.trim(),
       speakers: [
         ...mods.map((p, i) => toSpeaker(p, s.id, "Moderator", i)),
         ...spks.map((p, i) => toSpeaker(p, s.id, "Speaker", i)),
       ],
-      // On every session, including the breaks and the networking — the same rule as the Board
-      // Summit. They are part of the day the document describes, and a visitor who opens the lunch
-      // slot to see how long it is has the same right to the programme as one who opens a panel.
-      ...(POLICY_DOC ? { programmeUrl: POLICY_DOC } : {}),
     };
   });
 
-  return [...brella.filter((s) => s.room !== ROOM_567), ...sessions];
+  const { sessions, unmatched, enriched } = enrichWithOverlay(brella, overlay, {
+    // Rooms 5, 6 and 7 are one space and one column. Naming it via the shared constant keeps
+    // this and the column definition from drifting apart.
+    room: ROOM_567,
+    date: POLICY_DATE,
+    // Names the column's sub-label AND earns the dotted whole-day band. See POLICY_PROGRAMME.
+    programme: POLICY_PROGRAMME,
+    ...(POLICY_DOC ? { programmeUrl: POLICY_DOC } : {}),
+  });
+
+  // THIS IS THE LINE THAT SAYS WHEN THIS FILE CAN BE DELETED. 0 dropped and 0 enriched means Brella
+  // carries the stage in full, with its speakers, and the override has nothing left to add.
+  if (unmatched.length) {
+    console.warn(
+      `[policyOverride] ${unmatched.length} Airtable session(s) have no Brella slot in ${ROOM_567} on ${POLICY_DATE} (enriched ${enriched}), dropped: ${unmatched.join(" | ")}`
+    );
+  }
+
+  return sessions;
 }
