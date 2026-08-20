@@ -9,6 +9,47 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-20 · ANORIT'S LOGO WAS THE LINKEDIN SQUARE, NOT THE WORDMARK
+
+**CURRENT STATE.** Same branch **`brella-source-of-truth`**, one extra uncommitted file:
+**lib/logoPick.ts**. `npx tsc --noEmit` clean, verified against the dev server on :3001. Unrelated to
+the Brella work above, it just landed on the same branch.
+
+**WHAT AURI SAW.** One logo in the Human Health row of `/ls-startups` drew much smaller than its
+neighbours. "Update to human health, there is another logo."
+
+**ROOT CAUSE: A TIE THAT UPLOAD ORDER BROKE THE WRONG WAY.** Anorit Medical (`recsfp9CLDs5UcBI7`)
+holds two white SVGs: `260617_Logo Final_LinkedIn Thumbnail_White on Blue_2000x2000.svg` (the
+wordmark centred in a 2000x2000 viewBox) and `Anorit_Logo_Default_White_Transparent_2000px.svg`
+(the same wordmark at 1634x155). Both SVG (+5), both matching WHITE_HINT (+4), so both scored 9 and
+`pickLogo` kept the first. lib/logoFit.ts sizes a vector by its **viewBox, not its artwork**, so the
+square export renders the mark at a fraction of its tile. Note the filename says "White on Blue"
+and the file is actually transparent, so reading the name was never going to be enough.
+
+**THE FIX.** New `SOCIAL_HINT` in lib/logoPick.ts at **-2**, the same tiebreaker weight as
+PRINT_HINT: `linkedin | thumbnail | avatar | profile pic | og image`. Weak on purpose, so a social
+export still wins when it is the only file in the cell.
+
+**EVIDENCE.** `/api/ls-startups?category=Human Health` now serves `attqxc9USSok3AonR` for Anorit
+(was `attnznumQTKv7uH8B`). All **46** other picks across the three categories are byte-identical
+before and after, and no other published logo in `/api/partners` or `/api/ls-startups` has a
+filename matching the new pattern. Remember `?fresh=1` after any picker change or the cache serves
+the old choice.
+
+**GOTCHA WORTH KEEPING.** logoPick is shared by lib/lsstartups.ts (decides whether to publish a
+logo at all) and lib/photo.ts (serves the bytes), so any scoring change moves BOTH. Diff the whole
+picked set, not just the company you were asked about.
+
+**NEXT STEPS.**
+1. Eyeball the Human Health row on http://localhost:3001/ls-startups and confirm Anorit now matches
+   its neighbours in size.
+2. If it still reads small, run `node scripts/measure-logo-ink.mjs Anorit` and consider a
+   LOGO_SCALE nudge in lib/logoFit.ts rather than another picker rule.
+3. Decide whether this one-file change rides along with the Brella commit or gets split out.
+
+**FILES.** lib/logoPick.ts (only change) · lib/logoFit.ts (why viewBox size matters) ·
+app/ls-startups/page.tsx · scripts/check-logo-tone.mjs · scripts/measure-logo-ink.mjs
+
 ## SESSION · 2026-08-20 · BRELLA IS NOW THE SOURCE OF TRUTH, AND THAT KILLED 33 DUPLICATE SESSIONS
 
 **CURRENT STATE.** Branch **`brella-source-of-truth`**, cut from `main`, **uncommitted**,
@@ -63,11 +104,23 @@ does. And Brella's location list holds two records for one room: "Meeting Room 2
 
 1. **Look at `/brella-program`, Event Rooms, DAY 2**, rooms 1, 2 and 5,6,7. Confirm the columns read
    right, then merge `brella-source-of-truth`. `main` auto-deploys, so this is the gate.
-2. **Add the 15:35 Investor Reverse Pitch to Brella**, Event Room 2, 27 August. Then the NASS warning
-   goes quiet.
-3. **Delete one of the two 16:35 reception rows in Brella**, and merge the two Meeting Room 20
-   location records.
-4. **Decide whether boardOverride and policyOverride still earn their keep.** Both are now only a PDF
+2. **THE BRELLA-SIDE EDITS NEED AN ORGANIZER LOGIN NOBODY IN THIS SESSION HAS.** Checked on
+   2026-08-20: `admin.brella.io` and `organizer.brella.io` do not resolve, and
+   `next.brella.io/organizer` redirects to the event list. Auri's account is the attendee/staff view,
+   which cannot edit sessions at all. So items 3 and 4 have to go to whoever holds the organizer
+   account. Everything below is a Brella data fix, not a code fix.
+3. **Delete ONE of the two 16:35 reception rows**, Event Room 2, 27 August, 16:35 to 18:00:
+   `brella-973372` "After Event Reception with Light Entertainment" and `brella-984513`
+   "After-Event Networking: Reception with Light Entertainment". **Keep `brella-984513`** unless the
+   organiser says otherwise: fuller title, and it is the one with a speaker attached. This is the
+   CLASH the incomplete-rooms panel flags, and the board shows it twice because Brella does.
+4. **Add the 15:35 Investor Reverse Pitch to Brella**, Event Room 2, 27 August, 15:35 to 16:05,
+   "Investor Reverse Pitch: Unlocking Africa's Scalability Potential", 3 speakers in the Nordic
+   Africa Airtable. It exists nowhere in Brella, so it is now absent from the board. Then the
+   `[nassOverride]` warning goes quiet.
+5. **Merge the two Meeting Room 20 location records** in Brella: "Meeting Room 20 at TechBBQ" and
+   "Meeting Room 20, on the first floor at TechBBQ" are one room.
+6. **Decide whether boardOverride and policyOverride still earn their keep.** Both are now only a PDF
    and a label. If the PDF can hang off Brella's own umbrella row through lib/sessionProgrammes.ts,
    both files can go, which is what policyOverride's header has been asking for since 2026-08-07.
 
