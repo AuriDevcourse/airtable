@@ -9,6 +9,193 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-19 · ALL LOGOS: ONE TABLE THAT HOLDS EVERY 2026 PARTNER LOGO
+
+**CURRENT STATE.** **LIVE IN AIRTABLE, no code, nothing to deploy.** New table `All Logos`
+`tblV1YDSNUZb8ZSsj` in base `appgXNjXJqpk9Ebxd`, **272 rows, every single one carrying a logo file**:
+227 Summit partners + 45 confirmed Life Science x Deep Tech startups. All rows `Year = 2026`.
+Auri built the views himself: `Summit 2026` `viwQbcwxsEGgfj081` and `Projects 2026` `viwSehAr5ETTKCaeX`.
+
+**THE ASK.** "I want to put all the partner logos in here specifically and have it based on the
+project", separated further inside a project (Life Science has exhibiting startups AND a pitch final).
+He explicitly rejected a two-table design: "I rather have one place, one table for everything."
+
+**THE SHAPE, IN HIS OWN NAMING.** Three levels, one row per organization per placement:
+`Big Project` (TechBBQ Summit, Projects, Investors, Media & Press, Startups, Community, Tech Talent,
+Brand / General) > `Track` (Summit main stage & website, Life Science x Deep Tech, LP Forum, NISS,
+NASS, Investor Day, Pension Summit, Nordic Family Office Summit, Day 0, Future Of Fintech, UrbanTech,
+Hero Academy, Startup Program, Startup Library, Side Events, Smarterra, Tech Talent, Brand / General)
+> `Group` (Partner list, Project subpage, Exhibiting startup, Pitch final, Spinout, Speaker company,
+Delegation, Investor, Media / Press, Community, Stage / backdrop, Print / signage). Every select is
+colour-coded, because he asked for it and because a grey grid of 272 rows is unreadable.
+
+**TIER IS A LOOKUP, NOT TYPING.** `Tier (Summit)` = lookup of `Partnership Tier (Based on Deal Size)`
+`fldSGGxr4Tcg88ZvP` from `Partners 2026`, reached through `Company Link` (populated on 224 of 272 rows,
+223 matched on `Partner ID`, 1 on name; the unmatched ones are startups that do not exist in the
+partner CRM). It self-updates when Partnerships changes a deal. Distribution: Community 115,
+Challenger 50, Core 34, Pioneer 10, Conqueror 10, Prime 3, Main 2.
+
+**DO NOT USE `Partnership Type 2026` `fldUtNXIUju3GwPau` AS A TIER.** That was the first attempt and it
+returns deal SHAPE, not wall tier: "Barter Deal", "Event Room", "Community Partnership
+(Non-commercial)". Kept as a second lookup, `Partnership Type (from Partners)`, since knowing a logo
+belongs to a barter deal matters when building a wall. `Logo Partner Page` is dead: filled on 2 of
+2744 partner rows. The deal-size lookup disagrees with MPO's own `Partnership Type 2026` on **66 rows**
+because MPO mixes tier with category (Investor, International, Delegation are not sizes).
+
+**`Exceptions` BEATS THE LOOKUP.** Copied from MPO `Partner Deliverables 2026`. Four rows, all of them
+tier overrides that contradict the deal-size formula: Jyske Bank Growth Core > Pioneer, Highbridge Law
+Firm Community > Challenger, Skytek Nordics Community > Core, rebriQ Community > Challenger.
+
+**LIFE SCIENCE IS CONFIRMED-ONLY.** Definition, and both signals agree exactly on 45 startups:
+`Confirmation = "Selected"` AND `status` contains `"Confirmed startup"` in `Startup Library 2026`
+`viwC65YEXxl8iDPzN`. Deleted 46 rows that had been imported before that rule existed: 22 `To be
+rejected`, 16 Selected-but-`Declined`, 6 still in progress (Follow-up / Contacted / Refused), 2
+Duplicate or blank. The names are at `scratchpad/removed-ls-startups.txt`; re-running the import picks
+the 6 in-progress ones up automatically if they get confirmed.
+
+**TWO MERGES, AND FOUR MORE WAITING.** TrialMe and Dalea each had two registrations in the source view
+holding DIFFERENT files, so they were merged into one row per company keeping every variant (TrialMe:
+white SVG + red JPEG + black-and-white PNG). Still duplicated, untouched, all from
+`Partner Deliverables 2026` itself: **NORNORM, Radia Network, Kalvebod Fælled Skole, Copenhagen School
+of Entrepreneurship**. Same merge treatment is a one-liner when someone wants it.
+
+**WHERE THE LOGOS CAME FROM.** 227 Summit rows from `Marketing Project Overview` view
+`Partner Deliverables 2026` `viw7FVbsTb9IRaWF0` (field `Logo`). 45 startup rows from
+`Life Science Project` view `Startup Library 2026` (field `High quality company logo`). `Source` on each
+row is a deep link back to the exact origin record. **No logo files exist ANYWHERE in the base** for:
+Spinout Library 2026 (56 companies), Speakers Library 2026 (90), LP Forum, NISS, NASS, the pitch finals,
+or media partners. Those are collection gaps, not import bugs.
+
+**AIRTABLE META API LIMITS, LEARNED THE EXPENSIVE WAY (three rebuilds).** It CAN create tables, create
+fields, rename tables and fields, and create lookups (`multipleLookupValues` with `recordLinkFieldId` +
+`fieldIdInLinkedTable`). It CANNOT create views, delete a field, delete a table, change a field's TYPE,
+or change a select's choices and colours after creation · `PATCH field` accepts **name and description
+only**, anything else 422s with "Changing a field's type or number precision is not currently
+supported". So bake every select choice and colour in at creation time or you are rebuilding the table.
+A link field wants `options.linkedTableId` ONLY: adding `isReversed` or `prefersSingleRecordLink` 422s.
+A lookup's source cannot be repointed afterwards, only renamed. Copy attachments between tables by
+POSTing the signed `url` + `filename` with `typecast:true`, and fetch those URLs fresh because they
+expire in about two hours.
+
+**RE-READ THE SCHEMA BEFORE EVERY WRITE.** Auri renames fields in the UI between turns. Inside one
+session `Organization` became `Company`, `Notes` and `LinkedIn` were deleted, `Source view` was
+deleted and `Source` was repointed at the record deep link. Two scripts blew up on `UNKNOWN_FIELD_NAME`
+before this became a habit.
+
+**SCRIPTS.** All in the session scratchpad, PowerShell, token read from `.env.local`:
+`import3.ps1` (the 320-row seed), `link.ps1` (Company Link matching), `enrich2.ps1` (source links +
+exceptions), `trimls3.ps1` (confirmed-only trim), `merge.ps1` (duplicate merge).
+
+**NEXT STEPS.** 1) Media & Press has zero rows because no partner in `Partner Deliverables 2026`
+carries a media type · find that list and import it. 2) Same for pitch finals, LP Forum, NISS, NASS.
+3) Chase the missing white SVGs: MPO `NOTE for Website and Brella App` (51 rows) records which
+partners lack one, and Auri deleted the `Notes` field so that intelligence is NOT in the logo table.
+4) Decide whether `Big Project` should be re-routed off the tier lookup instead of the MPO types used
+at import (Community would go 105 > 115).
+## SESSION · 2026-08-19 · PLANETARY HEALTH IS 14, LAID OUT 5 + 5 + 4 AND FILLING THE ROW
+
+**CURRENT STATE.** **COMMITTED, PUSHED TO `main`, DEPLOYED** · but not by this session and not under
+its own commit message. All three changed files were swept into **`ffb8c59`** ("progress.md:
+reconcile four sessions with what actually shipped") by a session running in PARALLEL in this repo,
+which ran a commit-all while these edits sat unstaged in the working tree. `ffb8c59` is on
+`origin/main`, and pushes to `main` on this project go live in about a minute, so the change is live.
+`npx tsc --noEmit` clean.
+
+**WHAT WAS NOT VERIFIED: THE RENDERED ROW, ANYWHERE.** Playwright refused to open (its Chrome profile
+was locked by the parallel session: "Browser is already in use … use --isolated") and the
+claude-in-chrome extension was not connected, so localhost was never looked at. Production could not
+substitute: `/ls-startups` on airtable-woad.vercel.app answers **401** behind `dashboardAuth`, the same
+wall the AWS x NVIDIA session hit. The layout is deterministic grid arithmetic and the types compile,
+but **the first person to open that page should confirm the last line ends flush with the right
+edge**, on the dashboard and in a pasted embed.
+
+**THE ASK.** Auri, with localhost:3000/ls-startups open: "there was a change, Planetary Health will
+have 14 in total startups so make 5 5 4 fill the row." Two things in one sentence: the target count
+drops 15 → 14, and the resulting short line must STRETCH rather than stop short with a hole on the
+right.
+
+**14 IS ALREADY FULL, SO THIS IS VISIBLE NOW AND NOT A FUTURE STATE.** `/api/ls-startups` counted
+**45 confirmed, Planetary Health 14 · Human Health 16 · Deep Tech 15**. Planetary Health has hit its
+target, so `soon` is 0, no dashed "More soon" boxes are drawn, and the row renders as a finished
+5 + 5 + 4 wall the moment the page loads.
+
+**WHAT CHANGED IN CODE.**
+
+1. **`ROWS` in `app/ls-startups/page.tsx`**: Planetary Health `total: 15` → `total: 14`. The three
+   targets are now **14 / 16 / 15**, all three still landing in exactly three FULL lines.
+2. **`.lw-grid--14` in `app/globals.css`**: one grid of **20 tracks**, first ten tiles `span 4` (five
+   across), last four `span 5` (four across). Same trick as the existing `.lw-grid--16`, mirrored. A
+   spanned tile swallows the gaps inside its own span, so the row spends exactly the same width on
+   gutters as a plain 5-column grid and the short line reaches the right edge instead of leaving a
+   one-tile gap. Its spans are cleared at `max-width: 1100px` alongside the 16-row's, or they would
+   keep spanning tracks the 4-column grid no longer has.
+3. **`packWideFirst()` → `packLastLine(items, ratios, lastLine, pick)`** in the same page. The grid
+   class is now derived from the tile count (`lw-grid--${tiles}` when `tiles` is 14 or 16), so a row
+   picks up its override without a second hardcoded condition.
+4. **`lib/lsStartupsEmbedSnippet.ts`**: `.tbbq-lsw__grid--14` CSS mirroring the above, and the inline
+   `packWideFirst()` generalised to `packLastLine()` driven by a small `PACK` table
+   (`{sel, n, last, dir}`) so both row sizes run through one loop.
+
+**WHY THE 14-ROW PACKS THE OPPOSITE WAY FROM THE 16-ROW.** `packLastLine` moves logos to the last
+line by measured aspect ratio, and the two rows want opposite ends of that sort:
+
+| Row | Last line | Tiles there are | So it moves down the | `pick` / `dir` |
+|---|---|---|---|---|
+| 16 | 6 across | the NARROWEST on the page | 6 narrowest marks | `"narrow"` / `+1` |
+| 14 | 4 across | the WIDEST on the page | 4 widest wordmarks | `"wide"` / `-1` |
+
+The 2026-08-13 reasoning still holds and just runs backwards here: a long wordmark dropped into a
+narrow tile shrinks to fit the width and floats in a box that looks half empty, while a compact mark
+(a droplet, a square monogram) loses nothing because it was height-limited anyway. On the 14-row the
+extra width is the prize, so the wordmarks get it. Still measured from the decoded images, never a
+hand-kept list of names: the wall is live Airtable data and a list is wrong the next time a startup
+confirms. A name tile (no renderable logo) counts as wide in both directions.
+
+**THE EMBED WAS NOT OPTIONAL, AND IT IS THE HALF THAT REACHES techbbq.dk.** The dashboard page draws
+placeholder slots; the public embed never does, it renders only the confirmed startups. With
+Planetary Health at exactly 14 confirmed, an embed that knew nothing about 14 would have shipped
+5 + 5 + 4 with the hole Auri asked to remove, on the live site, while the dashboard looked correct.
+Fixing only `page.tsx` would have read as done and been wrong where it counts.
+
+**GOTCHAS.**
+
+- **The last line is TALLER, not just wider.** `span 5` of 20 tracks is about **26% wider** than
+  `span 4`, and `.lw-tile` is `aspect-ratio: 5 / 3`, so height follows width: roughly 175px against
+  138px at a 1200px container. This is the mirror of the 16-row, whose last line has always been
+  about 19% SHORTER than the two above it, so the wall already lived with an uneven bottom line.
+  Flagged to Auri. The alternative, four normal-width tiles centred with wider gaps, keeps the
+  heights identical but is not "fill the row", so it was not built. Switching is a one-rule change in
+  `.lw-grid--14` plus the same in the snippet.
+- **`ROWS` is still duplicated by hand** across `app/ls-startups/page.tsx` and
+  `lib/lsStartupsEmbedSnippet.ts`. It cannot be imported: `lib/lsstartups.ts` reads `AIRTABLE_TOKEN`
+  at module scope, so importing it into a client component would pull that read into the browser
+  bundle. Both copies were updated. A third copy does not exist; keep it that way.
+- **14 and 16 are magic numbers in four places now** (page grid class, page `lastLine`, the CSS class
+  name, the snippet's `PACK` table). A future 13- or 17-tile row needs all four touched.
+- **A 15th Planetary Health confirmation silently undoes this.** `tiles = items.length + max(0, total
+  - items.length)`, so a 15th confirmed startup makes `tiles` 15, no override matches, and the row
+  drops back to a plain 5 + 5 + 5. That is correct behaviour, but it means `total` is a target Auri
+  maintains by hand: if the category is really 14, an accidental 15th row in Airtable changes the
+  layout rather than being flagged.
+- **A parallel session in this repo will commit your unstaged work.** `ffb8c59` claims to be a
+  progress.md reconciliation and carries three unrelated source files. Nothing was lost and the diff
+  is correct, but `git log -- app/ls-startups/page.tsx` now points at a commit message that says
+  nothing about the logo wall. Worth a worktree next time two agents are open on this repo (WORKFLOW
+  r1).
+
+**NEXT STEPS.**
+
+1. **Open `/ls-startups` and look at the Planetary Health row.** Three lines, 5 / 5 / 4, the fourth
+   tile ending level with the right edge of the two lines above. Then narrow the window past 1100px
+   and confirm it falls back to plain 4-across cells with no leftover spans.
+2. **Re-copy the embed snippet from the DEPLOYED dashboard** (not localhost) and re-paste it wherever
+   the startup wall lives on techbbq.dk. The old snippet is inert HTML plus JS in the page: it does
+   not pick up this fix on its own, it has to be pasted again.
+3. **Decide the taller-last-line question** with Auri once it is on screen. Stretch (shipped) or
+   centre four normal-width tiles (equal heights, gap on both sides).
+4. **If the Planetary Health target moves again**, change `total` in `page.tsx` AND check whether the
+   new count needs its own `.lw-grid--NN`. Anything divisible by 5 needs nothing.
+
 ## SESSION · 2026-08-19 · AWS x NVIDIA IS NOW A TYPED PROGRAMME, WITH FACES OUT OF BRELLA
 
 **CURRENT STATE.** **COMMITTED, PUSHED TO `main`, DEPLOYED.** Three commits: `060449d` (the tab and
