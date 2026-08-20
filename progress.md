@@ -11,19 +11,32 @@ reaching the browser.
 
 ## SESSION · 2026-08-20 · POLICY STAGE ROSTER, AWS x NVIDIA SPLIT, AND ONE PARTNERSHIP AS FOUR TILES
 
-**CURRENT STATE.** Branch **`partners-multi-logo`**, one commit `e82293c`, **NOT merged**. `main` is
-at `de792fa` (pushed). All the Airtable edits below are **LIVE ALREADY** — data, no deploy. The code
-on the branch is what is waiting: INCUBA x KITCHEN renders as four tiles locally and needs Auri's eye
-on the Challenger band before merging, because `main` auto-deploys.
+**CURRENT STATE.** Branch **`partners-multi-logo`**, four commits, **MERGED TO `main` AND PUSHED** at
+the end of this session. All the Airtable edits below are data, live the moment they were written.
+
+**WORK IN A WORKTREE IN THIS REPO. NOT OPTIONAL.** Auri runs several Claude Code tabs against the one
+checkout, so `git checkout` in another tab silently moves the tree under you: mid-session this branch
+was swapped for `brella-source-of-truth` and an in-place find-and-replace then matched nothing and
+"succeeded", having rewritten a file with identical content. Nothing was lost by luck, not by care.
+This session finished in `../airtable-partners` (`git worktree add`). Two notes if you do the same:
+`node_modules` needs a junction (`mklink /J`) and **Turbopack refuses one** ("points out of the
+filesystem root"), so run `npm run dev:webpack` there or do a real install. Also `brella-source-of-truth`
+had uncommitted `lib/logoPick.ts` and `progress.md` at the time — another tab's work, left alone.
 
 **NEXT STEPS, in order.**
 
-1. **Look at `/partners`, Challenger band.** The four INCUBA x KITCHEN tiles lead the band. Confirm
-   they read well at that size, then merge `partners-multi-logo` into `main`.
-2. **Create the two deliverables rows** for the new signings: `node scripts/add-missing-deliverables.mjs
-   --commit`. Dry run says **missing 2**, MinnieMe (2964) and Go Globie (2913).
-3. ~~Commit the deliverables script.~~ **Done** — `fce564f`. It was already tracked since `1d38d3e`;
-   the 2026-08-19 entry below claiming it is "not committed to git yet" is STALE, do not trust it.
+1. **Look at `/partners` and sanity-check two things that are now LIVE**: the four INCUBA x KITCHEN
+   tiles leading Challenger, and the paying badges. Both shipped without Auri seeing them rendered,
+   because the Playwright browser was held by the other tab and no screenshot was possible.
+2. **AWS Startups needs its own CRM row, or the stale id cleared.** The Event Room deal (261.000 DKK)
+   sits ONLY on the NVIDIA row (`Partner ID 2222`), and that same id is stamped on the AWS
+   deliverables row. The wall is correct because it joins on `Company Link`, but the CRM reads as
+   though AWS has no partnership at all — **zero Confirmed AWS/Amazon rows**. Either give AWS a row
+   with its share, or clear `Partner ID 2222` off the AWS deliverables row so nothing joins on it.
+3. **`Partner ID` IS NOT A SAFE JOIN KEY in Partner Deliverables 2026.** Ten ids sit on two rows
+   each, 2222 is on two unrelated companies, and European Investment Fund's `Partner ID` (1744) and
+   `Company Link` (→ "EIF", id 404, No Deal) name different partners. Anything joining on it inherits
+   that. Use `Company Link`.
 4. **Martin Lidegaard has no session.** Confirmed Policy Stage speaker, in the CRM since 2026-08-05
    (`recZeP0n40KH77715`, Danish Minister for Business and Competitiveness), publishing on the roster
    feed, and on **zero** Sessions rows. Brella has the same gap: he is on the umbrella row only. Ask
@@ -114,7 +127,10 @@ a wide tile sets `data-nofit`, and a landmine for whoever touched the flag next.
 repo** — `npx next lint` prompts to set itself up, so `tsc` is the check available, and `next build`
 was skipped because the dev server was live (see the orphaned-dev-server lesson).
 
-**CONFIRMED PARTNERS CHECK: 219 → 221, TWO NEW SIGNINGS.** MinnieMe (2964) and Go Globie (2913), both
+**CONFIRMED PARTNERS CHECK: 219 → 221, TWO NEW SIGNINGS, ROWS NOW CREATED.** `rec906zFUIVBaau8Q`
+MinnieMe (Community) · `recxuGI3CHbQ7CMOh` Go Globie (Challenger), both with contact email and
+`Company Link`, both `Put on web` unticked with no logo so neither reaches the wall. View 227 → 229,
+each Partner ID on exactly one row, and a re-run reports `missing 0`. MinnieMe (2964) and Go Globie (2913), both
 confirmed **2026-08-19**, both with a contract attached. **The run first reported FOUR**, and the
 extra two were EIFO 406 and The Kitchen 1639 — the rows deleted earlier the same day. That is exactly
 the resurrection `NEVER_CREATE` exists to prevent, so both ids are now in it with the reasoning; the
@@ -129,7 +145,58 @@ everything.
 but requesting it returns `UNKNOWN_FIELD_NAME`. Same trap as the 2026-08-19 session: Auri renames
 fields in the UI between turns, so re-read the schema before every read, not just before every write.
 
-**FILE POINTERS.** `lib/partners.ts` — `MULTI_LOGO`, `LOGO_FILE_OVERRIDES`, `LOGO_SCALE`,
+**A SMALL PAYING LABEL ON /partners, DASHBOARD ONLY (`a38b0a4`).** Auri: "All the partners that are
+paying. Can you have a small label ... make sure it doesnt copy to embed, i just wna to see here."
+Two badges top-left of the tile: **Paid** for cash on `Deal 2026`, **Barter** for no cash but a barter
+deal or an add-on. 108 Paid · 22 Barter · 95 neither, so the badge marks the exception rather than
+decorating the wall. Cash takes the tier's own colour so it stays inside the band's identity; barter
+is neutral and dimmer, because value given and money in should not look alike.
+
+**THE "DOESN'T COPY TO EMBED" PART NEEDED A REAL FIX, NOT A HOPE.** `app/api/partners/route.ts` caches
+ONE read with pending rows included and then only **filters rows** for the public response. That is
+enough for `pending`, which marks a row as not-live, and useless for `paying`, which sits on rows that
+ARE live — the field would have gone straight into the public feed and onto the pasted wall. The public
+list is now REBUILT without it. **Any future internal-only field on `Partner` needs the same
+treatment: the default in that route is public, and the embeds fetching without `?pending=1` is a
+coincidence of how they are written, not a safeguard.** Verified 220 public rows, zero carrying it.
+
+**THE LABEL MUST JOIN ON `Company Link`, AND THE FIRST VERSION DID NOT.** Joining on `Partner ID`
+produced two false badges before it was caught: **AWS Startups** has no link and carries NVIDIA's
+`Partner ID 2222`, so it wore NVIDIA's 261.000 DKK; **European Investment Fund**'s id and link name
+different partners, so its badge and its tier band were reading different rows. `Company Link` is what
+`Partnership Tier (from Tier)` already resolves through, so keying on it means the badge and the band
+cannot contradict each other. Structural check, not a spot check: **zero cash badges in the Community
+band**, which by the tier formula means zero cash. No link, no label.
+
+**AWS STARTUPS WAS INVISIBLE ON techbbq.dk, AND THIS IS THE FIND OF THE SESSION.** A 261.000 DKK
+Event Room partner, `Put on web` ticked, a full-looking `Logo` cell, and not on the wall — for two
+silent reasons at once: **no `Company Link`** (so no tier, so no band to place it in) and **three
+`.eps` files** (`application/postscript`, ~695 kB each) which no browser can draw, so the row read as
+`no-logo`. Auri fixed both during the session: link → the NVIDIA CRM row, artwork → `aws.svg`,
+measured at ink luminance 255/255 and 34% coverage, a clean knockout. AWS and NVIDIA now sit together
+in Conqueror, both badged Paid, public wall 220 → 221. **The dashboard's pending worklist had been
+reporting this all along and nobody read it** — that list is the point of `?pending=1`.
+
+**WHO IS PAYING, MEASURED (2026-08-20).** 221 Confirmed. The Community BAND cannot contain a paying
+partner by construction: `Partnership Tier (Based on Deal Size)` branches to "Community" only when
+`Deal 2026 = 0`. Asking the question properly means asking about the TYPE, and there are **8
+`Community *` types, not one** — scoping to `Community Partnership (Non-commercial)` alone is what
+produced a first, wrong answer of "nobody pays". Across all of them: **19 community partners paid
+cash, 2.253.135 DKK**, led by Beyond Beta 750.000 (typed `Community Main`, lands in Prime), IDC
+300.000, CLEAN 250.000. Ten more gave barter or add-ons. 85 are purely non-commercial.
+
+**A BUG IN THE TIER FORMULA, NOT FIXED, AURI'S CALL.** Its cheap ladder for non-commercial partners
+(Main ≥90k, Pioneer ≥60k, Core ≥40k, Challenger ≥1) is gated on
+`{Partnership Type 2026} = "Community Partnership (Non-commercial)"`. That field is a **multi-select**,
+so `=` only matches when it is the cell's ONLY value; any partner with a second type silently falls
+onto the commercial ladder, whose thresholds are 5-10× higher. RANNIS is the proof: 40.000 DKK renders
+`Challenger` where the cheap ladder says `Core`. **14 of the 96** non-commercial partners carry a
+second type, and the cheap ladder currently never fires at all — all 82 sole-value rows have
+`Deal 2026 = 0`. Fix is one edit: `FIND()` instead of `=`. Deferred deliberately: it is a revenue
+formula and the summit is in six days.
+
+**FILE POINTERS.** `lib/partners.ts` — `fetchPaying` (and the note on why not `Partner ID`),
+`MULTI_LOGO`, `LOGO_FILE_OVERRIDES`, `LOGO_SCALE`,
 `exceptionTier`, the dedupe at ~line 700 · `lib/logoPick.ts` — `score()`, where the INCUBA/KITCHEN tie
 happened · `app/partners/page.tsx` — the shuffle-then-sort · `lib/partnersEmbedSnippet.ts` and
 `lib/partnersBareEmbedSnippet.ts` — the same sort, twice more · `lib/program.ts` — `parsePeople`
