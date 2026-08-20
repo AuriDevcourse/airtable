@@ -247,8 +247,16 @@ ${originDecl("  ")}
       /* Shuffle THEN sort — Array.sort is stable, so the rule below still holds exactly and
          only the ties, which is the whole band, stay random.
          A row-spanning frieze goes FIRST, matching the dashboard and techbbq.dk. Anywhere
-         else it would cut the grid in half and strand the tiles after it. */
-      items.sort(function(a,b){return (b.wide?1:0)-(a.wide?1:0);});
+         else it would cut the grid in half and strand the tiles after it.
+         Then GROUPS: one partnership drawn as several tiles (INCUBA x KITCHEN is four
+         organisations with four marks). The shuffle above would scatter them, so they cluster
+         on the group key and keep their feed order inside the cluster. */
+      items.sort(function(a,b){
+        return (b.wide?1:0)-(a.wide?1:0)
+          || (b.group?1:0)-(a.group?1:0)
+          || String(a.group||"").localeCompare(String(b.group||""))
+          || (a.groupRank||0)-(b.groupRank||0);
+      });
       /* SKIP an empty tier. The dashboard drops rows with no partners, and without this the
          embed printed a bare "INTERNATIONAL" heading with nothing under it: there are
          currently zero International partners. Rows must be filtered here, not in the feed,

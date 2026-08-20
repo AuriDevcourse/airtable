@@ -26,6 +26,9 @@ type Partner = {
   website: string | null;
   wide?: boolean;
   scale?: number;
+  // One partnership drawn as several tiles; same value means keep them side by side.
+  group?: string;
+  groupRank?: number;
   // Why this one is not live yet. Only ever present on this page's authenticated read.
   pending?: "no-logo" | "not-on-web" | "no-tier";
 };
@@ -114,8 +117,19 @@ function LogoWall({ items }: { items: Partner[] }) {
     //
     // Anything unfinished sorts LAST inside its band, so each row reads as the live wall first
     // and the to-do list after it.
+    //
+    // A GROUP is one partnership drawn as several tiles (INCUBA x KITCHEN is four organisations
+    // with four marks). The shuffle above would scatter them across the band, so they cluster on
+    // the group key and lead the tier after any frieze. groupRank then fixes the order INSIDE the
+    // cluster: a stable sort preserves the SHUFFLED order, not the feed's, so without it the four
+    // marks came out in a different sequence on every load.
     return arr.sort(
-      (a, b) => Number(!!b.wide) - Number(!!a.wide) || Number(!!a.pending) - Number(!!b.pending)
+      (a, b) =>
+        Number(!!b.wide) - Number(!!a.wide) ||
+        Number(!!a.pending) - Number(!!b.pending) ||
+        Number(!!b.group) - Number(!!a.group) ||
+        (a.group ?? "").localeCompare(b.group ?? "") ||
+        (a.groupRank ?? 0) - (b.groupRank ?? 0)
     );
   }, [items, seed]);
   return (

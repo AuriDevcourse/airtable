@@ -116,8 +116,15 @@ ${originDecl("  ")}
   }
 
   function list(items){
-    /* The wide co-funding strip first, so it does not cut a flex row in half. */
-    items.sort(function(a,b){return (b.wide?1:0)-(a.wide?1:0);});
+    /* The wide co-funding strip first, so it does not cut a flex row in half. Then groups:
+       one partnership drawn as several marks stays side by side instead of being scattered by
+       the shuffle above. */
+    items.sort(function(a,b){
+      return (b.wide?1:0)-(a.wide?1:0)
+        || (b.group?1:0)-(a.group?1:0)
+        || String(a.group||"").localeCompare(String(b.group||""))
+        || (a.groupRank||0)-(b.groupRank||0);
+    });
     return '<ul class="tbbq-partners">'+items.map(item).join("")+'</ul>';
   }
 

@@ -79,7 +79,7 @@ import { fetchWithTimeout } from "@/lib/http";
 import { str } from "@/lib/fields";
 import manifest from "@/lib/partnerLogoManifest.json";
 import { baseUrl, photoUrl } from "@/lib/photo";
-import { pickLogo } from "@/lib/logoPick";
+import { pickLogo, type LogoAttachment } from "@/lib/logoPick";
 
 const API = "https://api.airtable.com/v0";
 
@@ -363,6 +363,14 @@ export type Partner = {
   wide?: boolean;
   // Optical size nudge, 1 = leave alone. See LOGO_SCALE.
   scale?: number;
+  // Several tiles that belong to ONE partnership and must render side by side. Every renderer
+  // shuffles inside a tier, so without a key like this the marks of one partnership scatter
+  // across the band. Same value = same partnership = keep adjacent. See MULTI_LOGO.
+  group?: string;
+  // Position inside the group. Needed EXPLICITLY: the renderers shuffle before they sort, so a
+  // stable sort preserves the shuffled order, not this feed's order, and the marks of one
+  // partnership came out in a different sequence on every load.
+  groupRank?: number;
 };
 
 // ─── PER-LOGO ADJUSTMENTS ───────────────────────────────────────────────────────────────
@@ -440,6 +448,39 @@ const LOGO_SCALE: Record<string, number> = {
 // composite exists nowhere in Airtable, so it cannot come from there.
 const LOGO_FILE_OVERRIDES: Record<string, { file: string; wide?: boolean }> = {
   "Erhvervshus Sjælland": { file: "Erhvervshus-frieze.png", wide: true },
+};
+
+// ─── ONE CRM ROW, SEVERAL BRANDS, ONE TILE EACH ─────────────────────────────────────────
+// INCUBA x KITCHEN (Partner ID 1683) is a SINGLE partnership shared by four organisations, and
+// Auri uploaded a white SVG for each of them (2026-08-20: "I added all 4 logos for that
+// partnership, so add it up next to each other" / "dont add it as one logo. add it as 4
+// different logos, just next to eachother").
+//
+// A normal row draws ONE image, so three of the four were invisible: pickLogo scored the KITCHEN
+// and INCUBA files identically (both SVG, both name-hinted white) and the tie broke on upload
+// order. This is NOT the `wide` frieze case above — a frieze is one image of several marks, and
+// what is wanted here is four real tiles, each fitted and scaled like every other logo on the
+// wall.
+//
+// `group` is what keeps them together. Every renderer shuffles inside a tier (see the comment on
+// the sort in app/partners/page.tsx), so consecutive entries in this feed do NOT stay adjacent on
+// the page. The four share a group key, the sorts cluster on it, and Array.sort being stable
+// preserves the order below inside the cluster.
+//
+// EACH TILE LINKS TO ITS OWN SITE, which the single tile could not do: the row's website cell
+// holds four urls and safeUrl's first-one-wins picked INCUBA's for all of them, which is why
+// WEBSITE_OVERRIDES nulls this company out. One brand per tile removes that problem.
+//
+// Matched on FILENAME against the row's own Logo cell, so Airtable stays the source: replace a
+// file there and the tile follows. A named file that has gone missing is logged and skipped
+// rather than silently dropping the whole partnership.
+const MULTI_LOGO: Record<string, { file: string; label: string; site: string }[]> = {
+  "INCUBA x KITCHEN": [
+    { file: "white-INCUBA.svg", label: "INCUBA", site: "https://www.incuba.dk" },
+    { file: "Kicthen_logo_tag_en_white_rgb.svg", label: "KITCHEN", site: "https://kitchen.au.dk" },
+    { file: "Startup Aarhus.svg", label: "Startup Aarhus", site: "https://www.startupaarhus.com" },
+    { file: "Delphinus.svg", label: "Delphinus", site: "https://delphinus.vc" },
+  ],
 };
 
 // Rows where the Airtable cell holds a DRAWABLE image that is still the wrong one for this wall, so
@@ -645,6 +686,51 @@ export async function fetchPartners({
       wrongFormat.push(`${company} (${picked.type ?? "unknown type"})`);
     }
     const local = LOGOS[rec.id];
+
+    // A multi-brand partnership becomes one tile per mark. Only when the row would actually
+    // publish: a pending row belongs on the dashboard worklist as ONE named placeholder, because
+    // four placeholders for one partnership is four times the noise for one job.
+    const multi = MULTI_LOGO[company];
+    if (multi && !noTier && !notTicked) {
+      const atts = Array.isArray(f["Logo"]) ? (f["Logo"] as LogoAttachment[]) : [];
+      let drawn = 0;
+      for (const brand of multi) {
+        const a = atts.find((x) => x.filename === brand.file);
+        if (!a || !PUBLISHABLE_LOGO.test(a.type ?? "")) {
+          console.info(
+            `[partners] "${company}" multi-logo: "${brand.file}" is missing from the Logo cell or ` +
+              `is not a drawable format, skipped`
+          );
+          continue;
+        }
+        // Registered in `seen` like any other tile, so a mark that also sits on another row in
+        // this tier still trips the duplicate check rather than appearing twice.
+        const logoKey = `${tier}|${logoIdent(brand.file) || brand.file.toLowerCase()}`;
+        if (seen.has(logoKey)) {
+          console.info(`[partners] "${company}" multi-logo: ${brand.file} already drawn in ${tier}, skipped`);
+          continue;
+        }
+        seen.add(logoKey);
+        partners.push({
+          // Unique per tile: the record id alone would repeat four times and collide as a React key.
+          id: `${rec.id}:${a.id}`,
+          // The BRAND, not the row. It is the alt text and the aria-label, and four tiles all
+          // announcing "INCUBA x KITCHEN" tells a screen reader nothing.
+          company: brand.label,
+          tier,
+          logo: photoUrl("partners", rec.id, undefined, a.id),
+          website: brand.site,
+          group: company,
+          groupRank: drawn,
+          ...(LOGO_SCALE[brand.label] ? { scale: LOGO_SCALE[brand.label] } : {}),
+        });
+        drawn++;
+      }
+      // Nothing drew — every named file has been renamed or removed. Fall through to the ordinary
+      // single-logo path rather than dropping the partner off the wall entirely.
+      if (drawn) continue;
+      console.info(`[partners] "${company}" multi-logo: no named file resolved, falling back to one tile`);
+    }
 
     let logo: string | null = null;
     let ident: string | null = null;
