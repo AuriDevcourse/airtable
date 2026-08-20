@@ -52,7 +52,21 @@ if (!TOKEN) {
 //
 // The first two are the general trap: the CRM files an upsell or add-on as its own row with the deal
 // name appended, so a name match misses it and a "missing partner" is really a second invoice line.
-const NEVER_CREATE = new Set([62, 2550, 272, 1444]);
+//
+// ADDED 2026-08-20, and these two are the OTHER shape: one organisation confirmed TWICE in the CRM,
+// where the wall must show it once. Both deliverables rows were deleted by Auri that day after they
+// appeared as duplicate logos on /partners, so this run reported them as "missing" — which is
+// precisely the resurrection this list exists to stop.
+//
+//   406  "EIFO (Vækstfonden)"   confirmed 2025-12-08, but EIFO is already live at Main under
+//                               id 2309 (confirmed 2026-07-07). Two confirmed EIFO deals, one logo.
+//   1639 "The Kitchen (Aarhus University Startup Hub)"  confirmed 2026-05-07, and covered on the
+//                               wall by "INCUBA x KITCHEN" (id 1683), the four-organisation
+//                               partnership whose tiles include KITCHEN's own mark.
+//
+// If either should come back onto the wall, take the id out of here AND decide which of the two CRM
+// rows is the canonical one first — otherwise the duplicate logo returns with it.
+const NEVER_CREATE = new Set([62, 2550, 272, 1444, 406, 1639]);
 
 // Partners to create even though `Status 2026` is not yet "Confirmed", because the signature landed
 // before the CRM caught up. Keep this SHORT and delete each entry once the status is corrected.

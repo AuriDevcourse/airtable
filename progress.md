@@ -9,6 +9,135 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-20 · POLICY STAGE ROSTER, AWS x NVIDIA SPLIT, AND ONE PARTNERSHIP AS FOUR TILES
+
+**CURRENT STATE.** Branch **`partners-multi-logo`**, one commit `e82293c`, **NOT merged**. `main` is
+at `de792fa` (pushed). All the Airtable edits below are **LIVE ALREADY** — data, no deploy. The code
+on the branch is what is waiting: INCUBA x KITCHEN renders as four tiles locally and needs Auri's eye
+on the Challenger band before merging, because `main` auto-deploys.
+
+**NEXT STEPS, in order.**
+
+1. **Look at `/partners`, Challenger band.** The four INCUBA x KITCHEN tiles lead the band. Confirm
+   they read well at that size, then merge `partners-multi-logo` into `main`.
+2. **Create the two deliverables rows** for the new signings: `node scripts/add-missing-deliverables.mjs
+   --commit`. Dry run says **missing 2**, MinnieMe (2964) and Go Globie (2913).
+3. **Commit `scripts/add-missing-deliverables.mjs`.** Still untracked after THREE sessions of use, and
+   its `NEVER_CREATE` list is now the only record of which deliverables rows were deleted on purpose.
+   Lose the file and the next run resurrects duplicate logos. This is the highest-risk untracked file
+   in the repo.
+4. **Martin Lidegaard has no session.** Confirmed Policy Stage speaker, in the CRM since 2026-08-05
+   (`recZeP0n40KH77715`, Danish Minister for Business and Competitiveness), publishing on the roster
+   feed, and on **zero** Sessions rows. Brella has the same gap: he is on the umbrella row only. Ask
+   the organiser which panel or slot, then add him with his photo in the matching array index.
+5. **AWS x NVIDIA embed on techbbq.dk was showing stale content** and it was never resolved. API, CDN
+   and the pasted snippet were all verified correct — the snippet in Elementor is the real live one,
+   fetching `/api/program?event=aws-nvidia`. Needs the page URL and a look at the live DOM
+   (`document.querySelectorAll('.tbbq-agenda').length`) to find whether a second widget is winning.
+   techbbq.dk returns **455** to curl, so it needs a real browser.
+6. **Optional, recommended while the tables are being edited daily:** put `/api/program` on the
+   near-live cadence. It never passes a cache key into `feedResponse`, so it cannot opt into
+   `NEAR_LIVE_FEEDS` in `lib/cachePolicy.ts`. Two lines, drops CDN from 30 min to 60 s.
+7. **Two Brella details Airtable lacks**, not applied: Cecilie Lykkegaard has no job title (Brella
+   says Strategic Advisor), and Stina Lantz reads "CEO at SISP" on one row and the full org name on
+   the next.
+
+**THE POLICY STAGE, SIX SESSIONS UPDATED, LIVE.** Brella agreed with every item in the organiser's
+comments — nothing in that list was stale or invented, which is worth knowing for next time. Bypassing
+Fragmentation `+Jón Ingi Benediktsson +Mala Valroy` · Entrepreneurship Package 2.0 `-Mads Strange
++Freja Brandhøj +Christian Arnstedt` · The 28th Regime `-Morten Løkkegaard +Sara Rywe` · Digital
+Fairness Act `+Natasha Friis Saxberg` · Maritime unicorn `-Rasmus Elsborg` · CLOUD Act: Adina Schildt
+Gillion → "General Counsel at stealth-stage AI startup". Verified **28 speakers, 0 without a face**.
+Pre-write backup of every touched field: `scratchpad/policy-backup-2026-08-20.json`.
+
+**THE GOTCHA THAT MADE THAT JOB REAL WORK: `Speaker Photo` IS POSITIONAL AND ALL-OR-NOTHING.**
+`parsePeople` in `lib/program.ts` sets `aligned = atts.length === entries.length`. If a session's
+`Speaker Details` count and `Speaker Photo` count ever disagree, **every face in that session
+disappears**, not just the unmatched one. So adding a speaker means adding their photo in the same
+array slot and removing one means pulling its attachment. Brella had a portrait for all six new
+people; `?v=<attachment id>` on the photo proxy then picks each face out of the shared cell.
+
+**AWS x NVIDIA: THE 14:20 SLOT IS NOW TWO ROWS, AND IT WAS BROKEN.** Auri split the combined
+14:20-15:20 deep-dive into `14:20 – 14:50` (`recLXrL0pTizlb5nk`) and `14:50 – 15:20`
+(`recATRIjMo1nhVKBu`). Both rows joined their two speakers with a **comma**, but this table separates
+people with ` · `, so each cell parsed as ONE person whose job title had swallowed the second name —
+Daniel Jankowski and Robert Christiansen were absent from the website entirely. Fixed, plus a plain
+hyphen in the 14:20 time slot where every other row uses an en dash, and trailing spaces in both
+session names. Verified 5 sessions, 10 speakers, 0 without a face. Backup:
+`scratchpad/aws-nvidia-backup-2026-08-20.json`.
+
+**NOTE `lib/program.ts` STILL SAYS THE OPPOSITE.** The `aws-nvidia` comment claims the 14:20 slot
+"stays one row with four speakers" because "splitting it would have meant inventing a 14:50 boundary
+nobody published". Auri published that boundary. The comment is now wrong and will mislead.
+
+**AWS x NVIDIA TAKES ITS FACES FROM THE CRM, NOT FROM `Speaker Photo`.** `facesFrom: "Event Room 3"`
+plus `facesFromBrella`, matched by NAME. So `Speaker Photo` is empty on all five rows and that is
+correct — nothing to keep aligned here, unlike the Policy Stage. All four deep-dive speakers got
+portraits the moment the names parsed.
+
+**THE PARTNER WALL: TWO DUPLICATE LOGOS FOUND AND CLEARED.** Auri's EIFO `Exceptions` cell ("Has to be
+in Main") works and EIFO is at Main. But a website-domain sweep across the wall found **EIFO twice**
+(id 2309 at Main vs id 406 at Conqueror) and **KITCHEN twice** (inside INCUBA x KITCHEN at Challenger
+vs a Brella-import stub at Community). Both stubs carried the same tell: *"Added from the Brella 2026
+sponsor list on 2026-08-06. Logo still to source."* Auri deleted both deliverables rows. **The
+name-normalising dedupe in `lib/partners.ts` cannot catch these** — `EIFO` and `EIFO (Export &
+Investment Fund of Denmark)` are two different strings pointing at two different Company Links, so
+this is a data problem, not a code one. Cleared as false positives: Danish Life Science Cluster +
+Life Science Invest share a domain but are a parent and its project, and five partners share
+`linkedin.com` because they have a LinkedIn URL where a website should be.
+
+**ONE PARTNERSHIP, FOUR TILES: `MULTI_LOGO` (the branch's actual feature).** INCUBA x KITCHEN
+(Partner ID 1683) is a single partnership shared by four organisations, each with its own white SVG in
+the row's `Logo` cell. A normal row draws ONE image, so three were invisible: `pickLogo` scored the
+KITCHEN and INCUBA files **identically** (both SVG +5, both name-hinted white +4) and the tie broke on
+upload order. First attempt composed them into one `wide` frieze, reusing Erhvervshus Sjælland's
+mechanism — **Auri rejected that**: "dont add it as one logo. add it as 4 different logos, just next
+to eachother." So `MULTI_LOGO` expands the row into one real tile per mark, each fitted and scaled by
+the same equal-area rule as every other logo.
+
+**TWO THINGS THAT WOULD HAVE BROKEN THAT SILENTLY, AND ARE THE REASON IT TOUCHED FOUR FILES.**
+
+- **All three renderers SHUFFLE inside a tier.** Emitting four consecutive feed entries does not put
+  them next to each other, it scatters them across the band. Hence `group`, a shared key the sorts
+  cluster on, added to `app/partners/page.tsx`, `lib/partnersEmbedSnippet.ts` and
+  `lib/partnersBareEmbedSnippet.ts`.
+- **Those renderers shuffle BEFORE they sort.** A stable sort preserves the *shuffled* order, not the
+  feed's, so the four marks came out in a different sequence on every load. Hence `groupRank`. Five
+  simulated runs now give `INCUBA | KITCHEN | Startup Aarhus | Delphinus` every time. Do not delete
+  `groupRank` on the assumption that stability is enough — it is not, and the failure is intermittent.
+
+Bonus from splitting: **each tile now links to its own site**. The row was unlinked because its
+website cell holds four urls and `safeUrl` takes the first, which is why `WEBSITE_OVERRIDES` nulls
+this company out. Each tile also carries its BRAND as `company`, so alt text and aria-labels name the
+organisation instead of announcing "INCUBA x KITCHEN" four times. Also **deleted the stale
+`LOGO_SCALE: 2.29`** for this row: measured against the old single KITCHEN tile, already inert because
+a wide tile sets `data-nofit`, and a landmine for whoever touched the flag next. Wall is **218**
+(216 − the two duplicate rows + 4 tiles). `npx tsc --noEmit` clean. **ESLint is not configured in this
+repo** — `npx next lint` prompts to set itself up, so `tsc` is the check available, and `next build`
+was skipped because the dev server was live (see the orphaned-dev-server lesson).
+
+**CONFIRMED PARTNERS CHECK: 219 → 221, TWO NEW SIGNINGS.** MinnieMe (2964) and Go Globie (2913), both
+confirmed **2026-08-19**, both with a contract attached. **The run first reported FOUR**, and the
+extra two were EIFO 406 and The Kitchen 1639 — the rows deleted earlier the same day. That is exactly
+the resurrection `NEVER_CREATE` exists to prevent, so both ids are now in it with the reasoning; the
+dry run reports `missing 2`. **A deleted deliverables row and a row that never existed are
+indistinguishable to this script, so every deliberate deletion must be recorded there in the same
+sitting.** Also worth a human: **EIFO is confirmed TWICE in the CRM with a contract on each** (406
+from 2025-12-08, 2309 from 2026-07-07), and 4 Confirmed rows carry no `Confirmed date 2026`, so a
+date-based check would miss them — comparing Partner IDs against the deliverables view is what caught
+everything.
+
+**`Where does the logo go?` NO LONGER EXISTS on Partners 2026.** The schema meta API still lists it,
+but requesting it returns `UNKNOWN_FIELD_NAME`. Same trap as the 2026-08-19 session: Auri renames
+fields in the UI between turns, so re-read the schema before every read, not just before every write.
+
+**FILE POINTERS.** `lib/partners.ts` — `MULTI_LOGO`, `LOGO_FILE_OVERRIDES`, `LOGO_SCALE`,
+`exceptionTier`, the dedupe at ~line 700 · `lib/logoPick.ts` — `score()`, where the INCUBA/KITCHEN tie
+happened · `app/partners/page.tsx` — the shuffle-then-sort · `lib/partnersEmbedSnippet.ts` and
+`lib/partnersBareEmbedSnippet.ts` — the same sort, twice more · `lib/program.ts` — `parsePeople`
+alignment, `PROGRAM_SOURCES` for `policy` and `aws-nvidia` · `lib/cachePolicy.ts` — the two cadences
+and `NEAR_LIVE_FEEDS` · `scripts/add-missing-deliverables.mjs` — **untracked**, `NEVER_CREATE`.
+
 ## SESSION · 2026-08-19 · ALL LOGOS: ONE TABLE THAT HOLDS EVERY 2026 PARTNER LOGO
 
 **CURRENT STATE.** **LIVE IN AIRTABLE, no code, nothing to deploy.** New table `All Logos`
