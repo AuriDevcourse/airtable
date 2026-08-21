@@ -31,9 +31,10 @@ running. The rule still stands for anything longer than one file.
    Rådhuspladsen", Day 3 · 26 August, 20:00 - 23:00. Not a duplicate of ARCH (different date and
    venue). Either give it a row or take it out of Brella — today it renders with no register link and
    no picture.
-4. **Warm the CDN after every deploy.** A deploy purges it and the next visitor pays the cold burst
-   measured below. The warm loop is ~25 lines and was run by hand this session; wiring it to the
-   deploy is the cheapest real fix for the dropped pictures.
+4. **Warm the CDN after a deploy that changes the build output.** That visitor otherwise pays the
+   cold burst measured below. The warm loop is ~25 lines and was run by hand twice this session;
+   wiring it to the deploy is the cheapest real fix for the dropped pictures. **Not every deploy
+   needs it** — see the two measurements below.
 5. **Make the embed's `onerror` fall back instead of hide.** It currently deletes the figure, so this
    whole class of failure is invisible — indistinguishable from a session having no picture.
 6. **Move the 429 retry-sleep OUTSIDE the lookup slot** in `lib/photo.ts`. A rate-limited request
@@ -128,10 +129,14 @@ raised both; both are ruled out, with the real mechanism measured.
   `brella-assets.brella.io`, the proxy, lumacdn, circle.so and eventbrite. Fetched all 728 with a
   `techbbq.dk` referer: **728 OK, 0 failing** — nothing is permanently broken. Of those, **122 are
   proxy URLs**, and each cold one needs an Airtable lookup gated at `MAX_CONCURRENT_LOOKUPS = 3`
-  (`lib/photo.ts:181`). Pushing this session's commit purged the CDN, which produced the failure
-  condition on demand: **121 of the 122 came back `x-vercel-cache: MISS`, and draining them at
-  concurrency 3 took 24.8 seconds.** A browser fires all of them at once and will not wait — the ones
-  at the back of the queue exceed the Vercel function timeout, the route's catch answers 502/404, and
+  (`lib/photo.ts:181`). Pushing this session's code commit produced the failure condition on demand:
+  **121 of the 122 came back `x-vercel-cache: MISS`, and draining them at concurrency 3 took 24.8
+  seconds.** Pushing the *docs-only* commit right after did **not** invalidate them — the same 122
+  came back **121 HIT in 3.4s**. So the trigger is a deploy that changes the server bundle, not a
+  deploy as such; `progress.md` alone is free. That is an observation from two measurements, not a
+  documented Vercel guarantee — do not lean on it harder than that. A browser fires all of them at
+  once and will not wait — the ones at the back of the queue exceed the Vercel function timeout, so
+  the route's catch answers 502/404, and
   `onerror` silently deletes them. Warm, the same burst is flawless: **59/60 HIT, p50 217ms, max
   681ms**. The comment at `lib/photo.ts:176-180` describes this exact symptom from the partner wall
   ("a cold wall … dropping a third of its images"); the gate improved it and did not eliminate it at
