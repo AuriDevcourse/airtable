@@ -50,6 +50,10 @@ const ARTWORK_OVERRIDES: Record<string, string> = {
   "the nordic paradox from mapping to action": "nordic-paradox.webp",
   "techbbq run warm up with danske bank growth cykom": "techbbq-run.webp",
   "unlocking nordic private markets": "nordic-private-markets.webp",
+  // TechBBQ's own event, so there is no partner page to scrape artwork from — the banner is the
+  // only picture this card will ever have. Carries no date or venue in the artwork, so it does
+  // not go stale the way the note above warns about.
+  "the official techbbq afterparty arch": "afterparty-arch.webp",
 };
 
 /** The banner for a title, or null when there is no hand-drawn one. Pass a titleKey(). */
