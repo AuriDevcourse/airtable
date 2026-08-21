@@ -9,6 +9,162 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-21 · THE ARCH AFTERPARTY · NISS AUDITED CLEAN · WHY program2026 DROPS PICTURES
+
+**CURRENT STATE.** One commit, **`8606526`, COMMITTED ON `main` AND PUSHED**, deployed and verified
+live in ~15s. `next build` passed and `npx tsc --noEmit` is clean. The Airtable row below is data —
+live the moment it was written. **Worked directly in this checkout on `main`, not in a worktree**,
+against the rule the 2026-08-20 session set: Auri asked for the push explicitly and no other tab was
+running. The rule still stands for anything longer than one file.
+
+**NEXT STEPS, in order.**
+
+1. **`techbbq.dk` CAN be read from the CLI — this unblocks NEXT STEP 5 of the 2026-08-20 session.**
+   The 455 is a WAF rejecting curl's default User-Agent, not the page. Send a real browser UA and it
+   returns **200 / 244,554 bytes**:
+   `curl -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" -H "Accept: text/html" https://techbbq.dk/program2026/`
+   The stale AWS x NVIDIA embed can now be diffed the same way `program2026` was below, with no browser.
+2. **The ARCH afterparty has no `Link to register`**, so it also has no venue line — `venue`/`city` are
+   scraped from the register page (`app/api/partner-events/route.ts:59`), never read from Airtable.
+   `Contact Person` / `Contact Email` are Auri's as a placeholder; swap if it should be someone else.
+3. **A SECOND afterparty exists in Brella with no Airtable row**: "TechBBQ afterparty at Proud Mary @
+   Rådhuspladsen", Day 3 · 26 August, 20:00 - 23:00. Not a duplicate of ARCH (different date and
+   venue). Either give it a row or take it out of Brella — today it renders with no register link and
+   no picture.
+4. **Warm the CDN after every deploy.** A deploy purges it and the next visitor pays the cold burst
+   measured below. The warm loop is ~25 lines and was run by hand this session; wiring it to the
+   deploy is the cheapest real fix for the dropped pictures.
+5. **Make the embed's `onerror` fall back instead of hide.** It currently deletes the figure, so this
+   whole class of failure is invisible — indistinguishable from a session having no picture.
+6. **Move the 429 retry-sleep OUTSIDE the lookup slot** in `lib/photo.ts`. A rate-limited request
+   holds one of only **three** slots for up to ~12s (2s + 4s + 6s), collapsing throughput exactly
+   when the base is busiest. The sleep should release the slot first.
+7. **Default `firstPhoto` / `firstAttachmentId` to images only** — 30 cells across the base are broken
+   by a non-image first attachment (below).
+8. **NISS `room` and `day` are dropped, and three footnotes on `/program` are now false** (below).
+
+**THE OFFICIAL TECHBBQ AFTERPARTY @ ARCH — ROW `recayOytWmfOYv9k2`, LIVE.** Added to Partnership
+Success (`tbllvkwLhB4Omdphd`), view **"2026 Side event and event room info"** (`viwcC25ENg2ELGszH`),
+which went **54 → 55 rows**. Side Event · 27 August · 21:00 - 23:00 · Nørregade 41, 1165 København ·
+Public · `Added BRELLA` ticked · `Company` "TechBBQ & ARCH" · `Type` "Partnership success deadline"
+(all 28 existing Side Events carry that value, odd as it reads) · `Partner ID` 0, the convention for a
+TechBBQ-hosted event.
+
+**WRITTEN BY FIELD ID, WHICH IS NOT OPTIONAL HERE.** The table has **three** columns named
+`Date of Event ` (trailing space included) plus a fourth `Date of Event` without it, and Airtable
+answers `AMBIGUOUS_FIELD_NAMES` to the whole request if a duplicated name appears in `fields[]` —
+already documented at `lib/partnerevents.ts:15-26`. Two of the three are genuinely populated
+(**fld5S7DvQz7C09BNm** 45/54, **fldDUuXRNZ8nIjTo3** 42/54, 33 rows have both and they agree on all
+33). Wrote to `fld5S7DvQz7C09BNm`, the primary that lib coalesces first, and confirmed by re-reading
+the view with `returnFieldsByFieldId=true` that the other three date twins are empty on the new row.
+
+**ONE TRAP WHEN VERIFYING A `POST`:** `returnFieldsByFieldId=true` **is ignored on create**. The
+response comes back name-keyed, so a verification script that looks up field IDs finds `undefined` for
+every field and reads as "an empty record was created". It was fully populated. Re-read through the
+view to check a write, not the POST response.
+
+**THE BANNER.** `public/side-events/afterparty-arch.webp`, **1200×630, 34,680 bytes**, from a
+2400×1260 source — exactly 2×, so it downscales with no crop, and it matches all five existing banners
+(which are 1200×630, 36–58KB). `cwebp -q 82 -resize 1200 630`. Keyed in `lib/eventArtwork.ts` on
+`titleKey()` = **`"the official techbbq afterparty arch"`** (computed with the real function, not
+guessed — the `@` becomes a space and collapses). Because that module is shared, **one entry serves
+both boards**: `/api/partner-events` and Program 2026 both resolve it. Went to the `image` slot, not
+`Company Logo` — that field is for partner logos, and this is TechBBQ's own artwork, which is exactly
+what `ARTWORK_OVERRIDES` is for. There is no partner ticketing page to scrape here, so the banner is
+the only picture this card will ever have.
+
+**NISS 2026 AUDITED AGAINST AIRTABLE — THE DATA IS CLEAN, THE PAGE'S OWN NOTES ARE NOT.** Compared all
+13 NISS rows against `/api/program?event=niss`. **Titles, Time Slots, Session Types and Descriptions
+are byte-identical on all 13**; same records, same order, nothing extra or missing either side. All
+**48 people** parse 1:1 out of `Speaker Details` / `Moderator Details`, and **all 48 photo URLs return
+200** — no initials fallback anywhere. All 13 rows are `Locked`, so nothing is withheld.
+
+- **`Event Room` and `When Is it` are DROPPED on all 13.** Airtable has `Event Room 2` and `Day 1` on
+  every row; the `niss` field map (`lib/program.ts:320-329`) has no `room:` or `day:` key, so the page
+  shows only the session type and no day heading. The same omission is on `policy`, `board` and
+  `nass`, so it looks like a house convention for the Sessions table rather than a NISS bug — but the
+  data is there and not shown. Note the field is **`When Is it`**, not `Day` (which is what the
+  `techbbq` source maps), so a fix cannot copy that line.
+- **Three hardcoded footnotes at `app/program/page.tsx:112-118` are now WRONG.** They are typed in,
+  not read from the feed, so Airtable was fixed and the page was not. (a) *"Session Description is
+  empty on all 13 rows"* — false, all 13 have 106–233 chars. (b) *"India Shark Tank and Nordic Founder
+  Pitch have no Session Type: the select has no 'Pitch Session' option"* — **false on three counts**:
+  the session is now titled "Indian Startups Meet Nordic Sharks", both rows are typed `Presentation`,
+  and **`Pitch Session` now exists** in the select. (c) the `Session Status` note is mechanically true
+  but all 13 are Locked, so nothing is left to chase. This is the same failure mode as the
+  `Location` comment below: **a page asserting that data is missing when it is sitting right there.**
+- **The view Auri linked is not what its name says.** `viwrTVxvTBucbJW7S` is actually named
+  **"Event Rooms"** and holds **133 rows across 12 programmes** (Policy Stage 16, Board Summit 15,
+  NASS 23, LP Forum 11, NISS 13, …). The code pins it as the `policy` view *and* filters on
+  `{Name of the Event}`, so the widening the `AirtableSource.filter` comment warns about has not
+  leaked. NISS uses no view at all, pure cell-value filter — so a NISS row dropped from that view
+  would still publish. They agree today.
+- **Airtable data hygiene that renders verbatim**, none of it a code fault: `Dr. Nikhil Tambe, , IIT
+  Madras` → title reads ", IIT Madras"; `Drishya Nair - PhD , Novo Nordisk Foundation` → "PhD ,
+  Novo Nordisk Foundation"; `Dr. Pradeep B.E` keeps a trailing period; **Peter Winther-Schmidt has no
+  org** and renders as a bare name; **Sabrina Mai Bendjazi / Bendjazia** is one person spelt two ways;
+  Kristoffer Nilaus Tarp and Colin Brown each appear in two sessions with **different** `Speaker
+  Photo` attachments, so they may show two different faces.
+
+**WHY `program2026` "SOMETIMES" SHOWS NO PICTURES. NOT THE EMBED, NOT AN UNPUSHED COMMIT.** Auri
+raised both; both are ruled out, with the real mechanism measured.
+
+- **Nothing was unpushed.** `main` was level with `origin/main` (0 ahead, 0 behind) before this
+  session's commit, and prod serves **absolute** URLs (`https://airtable-woad.vercel.app/api/photo/…`),
+  so `baseUrl()` resolves correctly — not the relative-path 404 that `lib/eventArtwork.ts` warns about.
+- **THE PASTED SNIPPET IS CURRENT, PROVEN BY DIFF.** `/api/embed?kind=brella&section=all` serves the
+  exact string the copy button builds, so it can be diffed against the live page instead of eyeballed.
+  Normalise the random `uid` and CRLF and the two are **122,260 chars with exactly 3 differences** —
+  all three WordPress's `wp_filter_content_tags` inserting `decoding="async"` after `<img`, *inside
+  the script's JS string literals*. Valid HTML, functionally inert, and the `thumb()` line carrying the
+  `onerror` is untouched. **Use this diff as the standard check for a "stale embed" report** — it is
+  far stronger than reading the page, and it is what NEXT STEP 1 unlocks for AWS x NVIDIA.
+- **The embed hides its own failures.** `thumb()` renders
+  `onerror="this.parentNode.style.display='none'"`. A failed image deletes its figure — no broken
+  glyph, no gap, no console error, indistinguishable from a session that has no picture. That is why
+  the symptom reads as "sometimes" rather than as an error.
+- **THE ACTUAL CAUSE, MEASURED: a cold-cache burst against a 3-wide gate.** `program2026` embeds
+  `/api/program?event=brella&section=all`, whose 379 sessions carry **728 unique image URLs** across
+  `brella-assets.brella.io`, the proxy, lumacdn, circle.so and eventbrite. Fetched all 728 with a
+  `techbbq.dk` referer: **728 OK, 0 failing** — nothing is permanently broken. Of those, **122 are
+  proxy URLs**, and each cold one needs an Airtable lookup gated at `MAX_CONCURRENT_LOOKUPS = 3`
+  (`lib/photo.ts:181`). Pushing this session's commit purged the CDN, which produced the failure
+  condition on demand: **121 of the 122 came back `x-vercel-cache: MISS`, and draining them at
+  concurrency 3 took 24.8 seconds.** A browser fires all of them at once and will not wait — the ones
+  at the back of the queue exceed the Vercel function timeout, the route's catch answers 502/404, and
+  `onerror` silently deletes them. Warm, the same burst is flawless: **59/60 HIT, p50 217ms, max
+  681ms**. The comment at `lib/photo.ts:176-180` describes this exact symptom from the partner wall
+  ("a cold wall … dropping a third of its images"); the gate improved it and did not eliminate it at
+  this volume.
+- **Also: the queue wait is unbounded.** `withLookupSlot` awaits a queue promise with no timeout of
+  its own — `fetchWithTimeout`'s 8s only starts *after* a slot is acquired — so a request can sit in
+  the queue until the platform kills it. Compounded by the retry-sleep held inside the slot
+  (NEXT STEP 6).
+- **Cache is warm as of this session, but only at one edge.** Warming from a laptop warms the nearest
+  PoP; other regions stay cold until someone there loads the page. Per-region cache is itself part of
+  why this looks intermittent to one person and fine to another.
+
+**A NON-IMAGE FIRST ATTACHMENT BREAKS 30 CELLS, AND THE FIX ALREADY EXISTS IN THIS REPO.**
+`firstPhoto` (`lib/fields.ts:48`) and `firstAttachmentId` (`lib/fields.ts:68`) both take `v[0]` with
+**no MIME check**, so anything in first position wins over real images behind it. Scanned every
+`PHOTO_SOURCES` table: **partners 24** (`.eps`, `.psd`, `.ai`, `.pdf`, a `text/html`, and a
+`.DS_Store`), **niss 3** (two `.pdf`, one `.docx`), **partner-events 2**, **nass 1** (a `.pptx`);
+team, interns, policy-program and event-rooms are clean. Two are visibly broken on `/partner-events`
+right now, both with good logos sitting behind the junk: **`recBOYFxj5syuBr5K`** (Mesh x TechBBQ
+Pre-Party) leads with `zero logos (1).zip` and has **12** valid PNG/SVGs after it, and
+**`recl9jtV6lbQ8mvUv`** (The Agentic AI Era) leads with `AWS_Logos.zip` and has **2**. Both serve
+`application/zip` through the proxy with a 200, so they fail as images rather than as requests.
+**`pickLogo` in `lib/logoPick.ts` already chooses "by what the file IS, not by position"** — it is
+simply gated behind `usePicker`, which these paths do not pass. **None of this affects `program2026`**
+(all 728 of its URLs pass); it is a `/partner-events` and partner-wall issue.
+
+**`Location` IS FILLED ON 52 OF 55 ROWS AND READ BY NOTHING.** `fldkoPVBEvRD5jNZP` on Partnership
+Success holds real addresses, and `venue`/`city` on the cards are instead scraped from the partner's
+register page. Both `lib/partnerevents.ts:114-115` and `app/partner-events/page.tsx:293` assert
+*"Airtable has no address column at all"*, which is false and is why the ARCH card shows no venue
+despite Nørregade 41 being in the row. Wiring `Location` in would give every side event a venue line
+with no scrape and no new field.
+
 ## SESSION · 2026-08-20 · POLICY STAGE ROSTER, AWS x NVIDIA SPLIT, AND ONE PARTNERSHIP AS FOUR TILES
 
 **CURRENT STATE.** Branch **`partners-multi-logo`**, four commits, **MERGED TO `main` AND PUSHED** at
