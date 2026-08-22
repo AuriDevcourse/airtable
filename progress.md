@@ -9,11 +9,13 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
-## SESSION · 2026-08-22 · A BRELLA EVENT LISTED TWICE NO LONGER RENDERS TWICE
+## SESSION · 2026-08-22 · SIDE EVENTS DE-DUPLICATED, BY TITLE AND THEN BY SLOT
 
-**CURRENT STATE.** One commit, **`39025ef`, ON `main` AND PUSHED**, deployed and verified on prod:
-side events **34 → 32**, both duplicate keys gone, **no session lost and none added**. `tsc` clean,
-`next build` passed. CDN re-warmed afterwards (122 proxy images, 0 failures).
+**CURRENT STATE.** Two commits, **`39025ef` and `2a1062d`, ON `main` AND PUSHED**, both deployed and
+verified on prod: side events **34 → 32 → 31**, every duplicate gone, **no session lost and none
+added**. `tsc` clean, `next build` passed, CDN re-warmed after each (122 proxy images, 0 failures).
+Two different causes, fixed separately — a title that MATCHES and was consumed once, and a title that
+does NOT match because the event was renamed on one side.
 
 **THE QUESTION THAT FOUND IT.** Auri asked whether the side events were up to date on `program2026`
 and whether copying the embed would look right. **The embed did not need re-copying** — the snippet
@@ -54,10 +56,46 @@ access has to decide what these are:
 - **TechBBQ kick-off with EY and the partners behind Founders** (26 Aug, 09:30 - 11:00) — no row.
 - **Shortcuts to Scale** (26 Aug, 12:00 - 13:00) — no row.
 
-**THE DEPLOY/CACHE RULE HELD A THIRD TIME.** This code deploy invalidated the images again — **121 of
+**SECOND CAUSE, SECOND COMMIT (`2a1062d`): THE SAME EVENT RENAMED ON ONE SIDE.** The dedup above only
+helps when the titles match. **The VC Hackathon's do not** — Brella says "VC Hackathon: Build AI
+Agents For VCs", Airtable says "VC Hackathon: Build The Thing VCs Want To Invest In" — so it survived
+the first fix and still rendered twice, which is what Auri screenshotted on `/brella-program`. One
+event: same venue (Fiolstræde 17B), same 10:00-15:00 slot, same 24 August.
+
+Written as a SECOND PASS in code rather than as a data fix, because the drift is chronic — the NASS
+notes already record eight titles that read differently in the two systems — and because aligning
+them by hand needs someone to decide which title is the real one.
+
+**THREE SIGNALS, ALL REQUIRED: same day, same start minute, same title stem before the colon.**
+`titleStem()` takes the stem from the RAW title (titleKey() turns the colon into a space, so the
+boundary is gone by then) and returns nothing under six characters, or "Q&A: …" would match half the
+programme.
+
+**DAY AND TIME ALONE WOULD BE DANGEROUS — DO NOT LOOSEN THIS TO A SLOT MATCH.** Four pairs of
+genuinely DIFFERENT side events share a day and a start time today: Amplify Europe Jam Session /
+EUVC Corporate Live, Gateway to DACH / GTM Secret Dinner, Diplomatic Soirée / Unlocking Nordic
+Private Markets, and Capital and Cocktails / CTO Connect. Pairing any of those merges two real
+sessions and DELETES one from the page. **None of the four share a title stem**, which is exactly
+why the stem carries the decision. All four verified present after the change. It also only ever
+looks at sessions nothing has claimed, and only fires when exactly ONE candidate qualifies — an
+ambiguous slot keeps the double, which is visible and fixable, rather than being resolved by a guess.
+
+**THREE BARE CARDS LEFT, ALL DATA.** VC Hackathon is now paired, so what remains is the three with no
+Airtable row at all: **TechBBQ kick-off with EY** (26 Aug 09:30), **Shortcuts to Scale** (26 Aug
+12:00) and **TechBBQ afterparty at Proud Mary** (26 Aug 20:00). They render with no image and no
+register link until someone gives them rows or takes them out of Brella. No code will fix these.
+
+**A LESSON THAT COST A CONFUSING 500.** `npm run build` while `npm run dev` is live **destroys the
+dev server's `.next`** — the API then answers 500 with `ENOENT … _buildManifest.js.tmp`, which reads
+exactly like a broken code change and is not. `tsc` was clean throughout. Stop the dev server, build,
+restart. This is the same orphaned-dev-server hazard the 2026-08-20 session hit from the other side,
+where the build was skipped because dev was live.
+
+**THE DEPLOY/CACHE RULE HELD A THIRD AND FOURTH TIME.** This code deploy invalidated the images again — **121 of
 122 MISS, 17.2s to drain at concurrency 3** — where yesterday's docs-only push left them at 121 HIT
-in 3.4s. Three measurements now agree: a deploy that changes the server bundle costs the next visitor
-the cold burst, `progress.md` alone is free. Still an observation, not a documented guarantee.
+in 3.4s, and the second code deploy cost another **122 of 122 MISS, 16.9s**. Four measurements now
+agree: a deploy that changes the server bundle costs the next visitor the cold burst, `progress.md`
+alone is free. Still an observation, not a documented guarantee.
 
 ## SESSION · 2026-08-21 · THE ARCH AFTERPARTY · NISS AUDITED CLEAN · WHY program2026 DROPS PICTURES
 
