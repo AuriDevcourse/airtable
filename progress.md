@@ -9,6 +9,56 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-22 · A BRELLA EVENT LISTED TWICE NO LONGER RENDERS TWICE
+
+**CURRENT STATE.** One commit, **`39025ef`, ON `main` AND PUSHED**, deployed and verified on prod:
+side events **34 → 32**, both duplicate keys gone, **no session lost and none added**. `tsc` clean,
+`next build` passed. CDN re-warmed afterwards (122 proxy images, 0 failures).
+
+**THE QUESTION THAT FOUND IT.** Auri asked whether the side events were up to date on `program2026`
+and whether copying the embed would look right. **The embed did not need re-copying** — the snippet
+fetches `/api/program?event=brella&section=all` at runtime, so data changes reach the live page by
+themselves; a re-copy is only needed when the snippet CODE changes. Worth saying plainly, because it
+is the natural thing to assume and it costs an unnecessary Elementor edit every time.
+
+**BUT SIX OF 34 CARDS WERE WRONG, AND TWO OF THEM WERE A CODE BUG.** `mergeSideEvents` paired with
+`brella.find()` (`lib/sideEvents.ts:117`), which consumes only the FIRST match. **Brella lists some
+side events twice**, so the second copy fell through to the unmatched loop at the bottom and rendered
+a second, BARE card beside the real one — no artwork, no register link, `room` reading "Side Events".
+That is what put **Diplomatic Soirée** and **The Nordic Paradox: From Mapping to Action** on the board
+twice.
+
+**THE EXISTING WARNING POINTED THE WRONG WAY.** The unmatched loop logs "If this event IS in Airtable
+under a different title, it is now listed twice; align the titles to fix." Here the titles are
+**byte-identical on both sides** (checked codepoint by codepoint — `Soirée` is a single U+00E9 in
+both, and `titleKey()` agrees exactly), and Airtable holds **exactly one row each**. Nobody following
+that warning could have reached the cause. The log line is still right for the VC Hackathon below; it
+is simply not the only way a double happens.
+
+**EXACT KEYS ONLY — DO NOT "SIMPLIFY" THIS TO `filter()`.** `sameEvent()` matches on substring
+(`a === b || a.includes(b) || b.includes(a)`), so widening the `find()` to a `filter()` would let one
+Airtable title swallow every Brella session whose key merely CONTAINS it, **silently deleting real
+sessions** — a far worse failure than showing one twice. The added loop pairs only `b.key === key` and
+leaves the substring match to the primary pick. Measured across today's 34 side events: **0 substring
+cross-matches**. That is luck, not a rule, and it is why the narrow fix was chosen.
+
+**FOUR CARDS STILL RENDER BARE, AND ALL FOUR ARE DATA, NOT CODE.** Each exists in Brella with no
+Airtable row to pair with, so it has no image and no register link. Someone with Brella/Airtable
+access has to decide what these are:
+
+- **VC Hackathon** — a genuine title mismatch, and the one case the old warning describes: Airtable
+  says "VC Hackathon: Build The Thing VCs Want To Invest In", Brella says "VC Hackathon: Build AI
+  Agents For VCs". Same slot (24 Aug, 10:00-15:00). Align one side and the double collapses.
+- **TechBBQ afterparty at Proud Mary @ Rådhuspladsen** (26 Aug, 20:00 - 23:00) — no Airtable row.
+  NOT a duplicate of the ARCH afterparty: different date, different venue. Still open from 2026-08-21.
+- **TechBBQ kick-off with EY and the partners behind Founders** (26 Aug, 09:30 - 11:00) — no row.
+- **Shortcuts to Scale** (26 Aug, 12:00 - 13:00) — no row.
+
+**THE DEPLOY/CACHE RULE HELD A THIRD TIME.** This code deploy invalidated the images again — **121 of
+122 MISS, 17.2s to drain at concurrency 3** — where yesterday's docs-only push left them at 121 HIT
+in 3.4s. Three measurements now agree: a deploy that changes the server bundle costs the next visitor
+the cold burst, `progress.md` alone is free. Still an observation, not a documented guarantee.
+
 ## SESSION · 2026-08-21 · THE ARCH AFTERPARTY · NISS AUDITED CLEAN · WHY program2026 DROPS PICTURES
 
 **CURRENT STATE.** One commit, **`8606526`, COMMITTED ON `main` AND PUSHED**, deployed and verified
