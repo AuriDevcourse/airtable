@@ -45,6 +45,22 @@ function sameEvent(a: string, b: string): boolean {
 }
 
 /**
+ * The part of a RAW title before its colon, as a titleKey(): "VC Hackathon: Build AI Agents For
+ * VCs" → "vc hackathon". Taken from the raw string rather than the key because titleKey() turns
+ * the colon into a space and the boundary is gone by then.
+ *
+ * Empty when there is no colon, or when the stem is shorter than six characters — "Q&A: …" or
+ * "Day 2: …" would otherwise match half the programme, which is the opposite of what a
+ * tie-breaker is for.
+ */
+function titleStem(title: string): string {
+  const i = (title || "").indexOf(":");
+  if (i < 0) return "";
+  const stem = titleKey(title.slice(0, i));
+  return stem.length >= 6 ? stem : "";
+}
+
+/**
  * Brella's descriptions end with a dangling "LINK TO REGISTER" (sometimes preceded by a
  * "Register here:" style lead-in) because the URL was stripped from the anchor. Once a real
  * Register button is rendered, that text is a dead end pointing at nothing, so it goes.
@@ -107,14 +123,55 @@ export function mergeSideEvents(
   luma: Map<string, EventPageDetail> = new Map()
 ): ProgramSession[] {
   const days = dayStrings(events);
-  const brella = brellaSide.map((s) => ({ key: titleKey(s.name), session: s }));
+  const brella = brellaSide.map((s) => ({
+    key: titleKey(s.name),
+    stem: titleStem(s.name),
+    session: s,
+  }));
   const paired = new Set<ProgramSession>();
+
+  /**
+   * SECOND PASS, for the same event RENAMED on one side. Brella and Airtable drift apart
+   * constantly — the NASS notes already record eight titles that read differently in the two
+   * systems — and when they do, the title match below fails and the event renders TWICE: once
+   * from Airtable with its artwork, once bare from the unmatched loop at the bottom. That is
+   * what put the VC Hackathon on the board twice (2026-08-22), as "Build AI Agents For VCs" in
+   * Brella against "Build The Thing VCs Want To Invest In" in Airtable — one event, one venue,
+   * one 10:00-15:00 slot on the 24th.
+   *
+   * THREE SIGNALS, ALL REQUIRED: same day, same start minute, and the same title stem before the
+   * colon. Day and time alone are NOT enough and must never be used on their own — among today's
+   * side events FOUR pairs of genuinely different events share a day and a start time (Amplify /
+   * EUVC Corporate Live, Gateway to DACH / GTM Secret Dinner, Diplomatic Soirée / Unlocking
+   * Nordic Private Markets, Capital and Cocktails / CTO Connect). Pairing those would merge two
+   * real sessions into one and DELETE the other from the page, which is a far worse failure than
+   * showing something twice. The stem is what makes it safe: none of those four pairs share one.
+   *
+   * Only ever consults sessions nothing has claimed yet, and only fires when exactly ONE
+   * candidate qualifies — an ambiguous slot is left alone and shows the double, which is visible
+   * and fixable, rather than being resolved by a guess.
+   */
+  const slotMatch = (e: PartnerEvent) => {
+    const stem = titleStem(e.title);
+    if (!stem) return undefined;
+    const day = (e.date && days.get(e.date)) || "";
+    const start = startMinutes(e.timeSlot || "");
+    if (!day || start > 24 * 60) return undefined;
+    const hits = brella.filter(
+      (b) =>
+        !paired.has(b.session) &&
+        b.stem === stem &&
+        b.session.day === day &&
+        startMinutes(b.session.timeSlot || "") === start
+    );
+    return hits.length === 1 ? hits[0] : undefined;
+  };
 
   const sessions: ProgramSession[] = events
     .filter((e) => e.kind === "side-event")
     .map((e) => {
       const key = titleKey(e.title);
-      const match = brella.find((b) => sameEvent(key, b.key));
+      const match = brella.find((b) => sameEvent(key, b.key)) ?? slotMatch(e);
       if (match) paired.add(match.session);
       // BRELLA LISTS SOME EVENTS TWICE, and find() consumes only the first, so the second copy
       // fell through to the unmatched loop below and rendered a SECOND, bare card — no artwork,
