@@ -250,6 +250,13 @@ export function mergeSideEvents(
       ...session,
       description: stripDeadRegisterLine(session.description || ""),
       registerUrl: null,
+      // A HAND-DRAWN BANNER REACHES THESE TOO. This line was missing, which made
+      // ARTWORK_OVERRIDES unreachable for exactly the events that need it most: a session with
+      // no Airtable row has no logo and no ticketing page to scrape an og:image from, and Brella
+      // carries no artwork field at all, so a banner is its ONLY possible picture — and adding
+      // one to lib/eventArtwork.ts did nothing here (found 2026-08-22 while asking why Shortcuts
+      // to Scale, the Proud Mary afterparty and the EY kick-off render with no visual).
+      image: artworkOverride(titleKey(session.name)) ?? session.image ?? null,
       section: "side" as const,
     });
   }
