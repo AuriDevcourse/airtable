@@ -116,6 +116,17 @@ export function mergeSideEvents(
       const key = titleKey(e.title);
       const match = brella.find((b) => sameEvent(key, b.key));
       if (match) paired.add(match.session);
+      // BRELLA LISTS SOME EVENTS TWICE, and find() consumes only the first, so the second copy
+      // fell through to the unmatched loop below and rendered a SECOND, bare card — no artwork,
+      // no register link, `room` reading "Side Events" — beside the real one. That is what put
+      // Diplomatic Soirée and The Nordic Paradox on the board twice (2026-08-22); their titles
+      // are byte-identical on both sides, so this was never a title-alignment problem.
+      //
+      // EXACT keys only, deliberately. sameEvent() also matches on substring, and widening the
+      // line above to filter() would let one Airtable title swallow every Brella session whose
+      // key merely CONTAINS it — silently deleting real sessions, which is a far worse failure
+      // than showing one twice. There are no such collisions today; that is luck, not a rule.
+      for (const b of brella) if (b.key === key) paired.add(b.session);
 
       // The partner's own Luma page, when they sell through Luma. It is the only source that
       // has the VENUE, and it is the last resort for a time.
