@@ -241,6 +241,31 @@ const PROGRAMMES: SessionProgramme[] = [
     url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ-2.pdf",
     label: SEE_FULL,
   },
+  // THE DIVERSITY LOUNGE 2.0, both days, hosted by Women in Tech with Google and Dansk Erhverv.
+  // Auri gave the link on 2026-08-24 as the correct full programme.
+  //
+  // A LUMA PAGE RATHER THAN A PDF, which is a first for this table and is the point: it is the
+  // hosts' own live page, so a change they make to their line-up reaches the reader without anyone
+  // re-exporting a file and re-typing a URL here.
+  //
+  // Matched on the title prefix, which every one of the 21 rows carries ("Diversity Lounge 2.0 |
+  // Coffee & Connect", "Diversity Lounge 2.0 | Panel: Show Me the Money"). A block match was the
+  // alternative and is worse here: the lounge runs both days, so it would need two entries and both
+  // would break the moment the hosts move a start time.
+  //
+  // Verified against the Brella feed on 2026-08-24: 21 of 21 sessions match the Luma agenda on time
+  // and title. The two known differences are Brella's, not this link's — Day 2's "Coffee & Connect"
+  // runs to 11:30 in Brella against 10:55 on Luma, and Luma's 12:35 lunch break has no Brella row.
+  // Auri chose to leave the lunch out (2026-08-24) and to correct the coffee slot in Brella itself.
+  //
+  // NOT `SEE_FULL`, and this is the entry the label field was kept for: every other document here
+  // is a PDF and says so, and promising a PDF that opens as a Luma event page is a small lie the
+  // reader notices at the moment they press it.
+  {
+    match: /^diversity lounge 2 0\b/,
+    url: "https://luma.com/wakc0i63",
+    label: "See the full program",
+  },
 ];
 
 /**
