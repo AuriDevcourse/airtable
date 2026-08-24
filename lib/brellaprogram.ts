@@ -450,5 +450,50 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
     sessions.splice(at, 0, session);
   }
 
-  return sessions;
+  return dropRedundantAllDayRows(sessions);
+}
+
+// ─── AN UMBRELLA ROW THAT ONLY REPEATS ITS OWN COLUMN HEADING ───────────────────────────
+//
+// Brella carries the Diversity Lounge twice over: one "All day" row per day called "Diversity
+// Lounge 2.0 by Women in Tech", plus the 21 timed sessions that actually make up the day. The
+// renderers turn that all-day row into the dashed band washed behind the whole column, and on
+// this track the band says nothing the column heading has not already said — the column is
+// literally titled "Diversity Lounge". Auri asked for it gone (2026-08-24).
+//
+// It is worth being clear about why this is NOT the Board Summit case, which keeps its band.
+// There the band carries a fact the heading cannot: "Event Room 1" is a place, and the band is
+// what tells you a named summit has taken it for the day. A band reading "Diversity Lounge"
+// over a column reading "Diversity Lounge" carries no fact at all.
+//
+// DROPPED IN THE FEED, not in the renderers. The band is drawn by components/ProgramTimeline.tsx
+// AND again by the string renderer in lib/brellaEmbedSnippet.ts, so a fix in either one leaves
+// every already-pasted embed still showing it. One row removed here reaches the page, the embed
+// builder and /api/program together.
+const NO_ALL_DAY_BAND: RegExp[] = [/^diversity lounge$/i];
+
+const ALL_DAY_SLOT = /^all\s*day$/i;
+
+/**
+ * Remove an all-day umbrella row from the listed tracks — but ONLY on a day where that track
+ * also carries timed sessions.
+ *
+ * The condition is the safety catch. If Brella's timed rows for a lounge were ever pulled, or
+ * arrived late, an unconditional rule would leave the column completely blank rather than
+ * falling back to the one row that says the lounge is on at all.
+ */
+function dropRedundantAllDayRows(sessions: ProgramSession[]): ProgramSession[] {
+  const timedDays = new Set(
+    sessions
+      .filter((s) => !ALL_DAY_SLOT.test(s.timeSlot ?? ""))
+      .map((s) => `${s.room}|${s.day}`)
+  );
+  return sessions.filter(
+    (s) =>
+      !(
+        ALL_DAY_SLOT.test(s.timeSlot ?? "") &&
+        NO_ALL_DAY_BAND.some((rx) => rx.test(s.room ?? "")) &&
+        timedDays.has(`${s.room}|${s.day}`)
+      )
+  );
 }
