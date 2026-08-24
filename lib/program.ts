@@ -520,6 +520,47 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // THE LONGEVITY LOUNGE, both days, run by One Thirty Labs. Typed in on 2026-08-24 from the two
+  // run-of-show spreadsheets Auri sent, and this one SUBSTITUTES Brella's column rather than
+  // filling its gaps — Brella's copy of this programme is out of date, not empty. The six things
+  // it has wrong, and why the attendee app still shows them, are listed in lib/longevityOverride.ts.
+  //
+  // `Session Type` is left empty on all 18. The sheets do not say, and the select's choices
+  // (Panel, Keynote, Fireside Chat...) have no entry for a facilitated breathwork or movement
+  // session, so tagging them would be inventing a fact rather than recording one.
+  //
+  // FACES COME FROM THE PARTNERSHIP SUCCESS OVERFLOW VIEW, joined by name, because that is where
+  // One Thirty Labs' presenters uploaded them — the same people /all-speakers-2026 already shows
+  // under "Longevity Lounge". The session rows carry no photo cells at all.
+  longevity: {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Longevity Lounge"',
+    facesFromView: {
+      table: "tbllvkwLhB4Omdphd", // Partnership Success
+      view: "viw8pHmY9hNN8z7Zn", // More Event Room Speakers — one row per presenter
+      nameField: "Presenter Details",
+      photoField: "Presenters Profile Picture",
+      feed: "event-rooms", // lib/photo.ts PHOTO_SOURCES["event-rooms"] already lists this field
+      // This form takes a row per APPEARANCE, not per person: Samantha Claire has four rows
+      // because she facilitates four sessions. Without this the five people who appear more than
+      // once are read as duplicates and left faceless.
+      repeatsArePerAppearance: true,
+    },
+    fields: {
+      name: "Session Name",
+      // MAPPED, unlike the single-day programmes here, because lib/longevityOverride.ts has to
+      // put each row on the right day and the Sessions table's own cell is the only thing that says.
+      day: "When Is it",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   // NASS 2026 — the Nordic Africa Startup Summit, Day 2 in Event Room 2. Same Sessions table and the
   // same hand-typed people fields as the Policy Stage above: its agenda arrived as a run-of-show
   // spreadsheet and was typed in on 2026-08-12, so the session rows carry "Speaker Details" text and

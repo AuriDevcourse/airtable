@@ -7,6 +7,7 @@ import { mergeSideEvents } from "@/lib/sideEvents";
 import { mergePolicyStage } from "@/lib/policyOverride";
 import { mergeNassStage } from "@/lib/nassOverride";
 import { mergeBoardSummit } from "@/lib/boardOverride";
+import { mergeLongevityLounge } from "@/lib/longevityOverride";
 import { fetchEventPageDetails, EventPageDetail } from "@/lib/eventPages";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
@@ -50,6 +51,8 @@ export async function GET(req: NextRequest) {
       invalidate("program:policy");
       // Same for Nordic Africa on the 27th (lib/nassOverride.ts).
       invalidate("program:nass");
+      // And the Longevity Lounge, whose whole column is Airtable's (lib/longevityOverride.ts).
+      invalidate("program:longevity");
     }
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
@@ -144,6 +147,27 @@ export async function GET(req: NextRequest) {
         sessionsAll = mergeBoardSummit(sessionsAll, board);
       } catch (err) {
         console.error("[/api/program] Board Summit unavailable, leaving Brella's own", err);
+      }
+
+      // THE LONGEVITY LOUNGE IS THE FIFTH MERGE, and the ONLY SUBSTITUTION on this board.
+      //
+      // One Thirty Labs' run of show is the correct programme and Brella's copy of it is out of
+      // date — four titles, one start time and the one moderator all disagree — so a pairing
+      // cannot fix it: Brella is not empty here, it is wrong. Airtable replaces the column
+      // outright. See lib/longevityOverride.ts, including what substituting costs and why anyone
+      // it drops is logged by name.
+      //
+      // Its own try/catch, so a failing Longevity read cannot take the Board Summit, NASS, the
+      // Policy Stage or the side events down with it — and leaves Brella's own column standing.
+      try {
+        const longevity = await cached(
+          "program:longevity",
+          () => fetchProgram("longevity"),
+          feedTtlMs()
+        );
+        sessionsAll = mergeLongevityLounge(sessionsAll, longevity);
+      } catch (err) {
+        console.error("[/api/program] Longevity Lounge unavailable, leaving Brella's own", err);
       }
     }
 

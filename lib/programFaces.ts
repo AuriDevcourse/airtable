@@ -288,6 +288,23 @@ export type FaceViewSource = {
   photoField: string;
   /** The lib/photo.ts feed key that can re-sign attachments from `table`. */
   feed: string;
+  /**
+   * ONE ROW PER PERSON PER SESSION, so a repeated name is expected rather than a mistake.
+   *
+   * The default treats a name appearing twice as ambiguous and leaves that person with NO face,
+   * deliberately: in a curated roster a duplicate is a data error, and arbitrarily picking one of
+   * the two rows would hide it.
+   *
+   * That rule is wrong for a form that collects a row per APPEARANCE. One Thirty Labs' event-room
+   * overflow works exactly that way — Samantha Claire has four rows because she facilitates four
+   * Longevity Lounge sessions, each with her own headshot on it — and under the default every one
+   * of the five people who appear more than once rendered as an initial while five copies of their
+   * photo sat in the table (2026-08-24).
+   *
+   * Set only on such a source. First row with a photo wins, which for a repeated person is the
+   * same face either way.
+   */
+  repeatsArePerAppearance?: true;
 };
 
 export async function fetchViewFaces(src: FaceViewSource): Promise<Map<string, string>> {
@@ -328,6 +345,9 @@ export async function fetchViewFaces(src: FaceViewSource): Promise<Map<string, s
       const k = rosterKey(str(rec.fields[src.nameField]));
       if (!k) continue;
       if (seen.has(k)) {
+        // A second row for the same person is a duplicate to surface — unless the source files one
+        // row per appearance, where it is simply that person's second session. See the field.
+        if (src.repeatsArePerAppearance) continue;
         ambiguous.add(k);
         faces.delete(k);
         continue;
