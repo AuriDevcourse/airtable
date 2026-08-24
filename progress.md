@@ -9,6 +9,61 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-24 · THE OVERLAY WORK LANDED ON main, FIFTY AIRTABLE GHOSTS GONE
+
+**CURRENT STATE.** On `main`, pushed. `tsc` clean. `/api/program?event=brella` **405 to 371**
+sessions. Every `policy-*`, `nass-*` and `board-*` id is gone from the feed. Verified on a dedicated
+dev server on :3001 out of the `airtable-sidefix` worktree, so the other session's checkout was never
+touched.
+
+**WHAT THIS WAS.** The 2026-08-20 "Brella is the source of truth" work had been stranded on
+`brella-source-of-truth` for four days while `main` moved thirteen commits. It is now on `main`:
+`lib/overlayEnrich.ts` (new), the boardOverride / nassOverride / policyOverride rewrites that use it,
+`app/api/program/route.ts`, and `SOCIAL_HINT` in `lib/logoPick.ts`.
+
+**HOW IT WAS MERGED, and why not with `git merge`.** That branch conflicts in lib/sideEvents.ts,
+lib/eventArtwork.ts and progress.md, because `main` had already solved the same side-event bugs a
+different and better way. Merging it would have reverted them. Instead: `git log de792fa..main` was
+checked per file and **none of the six files had a single competing commit on `main`**, so
+`git checkout brella-source-of-truth -- <those six>` applied the work cleanly with no conflict and no
+risk to the side-event fixes. Check for competing commits BEFORE reaching for a merge; a stranded
+branch is often only partly stale.
+
+**EVIDENCE, measured before and after on the same server.**
+- Sessions **405 to 371**, delta -34. Removed 50, added 16.
+- The 50 removed are exactly the Airtable overlay records: 15 `policy-*`, 21 `nass-*`, 14 `board-*`.
+- The 16 added are Brella sessions the overlays had been standing in front of.
+- **0 sessions lost speakers. 17 gained speakers**, which is the whole point: the Airtable line-ups
+  now attach to the Brella records instead of arriving as separate duplicate cards.
+- 0 sessions with a missing name, day or time slot. Rooms **49 before, 49 after, none vanished**.
+- Source feeds all still 200: policy 15, nass 22, board 14, fintech 8, niss 13.
+- Side events untouched at **32, all 32 with a picture**.
+
+**THE ONE REMAINING EXACT DUPLICATE IS PRE-EXISTING.** "TechBBQ kick-off with EY" renders twice,
+`brella-990312` on the **Bridge** stage and `brella-991238` in **Side Events**, byte-identical before
+and after this change. Two different tabs, so it is not a visible duplicate on either. Auri chose to
+leave its Airtable row typed `Bridge Event`. `Diplomatic Soirée` has the same shape.
+
+**RUNNING A SECOND DEV SERVER OUT OF A WORKTREE.** `.env.local` is gitignored, so a fresh worktree
+has none and every Brella call answers **503 "BRELLA_API_KEY not set"**. Hard-link it rather than
+copying secrets around: `cmd //c "mklink /H .env.local ..irtable\.env.local"`. Env is read at
+startup, so restart the server after linking. `node_modules` needs the same treatment with `/J` or
+`npx tsc` refuses to run.
+
+**NEXT STEPS.**
+1. `brella-source-of-truth` is now fully absorbed and can be deleted, along with the ~39 other
+   branches already merged into `main`.
+2. The `airtable-sidefix` worktree can go: `git worktree remove`. It holds `.env.local` and
+   `node_modules` links that go with it.
+3. `Desktop/GITHUB/airtable` is still on `event-room-labels-and-splits` with four uncommitted files
+   belonging to another session. Leave it alone.
+4. Brella's API is answering in **8-10 seconds**, close to the fetch timeout, and threw two 500s
+   (`ABORT_ERR`) during this session. Two days from the summit, worth watching.
+
+**FILES.** lib/overlayEnrich.ts · lib/boardOverride.ts · lib/nassOverride.ts ·
+lib/policyOverride.ts · app/api/program/route.ts (the three merges) · lib/logoPick.ts
+(SOCIAL_HINT).
+
 ## SESSION · 2026-08-24 · THE REGISTER LINK BRELLA HIDES IN PROSE, PLUS TWO BANNERS AND THREE AIRTABLE ROWS
 
 **CURRENT STATE.** Branch **`side-events-register-links`**, cut fresh from `main`, merged and pushed.

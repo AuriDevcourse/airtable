@@ -15,10 +15,11 @@
 // rendered by the agenda embed. Only the Brella board could not see it, which is the same sentence
 // that opens policyOverride.ts.
 //
-// So the column is SUBSTITUTED, not supplemented: Brella's all-day row is dropped and the Airtable
-// sessions take its place. Merging them would leave the all-day block sitting behind the real
-// sessions with its own 31-face pile-up — the exact thing being fixed, and the reason the Policy
-// Stage does it this way.
+// SUPERSEDED, 2026-08-20. Brella now carries all 14 slots in Event Room 1 on the 27th, with times
+// and a location, so the premise above no longer holds. This file NO LONGER SUBSTITUTES: Brella is
+// the source of truth and the Airtable programme only fills what Brella leaves empty. Left as
+// history because it explains where the Airtable copy came from; the rule that replaced it, and the
+// duplicate-sessions bug that forced the change, are in lib/overlayEnrich.ts.
 //
 // ─── WHAT THE SUBSTITUTION COSTS, AND WHY IT IS PAID ────────────────────────────────────
 // Dropping the Brella row drops the only thing that carried the PDF link, because the dashed band
@@ -34,9 +35,17 @@
 import type { ProgramSession } from "@/lib/program";
 import { sessionProgramme } from "@/lib/sessionProgrammes";
 import { toSpeaker } from "@/lib/stagePeople";
+import { enrichWithOverlay } from "@/lib/overlayEnrich";
 
-/** The board's day label for the Board Summit. */
-export const BOARD_DAY = "Day 3 · 27 August";
+/**
+ * The DATE the Board Summit runs, never Brella's "Day N".
+ *
+ * This was `"Day 3 · 27 August"` and that is what broke it: the label is derived from whichever
+ * dates are in the Brella feed, so the 27th became "Day 4" the moment a 24 August row appeared, the
+ * room-and-day filter below stopped matching, and every session rendered twice. See dayDate() in
+ * lib/overlayEnrich.ts.
+ */
+export const BOARD_DATE = "27 August";
 
 /** Where Brella puts it, and therefore which column these sessions have to land in. */
 export const BOARD_ROOM = "Event Room 1";
@@ -57,14 +66,17 @@ const BOARD_PROGRAMME = "Board Summit";
 const BOARD_DOC = sessionProgramme(BOARD_PROGRAMME);
 
 /**
- * Replace the Brella board's 27 August Event Room 1 column with the Airtable Board Summit.
+ * Fill the gaps in Brella's 27 August Event Room 1 column from the Airtable Board Summit.
+ *
+ * BRELLA WINS ON EVERY FACT IT HAS: the titles, times, room and location on the board are Brella's,
+ * so the board and the attendee app can no longer disagree. Airtable supplies the speakers Brella's
+ * rows do not name, a description where Brella has none, the programme label and the PDF.
  *
  * MODERATORS FIRST, matching the agenda embed and the other two overrides: they open the session,
  * and on a panel of four the reader wants to know who is steering before who is talking.
  *
- * A board source that returns nothing leaves Brella's own row alone. Same safe failure as its two
- * siblings: an all-day block with 31 faces is poor, an empty Event Room 1 is worse, and this runs on
- * every load of a public board.
+ * A board source that returns nothing leaves Brella's own rows alone. Now that Brella has
+ * the real programme, is a perfectly good column rather than the fallback it used to be.
  */
 export function mergeBoardSummit(
   brella: ProgramSession[],
@@ -72,36 +84,36 @@ export function mergeBoardSummit(
 ): ProgramSession[] {
   if (!board.length) return brella;
 
-  const sessions: ProgramSession[] = board.map((s) => {
+  const overlay: ProgramSession[] = board.map((s) => {
     const mods = s.onStage?.moderators ?? [];
     const spks = s.onStage?.speakers ?? [];
     return {
       ...s,
-      // Namespaced so an id can never collide with a Brella one ("brella-975697"), a policy one or
-      // a nass one.
-      id: `board-${s.id}`,
-      day: BOARD_DAY,
-      room: BOARD_ROOM,
-      programme: BOARD_PROGRAMME,
-      // parseSlot() accepts the en dash the Sessions table uses — every Board Summit row has one
-      // ("09:30 – 09:45") — so the slot needs no rewriting, only the trailing spaces some cells
-      // carry.
+      // parseSlot() accepts the en dash the Sessions table uses, and every Board Summit row has one
+      // ("09:30 – 09:45"), so the slot needs no rewriting, only the trailing spaces some cells
+      // carry. It is read for PAIRING now, not published: the board shows Brella's own slot.
       timeSlot: s.timeSlot.trim(),
       speakers: [
         ...mods.map((p, i) => toSpeaker(p, s.id, "Moderator", i)),
         ...spks.map((p, i) => toSpeaker(p, s.id, "Speaker", i)),
       ],
-      // On every session, including Check-in and the Networking Break. They are part of the day the
-      // document describes, and a visitor who opens the break to find out how long it is has the
-      // same right to the programme as one who opens a panel.
-      ...(BOARD_DOC ? { programmeUrl: BOARD_DOC } : {}),
     };
   });
 
-  // ONLY this room on THIS day is dropped. Beyond Unicorns holds Event Room 1 on the 26th and keeps
-  // its own all-day row, its 17 speakers and its own PDF.
-  return [
-    ...brella.filter((s) => !(s.room === BOARD_ROOM && s.day === BOARD_DAY)),
-    ...sessions,
-  ];
+  const { sessions, unmatched } = enrichWithOverlay(brella, overlay, {
+    room: BOARD_ROOM,
+    date: BOARD_DATE,
+    programme: BOARD_PROGRAMME,
+    ...(BOARD_DOC ? { programmeUrl: BOARD_DOC } : {}),
+  });
+
+  // A row Brella has no slot for is dropped, and said out loud. Silence here is how the board and
+  // the attendee app drifted apart in the first place.
+  if (unmatched.length) {
+    console.warn(
+      `[boardOverride] ${unmatched.length} Airtable session(s) have no Brella slot in ${BOARD_ROOM} on ${BOARD_DATE}, dropped: ${unmatched.join(" | ")}`
+    );
+  }
+
+  return sessions;
 }

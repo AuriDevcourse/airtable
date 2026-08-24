@@ -45,6 +45,20 @@ const DARK_HINT = /(^|[^a-z])(black|nero|noir|negro|schwarz|sort|dark)([^a-z]|$)
 // purpose: "logo white high res.svg" should still win on its "white", so this only decides ties.
 const PRINT_HINT = /(^|[^a-z])(high[\s_-]?res|hi[\s_-]?res|print|cmyk|original)([^a-z]|$)/i;
 
+// THE SOCIAL CROP, which is the same mark padded into a square.
+//
+// Anorit Medical's cell holds two white SVGs. `260617_Logo Final_LinkedIn Thumbnail_White on Blue
+// _2000x2000.svg` is the wordmark centred in a 2000x2000 viewBox; `Anorit_Logo_Default_White_
+// Transparent_2000px.svg` is the same wordmark in a 1634x155 one. Both are SVG, both say "White",
+// so they tied at score 9 and upload order handed the wall the square. lib/logoFit.ts sizes a
+// vector by its viewBox, not by its artwork, so the square version draws the mark at a fraction of
+// its tile while its neighbours fill theirs (Auri, 2026-08-20: "there is another logo").
+//
+// Same weight as PRINT_HINT and for the same reason: a social export is still the right file when
+// it is the only one, so this only decides ties.
+const SOCIAL_HINT =
+  /(^|[^a-z])(linkedin|thumbnail|avatar|profile[\s_-]?p(ic|icture)|og[\s_-]?image)([^a-z]|$)/i;
+
 // MEASURED DUDS: files that win on their name and lose on their content.
 //
 // Microsoft Danmark's cell holds four files. `white-Microsoft White.svg` takes the white hint and wins,
@@ -84,6 +98,8 @@ function score(a: LogoAttachment): number {
   // Weaker than the colour words by design: it breaks a tie between two files that look identical to
   // the scorer, and never overrides an explicit "white".
   if (PRINT_HINT.test(name)) s -= 2;
+  // ...and the square social crop loses to the same mark exported at its own proportions.
+  if (SOCIAL_HINT.test(name)) s -= 2;
   return s;
 }
 

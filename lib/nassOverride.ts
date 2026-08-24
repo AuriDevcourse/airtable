@@ -8,23 +8,30 @@
 // /api/program?event=nass and drawn by the agenda embed. Only the Brella board could not see it,
 // so a visitor reading the board got a day of session titles with nobody on stage.
 //
-// SUBSTITUTED rather than supplemented, for the same reason as the Policy Stage: the two sources
-// disagree on titles ("Africa's Diplomatic Corps & Innovation Diplomacy" in Brella against
-// "Diplomacy as a Catalyst for Collaboration in Innovation" in Airtable), Brella is missing the
-// 15:35 Investor Reverse Pitch entirely and carries the 16:35 reception twice. Merging would print
-// every session twice under two names. Airtable is the copy the NASS team edits, so it wins whole.
+// SUPERSEDED, 2026-08-20. The titles still disagree, but the answer is no longer to let Airtable
+// win the whole column: BRELLA IS THE SOURCE OF TRUTH and its title is the one the attendee app
+// shows. Airtable now only fills what Brella leaves empty, which for this room is the speakers,
+// still the reason this file exists. The rule, and the duplicate-sessions bug that forced the
+// change, are in lib/overlayEnrich.ts.
+//
+// TWO THINGS THAT WERE FIXED BY LETTING AIRTABLE WIN, AND ARE NOW BRELLA'S TO FIX. Brella has no
+// 15:35 Investor Reverse Pitch, so that session no longer reaches the board; and Brella carries the
+// 16:35 reception TWICE under two names, so the board shows it twice. Both are real Brella data
+// problems, and the first is logged by name on every load rather than hidden here.
 //
 // ─── SCOPED TO ONE DAY, WHICH IS THE WHOLE POINT ────────────────────────────────────────
 // Event Room 2 runs TWO summits: Nordic India on the 26th and Nordic Africa on the 27th. NISS is
 // still being finalised (its speakers are linked per session in its own table but not yet wired
-// through — see progress.md), so this must not touch the 26th. Only sessions whose day matches
-// NASS_DAY are replaced; Brella's Day 2 column is left exactly as it is (Auri, 2026-08-13).
+// through, see progress.md), so this must not touch the 26th. Only sessions on NASS_DATE are
+// enriched; Brella's 26 August column is left exactly as it is (Auri, 2026-08-13).
 //
-// Written as the board's own day string rather than a date, because that is what the timeline
-// groups on — the same choice lib/policyOverride.ts made and for the same reason.
+// Written as a DATE and not as the board's "Day N" string. The timeline groups on the label, but
+// the label is derived from whichever dates are in the feed, so matching on it is what produced the
+// duplicates. lib/overlayEnrich.ts takes the date out of the label instead.
 
 import type { ProgramSession } from "@/lib/program";
 import { toSpeaker } from "@/lib/stagePeople";
+import { enrichWithOverlay } from "@/lib/overlayEnrich";
 
 /** The room the summit takes. Brella files these sessions on the plain "Event Room 2" track. */
 const NASS_ROOM = "Event Room 2";
@@ -54,10 +61,14 @@ const fold = (s: string) =>
     .trim();
 
 /**
- * The board's day label for the summit. 27 August, which is what ROOM_DAY_PROGRAMMES in
- * lib/brellaSections.ts already says runs in this room on that date.
+ * The DATE the summit runs, never Brella's "Day N". 27 August, which is what ROOM_DAY_PROGRAMMES
+ * in lib/brellaSections.ts already says runs in this room on that date.
+ *
+ * This was `"Day 3 · 27 August"` and that is what broke it: the 27th became "Day 4" once a
+ * 24 August row appeared in Brella, the room-and-day filter stopped matching, and all 21 sessions
+ * rendered twice. See dayDate() in lib/overlayEnrich.ts.
  */
-export const NASS_DAY = "Day 3 · 27 August";
+export const NASS_DATE = "27 August";
 
 /**
  * Names the column's sub-label and earns the dotted whole-day band, exactly as the Policy Stage
@@ -67,14 +78,18 @@ export const NASS_DAY = "Day 3 · 27 August";
 const NASS_PROGRAMME = "Nordic Africa Startup Summit";
 
 /**
- * Replace the Brella board's 27 August Event Room 2 column with the Airtable NASS programme.
+ * Fill the gaps in Brella's 27 August Event Room 2 column from the Airtable NASS programme.
+ *
+ * BRELLA WINS ON EVERY FACT IT HAS: titles, times, room, location. So the board and the attendee
+ * app can no longer print two different names for the same session. Airtable supplies the speakers,
+ * which is what Brella's 21 rows in this room still do not name.
  *
  * MODERATORS FIRST, matching the agenda embed: they open the session, and on a panel of four the
  * reader wants to know who is steering before who is talking.
  *
- * A nass source that returns nothing leaves Brella's own sessions alone. That is the safe failure
- * — a column of titles with no speakers still beats an empty column, and this runs on every load
- * of a public board.
+ * A nass source that returns nothing leaves Brella's own sessions alone. Still the safe failure: a
+ * column of titles with no speakers beats an empty one, and this runs on every load of a public
+ * board.
  */
 export function mergeNassStage(
   brella: ProgramSession[],
@@ -82,20 +97,16 @@ export function mergeNassStage(
 ): ProgramSession[] {
   if (!nass.length) return brella;
 
-  const sessions: ProgramSession[] = nass
+  const overlay: ProgramSession[] = nass
     .filter((s) => !SKIP_ON_BOARD.has(fold(s.name)))
     .map((s) => {
       const mods = s.onStage?.moderators ?? [];
       const spks = s.onStage?.speakers ?? [];
       return {
         ...s,
-        // Namespaced so an id can never collide with a Brella one ("brella-975878") or a policy one.
-        id: `nass-${s.id}`,
-        day: NASS_DAY,
-        room: NASS_ROOM,
-        programme: NASS_PROGRAMME,
-        // parseSlot() accepts the en dash the Sessions table uses, so the slot needs no rewriting —
-        // only the trailing spaces some cells carry.
+        // parseSlot() accepts the en dash the Sessions table uses, so the slot needs no rewriting,
+        // only the trailing spaces some cells carry. Read for PAIRING now, not published: the board
+        // shows Brella's own slot.
         timeSlot: s.timeSlot.trim(),
         speakers: [
           ...mods.map((p, i) => toSpeaker(p, s.id, "Moderator", i)),
@@ -104,10 +115,19 @@ export function mergeNassStage(
       };
     });
 
-  // ONLY this room on THIS day is dropped. Nordic India keeps Event Room 2 on the 26th, and every
-  // other room on the 27th is untouched.
-  return [
-    ...brella.filter((s) => !(s.room === NASS_ROOM && s.day === NASS_DAY)),
-    ...sessions,
-  ];
+  const { sessions, unmatched } = enrichWithOverlay(brella, overlay, {
+    room: NASS_ROOM,
+    date: NASS_DATE,
+    programme: NASS_PROGRAMME,
+  });
+
+  // Named on every load rather than dropped in silence. This is the list of slots Brella is missing
+  // (the 15:35 Investor Reverse Pitch among them) and it is meant to be read and fixed in Brella.
+  if (unmatched.length) {
+    console.warn(
+      `[nassOverride] ${unmatched.length} Airtable session(s) have no Brella slot in ${NASS_ROOM} on ${NASS_DATE}, dropped: ${unmatched.join(" | ")}`
+    );
+  }
+
+  return sessions;
 }
