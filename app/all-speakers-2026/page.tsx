@@ -279,16 +279,15 @@ export default function AllSpeakers2026Page() {
         .filter((p) => p.role === "Speaker")
         .map((p) => ({ ...p, tag: "Event Room 2" }));
       // Room label ("Event Room 1".."6") once known; the hosting partner until then. A presenter
-      // booked by two partners is ONE card (the feed merges them) and names both places here,
-      // preferring rooms and falling back to partners when only some rooms are assigned.
+      // booked by two partners is ONE card (the feed merges them) and names both places here.
+      // ANY known room beats a partner name — same rule and same reason as /api/all-speakers.
       const fromRooms: Card[] = (rooms.data ?? []).map((p) => ({
         ...p,
-        tag:
-          p.rooms?.length && p.hosts?.length && p.rooms.length === p.hosts.length
-            ? p.rooms.join(" · ")
-            : p.hosts?.length
-              ? p.hosts.join(" · ")
-              : (p.room ?? p.host),
+        tag: p.rooms?.length
+          ? p.rooms.join(" · ")
+          : p.hosts?.length
+            ? p.hosts.join(" · ")
+            : (p.room ?? p.host),
       }));
       // FUTURE OF FINTECH, an event room session like any other: Flatpay hosts it in Event Room 1.
       // It was missing from this tab entirely, so 13 of its 15 people appeared nowhere on the page

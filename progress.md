@@ -64,6 +64,110 @@ startup, so restart the server after linking. `node_modules` needs the same trea
 lib/policyOverride.ts · app/api/program/route.ts (the three merges) · lib/logoPick.ts
 (SOCIAL_HINT).
 
+## SESSION · 2026-08-24 · EVENT ROOM LABELS, AND THE EIGHT CARDS THAT WERE PANELS
+
+**CURRENT STATE.** Branch **`event-room-labels-and-splits`**, cut from `main`, NOT merged yet.
+`tsc --noEmit` clean, verified live against the dev server on :3000 with `?fresh=`.
+Event Room tab is **280 people** (was 273), **0 cards with more than one name on them**,
+**0 cards without a photo**, and **0 still showing a partner name where a venue belongs** — down
+from 41 plus the 8 panel cards. Nothing is blocked; the tab is done. Tag spread: Event Room 2 (81),
+Event Room 1 (58), **Diversity Lounge (35)**, Event Room 5,6,7 (35), Event Room 3 (30), Event Room
+4 (22), Event Room 5 (16), plus 3 people who carry two venues. **0 duplicate names.**
+
+**WHAT WAS ASKED (Auri, 2026-08-24).** Three things about `/all-speakers-2026` → Event Room
+Speakers: (1) every card should say which Event Room, not the partner or session name, (2) find
+anyone with no picture, (3) one card showed four names at once — split it, one speaker per card.
+
+**1 · ROOM LABELS: A THIRD SOURCE, AND AN INVERTED FALLBACK.**
+The room was resolved from two places: marketing's per-person assignment in **Marketing Project
+Overview** (`tblTecOBecLQCNIeD`, `Project Name` = "Event Room 5,6,7"), then the hard-coded
+`HOST_ROOMS` map. Neither covered a partner who simply typed their room into their own submission.
+- **NEW: `roomFromLocation()`** in `lib/eventrooms.ts` reads the `Location` field on the
+  Partnership Success row, now in `SAFE_FIELDS`. It fixed **NORNORM** ("Event room 3") and
+  **Danish Entrepreneurs** ("Policy Stage (Rooms 5,6,7) (Hall E)"). Resolution order is now
+  marketing → Location → HOST_ROOMS.
+- The parser is **deliberately narrow: the digits must follow the word "room"**. Do not loosen it.
+  Plug and Play's Location is a street address ending "Center Blvd. 5" and One Thirty Labs' is
+  "HallC4" — a looser regex reads those as room 5 and room 4, and both would be wrong.
+- **`tag` fallback inverted**, in BOTH `app/api/all-speakers/route.ts` and
+  `app/all-speakers-2026/page.tsx`. It used to require `rooms.length === hosts.length` before it
+  would print rooms. Splitting the panels immediately broke that: Carsten Borring and Stine
+  Mølgaard each gained a second host with no room, so cards correctly reading "Event Room 3" and
+  "Event Room 5,6,7" regressed to two company names. Rule now: **any known room beats a partner
+  name**, hosts are the empty-set fallback only. Keep the two files in step.
+
+**2 · PICTURES: NOBODY IS MISSING ONE.** Checked at source, not on the page — the feeds drop
+photoless rows, so the page can never show the problem. Partnership Success slots 0/0, overflow
+0/187, NISS 0/42 speakers, NASS 0/40, Future of Fintech 0/21. Nothing to chase.
+
+**3 · THE PANEL ROWS.** All eight were **Women in Tech Denmark, partner id 1353**, in the overflow
+view `viw8pHmY9hNN8z7Zn`. Each held a whole panel in singular fields: four names in
+`Presenter Details` joined by " & ", four titles in one Position field, four companies in one
+Company field, four headshots in one attachment cell. `lib/eventrooms.ts` now splits on `" & "`:
+- `splitParallel()` reads sibling fields positionally. Equal count → per person. **One value for a
+  multi-name row → given to everyone** (Joo Runge and Drita Memisi are both "Board Members").
+  **Any other mismatch → nobody gets one** (`recOq8bHsNqP6Uwhh` has three names, two LinkedIn URLs;
+  guessing which of the three lost theirs is how a title lands under the wrong face).
+- `attachmentFor()` picks the person's headshot **by filename first** ("Nana Bule.jpg"), falling
+  back to position when the spelling differs ("Michael Bak.jpg" for Mikael Bak, "Ann-Christine
+  Roope.jpeg" for Anne-Christine). Verified: photo order matched name order on all eight rows.
+- Per-person photo works through **`?v=<attachment id>`**, the selector the Policy Stage panels
+  already use (`lib/photo.ts`). No re-upload to Airtable was needed. Verified two faces off one
+  row return 200 with different md5s.
+- Arithmetic checks out: 273 − 8 panel cards + 17 genuinely new people = **282**. Twenty unique
+  names came off the eight rows; **Ana Andonovska, Carsten Borring and Stine Mølgaard already had
+  cards** under another host, so `mergeByPerson` unioned them instead of adding a duplicate.
+
+**4 · NOT EVERY EVENT ROOM SPEAKER IS IN AN EVENT ROOM.** The 37 cards under One Thirty Labs and
+Women in Tech Denmark were never waiting on a room number. **Both partners run the DIVERSITY
+LOUNGE, which sits under the Grill Sessions rather than in a numbered room** (Auri, 2026-08-24), so
+there is nothing for marketing to fill in and no room to find. `DIVERSITY_LOUNGE` is now printed
+where a room number would go, reached two ways: Women in Tech writes it into their own `Location`
+("Diversity Lounge by Women in Tech"), which `roomFromLocation()` matches, and One Thirty Labs does
+not (theirs says "Hall C4"), which is what the new **`HOST_VENUES`/`venueFromHost()`** pair is for.
+The label is the short "Diversity Lounge" on both — the partner's name is already on the card, so
+"by Women in Tech" would only repeat it. Resolution order is now marketing → Location →
+`HOST_ROOMS` → `HOST_VENUES`.
+
+**5 · PLUG AND PLAY IS EVENT ROOM 4**, 11:45-14:15 (Auri, 2026-08-24). Their own `Location` holds
+only the Bella Center street address and marketing has no room row for any of the six, so this went
+into `HOST_ROOMS` — where the planning-sheet comment had **already named "Play&Plug" as a room 4
+host since the map was written**. The entry was simply never added. Six cards fixed: Dardana
+Ibishi, Endri Kote, Hannah Boomgaarden, Mihajlo Kovacevic, Nikola Mijailovic, Simone Pulvirenti.
+Tobias Bengtsdahl was already on room 4 through Microsoft and stays one card.
+
+**6 · THE TWO DUPLICATE PEOPLE ARE GONE, AND NOT BY DELETING ANYTHING.** "Kathrine Lee Larsen" /
+"Katrine Lee Larsen" (Copenhagen Cartel) and "Mikkel Sonne" / "Mikkel Sonne Nørbygaard"
+(Breathbiome) were two One Thirty Labs people submitted twice, minutes apart on 22 Aug, with
+identical titles and re-uploads of the same photo. `mergeByPerson` keys on the exact name, so the
+different spellings dodged it.
+
+**Auri fixed it in Airtable by RENAMING both rows to match, not by deleting either** — the better
+move, and worth repeating next time: the partner's submission history stays intact and
+`mergeByPerson` collapses the pair on its own. All four rows still exist (`recubOeqkORaQzM1K` +
+`recukrJ2fc3CGx9sK` = Mikkel Sonne, `recljbGn2j06Z3Qdg` + `recDeLPk1pp4jDO3m` = Katrine Lee Larsen)
+and produce two cards. Surviving spellings: **"Mikkel Sonne"** and **"Katrine Lee Larsen"** (no h),
+which matches how both photos were uploaded. 282 → **280**.
+
+*Note for a future session: the permission classifier BLOCKS an Airtable `DELETE` from this repo, so
+a destructive row fix has to be done by hand in Airtable anyway. A backup of the two rows as they
+stood before the rename is in the session scratchpad as `deleted-records-backup.json`.*
+
+**NEXT STEPS.**
+1. **Merge `event-room-labels-and-splits` into `main`** after Auri reviews the split cards on
+   `/all-speakers-2026`.
+
+**GOTCHAS.**
+- `next build` while `next dev` is running corrupts `.next` — verify with the dev server, as done here.
+- `?fresh=` needs the `INTERNAL_USER`/`INTERNAL_PASS` basic auth from `.env.local`, and it drops all
+  five shared source keys (`SOURCE_KEYS` in the route), because this route owns no cache key of its own.
+- The 1st–5th slot field names in Partnership Success are inconsistent on purpose
+  ("2nd Presenter Details" vs "5th Presenters details"). Do not "fix" them.
+
+**FILES.** `lib/eventrooms.ts` (Location parser, `HOST_VENUES`, the split, the resolution chain) ·
+`app/api/all-speakers/route.ts` (tag fallback) · `app/all-speakers-2026/page.tsx` (same tag
+fallback, client side).
+
 ## SESSION · 2026-08-24 · THE REGISTER LINK BRELLA HIDES IN PROSE, PLUS TWO BANNERS AND THREE AIRTABLE ROWS
 
 **CURRENT STATE.** Branch **`side-events-register-links`**, cut fresh from `main`, merged and pushed.

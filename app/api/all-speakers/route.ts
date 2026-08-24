@@ -111,12 +111,17 @@ export async function GET(req: NextRequest) {
       .filter((p) => p.role === "Speaker")
       .map((p) => ({ ...p, tag: "Event Room 2" })),
     // The tag is where a presenter booked by two partners shows BOTH: the feeds merge them into
-    // one person (lib/eventrooms.ts), and this is the line that says where they speak. Rooms are
-    // preferred over hosts, since a room number is what a visitor navigates by, but a presenter
-    // with only one room assigned of two falls back to naming the partners.
+    // one person (lib/eventrooms.ts), and this is the line that says where they speak.
+    //
+    // ANY KNOWN ROOM BEATS A PARTNER NAME. This used to demand a room for every host before it
+    // would print rooms at all, and that rule inverted itself the moment the Women in Tech panels
+    // were split (2026-08-24): Carsten Borring and Stine Mølgaard each gained a second host with
+    // no room recorded, so cards that correctly read "Event Room 3" and "Event Room 5,6,7"
+    // regressed to a pair of company names. A room number is what a visitor navigates by, so the
+    // rooms that ARE known are shown and the partner name is only ever the empty-set fallback.
     ...val(roomsR).map((p) => ({
       ...p,
-      tag: p.rooms.length === p.hosts.length ? p.rooms.join(" · ") : p.hosts.join(" · "),
+      tag: p.rooms.length ? p.rooms.join(" · ") : p.hosts.join(" · "),
     })),
     // FUTURE OF FINTECH, which is an event room session like any other: Flatpay hosts it in
     // Event Room 1 on 27 August (their Partnership Success row says so). It was missing from this
