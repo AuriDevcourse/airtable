@@ -83,10 +83,20 @@ export const BRELLA_ROOMS: ColumnDef[] = [
 
 // The Grill Sessions, in signage order rather than alphabetical. They run on a clock in
 // parallel exactly like the stages, so they get the same timeline treatment.
+//
+// THE DIVERSITY LOUNGE IS NOT A GRILL SESSION, and it sits here anyway (Auri, 2026-08-24).
+// It is the same kind of thing to a visitor — a parallel, all-day, roundtable-ish space that is
+// neither a stage nor a numbered event room — and it is the board it belongs on. Last in the
+// list, after the three colours, so the grill tracks keep their signage order.
+//
+// It was not merely in the wrong tab before: sectionOf() sent it to "stages", where it matched
+// none of the five stage regexes and was dropped from the timeline outright. All 23 of its
+// sessions appeared NOWHERE on the page.
 export const BRELLA_GRILLS: ColumnDef[] = [
   { label: "Green Grill Session", match: /green grill/i },
   { label: "Blue Grill Session", match: /blue grill/i },
   { label: "Orange Grill Session", match: /orange grill/i },
+  { label: "Diversity Lounge", match: /diversity lounge/i },
 ];
 
 /** Which column of `set` a track belongs to, or null when it is in none of them. */
@@ -288,7 +298,10 @@ const ROOM_SUMMITS = /nordic\s+(india|africa)|(india|africa)\s+summit/i;
 
 // The Grill Sessions get their own tab (Auri's call). They are roundtables, not stage
 // programming, and three tracks of them under Stages drowned the five real stages.
-const GRILLS = /grill session/i;
+// The Diversity Lounge rides along on this tab (see BRELLA_GRILLS). Routed here explicitly
+// rather than by widening the pattern, because "lounge" alone would also catch the Longevity
+// Lounge, which Auri has not asked to move and which still needs a home of its own.
+const GRILLS = /grill session|diversity lounge/i;
 
 // Future of FinTech runs IN Event Room 1, so it files under Event Rooms. Its own name is kept
 // rather than being rewritten to "Event Room 1": that is a separate Brella track with its own

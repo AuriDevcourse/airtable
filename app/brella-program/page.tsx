@@ -43,6 +43,7 @@ import {
   EVENT_DAYS,
   brellaDayLabel as dayLabel,
   brellaDayLong,
+  BRELLA_GRILLS,
   defaultEventDay,
   inBrellaSection,
   isBrellaSection,
@@ -646,7 +647,10 @@ export default function BrellaProgramPage() {
   // Built from the data, so an empty track never gets a pill. Alphabetical apart from the
   // Grill tracks, which read better in their signage order.
   const tracks = useMemo(() => {
-    const GRILL = ["Green Grill Session", "Blue Grill Session", "Orange Grill Session"];
+    // Taken from the shared column list rather than retyped, so adding a track there (the
+    // Diversity Lounge, last) also orders its pill here instead of dropping it into the
+    // alphabetical tail.
+    const GRILL = BRELLA_GRILLS.map((g) => g.label);
     const seen = [...new Set(inSection.map((s) => s.room).filter(Boolean))];
     return seen.sort((a, b) => {
       const ga = GRILL.indexOf(a);
