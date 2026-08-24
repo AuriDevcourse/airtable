@@ -9,6 +9,163 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-24 · THREE SIDE EVENTS HAD NO PICTURE, AND TWO MORE ONLY LOOKED LIKE IT
+
+**CURRENT STATE.** Branch **`brella-source-of-truth`**, uncommitted, now **five** things:
+lib/sideEvents.ts, lib/eventArtwork.ts and three new webp in public/side-events/, alongside
+lib/logoPick.ts and the Brella override work from earlier sessions. `npx tsc --noEmit` clean.
+`/brella-program` Side Events went from **28 of 33** cards carrying a picture to **31 of 33**.
+
+**THE RULE, because it is easy to get backwards.** A hand-drawn banner is for an event with NO
+ticketing page to scrape from. The app already lifts each partner's own `og:image` off their Luma or
+Eventbrite listing, and `ARTWORK_OVERRIDES` in lib/eventArtwork.ts WINS over that scrape,
+permanently. Draw one for an event that HAS a Luma page and you have replaced the partner's real
+artwork with ours.
+
+**FIVE CARDS HAD NO PICTURE. ONLY THREE NEEDED ONE.**
+
+| Event | Verdict |
+|---|---|
+| TechBBQ kick-off with EY / Founders Growth Club | banner drawn · `ey-kickoff.webp` |
+| TechBBQ afterparty at Proud Mary @ Radhuspladsen | banner drawn · `proud-mary.webp` |
+| The Official TechBBQ Afterparty @ ARCH | banner drawn · `arch.webp` |
+| Shortcuts to Scale | NO banner. `luma.com/3j38qruj` has real artwork |
+| VC Hackathon | NO banner. `luma.com/afn-ym73` has real artwork |
+
+Shortcuts to Scale shows no picture today only because it has no Airtable row: the Luma scrape runs
+over Airtable's `Link to register` values, so a Brella-only card never reaches it. Add the row and
+the artwork arrives with no code change.
+
+**THE LUMA PAGE SETTLED THE VC HACKATHON NAMING.** `luma.com/afn-ym73` is titled "VC Hackathon:
+Build AI Agents For VCs", which is BRELLA's name. Airtable holds the stale "VC Hackathon: Build The
+Thing VCs Want To Invest In", which is why the event draws two cards. Rename the AIRTABLE row to
+match Brella, not the reverse. The same page names the Shortcuts to Scale hosts: TechBBQ x FGC x DI.
+
+**THE TRAP THAT COST THE MOST TIME.** `artworkOverride()` was called only on the Airtable-paired
+branch of `mergeSideEvents`. The EY kick-off and the Proud Mary afterparty are BRELLA-ONLY cards, so
+both banners sat in public/side-events/ answering HTTP 200 while the cards stayed blank. The
+unpaired branch now applies the override too. If a new banner does not show, check WHICH BRANCH its
+card comes from before re-cutting the art.
+
+**HOW THE BANNERS ARE MADE.** `C:/Users/User/Desktop/Side Events` holds make_banner.py and its own progress.md, which is the
+real reference. Square visual from the `nano-banana-pro` skill at 2K, all text drawn afterwards in
+PIL, 1600x840 layout mirroring Luma. Converted here to 1200x630 webp at quality 88, which lands near
+50KB and matches the five already in public/side-events/. The `ARTWORK_OVERRIDES` key is a
+`titleKey()`, so "Proud Mary @ Radhuspladsen" becomes
+`techbbq afterparty at proud mary radhuspladsen`.
+
+**GOTCHA: DO NOT TRUST `naturalWidth === 0`.** A full-page sweep of the Side Events tab reported
+almost every banner broken, the five pre-existing ones included. They lazy-load, so anything below
+the fold reads as zero. Verify with curl for the status and content-type, then scroll the specific
+element into view before reading `naturalWidth`. All three new ones report 1200x630 on the right
+cards.
+
+**GOTCHA: THE EY CROP.** The centred crop put the sunlit window and the crowd directly under the
+meta lines and they washed out, which is gotcha 4 in the Side Events notes arriving the hard way.
+`crop_box=(0, 0, 1450, 1450)` takes the top-left square instead, where the dark ceiling gives the
+scrim something to work with, and the venue merged onto one line.
+
+**NEXT STEPS.**
+1. **ARCH has no venue in any source.** The banner says "ARCH, Copenhagen", taken from the event
+   title and nothing else. Get the street address.
+2. Airtable work Auri owns, none of it needing code: add rows for **Shortcuts to Scale** and
+   **TechBBQ afterparty at Proud Mary**; rename the **VC Hackathon** row to Brella's title; retype
+   **TechBBQ kick-off with EY** from `Bridge Event` to `Side Event`. That takes both pages to 32
+   matching side events.
+3. Tidy the duplicate rows in view `viwcC25ENg2ELGszH`: Diplomatic Soiree x2, The Nordic Paradox x2,
+   Creative Business Cup 2026 x5, Beyond Unicorns x3, one thirty labs longevity lounge x2.
+4. Merge, as written in the session below. Five things now, still one squash.
+
+**FILES.** lib/eventArtwork.ts (ARTWORK_OVERRIDES and the baseUrl warning) · lib/sideEvents.ts
+(the unpaired branch now applies the override) ·
+public/side-events/{ey-kickoff,proud-mary,arch}.webp · `C:/Users/User/Desktop/Side Events/make_banner.py` and its
+progress.md (the banner recipe, prompts and gotchas) · lib/eventPages.ts (the og:image scrape
+these banners stand in for).
+
+## SESSION · 2026-08-24 · BRELLA LISTS TWO SIDE EVENTS TWICE, AND THE COPY WITHOUT THE LINK WON
+
+**CURRENT STATE.** Same branch **`brella-source-of-truth`**, still uncommitted, now with a third
+file: **lib/sideEvents.ts** (+84/-7). `npx tsc --noEmit` clean, verified against the dev server on
+:3000 and in the browser. `/api/program?event=brella` went **374 to 372** sessions. Side events
+**33**, of which **29** carry a Register button (was 28). Nothing else in the feed moved.
+
+**WHAT AURI SAW.** "On /brella-program some of them have a luma link but the button doesn't exist."
+Then, pointing at the Airtable view: "there is something called registration link."
+
+**THE COLUMN WAS THE RIGHT LEAD.** `Partnership Success` (`tbllvkwLhB4Omdphd`) view
+`2026 Side event and event room info` (`viwcC25ENg2ELGszH`) has exactly one link column,
+`Link to register` = `fldW7Kf9e7UtOzzgC`, filled on **30 of 58 rows**. lib/partnerevents.ts already
+reads it. Diffing those 30 rows against the live feed found TWO with a link in Airtable and no
+button on the page: **Diplomatic Soirée** (`https://luma.com/tskcov1r`) and **The Nordic Paradox:
+From Mapping to Action** (a confetti.events URL). Watch out when checking this yourself: the
+Airtable REST API returns field NAMES unless you pass `returnFieldsByFieldId=true`, so keying the
+records by `fldW7Kf9e7UtOzzgC` reports a confident and completely wrong **0 rows have a link**.
+
+**ROOT CAUSE: BRELLA HOLDS DUPLICATE ROWS, AND `find()` ONLY ATE ONE.** Both events were published
+TWICE in the side section: the Airtable-merged card with the button, plus a bare second card
+without. Brella has two side-session records for each, identical in every field that matters:
+
+    brella-986549  Diplomatic Soirée  Day 3  16:00 - 17:30  Side Events  (341 chars)
+    brella-992272  Diplomatic Soirée  Day 3  16:00 - 17:30  Side Events  (796 chars)
+    brella-986949  The Nordic Paradox  Day 4  14:00 - 16:00  Side Events  (597 chars)
+    brella-991196  The Nordic Paradox  Day 4  14:00 - 16:00  Side Events  (596 chars)
+
+`mergeSideEvents` paired with `brella.find(...)`, which consumes ONE copy. The leftover fell through
+to the unpaired branch, which hardcoded `registerUrl: null`, and shipped a duplicate card with no
+button. This is the exact symptom that branch's own warning predicted, except the trigger was
+Brella's own duplicates and not a title edited on one side. Titles matched perfectly, which is why
+the keys looked fine and the pairing still failed.
+
+**THE FIX, three parts, all in lib/sideEvents.ts.**
+1. `find` to `filter`: every Brella row matching an Airtable event is marked paired, so Brella's
+   duplicates collapse into the one card that carries the link. Loose `sameEvent` still decides
+   which rows belong, so nothing about the matching itself changed.
+2. The RICHEST copy wins among those duplicates: most speakers, then longest description. The old
+   first-match behaviour threw away 796 characters in favour of 341 whenever Airtable had no
+   description of its own.
+3. New `registerUrlFromText()` mines a register link out of the DESCRIPTION for a Brella side event
+   with no Airtable row at all. Brella's API has no URL field, so a partner selling through Luma
+   types the link into the prose: "Shortcuts to Scale" (`brella-993014`) closes on "Register here:"
+   with the Luma URL on the next line, and used to publish it as plain text with no button.
+   `stripPromotedRegisterLine()` then drops that line, but ONLY when a button was actually drawn.
+
+**GOTCHA WORTH KEEPING.** `registerUrlFromText` promotes only two shapes, and the restraint is the
+point: a URL on a known ticketing host (lu.ma, luma.com, Eventbrite, ti.to, members.eu.vc, Meetup,
+Partiful), or any URL on or directly under a line saying register / sign up / tickets / RSVP.
+"program" is deliberately NOT a cue, because `Board Summit by Boardway` ends on
+"Full program: <pdf>" and a programme is not a sign-up page. Widen that list and you grow Register
+buttons on PDFs.
+
+**EVIDENCE.** Feed diff across 374 sessions: the only removals are `brella-992272` and
+`brella-991196`, and the only field change is Shortcuts to Scale gaining its Luma link and losing
+the raw URL from its body. No side event title repeats any more. Board Summit's PDF and the other 28
+register links are byte-identical. In the browser, Diplomatic Soirée and The Nordic Paradox each
+draw ONE card whose dialog renders "Register for this event". Two unrelated sessions flickered
+between fetches (Longevity Lounge, Campfire Stage); a re-fetch on identical code gave zero diffs, so
+those were live Brella edits and not this change.
+
+**LEFT ALONE, ON PURPOSE.** `brella-991484 "Diplomatic Soirée"` also exists as a **Bridge stage**
+session, room `Bridge`, outside the side section. Different section, so it does not read as a
+duplicate card, and the Soirée really does happen on The Bridge. Auri has not decided whether the
+Stages tab should drop it.
+
+**NEXT STEPS.**
+1. Decide on that Bridge copy of Diplomatic Soirée.
+2. Merge. This branch is 2 commits ahead of `main` (messages `yes` and `Yes`) and 5 behind, with
+   three uncommitted files: lib/sideEvents.ts, lib/logoPick.ts and the Brella override work. Squash
+   onto `main` with a real message rather than preserving those two. `progress.md` is the ONLY
+   conflict against `main`; keep both session blocks, newest first.
+3. `main` auto-deploys, so run `npx tsc --noEmit` and confirm 372 sessions on the merge result
+   BEFORE pushing.
+4. No embed change needed: lib/brellaEmbedSnippet.ts reads the same `registerUrl` field, so
+   techbbq.dk picks this up from the feed.
+
+**FILES.** lib/sideEvents.ts (all of it) · lib/partnerevents.ts (`cleanUrl`, `richness`, the
+`Link to register` field id) · lib/airtableSources.ts (the table and view ids) ·
+components/ProgramTimeline.tsx (`hasDetail` and the dialog's Register button) ·
+lib/brellaEmbedSnippet.ts:1483 (the embed's copy of the same button) · app/api/program/route.ts
+(where the three merges run, once, for every variant of the endpoint).
+
 ## SESSION · 2026-08-20 · ANORIT'S LOGO WAS THE LINKEDIN SQUARE, NOT THE WORDMARK
 
 **CURRENT STATE.** Same branch **`brella-source-of-truth`**, one extra uncommitted file:

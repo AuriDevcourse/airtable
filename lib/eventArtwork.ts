@@ -50,6 +50,12 @@ const ARTWORK_OVERRIDES: Record<string, string> = {
   "the nordic paradox from mapping to action": "nordic-paradox.webp",
   "techbbq run warm up with danske bank growth cykom": "techbbq-run.webp",
   "unlocking nordic private markets": "nordic-private-markets.webp",
+  // Added 2026-08-24, the three side events that had NO picture and no ticketing page to scrape
+  // one from. Shortcuts to Scale and the VC Hackathon are deliberately NOT here: both have real
+  // Luma artwork, and an entry here would override the partner's own image permanently.
+  "techbbq kick off with ey and the partners behind founders growth club": "ey-kickoff.webp",
+  "techbbq afterparty at proud mary radhuspladsen": "proud-mary.webp",
+  "the official techbbq afterparty arch": "arch.webp",
 };
 
 /** The banner for a title, or null when there is no hand-drawn one. Pass a titleKey(). */
