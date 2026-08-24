@@ -613,8 +613,8 @@ const EVENTS: {
     },
   },
   // AWS x NVIDIA, "The Agentic AI Era" — Event Room 3 on the 27th, 13:30-17:10. Typed in from the
-  // hosts' PDF on 2026-08-19; see PROGRAM_SOURCES["aws-nvidia"] in lib/program.ts for the four rows
-  // and why the 14:20 slot is one of them rather than two.
+  // hosts' PDF on 2026-08-19 and re-cut to the 24-08 PDF; see PROGRAM_SOURCES["aws-nvidia"] in
+  // lib/program.ts for the five rows and why the deep-dives are now two of them rather than one.
   //
   // THE `amber` THEME: #f8991d highlights on true black (Auri, 2026-08-19). The hosts' own colour, so
   // this is the first tab that carries neither the TechBBQ fire gradient nor a TechBBQ blue — a partner
@@ -635,7 +635,7 @@ const EVENTS: {
     bigOpening: false,
     people: true,
     doc: {
-      url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ-2.pdf",
+      url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ_-24-08.pdf",
       label: "See the full program (PDF)",
     },
   },

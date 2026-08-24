@@ -9,6 +9,194 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-24 · PLUG AND PLAY: A SECOND-EDITION PDF, AND A PRESENTER ONLY AIRTABLE KNOWS
+
+**THE QUESTION.** Is `/brella-program` current for the Plug and Play event room? Checked three sources
+against each other: the Partnership Success row (`recHBGvc47BGi8aP7`), its `Ready program` attachment,
+and the Brella feed.
+
+**THE SESSION IS CURRENT.** `brella-991188`, Event Room 4, Hall C, 27 August 11:45-14:30, matching the
+row's `Date of Event` and `Time slot`. The description is the partner's PDF text verbatim, run of show
+included. Note the shape CHANGED: the comment in lib/sessionProgrammes.ts described seven Brella rows
+differing after a dash · it is ONE row now with the whole agenda in its description. The prefix match
+covers both, which is why it stays a prefix.
+
+**1 · NEW PDF, and the check that made it safe to swap.** `PlugAndPlay_Program_27.08.2026.pdf` →
+`TechBBQ-Side-Event-Hosted-by-Scale-Up-Lab-Western-Balkans-24-08.pdf` in `lib/sessionProgrammes.ts`.
+`pdftotext` output of the new upload is IDENTICAL to the `Ready program` attachment on the Airtable
+row, so the link now points at the document marketing holds. No `/program` tab exists for this
+partner, so this is the one place it lives.
+
+**2b · RESOLVED SAME DAY: Simone Pulvirenti is in Brella.** Auri added the record; a `?fresh=1` read
+returns FOURTEEN speakers on `brella-991188`, matching the fourteen overflow rows. The speaker wall and
+the Brella board agree again. The section below is kept for the reasoning it records.
+
+**2 · SIMONE PULVIRENTI IS IN AIRTABLE AND NOT IN BRELLA.** Plug and Play submitted FOURTEEN overflow
+rows on 2026-08-18 under partner id 2854; Brella's session carries THIRTEEN speakers. The missing one
+is Simone Pulvirenti, Founding Product Designer / Design & Branding Lead, NEKOD (`recAQPMqYkbgnQqAn`).
+She is also absent from BOTH editions of the hosts' own PDF, whose agenda names seven people, so she
+may be attending rather than presenting. `/api/event-room-presenters` already lists her (14 cards for
+Event Room 4), so the speaker wall and the Brella board disagree by exactly one person.
+
+NO WRITE PATH EXISTS: `lib/brellaprogram.ts` only reads, and the integration API exposes speakers as
+`included` resources of timeslots. `GET /organizations/109/events/10356/speakers` answers 200, but
+nothing in this repo has ever POSTed to Brella and the event is two days out, so adding her was NOT
+attempted here. It belongs in Brella's admin. Her headshot came out of Airtable at 7468x7364 and
+25 MB, too big for most uploaders, so it was resized to 1200px / 176 KB at
+`Desktop/Simone Pulvirenti NEKOD.jpg`. LinkedIn: linkedin.com/in/simonepulvirenti.
+
+**4 · THE LUMA SIGN-UP LINK, AND A NEW FIELD FOR IT.** Auri gave `https://luma.com/daeoai03` as this
+session's registration page (2026-08-24). It could not be mined: the description ends "Register to the
+event by clicking HERE!" with the address behind the link text, which Brella's copy does not keep, so
+the reader is told to click a word that is not a link. `registerUrlFromText()` is powerless there.
+
+`SessionProgramme` gained an optional `register`, and `sessionRegister()` resolves it through the SAME
+matcher as the document · the match loop was extracted into `findEntry()` so the two lookups cannot
+drift apart. `lib/brellaprogram.ts` sets `session.registerUrl` from it beside `programmeUrl`, which is
+the whole point of doing it at the source: the dialog, the pasted embed and `?event=brella` all light
+up at once, and `hasDetail()` already counts a register link. VERIFIED on a fresh read: exactly ONE new
+session gained a `registerUrl` (Event Room 4) and the other 29 are the side events that always had one.
+
+A NOTE FOR MARKETING, not fixed here: the partner's row says `Event type = Private Event (invite only)`,
+but `access` is only ever set on side events, so this card shows a public Register button with no
+invite-only caveat under it. The Luma page may gate approvals itself. Worth one question to the host.
+
+**3 · A REAL BUG FOUND ON THE WAY, NOT YET FIXED.** `splitParallel` in `lib/eventrooms.ts:139` splits
+the sibling fields on `" & "` to pair them with the names on a row. On a SINGLE-name row a title
+containing an ampersand splits into two parts, the count mismatches the one name, and the mismatch
+branch deliberately blanks the value. So "MD & Co-Founder" renders as NOTHING. In the first 100
+overflow rows this blanks 25 values: Jakob Riis and Ossi Lindroos ("President & CEO"), Camilla Ley
+Valentin, Helle Uth, Christian Arnstedt, Mala Valroy, three MPs, and Stina Lantz's company ("Swedish
+Incubators & Science Parks"). The 1st-5th slot path is unaffected: it uses `parseDetails`, which never
+splits. Fix is one line, when a row has one name take the field whole, and the Women in Tech panel
+case is untouched. AWAITING AURI'S GO.
+
+## SESSION · 2026-08-24 · AWS x NVIDIA, THE 24-08 PDF AND THE SPEAKER SWAP
+
+**WHAT CHANGED.** The hosts published a new programme PDF on 24 August and swapped one panellist.
+
+1 · **NEW PDF LINK, two places.** `AWS_NVIDIA-event-program-for-TechBBQ-2.pdf` →
+   `AWS_NVIDIA-event-program-for-TechBBQ_-24-08.pdf` in `app/program/page.tsx` (the tab's `doc`) and
+   `lib/sessionProgrammes.ts` (the block match that puts the same link on the Brella board). Both old
+   and new URLs return 200, so the swap is a change of edition and not a repair of a dead link.
+
+2 · **JAN ERIK SOLEM → PAULA PETCU** on the 15:30 panel. NO CODE CHANGE: the tab reads
+   `tblSlpTzDi2oVYwqv` and the cell already said "Paula Petcu, Co-founder & CEO at Interhuman AI"
+   when this session looked. A `?fresh=1` read of `/api/program?event=aws-nvidia` returns her with a
+   face — through `facesFromBrella`, because she has no CRM row under `Project Name = "Event Room 3"`
+   like the nine created on 2026-08-19. The fallback is doing exactly the job its comment describes.
+   Ordinary reads served Solem for up to 30 minutes after the edit, which is the feed TTL and not a bug.
+
+3 · **BRELLA WAS THE OTHER SURFACE, AND IT IS FIXED.** Session `brella-991240`, Event Room 3,
+   27 August 15:30-16:10, listed Solem, so `/brella-program`, the pasted embed and `?event=brella`
+   showed him too. There is no overlay for this stage (Brella is source of truth on those boards), so
+   it had to be changed in Brella's admin · Auri did that the same day. A `?fresh=1` Brella read now
+   returns Paula Petcu with her portrait and the word "Solem" appears nowhere in the feed.
+   Brella writes her line as `CEO · Interhuman AI` while the Sessions cell says
+   `Co-founder & CEO at Interhuman AI`, so the two boards word her title slightly differently. Left
+   as is: each surface prints its own source, the same as every other speaker on it.
+
+4 · **THE DEEP-DIVES ARE TWO ROWS NOW,** 14:20-14:50 and 14:50-15:20, already split in Airtable and
+   matching the 24-08 PDF. Three comments still described the old four-row cut and were corrected in
+   `lib/program.ts`, `app/program/page.tsx` and `lib/sessionProgrammes.ts`.
+
+**ONE DISCREPANCY LEFT ALONE.** The PDF calls Christian Brøndum "General Partner", the Sessions table
+says "Managing Partner at Seed Capital". Marketing's cell wins until somebody says otherwise.
+
+`tsc --noEmit` exit 0. Branch `event-room-labels-and-splits`, uncommitted.
+
+## SESSION · 2026-08-24 · THE DEEP TECH STAGE, AND THE ALIGNMENT RULE THAT BLANKS A LINE-UP
+
+**CURRENT STATE.** On `main`, commit **`9cb2fe6`**, auto-deployed. `tsc --noEmit` exit 0.
+`/api/program?event=deep-tech` serves **6 sessions, 24 people, 0 without a photo**, verified on
+`https://airtable-woad.vercel.app` and not just locally. Two photos fetched through the prod proxy
+to prove the attachments really re-sign: the Jacob Frandsen file uploaded from Auri's Desktop
+(200, image/jpeg, 25697 bytes) and Bo Koch-Christensen's CRM headshot (200, 41546 bytes). The tab
+is done. Nothing blocked, one line-up gap that belongs to IDC rather than to this repo.
+
+**WHAT THIS WAS.** Investor Day on 25 August runs **two stages in parallel** in the Maersk Tower.
+Only the main stage had an agenda. The Deep Tech stage existed as a tab in the Investor Day 2026
+planning sheet and nowhere else. This session typed it into the Sessions table, gave every person a
+face, and added the `/program` tab.
+
+**1 · SIX ROWS, ITS OWN `Name of the Event`.** `Deep Tech`, not a variant of `TechBBQ Investor Day`.
+Filed beside it rather than inside it because the two stages run at the same times: merged, the
+agenda shows two sessions at 14:05 and no way for a reader to tell which room to walk into. Source
+was the `Deeptech` tab of the Investor Day 2026 planning sheet, **left-hand block only**. Conventions
+copied off the existing Investor Day rows rather than invented: `HH:MM – HH:MM` with an en dash,
+`Speaker Details` as one line of "Name, Title at Company" joined with ` · `, `@` rewritten to `at`,
+moderators in their own cell. `Description`, `When Is it` and `Event Room` left empty, which is what
+every other Investor Day row does.
+- `Debat` in the sheet is not a `Session Type` choice, so the 14:05 row is `Panel`.
+- The bare `16:15` row was skipped on purpose (Auri).
+- **The sheet's right-hand columns are NOT imported.** They are an older draft of a 500-pax Deep
+  Tech Stage with different times and a "Defence talk" slot. Do not treat them as the same programme.
+
+**2 · THE PHOTOS, AND THE ONE RULE THAT DECIDES WHETHER ANY OF THEM SHOW.** 21 of 22 line-up slots
+had a headshot somewhere in the base. 16 in Marketing Project Overview's `Speakers` view
+(`tblTecOBecLQCNIeD` / `viwfIcQFDNQ9ggSqx`, field `Profile Picture`), one more nowhere near it:
+**Jakob Rybak-Andersen sits in the `Speakers` table `tblLrl7737j4PYiVy`** (`recjOYDssjG2RyGYC`,
+field `Picture`), so a search of the CRM view alone reports him missing. Four had no photo anywhere
+and Auri sent them as `.jfif` files, which were **actually JPEG** (`ffd8ff` magic bytes) and went up
+through the `uploadAttachment` endpoint as `.jpg`.
+
+**THE RULE.** `parsePeople()` in `lib/program.ts:697` pairs faces to names **by index, and only when
+the counts match exactly**: `const aligned = atts.length === entries.length`. One name without a
+headshot does not lose one face. **It loses every face on that row.** Two rows were mis-set and both
+would have rendered faceless:
+- **14:00 intro.** `Speaker Details` was the single string "Bo Koch-Christensen & Helle Stendorff",
+  which parses as ONE person against two photos. Split into two entries with titles read out of the
+  CRM: `Bo Koch-Christensen, Ecosystem and Relations at KU Lighthouse · Helle Stendorff, Relations
+  Manager at DTU Skylab`.
+- **14:51 The European Deeptech Ecosystem.** `IDC Representative` was a fifth entry with no face,
+  killing the four real ones. Changed to **`To be announced`**, which the placeholder filter in
+  `parsePeople` drops (`tbc|tba|tbd|to be confirmed|to be announced`). This is what the Investor Day
+  "Built in Europe, bought by America" row already does, so it is the house convention, not a hack.
+- **When IDC finally names their person, the name and the headshot must land in the SAME edit.**
+  A name alone re-breaks the count and blanks the panel again.
+
+**3 · `facesFrom` IS A SAFETY NET HERE, NOT THE SOURCE.** The faces are on the session rows, so the
+source needs no photo config: `lib/photo.ts`'s `policy-program` feed already covers this table's
+photo cells. `facesFrom: ["TechBBQ Investor Day", "Event Room 5,6,7"]` is set anyway, for exactly
+the failure in 2 above: when the count breaks and `parsePeople` yields nothing, `lib/programFaces.ts`
+refills by name from the CRM, so the row degrades to one missing person instead of a faceless panel.
+`Event Room 5,6,7` is in the list for **Mikkel Sørensen**, who moderates here but is filed under it.
+
+**4 · THE TAB.** `theme: "beam"`, `heading: "August 25th"`, `people: true`, all copied from Investor
+Day so the two stages look like one event. Only `sub` differs, `The Maersk Tower · Deep Tech Stage`
+against `· Main Stage`, because the room is the thing a reader standing in that building needs. The
+embed needed no new code: `buildAgendaSnippet` is driven entirely by `base =
+/api/program?event=${event}` plus the EVENTS entry, and `/api/program` validates `?event=` against
+`PROGRAM_SOURCES`, so registering the source is what makes the feed legal.
+
+**5 · THE PUSH WAS NOT A FAST-FORWARD, AND THE FIRST `git fetch` LIED.** A fetch at the start of the
+session reported the branch level with `origin/main`. By push time `origin/main` had gained three
+commits from the other session (`b792df0` overlays, `7364c08` the Capital and Cocktails revert,
+`2794a35` the stale side-events row) and the push was rejected. Rebased the single commit on top and
+pushed. **No force, nothing overwritten.** `git rebase --autostash` then conflicted on `progress.md`,
+because both sessions had written a `SESSION · 2026-08-24` heading: **both entries were kept**,
+overlays first, only the markers removed. Re-fetch immediately before pushing; a fetch from earlier
+in a long session is not evidence.
+
+**6 · COPYING FROM localhost IS SAFE, contrary to what was said mid-session.**
+`lib/embedOrigin.ts:12` refuses to emit a loopback origin and substitutes
+`FALLBACK_ORIGIN = https://airtable-woad.vercel.app`. That guard exists because a localhost origin
+baked into a snippet is what left the 2026 partners page on "Loading…" for everyone except the
+person who copied it. Either dashboard produces a working snippet.
+
+**NOT DONE, ON PURPOSE.** The four new people exist only on the session rows, **not** in the
+Marketing Project Overview `Speakers` view, so the photo library still has the gap even though the
+agenda does not. `Deep Tech` is also absent from the five other places that hardcode their own event
+lists: `app/investors/page.tsx`, `app/all-speakers-2026/page.tsx`, `app/api/all-speakers/route.ts`,
+`lib/programPeople.ts`, `lib/pages.ts`. It therefore has no entry in the investors view or the
+all-speakers page. Vercel CLI in this repo is **not authorized** (`vercel whoami` → `Not authorized`);
+the deploy was confirmed by hitting the live URLs, which is the better check anyway.
+
+**FILES.** lib/program.ts (`PROGRAM_SOURCES["deep-tech"]`) · app/program/page.tsx (`EventKey` union
++ the EVENTS entry). 46 insertions, additions only. Airtable side: 6 rows in Sessions
+`tblSlpTzDi2oVYwqv` under `Name of the Event = "Deep Tech"`, 21 attachments across
+`Speaker Photo` / `Moderator Photo`.
+
 ## SESSION · 2026-08-24 · THE OVERLAY WORK LANDED ON main, FIFTY AIRTABLE GHOSTS GONE
 
 **CURRENT STATE.** On `main`, pushed. `tsc` clean. `/api/program?event=brella` **405 to 371**

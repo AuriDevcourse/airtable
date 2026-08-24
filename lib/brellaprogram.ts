@@ -19,7 +19,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
-import { sessionProgramme } from "@/lib/sessionProgrammes";
+import { sessionProgramme, sessionRegister } from "@/lib/sessionProgrammes";
 import { derivedShells } from "@/lib/derivedShells";
 import { str } from "@/lib/fields";
 import {
@@ -374,6 +374,15 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
       timeSlot,
     });
 
+    // The hosts' own sign-up page, from the same table and matched the same way. Only Plug and Play's
+    // event room carries one today: its description tells the reader to "click HERE" and Brella keeps
+    // no address behind those words, so without this the instruction points nowhere. Side events do
+    // not come through here — lib/sideEvents.ts already has their Luma URL from Airtable.
+    const register = sessionRegister(title, dateKey, {
+      room: roomAlias(track),
+      timeSlot,
+    });
+
     prepared.push({
       dateKey,
       startIso,
@@ -398,6 +407,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
         // has nowhere to put the timings. Matched on the title, so a row deleted and recreated in
         // Brella's admin keeps its link.
         ...(programme ? { programmeUrl: programme } : {}),
+        // Spread the same way, so a session without one carries no null into the JSON: the two
+        // renderers test truthiness and the embed's snippet is smaller for the absence.
+        ...(register ? { registerUrl: register } : {}),
       },
     });
   }

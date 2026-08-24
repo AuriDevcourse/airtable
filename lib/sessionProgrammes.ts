@@ -73,6 +73,22 @@ type SessionProgramme = {
    * for the same action. The field stays so a genuinely different document can say so.
    */
   label: string;
+  /**
+   * THE HOSTS' OWN SIGN-UP PAGE for this session, when they run one. Optional, and separate from
+   * `url` on purpose: the document and the sign-up are two different actions, and the renderers
+   * already treat them that way. `programmeUrl` is a footnote under the card; `registerUrl` is the
+   * button above the speaker list, because somebody who opened a side event came to sign up.
+   *
+   * IT LIVES HERE RATHER THAN IN A SECOND TABLE for the reason at the top of this file: set at the
+   * source, one entry carries every per-session link, and /brella-program, the pasted embed and
+   * /api/program?event=brella cannot disagree about it.
+   *
+   * Side events do NOT need this: lib/sideEvents.ts already carries their Luma URL from Airtable,
+   * and registerUrlFromText() mines one out of a description that prints it. This is for a session
+   * whose description says "Register by clicking HERE" with the URL hidden behind the link text,
+   * which no miner can recover. Same https guard as `url`.
+   */
+  register?: string;
 };
 
 /** What every entry says unless it has a reason not to. See SessionProgramme.label. */
@@ -192,13 +208,24 @@ const PROGRAMMES: SessionProgramme[] = [
     label: SEE_FULL,
   },
   // SMALL HUB, GLOBAL AMBITION (Plug and Play with Digital Serbia Initiative), Event Room 4,
-  // 27 August 11:45-14:30. Brella has it as seven rows that all begin with the same title and differ
+  // 27 August 11:45-14:30. Brella HAD it as seven rows that all began with the same title and differed
   // only after the dash ("- Door Opening", "- Welcome and Intro", "- Panel", "- Fireside Chat",
-  // "- Q&A", "- Networking Lunch"), so the prefix puts the link on the whole block.
+  // "- Q&A", "- Networking Lunch"); it is ONE row now, carrying the whole run of show in its own
+  // description. The prefix match covers both shapes, which is why it stays a prefix.
+  //
+  // URL UPDATED 2026-08-24 to the hosts' second edition. Verified rather than assumed: the new file's
+  // text is byte-identical to the `Ready program` attachment on the partner's Partnership Success row
+  // (recHBGvc47BGi8aP7), so this is the document marketing holds and not an older draft.
+  //
+  // FIRST ENTRY TO CARRY `register` (Auri, 2026-08-24). The description ends "Register to the event by
+  // clicking HERE!" with the URL behind the link text, so Brella's copy of it names no address and
+  // registerUrlFromText() has nothing to mine — a reader is told to click a word that is not a link.
+  // The Luma page is that missing address.
   {
     match: /^small hub global ambition\b/,
-    url: "https://techbbq.dk/wp-content/uploads/2026/08/PlugAndPlay_Program_27.08.2026.pdf",
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/TechBBQ-Side-Event-Hosted-by-Scale-Up-Lab-Western-Balkans-24-08.pdf",
     label: SEE_FULL,
+    register: "https://luma.com/daeoai03",
   },
   // SCALING EUROPE (Google), Event Room 5, 26 August 12:00-14:45. One Brella row for the whole
   // block, with five timed items inside the PDF and none of them anywhere in the data.
@@ -219,9 +246,9 @@ const PROGRAMMES: SessionProgramme[] = [
     label: SEE_FULL,
   },
   // AWS x NVIDIA, "The Agentic AI Era", Event Room 3 on 27 August 13:30-17:10. MATCHED ON THE BLOCK
-  // and not on a title, for the same reason Nordic IPO is: the four rows are titled after their own
-  // topics ("How AWS and NVIDIA Are Putting Agentic AI in Every Startup's Hands?", "Technical
-  // Deep-Dives...", "The Agentic AI Landscape...", "Networking") and share no prefix · and the last
+  // and not on a title, for the same reason Nordic IPO is: the five rows are titled after their own
+  // topics ("How AWS and NVIDIA Are Putting Agentic AI in Every Startup's Hands?", two "Technical
+  // deep-dive...", "The Agentic AI Landscape...", "Networking") and share no prefix · and the last
   // of them is called just "Networking", which no title regex can claim without also claiming rows
   // in other rooms.
   //
@@ -238,7 +265,7 @@ const PROGRAMMES: SessionProgramme[] = [
       from: "13:30",
       to: "17:10",
     },
-    url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ-2.pdf",
+    url: "https://techbbq.dk/wp-content/uploads/2026/08/AWS_NVIDIA-event-program-for-TechBBQ_-24-08.pdf",
     label: SEE_FULL,
   },
   // THE DIVERSITY LOUNGE 2.0, both days, hosted by Women in Tech with Google and Dansk Erhverv.
@@ -317,6 +344,44 @@ export function sessionProgramme(
   dateKey?: string,
   where?: { room?: string; timeSlot?: string }
 ): { url: string; label: string } | null {
+  const p = findEntry(name, dateKey, where);
+  if (!p) return null;
+  const url = sanitise(p.url);
+  if (!url) {
+    // Loud rather than silent: an entry that fails its own guard is a typo in this file, and a
+    // link quietly not appearing is exactly the bug this module was written to end.
+    console.error("[sessionProgrammes] rejected a non-https url for", titleKey(name), p.url);
+    return null;
+  }
+  return { url, label: p.label };
+}
+
+/**
+ * The hosts' sign-up page for a session, or null — which is every session but the one entry that
+ * carries `register`. Same arguments and same matching as sessionProgramme(), because it is the same
+ * table: a session that has both gets both, resolved once each.
+ */
+export function sessionRegister(
+  name: string,
+  dateKey?: string,
+  where?: { room?: string; timeSlot?: string }
+): string | null {
+  const p = findEntry(name, dateKey, where);
+  if (!p?.register) return null;
+  const url = sanitise(p.register);
+  if (!url) {
+    console.error("[sessionProgrammes] rejected a non-https register url for", titleKey(name), p.register);
+    return null;
+  }
+  return url;
+}
+
+/** The first entry identifying this session, by title or by block. Shared by both lookups above. */
+function findEntry(
+  name: string,
+  dateKey?: string,
+  where?: { room?: string; timeSlot?: string }
+): SessionProgramme | null {
   const key = titleKey(name);
   if (!key) return null;
   for (const p of PROGRAMMES) {
@@ -332,14 +397,7 @@ export function sessionProgramme(
       console.error("[sessionProgrammes] entry has neither match nor block:", p.url);
       continue;
     }
-    const url = sanitise(p.url);
-    if (!url) {
-      // Loud rather than silent: an entry that fails its own guard is a typo in this file, and a
-      // link quietly not appearing is exactly the bug this module was written to end.
-      console.error("[sessionProgrammes] rejected a non-https url for", key, p.url);
-      return null;
-    }
-    return { url, label: p.label };
+    return p;
   }
   return null;
 }

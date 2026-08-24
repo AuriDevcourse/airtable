@@ -615,10 +615,12 @@ export const PROGRAM_SOURCES = {
   // and lib/sessionProgrammes.ts links the PDF. What Brella does NOT give is a page a partner can
   // link to, which is what every other event room programme on /program has.
   //
-  // FOUR ROWS, MATCHING BRELLA (Auri, 2026-08-19: "you can check brella the way it is done"). The
-  // 14:20-15:20 slot is two deep-dives back to back and the PDF gives ONE window for both, exactly as
-  // the Brella row does, so it stays one row with four speakers and both titles named in its
-  // description. Splitting it would have meant inventing a 14:50 boundary nobody published.
+  // FIVE ROWS. It began as four, matching Brella (Auri, 2026-08-19: "you can check brella the way it
+  // is done"), because the first PDF gave the two deep-dives ONE 14:20-15:20 window and splitting it
+  // would have meant inventing a 14:50 boundary nobody published. The hosts' 24-08 PDF publishes that
+  // boundary, so the row is now two: 14:20-14:50 for the NVIDIA tools deep-dive and 14:50-15:20 for
+  // "From AI demo to governed system", each with its own two speakers. Brella still carries the single
+  // merged row, so this tab is finer-grained than the board it sits beside on purpose.
   //
   // No `lockedValues`: these rows carry no `Session Status`, the same as Future of Fintech's. The
   // line-up came from the hosts' own published programme, so there is no outreach still in flight for
