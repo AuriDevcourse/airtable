@@ -74,6 +74,56 @@ function stripDeadRegisterLine(text: string): string {
     .trim();
 }
 
+// Hosts a side event actually sells tickets through. A bare URL on one of these is a register link
+// even with no words around it.
+const TICKETING_URL =
+  /^https?:\/\/(?:www\.)?(?:lu\.ma|luma\.com|eventbrite\.[a-z.]{2,9}|ti\.to|tito\.io|members\.eu\.vc|hopin\.com|meetup\.com|partiful\.com)\//i;
+
+// Words a partner puts above the link. Deliberately without "program": the Board Summit row ends on
+// "Full program: <pdf>", and a programme is not a sign-up page.
+const REGISTER_CUE = /\b(register|registration|sign\s*up|signup|tickets?|rsvp)\b/i;
+
+/**
+ * The register link Brella hides in prose.
+ *
+ * Brella's API carries no URL field for a side event, so a partner who sells through Luma types the
+ * link into the DESCRIPTION instead: "Shortcuts to Scale" (brella-993014) closed on "Register here:"
+ * with the Luma URL on the next line. That session reached the page with registerUrl null and so no
+ * Register button at all, which is the one thing a side event needs (Auri, 2026-08-24).
+ *
+ * Only two shapes get promoted, so an unrelated link stays prose: a URL on a known ticketing host,
+ * or any URL sitting on — or directly under — a line that says register / sign up / tickets / RSVP.
+ */
+export function registerUrlFromText(text: string): string | null {
+  let cued = false;
+  for (const line of String(text || "").split("\n")) {
+    const url = /https?:\/\/[^\s<>"')\]]+/.exec(line)?.[0].replace(/[.,;:)\]]+$/, "");
+    if (url && (TICKETING_URL.test(url) || REGISTER_CUE.test(line) || cued)) return url;
+    // A cue carries to the NEXT line only, and only when it brought no link of its own.
+    if (line.trim()) cued = !url && REGISTER_CUE.test(line);
+  }
+  return null;
+}
+
+/**
+ * Drops the prose that `registerUrlFromText` just turned into a button, so the raw URL is not
+ * printed beside a button going to the same place. Runs ONLY when a link was promoted: with no
+ * button, that line is the visitor's only route to the sign-up page and it has to stay.
+ */
+function stripPromotedRegisterLine(text: string, promoted: string): string {
+  const lines = text.split("\n");
+  const at = lines.findIndex((l) => l.includes(promoted));
+  if (at === -1) return text;
+  // Only when the line is the link plus a short label, never when the URL sits mid-sentence.
+  if (lines[at].replace(promoted, "").replace(/^[\s>·-]*/, "").trim().length > 24) return text;
+  // The lead-in above it goes too, but only when it is a bare cue ("Register here:") rather than a
+  // sentence that happens to mention registering.
+  const lead = lines[at - 1]?.trim() ?? "";
+  const from = /^(register|sign\s*up|signup|rsvp|tickets?)\b[^.!?]{0,20}:$/i.test(lead) ? at - 1 : at;
+  lines.splice(from, at - from + 1);
+  return lines.join("\n").trim();
+}
+
 /** "2026-08-25" → "25 August". UTC, because a date-only cell formatted west of UTC moves back a day. */
 function dateWords(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -223,7 +273,9 @@ export function mergeSideEvents(
         location: venueLabel(extra.venue, extra.city, e.company),
         // Airtable's view carries no speaker link, so keep Brella's if it had any.
         speakers: match?.session.speakers ?? [],
-        registerUrl: e.registerUrl,
+        // Airtable's `Link to register` first; when the partner left that empty, the link they typed
+        // into the Brella description still earns them a button.
+        registerUrl: e.registerUrl || registerUrlFromText(match?.session.description || ""),
         // Declared, not guessed. `room` here is the hosting partner, and sectionOf() reads an
         // unrecognised track name as a stage — without this the side events would land in the
         // Stages timeline on both the page and the embed.
@@ -241,15 +293,22 @@ export function mergeSideEvents(
   // during event week instead of by a visitor.
   for (const { session } of brella) {
     if (paired.has(session)) continue;
+    const text = stripDeadRegisterLine(session.description || "");
+    // No Airtable row means no `Link to register` field, so the description is the ONLY place a
+    // register link can come from. This used to be a flat null, which is why "Shortcuts to Scale"
+    // published its Luma link as plain text and drew no button.
+    const mined = registerUrlFromText(text);
     console.warn(
       `[sideEvents] Brella side event "${session.name}" (${session.day}, ${session.timeSlot}) ` +
-        `matched no Airtable row — shown as-is, with no register link. If this event IS in ` +
-        `Airtable under a different title, it is now listed twice; align the titles to fix.`
+        `matched no Airtable row — shown as-is, ` +
+        (mined ? `register link read out of its description (${mined})` : `with no register link`) +
+        `. If this event IS in Airtable under a different title, it is now listed twice; align ` +
+        `the titles to fix.`
     );
     sessions.push({
       ...session,
-      description: stripDeadRegisterLine(session.description || ""),
-      registerUrl: null,
+      description: mined ? stripPromotedRegisterLine(text, mined) : text,
+      registerUrl: mined,
       // A HAND-DRAWN BANNER REACHES THESE TOO. This line was missing, which made
       // ARTWORK_OVERRIDES unreachable for exactly the events that need it most: a session with
       // no Airtable row has no logo and no ticketing page to scrape an og:image from, and Brella

@@ -54,6 +54,13 @@ const ARTWORK_OVERRIDES: Record<string, string> = {
   // only picture this card will ever have. Carries no date or venue in the artwork, so it does
   // not go stale the way the note above warns about.
   "the official techbbq afterparty arch": "afterparty-arch.webp",
+  // Same reasoning as ARCH above: the EY kick-off and the Proud Mary afterparty carry no ticketing
+  // page, so a banner is the only picture either card can ever have. Drawn 2026-08-24.
+  //
+  // NOT here, deliberately: Shortcuts to Scale and the VC Hackathon. Both have real Luma artwork,
+  // and an entry here WINS over the partner's own og:image, permanently.
+  "techbbq kick off with ey and the partners behind founders growth club": "ey-kickoff.webp",
+  "techbbq afterparty at proud mary radhuspladsen": "proud-mary.webp",
 };
 
 /** The banner for a title, or null when there is no hand-drawn one. Pass a titleKey(). */
