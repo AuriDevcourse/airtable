@@ -28,6 +28,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { photoUrl } from "@/lib/photo";
 import { firstAttachmentId, str } from "@/lib/fields";
+import { rewriteIdentityText } from "@/lib/identityOverride";
 import { PARTNER_EVENTS_TABLE, PARTNER_EVENTS_VIEW } from "@/lib/airtableSources";
 
 const API = "https://api.airtable.com/v0";
@@ -327,7 +328,9 @@ export async function fetchPartnerEvents(): Promise<PartnerEvent[]> {
       timeSlot: slot?.label ?? null,
       accessKind: accessInfo?.accessKind ?? null,
       accessLabel: accessInfo?.accessLabel ?? null,
-      description: str(f[FIELDS.description]) || null,
+      // See lib/identityOverride.ts — the Mesh pre-party and the CFO dinner blurbs both name
+      // Ken Villum Klausen's old company, and both swap at the same declared minute.
+      description: rewriteIdentityText(str(f[FIELDS.description])) || null,
       registerUrl: registerUrl(str(f[FIELDS.registerUrl]), `${rec.id} "${title}"`),
       // Presence is checked against the attachment cell, but the URL served is the stable
       // proxy — raw signed Airtable URLs 410 after ~2h (lib/photo.ts).

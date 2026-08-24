@@ -22,6 +22,7 @@ import type { ProgramSession, ProgramSpeaker } from "@/lib/program";
 import { sessionProgramme, sessionRegister } from "@/lib/sessionProgrammes";
 import { derivedShells } from "@/lib/derivedShells";
 import { str } from "@/lib/fields";
+import { identityOf, rewriteIdentityText } from "@/lib/identityOverride";
 import {
   dayProgrammeOf,
   programmeOf,
@@ -304,8 +305,9 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
       out.push({
         id: `brella-speaker-${speaker.id}`,
         name,
-        title: str(a["job-title"]),
-        company: str(a["company-name"]),
+        // Ken Villum Klausen's Lunar -> Repodo swap fires here at its declared minute; every
+        // other person passes straight through. See lib/identityOverride.ts.
+        ...identityOf(name, str(a["job-title"]), str(a["company-name"])),
         photo: str(a["photo-url"]) || null,
         bio: draftToText(a.bio),
         role: str(assignment?.attributes?.role),
@@ -357,7 +359,10 @@ export async function fetchBrellaProgram(): Promise<ProgramSession[]> {
 
     // Brella's subtitle is a one-liner ("Side Event Promotion by Rockstart"); the body copy
     // is the Draft.js content. Both are useful, so subtitle leads the description.
-    const description = [str(a.subtitle), draftToText(a.content)].filter(Boolean).join("\n");
+    // Two of these sentences name Ken Villum Klausen's old company. See lib/identityOverride.ts:
+    // exact declared phrases only, never a blanket /Lunar/ rewrite — Lunar is a real bank that
+    // other sessions legitimately discuss.
+    const description = rewriteIdentityText([str(a.subtitle), draftToText(a.content)].filter(Boolean).join("\n"));
 
     // The host's own run of show, for an all-day row that is really a whole agenda. Null for all
     // but a couple of sessions — see lib/sessionProgrammes.ts.

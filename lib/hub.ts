@@ -12,6 +12,7 @@
 
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
+import { identityOf } from "@/lib/identityOverride";
 import { fetchHierarchyMap, isPlaceholderBio, normName } from "@/lib/hierarchy";
 import { fetchSummitExtras } from "@/lib/summitextras";
 import { cached } from "@/lib/rate-limit";
@@ -65,8 +66,8 @@ function mapRow(r: Row): HubSpeaker {
   return {
     id: str(r.id),
     name: str(r.full_name),
-    title: str(r.job_title),
-    company: str(r.company),
+    // See lib/identityOverride.ts — a declared job change, applied at its own minute.
+    ...identityOf(str(r.full_name), str(r.job_title), str(r.company)),
     bio: str(r.biography),
     photo: str(r.photo_url) || null,
     linkedin: normalizeLinkedInUrl(r.linkedin_profile),

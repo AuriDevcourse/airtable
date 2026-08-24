@@ -13,6 +13,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { normalizeLinkedInUrl } from "@/lib/linkedin";
 import { photoUrl } from "@/lib/photo";
+import { identityOf } from "@/lib/identityOverride";
 import { firstAttachmentId, firstPhoto, str } from "@/lib/fields";
 
 const API = "https://api.airtable.com/v0";
@@ -439,8 +440,8 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
       people.push({
         id: `${rec.id}-${i + 1}`,
         name,
-        title,
-        company,
+        // See lib/identityOverride.ts — a declared job change, applied at its own minute.
+        ...identityOf(name, title, company),
         // Stable proxy URL pinned to this slot's photo field via the index (?f=i) —
         // raw signed attachment URLs expire in ~2h (lib/photo.ts).
         photo: photoUrl("event-rooms", rec.id, i, firstAttachmentId(rec.fields[slot.photo])),
@@ -480,8 +481,9 @@ export async function fetchEventRoomPresenters(): Promise<EventRoomPresenter[]> 
         // The row id alone is no longer unique once a row can produce four people.
         id: names.length > 1 ? `${rec.id}-${i + 1}` : rec.id,
         name,
-        title: titles[i] ?? "",
-        company: companies[i] ?? "",
+        // See lib/identityOverride.ts — a declared job change, applied at its own minute. This is
+        // the path Ken Villum Klausen's card comes from, not the slot path above.
+        ...identityOf(name, titles[i] ?? "", companies[i] ?? ""),
         // Overflow rows keep their photo in the 6th registered field (index 5). The attachment
         // id is what picks THIS person's face out of a cell holding the whole panel's.
         photo: photoUrl("event-rooms", rec.id, 5, att.id),
