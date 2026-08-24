@@ -410,7 +410,18 @@ const TIER_NAMES = new Set(PARTNER_TIERS.map((t) => t.name));
 // is full of trailing spaces ("Boardway ", "Cloudflare\n") and an exact match would silently fail
 // to hide someone.
 const HIDDEN_UNTIL: Record<string, string> = {
-  repodo: "2026-08-25T22:00:00Z", // 26 August 2026, 00:00 Copenhagen (CEST = UTC+2)
+  // 25 August 2026, 08:40 Copenhagen (CEST = UTC+2). BROUGHT FORWARD from 26 August 00:00 on
+  // Auri's instruction (2026-08-24), and it is worth writing down why the two dates existed.
+  //
+  // The record's own "NOTE for Website and Brella App" asks for full stealth until the fair opens
+  // on the 26th. Its "Exceptions" field then carves the wall out of that: "We will show this
+  // partner on the partner wall only 8:40 CET August 24th" — a date that had already passed when
+  // this was set, so the day was confirmed with Auri rather than guessed. The 08:40 is the
+  // partner's own time and pairs with their Lunar-to-Repodo announcement at 08:30.
+  //
+  // THE REST OF THE NOTE STILL STANDS. This entry governs the partner WALL only. Repodo's name
+  // must stay out of every other public surface until the 26th.
+  repodo: "2026-08-25T06:40:00Z",
 };
 
 function hiddenUntilDate(company: string, now: number = Date.now()): string | null {
