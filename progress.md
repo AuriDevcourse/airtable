@@ -9,6 +9,95 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-24 · EVERYTHING THAT REVEALS ITSELF AT 08:40 ON 25 AUGUST
+
+**READ THIS FIRST IF YOU ARE HERE ON THE MORNING OF THE 25th.** Nothing needs doing at 08:40. No
+deploy, no cron, no button. Two code entries read the clock on every request and change what the
+feeds serve on their own. If something has NOT changed by 08:45, jump to VERIFYING IT FIRED below.
+
+**THE MOMENT.** `2026-08-25T06:40:00Z` = **25 August 2026, 08:40 Copenhagen** (CEST = UTC+2). Auri
+set it (2026-08-24) so the whole site turns over with Repodo's own announcement at 08:40.
+
+**WHY THE DATE WAS CONFIRMED RATHER THAN READ.** The partner record `recHive8WeWBAq8y5` (Marketing
+Project Overview) carries two answers and neither could be taken at face value:
+- `NOTE for Website and Brella App`: *"keep everything fully stealth until the fair opens on
+  Wednesday, August 26 … please do not use the Repodo name, logo or any Repodo-related description
+  in public-facing communication before then."*
+- `Exceptions`: *"We will show this partner on the partner wall only 8:40 CET August 24th"* — a
+  moment that had already passed twelve hours before this was set up.
+Auri chose **25 August 08:40** for everything. The 24th in that cell is a mistake; do not act on it.
+
+### WHAT FIRES AT 08:40, AND WHERE IT LIVES
+
+**1 · THE PARTNER WALL** · `lib/partners.ts`, `HIDDEN_UNTIL.repodo`.
+Repodo (Partner ID 2711, Pioneer tier, `Repodo.svg`) appears on `/partners` and on the techbbq.dk
+wall. Until then it is not in the feed at all — not on the wall and not in the `?pending=` list, so
+the name cannot leak through the dashboard either.
+
+**2 · KEN VILLUM KLAUSEN, LUNAR → REPODO** · `lib/identityOverride.ts`.
+"Founder of Lunar" / "In stealth mode" becomes **"CEO & Co-Founder" at "Repodo"** on every surface
+this repo serves, in one minute:
+
+| Surface | Produced by |
+|---|---|
+| All 5 Brella sessions (BBQ Stage 26th; Event Room 3 ×2, Event Room 1 ×2 on the 27th) | `lib/brellaprogram.ts` |
+| Speakers tab card | `lib/hub.ts` |
+| Event Room speaker card | `lib/eventrooms.ts` — **the OVERFLOW path**, not the slot path |
+| BBQ Stage session description, "(Founder, Lunar)" | `lib/brellaprogram.ts` |
+| Mesh Pre-Party blurb, "(Lunar/Stealth)" | `lib/partnerevents.ts` |
+| CFO Round Table Dinner blurb, "founder of Lunar" | `lib/partnerevents.ts` |
+
+**WHY IT IS CODE AND NOT AN AIRTABLE EDIT.** Two reasons, both load-bearing. Repodo is in stealth,
+so the moment the name is typed into Airtable it is in a public feed — the edit cannot be staged in
+the data. And nobody is awake at 08:40 to make eight edits across three systems in the right order.
+
+**PROSE IS SWAPPED BY DECLARED PHRASE, NEVER BY A `/Lunar/` REGEX.** Lunar is a real bank other
+sessions legitimately discuss, and his Speaker Hub biography describes founding and scaling it,
+which is history and stays true. Verified: the three declared sentences change, *"He founded and
+scaled Lunar into a licensed digital bank"* does not, and Sander Janca-Jensen is untouched.
+
+### WHAT DOES **NOT** FIRE — STILL MANUAL, AND THE APP IS WHAT THE HALL SEES
+
+This repo serves techbbq.dk's embeds, `/brella-program`, `/all-speakers-2026` and the JSON feeds.
+It does not own these, and they will keep saying **Lunar** until somebody edits them there:
+1. **The Brella attendee app** — his speaker profile drives all five sessions in the app.
+2. **The Speaker Hub (Supabase)**, record `e0388a70-af2c-4212-9215-60edb25c6d5a`, including the
+   biography field.
+3. **Brella's own session description** on the 26 August BBQ Stage talk. Our feed rewrites it in
+   flight; Brella's copy is unchanged.
+
+### VERIFYING IT FIRED
+
+```
+curl -s "https://airtable-woad.vercel.app/api/event-room-presenters" | grep -o "Repodo"
+curl -s "https://airtable-woad.vercel.app/api/partners"              | grep -o "Repodo"
+```
+Both empty before 08:40, both matching after. **08:40 means within a minute or two of 08:40, not
+08:40:00** — the feeds are cached, and inside the event window that is the resolution
+(`lib/cachePolicy.ts`). If it has not turned over by 08:45, press Refresh on the dashboard, which
+forces a live read.
+
+**THE CLOCK IS READ ON EVERY CALL**, never captured at module load, in both files. A value read once
+at cold start freezes, and a long-lived Vercel instance would go on serving the old title for hours
+— the same rule as `lib/cachePolicy.ts`, and the bug that bit the AI Workshop dashboard.
+
+**PRE-FLIGHT EVIDENCE (2026-08-24, in production):** zero occurrences of "repodo" across
+`/api/program?event=brella&section=all`, `/api/all-speakers`, `/api/event-room-presenters`,
+`/api/partner-events`, `/api/speakers-2026` and `/api/partners`; he still read "Founder @ Lunar".
+Unit-tested at 08:39 and 08:41 either side of the boundary.
+
+### AFTERWARDS
+
+**Delete both entries once the real sources say Repodo.** They become no-ops that still run on every
+request — harmless, but a lie about where the data comes from. `HIDDEN_UNTIL.repodo` in
+`lib/partners.ts`, and the whole of `lib/identityOverride.ts` plus its five call sites.
+
+**A LOOSE END WORTH CLOSING WHILE YOU ARE THERE.** He reads four different ways across the site
+today ("Founder of Lunar" @ "In stealth mode", "Founder" @ "Lunar", "Founder at Lunar",
+"Co-founder at Lunar" in the Board Summit row). After 08:40 every surface this repo serves says
+one thing; the Airtable Sessions rows behind Future of Fintech and the Board Summit still say
+Lunar, and are invisible only because Brella wins the displayed line-up on those sessions.
+
 ## SESSION · 2026-08-24 · PLUG AND PLAY: A SECOND-EDITION PDF, AND A PRESENTER ONLY AIRTABLE KNOWS
 
 **THE QUESTION.** Is `/brella-program` current for the Plug and Play event room? Checked three sources
