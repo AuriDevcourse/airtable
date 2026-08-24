@@ -222,23 +222,38 @@ const HOST_ROOMS: [string, number][] = [
   ["creative business network", 5],
 ];
 
-// The one venue on this tab that is not a numbered room. Women in Tech Denmark writes it into
-// their own Location ("Diversity Lounge by Women in Tech"); One Thirty Labs does not, which is
-// what HOST_VENUES below is for. Both print the same short label — the partner's name is already
-// on the card, so "by Women in Tech" would only repeat it.
+// THE TWO LOUNGES ARE TWO DIFFERENT ROOMS RUN BY TWO DIFFERENT PARTNERS, and conflating them
+// was a real bug on this page for a few hours on 2026-08-24. Both are named here so the pair is
+// impossible to read as one thing.
+//
+// Women in Tech Denmark runs the DIVERSITY LOUNGE, with Google and Dansk Erhverv — they write it
+// into their own Location ("Diversity Lounge by Women in Tech"), and its 21 sessions are the
+// Luma agenda at luma.com/wakc0i63.
+//
+// One Thirty Labs runs the LONGEVITY LOUNGE. Their Location says only "Hall C4", which is why
+// they need a HOST_VENUES entry at all, and they were briefly labelled Diversity Lounge here.
+// The evidence that settled it: their Partnership Success rows are titled "one thirty labs
+// longevity lounge", their overflow session "The Recovery Advantage: the deep dive" is filed
+// under their own partner id 2961, and their presenters are breathwork, wellness and health
+// people (Breathbiome, NOMAE The Female Health Studio, Vitaminkliniken, Expand Health) who match
+// Brella's Longevity programme — Movement Session, Breathwork, Sound Session, "The female
+// factor: hormones, health & performance" — and match nothing on the Diversity agenda.
+//
+// The labels print short. The partner's name is already on the card, so "by Women in Tech" would
+// only repeat it.
 const DIVERSITY_LOUNGE = "Diversity Lounge";
+const LONGEVITY_LOUNGE = "Longevity Lounge";
 
 // NOT EVERY EVENT ROOM SPEAKER IS IN AN EVENT ROOM.
 //
-// One Thirty Labs and Women in Tech Denmark both run the DIVERSITY LOUNGE, which sits under the
-// Grill Sessions rather than in a numbered room (Auri, 2026-08-24). Their cards were falling all
-// the way through to the partner's company name because no room number exists to find — and none
-// ever will, so there is nothing for marketing to fill in.
+// Both lounges sit under the Grill Sessions rather than in a numbered room (Auri, 2026-08-24).
+// These cards were falling all the way through to the partner's company name because no room
+// number exists to find — and none ever will, so there is nothing for marketing to fill in.
 //
 // Host partner → the venue's own name, printed where a room number would go. This is the answer
 // for that partner, not a placeholder waiting on better data.
 const HOST_VENUES: [string, string][] = [
-  ["one thirty labs", DIVERSITY_LOUNGE],
+  ["one thirty labs", LONGEVITY_LOUNGE],
   ["women in tech", DIVERSITY_LOUNGE],
 ];
 
