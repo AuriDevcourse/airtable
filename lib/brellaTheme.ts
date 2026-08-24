@@ -30,12 +30,14 @@ export const TRACK_STYLES: TrackStyle[] = [
   { re: "green grill", color: "#5CBC8B" },
   { re: "blue grill", color: "#1B6CA8" },
   { re: "orange grill", color: "#FA7000" },
-  // The Diversity Lounge shares the Grill Sessions board without being one. It needs its own
-  // accent for the same reason the grills do: with no rule it falls through to the orange
-  // default and its column reads as a second Orange Grill Session, sat directly beside the
-  // real one. Teal is the only unspoken tint left — orange, blue, yellow, green and red are
+  // The two lounges share the Grill Sessions board without being grill sessions. They need
+  // their own accents for the same reason the grills do: with no rule both fall through to the
+  // orange default, so each column reads as a second Orange Grill Session sat directly beside
+  // the real one — and, worse, the two lounges become indistinguishable from each other.
+  // Teal and magenta are the last unspoken hues: orange, blue, yellow, green and red are
   // stages, rooms and side events, and violet is the breathwork badge.
   { re: "diversity lounge", color: "#17A398" },
+  { re: "longevity lounge", color: "#B5179E" },
   { re: "^event room|^rooms?\\b", color: "#1B6CA8" },
   // The Policy Stage is three event rooms opened up, not a stage, so it wears the room blue.
   // Without this it fell through to the orange default and read as a sixth stage on a board of
