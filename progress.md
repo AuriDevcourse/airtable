@@ -79,11 +79,28 @@ specific element into view before reading `naturalWidth`.
    merges in /api/program, it was verified four days ago against a `main` that has moved thirteen
    commits since, and it needs its own verification pass before it goes anywhere near prod. Decide
    on it separately; do not fold it into a side-events commit.
-2. **New Brella row worth a look.** `brella-996012` "Capital and Cocktails – Nordic Investor Soirée"
-   appeared DURING this session, on **Day 4, 27 August**, 18:00-20:00. Airtable's
-   `recYFe73OCivIKjKU` is "…Soirée **V.2**" on **Day 3, 26 August**, same slot. Different days, so
-   `slotMatch` does not pair them and both render. Either there is a genuine second edition on the
-   27th, or someone typed the wrong date in Brella. Ask the partner team.
+2. **RESOLVED, and it was last year's event.** `brella-996012` "Capital and Cocktails – Nordic
+   Investor Soirée" appeared in Brella DURING this session on Day 4, 27 August. Its own description
+   says "during TechBBQ **2025**" and dates itself "August 27", so somebody re-entered the 2025
+   edition. The real 2026 one is Airtable's `recYFe73OCivIKjKU` (…Soirée **V.2**, 26 August,
+   18:00-20:00), confirmed by `luma.com/9y9p5tse`: og:title "…Vol.2", `start_at` 2026-08-26. Brella
+   also holds the CORRECT row, `brella-991192`, which pairs normally. The stale one is dropped by id
+   via **`STALE_BRELLA_SIDE_IDS`** in lib/sideEvents.ts. **Ask the partner team to delete the row in
+   Brella and remove the id**; that is the real fix. Side events are back to **32, all 32 with a
+   picture**.
+
+   WHY AN ID LIST AND NOT A RULE. The stale row differs in title (no "V.2") AND in day, so neither
+   the exact-key pass nor `slotMatch` reaches it. The only rules that would are "Brella title is a
+   substring of the Airtable title" or "same start time, any day", and at a two-day conference both
+   would swallow a REAL second sitting of a recurring session. That is the silent-deletion failure
+   the exact-key comment warns about, so an id it is.
+
+3. **THIS CHECKOUT IS SHARED.** While this fix was being written, another session switched
+   `Desktop/GITHUB/airtable` to `event-room-labels-and-splits` and left work uncommitted there. A
+   `git add -A` from here swallowed all of it into one commit. Undone with `reset --soft` and a
+   file-level revert, their four modified files restored untouched, and this fix moved to its own
+   worktree at `Desktop/GITHUB/airtable-sidefix`. **Take a worktree before editing; re-check the
+   branch right before you commit, not just when you start.**
 3. ARCH still has no venue in any source. Its banner says "ARCH, Copenhagen", taken from the event
    title alone.
 

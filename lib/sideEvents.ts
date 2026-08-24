@@ -39,6 +39,29 @@ import { venueLabel } from "@/lib/venueLabel";
 // Both moved out so /partner-events can resolve the identical banner and title key.
 import { artworkOverride, titleKey } from "@/lib/eventArtwork";
 
+/**
+ * Brella sessions that are a STALE COPY of an event Airtable already carries, listed by id because
+ * no rule can safely infer it.
+ *
+ * `brella-996012` "Capital and Cocktails – Nordic Investor Soirée" is LAST YEAR'S EVENT, re-entered
+ * into Brella with 2025 copy: its own description says "during TechBBQ 2025" and dates it
+ * "August 27". The real 2026 edition is Airtable's `recYFe73OCivIKjKU` (…Soirée V.2, 26 August,
+ * 18:00-20:00), confirmed by its Luma page `luma.com/9y9p5tse`, whose title is "…Vol.2" and whose
+ * `start_at` is 2026-08-26. Brella ALSO holds the correct row, `brella-991192`, which pairs with
+ * Airtable normally.
+ *
+ * WHY A LIST AND NOT A RULE. The stale row differs from the Airtable title (no "V.2") AND sits on a
+ * different day (27th, not 26th), so neither the exact-key pass nor `slotMatch` reaches it. The only
+ * rules that would are "Brella title is a substring of the Airtable title" or "same start time, any
+ * day", and at a two-day conference both would happily swallow a REAL second sitting of a recurring
+ * session — the silent-deletion failure the exact-key comment below warns about. An id is precise
+ * and cannot overreach.
+ *
+ * REMOVE THE ENTRY once the partner team deletes the row in Brella; that is the actual fix. Nothing
+ * breaks if it lingers, the id simply stops matching anything.
+ */
+const STALE_BRELLA_SIDE_IDS = new Set<string>(["brella-996012"]);
+
 function sameEvent(a: string, b: string): boolean {
   if (!a || !b) return false;
   return a === b || a.includes(b) || b.includes(a);
@@ -293,6 +316,14 @@ export function mergeSideEvents(
   // during event week instead of by a visitor.
   for (const { session } of brella) {
     if (paired.has(session)) continue;
+    if (STALE_BRELLA_SIDE_IDS.has(session.id)) {
+      console.warn(
+        `[sideEvents] Brella side event "${session.name}" (${session.id}, ${session.day}, ` +
+          `${session.timeSlot}) dropped: a known stale copy of an event Airtable already carries. ` +
+          `See STALE_BRELLA_SIDE_IDS. Delete the row in Brella and remove the id.`
+      );
+      continue;
+    }
     const text = stripDeadRegisterLine(session.description || "");
     // No Airtable row means no `Link to register` field, so the description is the ONLY place a
     // register link can come from. This used to be a flat null, which is why "Shortcuts to Scale"
