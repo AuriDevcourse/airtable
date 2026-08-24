@@ -79,21 +79,41 @@ specific element into view before reading `naturalWidth`.
    merges in /api/program, it was verified four days ago against a `main` that has moved thirteen
    commits since, and it needs its own verification pass before it goes anywhere near prod. Decide
    on it separately; do not fold it into a side-events commit.
-2. **RESOLVED, and it was last year's event.** `brella-996012` "Capital and Cocktails – Nordic
-   Investor Soirée" appeared in Brella DURING this session on Day 4, 27 August. Its own description
-   says "during TechBBQ **2025**" and dates itself "August 27", so somebody re-entered the 2025
-   edition. The real 2026 one is Airtable's `recYFe73OCivIKjKU` (…Soirée **V.2**, 26 August,
-   18:00-20:00), confirmed by `luma.com/9y9p5tse`: og:title "…Vol.2", `start_at` 2026-08-26. Brella
-   also holds the CORRECT row, `brella-991192`, which pairs normally. The stale one is dropped by id
-   via **`STALE_BRELLA_SIDE_IDS`** in lib/sideEvents.ts. **Ask the partner team to delete the row in
-   Brella and remove the id**; that is the real fix. Side events are back to **32, all 32 with a
-   picture**.
+2. **RESOLVED IN BRELLA, THE ROOT CAUSE, NOT IN CODE.** Brella held TWO rows for Capital and
+   Cocktails: `brella-991192` "…Soirée **V.2**" on 26 August 18:00-20:00 with the Ambassador's
+   residence and a subtitle, and `brella-996012` "…Soirée" on **27 August** with no location and no
+   subtitle. Neither the exact-key pass nor `slotMatch` reached the second one, because it differed
+   in BOTH title and day, so it rendered as a bare extra card with no picture and no register link.
 
-   WHY AN ID LIST AND NOT A RULE. The stale row differs in title (no "V.2") AND in day, so neither
-   the exact-key pass nor `slotMatch` reaches it. The only rules that would are "Brella title is a
-   substring of the Airtable title" or "same start time, any day", and at a two-day conference both
-   would swallow a REAL second sitting of a recurring session. That is the silent-deletion failure
-   the exact-key comment warns about, so an id it is.
+   **LUMA IS THE ORGANISER'S OWN TRUTH and it settled it.** `luma.com/9y9p5tse` reports
+   `start_at` 2026-08-26T16:00Z, `end_at` 18:00Z, timezone Europe/Copenhagen, title "…Soirée
+   **Vol.2**" — 18:00-20:00 local on the 26th, exactly what Airtable and `991192` say. There is no
+   27 August sitting. Auri deleted `996012` through the integration API
+   (`DELETE /organizations/109/events/10356/timeslots/996012`, HTTP 200, 423 timeslots to 422). Its
+   `attendance-registrations-count` was 0, so no attendee lost a registration. A short-lived
+   `STALE_BRELLA_SIDE_IDS` workaround shipped in `2794a35` and was reverted once the row was gone;
+   the feed now reads **32 side events, all 32 with a picture, no duplicates**, with no workaround.
+
+   **I MISDIAGNOSED THIS ONCE, AND THE CACHE IS WHY.** The first read described it as last year's
+   event, because the cached feed's copy of the description said "during TechBBQ 2025" and
+   "August 27". The LIVE Brella record says "during TechBBQ 2026" and "August 26": someone had
+   corrected the body text and left the timeslot's `start-time` on the 27th. It was a duplicate of
+   the same 2026 event with the wrong date, not a 2025 leftover. **Read the record from Brella
+   before characterising it; the feed cache can be hours stale.**
+
+   **AUDIT WORTH REPEATING.** All 21 side events with a Luma register link were fetched and compared
+   against the feed on day and start time: **21 of 21 agree, 0 mismatches**. Airtable is clean
+   wherever Luma can verify it, and Brella was the only source carrying bad data. Eight more sell
+   through Eventbrite / confetti.events / members.eu.vc and were not checked; four have no link.
+
+   **BRELLA CARRIES COVER IMAGES THE APP NEVER READS.** `cover-image-url` is set on 5 of 423
+   timeslots and nothing in `lib/` or `app/` reads it. `996012` was one of the five, which is the
+   literal reason that card could have had a picture. Not worth wiring: all five are already covered
+   by Airtable or Luma artwork, so it would gain zero cards today.
+
+   **STILL OPEN, both cosmetic.** `991192`'s location reads `Sankt Annæ Pl. 151250 København`,
+   missing a comma before the postcode. And the title differs three ways — Luma "Vol.2", Brella
+   "V.2", Airtable "V.2"; changing only one side breaks the pairing and brings the duplicate back.
 
 3. **THIS CHECKOUT IS SHARED.** While this fix was being written, another session switched
    `Desktop/GITHUB/airtable` to `event-room-labels-and-splits` and left work uncommitted there. A
