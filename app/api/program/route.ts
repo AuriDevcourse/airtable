@@ -8,6 +8,7 @@ import { mergePolicyStage } from "@/lib/policyOverride";
 import { mergeNassStage } from "@/lib/nassOverride";
 import { mergeBoardSummit } from "@/lib/boardOverride";
 import { mergeLongevityLounge } from "@/lib/longevityOverride";
+import { mergeHeroAcademy } from "@/lib/heroAcademyOverride";
 import { fetchEventPageDetails, EventPageDetail } from "@/lib/eventPages";
 import { corsPreflight, errorResponse, feedGate, feedResponse, withCors } from "@/lib/apiRoute";
 import { feedCacheControl, feedTtlMs } from "@/lib/cachePolicy";
@@ -53,6 +54,8 @@ export async function GET(req: NextRequest) {
       invalidate("program:nass");
       // And the Longevity Lounge, whose whole column is Airtable's (lib/longevityOverride.ts).
       invalidate("program:longevity");
+      // And Hero Academy, which Brella does not carry at all (lib/heroAcademyOverride.ts).
+      invalidate("program:hero-academy");
     }
 
     const all = await cached(`program:${source}`, () => fetchProgram(source), feedTtlMs());
@@ -168,6 +171,26 @@ export async function GET(req: NextRequest) {
         sessionsAll = mergeLongevityLounge(sessionsAll, longevity);
       } catch (err) {
         console.error("[/api/program] Longevity Lounge unavailable, leaving Brella's own", err);
+      }
+
+      // HERO ACADEMY IS THE SIXTH MERGE, and the only INSERT.
+      //
+      // Brella's Event Room 1 on 26 August carries one session, "Beyond Unicorns" 13:30-17:30, so
+      // its whole morning is empty. Hero Academy 09:30-11:30 and the invitation-only Founders BBQ
+      // 11:30-13:00 exist nowhere in Brella and are appended. See lib/heroAcademyOverride.ts,
+      // including why this file should be deleted the day Brella gains the real rows.
+      //
+      // Its own try/catch, so a failing read leaves the room with its afternoon session rather
+      // than taking the rest of the board down.
+      try {
+        const hero = await cached(
+          "program:hero-academy",
+          () => fetchProgram("hero-academy"),
+          feedTtlMs()
+        );
+        sessionsAll = mergeHeroAcademy(sessionsAll, hero);
+      } catch (err) {
+        console.error("[/api/program] Hero Academy unavailable, leaving Brella's own", err);
       }
     }
 

@@ -561,6 +561,37 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // HERO ACADEMY, Event Room 1, the MORNING of 26 August — and the Founders BBQ that follows it in
+  // the same room. Typed in on 2026-08-24 from the programme Auri sent.
+  //
+  // NEITHER SESSION EXISTS IN BRELLA AT ALL. Event Room 1 on the 26th carries exactly one row,
+  // "Beyond Unicorns" 13:30-17:30, so the whole morning reads as an empty room. This source is
+  // therefore an INSERT rather than a pairing or a substitution: lib/heroAcademyOverride.ts appends
+  // these two to the board instead of matching them to anything.
+  //
+  // `Session Type` is left empty on both. The programme does not say, and none of the select's
+  // choices describes a morning of founder pitches or an invitation-only BBQ.
+  //
+  // Peter Carlsson's face comes from the CRM by name — he is filed under "TechBBQ Summit" with a
+  // headshot, the same lookup the other hand-typed agendas use. The session rows carry no photo
+  // cells of their own.
+  "hero-academy": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Hero Academy"',
+    facesFrom: "TechBBQ Summit",
+    fields: {
+      name: "Session Name",
+      day: "When Is it",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   // NASS 2026 — the Nordic Africa Startup Summit, Day 2 in Event Room 2. Same Sessions table and the
   // same hand-typed people fields as the Policy Stage above: its agenda arrived as a run-of-show
   // spreadsheet and was typed in on 2026-08-12, so the session rows carry "Speaker Details" text and
