@@ -528,6 +528,7 @@ type EventKey =
   | "family-office"
   | "lp-forum"
   | "investor-day"
+  | "deep-tech"
   | "denmark-sweden"
   | "aws-nvidia";
 const EVENTS: {
@@ -713,6 +714,17 @@ const EVENTS: {
     label: "TechBBQ Investor Day",
     heading: "August 25th",
     sub: "The Maersk Tower · Main Stage",
+    theme: "beam",
+    people: true,
+  },
+  // THE DEEP TECH STAGE runs the same afternoon as Investor Day in the same building, so it carries
+  // the same date, the same blue-beam ground and the same `people: true`. Only `sub` separates the
+  // two tabs, because the room is the one thing a reader standing in the Maersk Tower needs.
+  {
+    key: "deep-tech",
+    label: "Deep Tech Stage",
+    heading: "August 25th",
+    sub: "The Maersk Tower · Deep Tech Stage",
     theme: "beam",
     people: true,
   },

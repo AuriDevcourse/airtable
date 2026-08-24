@@ -457,6 +457,40 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // THE DEEP TECH STAGE, the second stage at Investor Day on 25 August — same afternoon, same
+  // building, its own room. Hosted by Bo Koch-Christensen (KU Lighthouse) and Helle Stendorff
+  // (DTU Skylab); six rows typed into the Sessions table on 2026-08-24 from the Investor Day
+  // planning sheet's "Deeptech" tab.
+  //
+  // ITS OWN `Name of the Event`, not a variant of "TechBBQ Investor Day". Filed beside it rather
+  // than inside it because the main stage's ten rows and these six run in parallel, and merging
+  // them would produce one agenda with two sessions at 14:05 and no way for a reader to tell which
+  // room to walk into.
+  //
+  // The 21 faces were uploaded straight onto the session rows, one per name in order, which is the
+  // Policy Stage arrangement and needs no extra config: lib/photo.ts's "policy-program" feed
+  // already covers this table's photo cells.
+  //
+  // `facesFrom` is a SAFETY NET, not the source. parsePeople() drops every photo on a row the
+  // moment the attachment count stops matching the name count, so a name added without its
+  // headshot would blank the whole line-up. This refills those by name from the CRM instead.
+  // "Event Room 5,6,7" is there for Mikkel Sørensen, who moderates here but is filed under it.
+  "deep-tech": {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter: '{Name of the Event}="Deep Tech"',
+    facesFrom: ["TechBBQ Investor Day", "Event Room 5,6,7"],
+    fields: {
+      name: "Session Name",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   // DENMARK-SWEDEN SUMMIT — Day 2, Event Room 6. Organised by Øresundsinstituttet and Greater
   // Copenhagen; its run of show was typed into the Sessions table on 2026-08-18 by
   // scripts/seed-denmark-sweden-summit.mjs (eight rows, 12 people).
