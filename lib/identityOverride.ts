@@ -37,8 +37,13 @@
 // request. Harmless, but it is a lie about where the data comes from, so remove it when the
 // sources are updated.
 
-/** The moment Lunar becomes Repodo: 25 August 2026, 08:40 Copenhagen (CEST = UTC+2). */
-const REPODO_AT = "2026-08-25T06:40:00Z";
+/** The moment Lunar becomes Repodo: 25 August 2026, 08:30 Copenhagen (CEST = UTC+2).
+ *
+ * BROUGHT FORWARD from 08:40 on Auri's say-so at 08:34 on the day (2026-08-25), so the swap
+ * fires the moment this deploys rather than six minutes later. The instant is in the PAST on
+ * purpose — that is what makes it immediate, and it keeps the gate rather than deleting it, so
+ * the mechanism and its audit trail survive until the real sources are updated. */
+const REPODO_AT = "2026-08-25T06:30:00Z";
 
 type IdentitySwap = {
   /** Folded full name — see fold(). Matched exactly, so a namesake cannot be caught by it. */

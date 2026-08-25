@@ -421,7 +421,7 @@ const HIDDEN_UNTIL: Record<string, string> = {
   //
   // THE REST OF THE NOTE STILL STANDS. This entry governs the partner WALL only. Repodo's name
   // must stay out of every other public surface until the 26th.
-  repodo: "2026-08-25T06:40:00Z",
+  repodo: "2026-08-25T06:30:00Z", // brought forward from 08:40 on the day, Auri, 2026-08-25 08:34
 };
 
 function hiddenUntilDate(company: string, now: number = Date.now()): string | null {
