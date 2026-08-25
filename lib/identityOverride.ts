@@ -125,3 +125,22 @@ export function rewriteIdentityText(text: string, now: number = Date.now()): str
   }
   return out;
 }
+
+/**
+ * The same swap for a HAND-TYPED AGENDA, where the person's title and company are not two cells
+ * but one display line: "Founder at Lunar".
+ *
+ * lib/program.ts parses "Name, Title at Company" out of a text cell and keeps everything after the
+ * comma as `meta`, so there is nothing structured to substitute — the whole line is rebuilt.
+ *
+ * MISSING THIS WAS A REAL GAP. The Brella-sourced surfaces were covered from the start, and the
+ * Airtable rows behind Future of Fintech and the Board Summit looked invisible because Brella wins
+ * the line-up on /brella-program. They are NOT invisible: /program serves each of those agendas as
+ * its own tab, and those tabs are embedded on techbbq.dk. They went on saying "Founder at Lunar"
+ * for the first ten minutes after the switch (2026-08-25).
+ */
+export function identityMeta(name: string, meta: string, now: number = Date.now()): string {
+  const key = fold(name);
+  const swap = IDENTITY_SWAPS.find((s) => s.person === key && now >= Date.parse(s.at));
+  return swap ? `${swap.title} at ${swap.company}` : meta;
+}

@@ -18,6 +18,7 @@
 import { fetchWithTimeout } from "@/lib/http";
 import { firstAttachmentId, str } from "@/lib/fields";
 import { photoUrl } from "@/lib/photo";
+import { identityMeta } from "@/lib/identityOverride";
 import type { BrellaSection } from "@/lib/brellaSections";
 // Type only — the runtime import of this module stays dynamic and inside a try, so a face lookup
 // can never be what takes an agenda down.
@@ -820,7 +821,10 @@ function parsePeople(
           ? { at: comma, len: 1 }
           : null;
     const name = cut ? entry.slice(0, cut.at).trim() : entry;
-    const meta = cut ? entry.slice(cut.at + cut.len).trim() : "";
+    // A declared job change rebuilds this whole line — see identityMeta in lib/identityOverride.ts.
+    // These agendas are their own tabs on /program and are embedded on techbbq.dk, so they are not
+    // covered by the Brella-side swap.
+    const meta = identityMeta(name, cut ? entry.slice(cut.at + cut.len).trim() : "");
     // ?v=<attachment id> picks this person's face out of a shared cell — see lib/photo.ts.
     const photo = aligned && atts[i]?.id ? photoUrl(feed, recordId, undefined, atts[i].id) : null;
     return { name, meta, photo };
