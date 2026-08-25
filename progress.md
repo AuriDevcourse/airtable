@@ -9,6 +9,205 @@ reaching the browser.
 > because a handoff too large to open is not a handoff. Headings carry a DATE rather than a letter:
 > two people writing in parallel had produced two (w)s, two (x)s, two (z)s and two (aa)s.
 
+## SESSION · 2026-08-25 · KEN'S DESCRIPTION FIXED AT THE SOURCE, WITH NO CODE
+
+**CURRENT STATE.** The 08:30 reveal fired and held. Repodo is on the partner wall in the
+**Conqueror** band. Ken Villum Klausen's biography now reads the Brella paragraph and nothing after
+it, **in both real sources**. No code was changed this session and none needs deploying: `git
+status` shows only this file. Production serves the new bio once its cache turns, within 30 minutes
+of 13:30 CEST, or immediately if somebody presses Refresh on the dashboard.
+
+### WHAT WAS DONE
+
+**1 · THE CONQUEROR TIER WAS ALREADY CORRECT, AND NOT FROM CODE.** Auri asked for Repodo to be
+moved from Pioneer to Conqueror. It already was. He had typed it into the deliverables record's
+`Exceptions` cell, which now reads *"We will show this partner on the partner wall only 8:40 CET
+August 24th. put it to Conqueror partnership"*, and `exceptionTier()` (`lib/partners.ts:346`) scans
+that cell for the name of a band. "Conqueror" is the only tier named in it, so it beats the
+deal-size formula, which still says Pioneer. Verified live: `/api/partners` returns
+`"tier": "Conqueror"` for `recHive8WeWBAq8y5`.
+
+> **THE FRAGILITY, AND IT IS REAL.** That placement lives only in a free-text cell. Clear or tidy
+> `Exceptions` and Repodo drops back to Pioneer, because `Partnership Tier (from Tier)` is Pioneer
+> and there is no `TIER_EXCEPTIONS` floor for them. Skytek Nordics and Jyske Bank Growth have
+> exactly that floor for exactly this reason. Adding `repodo: "Conqueror"` was **offered and not
+> taken up**; if the band ever flips back on its own, that is the cause and that is the fix.
+
+**2 · THE BIOGRAPHY THAT OUTLIVED ITS OWN FACTS.** His Speaker Hub biography was two paragraphs.
+The first is his Lunar history and stays true. The second said he *"is now building his next
+fintech venture, currently operating in stealth, with the ambition to challenge established ways of
+working"*, which stopped being true at 08:30 and was sitting on the same site that shows the Repodo
+logo. Auri's instruction: the description is the **Brella copy**, which is the first paragraph and
+nothing after it.
+
+**THE TEXT WAS CHECKED AGAINST BRELLA BEFORE ANYTHING WAS WRITTEN**, because Auri named it as the
+source. `/api/program?event=brella&section=all` carries one bio for him and it is that paragraph
+byte-for-byte, minus the final period. The pasted version with the period is what was written.
+
+Written to **both** places that own it:
+
+| Source | Record | What it drives |
+|---|---|---|
+| Speaker Hub (Supabase `speaker_public_profiles`) | `e0388a70-af2c-4212-9215-60edb25c6d5a` | the Hub app's own card, and `lib/hub.ts` |
+| Marketing Project Overview `Bio` | `rec3AeWQ2VXV2XpuI` | `lib/hierarchy.ts`, and it OUTRANKS the Hub |
+
+The Airtable cell was written **as well as**, not instead of, the Hub. `lib/hub.ts:154` applies
+marketing's `Bio` after the Hub biography, so leaving that cell empty would have left a lever
+pointed at this text that anyone could pull by accident. Both now say the same sentence.
+
+**A CODE PATH WAS BUILT AND THEN THROWN AWAY, ON PURPOSE.** A `BIO_SWAPS` + `bioOf()` swap was
+added to `lib/identityOverride.ts` and wired into `mapRow`, on the model of the title/company swap.
+It worked and was verified, then reverted once the two sources were fixed, because the whole reason
+`identityOverride.ts` exists is that Repodo's NAME could not be staged in the data before the
+reveal. That constraint is gone, and this bio never contained the name anyway. A hardcode beside a
+correct source is a lie about where the data comes from. **Do not re-add it.**
+
+### GOTCHAS
+
+**THE HUB IS WRITEABLE WITH THE ANON KEY.** `SPEAKERHUB_SUPABASE_ANON_KEY` PATCHed
+`speaker_public_profiles` and got a 200 with the row back. Every previous handoff called the Speaker
+Hub read-only and "a manual step", and that was wrong: RLS on that table permits anon writes. Worth
+knowing when it saves a manual edit. Worth worrying about separately, since the same key ships to
+anything that can read it.
+
+**HIS TITLE AND COMPANY AT THE HUB WERE LEFT ALONE, DELIBERATELY.** They still read "Founder of
+Lunar" at "In stealth mode", and `IDENTITY_SWAPS` is still what makes every surface here say
+"CEO & Co-Founder" at "Repodo". The stealth note stands until the fair opens on **26 August**: the
+Repodo name must stay off public surfaces other than the partner wall, and the Hub app is a public
+surface. The bio was safe to write because it never mentions Repodo. Typing the name into the Hub
+today would leak it.
+
+**`?fresh=` CANNOT BE PRESSED FROM A SCRIPT HERE.** It needs `DASHBOARD_PASSWORD`, which is set on
+Vercel and is not in `.env.local`. A cache-busting query string does not substitute: three unique
+URLs all returned the old bio, because the in-memory copy is per warm instance with its own 10
+minute TTL and `cached()` serves last-good. Use the dashboard button or wait out the 30 minute CDN
+window.
+
+### NEXT STEPS
+
+1. **Confirm production turned over.** `curl -s https://airtable-woad.vercel.app/api/all-speakers`
+   and check his bio ends at "…Denmark, Sweden, and Norway." If it still has the stealth paragraph
+   after 30 minutes, press Refresh on the dashboard.
+2. **On the 26th, once the fair is open,** set `job_title` = "CEO & Co-Founder" and `company` =
+   "Repodo" on the Hub record, and update the Brella attendee app.
+3. **Then delete the overrides.** `IDENTITY_SWAPS`, `TEXT_SWAPS` and `HIDDEN_UNTIL.repodo` become
+   no-ops that run on every request. `lib/identityOverride.ts` goes away entirely, with its five
+   call sites.
+4. **Consider the `TIER_EXCEPTIONS` floor** for Repodo, per the fragility note above.
+
+### FILE POINTERS
+
+| What | Where |
+|---|---|
+| Title/company swap, prose swaps, the reveal instant | `lib/identityOverride.ts` |
+| Where the Hub biography is read | `lib/hub.ts:71` (`mapRow`) |
+| Airtable `Bio` override that outranks it | `lib/hub.ts:154`, `lib/hierarchy.ts` |
+| Tier read from the `Exceptions` cell | `lib/partners.ts:346` (`exceptionTier`) |
+| Hardcoded tier floors | `lib/partners.ts:313` (`TIER_EXCEPTIONS`) |
+| Wall embargo | `lib/partners.ts:412` (`HIDDEN_UNTIL`) |
+| Why prod lags an edit by up to 30 min | `lib/cachePolicy.ts` |
+
+### LATER THE SAME DAY · DEFENCE & DUAL USE GETS ITS REAL PROGRAMME AND ITS OWN TAB
+
+**CURRENT STATE.** `/program?event=defence` serves **10 sessions across both days**, 27 people, 22
+of them with faces. The tab is labelled **"Defense and Dual Use"** and its embed is copyable. The
+Airtable rows are written and `scripts/seed-defence-dual-use.mjs` is idempotent, so re-running it
+reports eleven skips and writes nothing.
+
+**WHAT WAS ACTUALLY WRONG.** The seven `Name of the Event = "Defence & Dual Use"` rows were a
+SKELETON — "Summit Sessions (TBA)" standing in for the whole of Day 1, and four generic slots on
+Day 2 ("Expert Panel", "3-4 industry leaders tackling the sector's most central themes"). The
+finished programme had been in Brella the whole time and nobody had moved it across:
+
+- **Day 1, 26 August** · six numbered *Future of Defence* sessions, 09:30 to 17:00, Event Room 4,
+  21 named people, curated with ODIN and TYR.vc.
+- **Day 2, 27 August** · the *Defence Tech & Cyber Arena*, opened by the Danish Industry Foundation.
+  Brella publishes it as ONE row, 09:30 to 11:30, but **its description carries its own run of show**
+  — four slots with times and names — which is where Day 2's four rows come from.
+
+### WHAT WAS WRITTEN
+
+`scripts/seed-defence-dual-use.mjs` · **5 updated, 5 created, 1 deleted.** Its header carries the
+per-row reasoning; the three editorial calls were Auri's:
+
+1. **Descriptions are WRITTEN, not copied.** Brella's are run-of-show dumps that repeat every name
+   the speaker fields already carry, placeholders included ("TBC – Hammerglass").
+2. **"Fireside Interview" was DELETED.** Brella's Day 2 run of show has no fireside and every other
+   Day 2 time shifted to match it, so the row would have sat at 10:00–10:15 between two retimed
+   sessions.
+3. **The Royal Reception stays OFF THE WEBSITE.** 08:00–09:30 on the 27th, registration-only, HRH
+   Prince Joachim. The row is untouched in Airtable and excluded from the feed by name.
+
+Two corrections to Brella's data, both taken from Brella's own session description, which spells
+them right where its speaker record does not: **Rheinnmetal → Rheinmetall**, and
+**"Project A Ventures (VC)" → "Project A Ventures"**.
+
+### THE CODE
+
+**`lib/program.ts`** · new `defence` source. `day: "When Is it"` because it spans both days, and
+`facesFromBrella: true` because these people are the hosts' guests: not in Marketing Project
+Overview, no TechBBQ form, headshots only in Brella's admin. Neither `facesFrom` nor
+`facesFromView` would match anybody.
+
+**`app/program/page.tsx`** · new `defence` tab, `navy`, `people: true`.
+
+> **THE LABEL AND THE FILTER DISAGREE ON PURPOSE.** The tab reads **"Defense and Dual Use"**, Auri's
+> spelling. The filter matches `Name of the Event = "Defence & Dual Use"` — British spelling,
+> ampersand — because that is what the cell says. **Do not "fix" one to match the other.** Editing
+> the filter to the American spelling empties the tab with no error anywhere.
+
+### GOTCHAS
+
+**THE ROYAL RECEPTION IS EXCLUDED BY A NAME, WHICH IS A WEAK KEY.** The filter is
+`AND({Name of the Event}="Defence & Dual Use",{Session Name}!="Royal Reception (By Registration
+Only)")`. Rename that cell in Airtable and a registration-only royal event appears on techbbq.dk
+with no error. The table has no publish checkbox to gate on instead; when it gets one, use that.
+Excluding rather than deleting is deliberate — the team keeps planning the reception in Airtable.
+
+**THE DAY HEADINGS READ "Day 1" AND "Day 2", NOT DATES.** This is the first PUBLIC tab that spans
+two days, so it is the first one to draw its headings from the data
+(`lib/agendaSnippet.ts:519`) rather than from a fixed `heading`. The values are the Sessions
+table's own "When Is it" cell. Dates would need either a label map in the config or a rename of a
+single-select that Longevity Lounge and Hero Academy also use.
+
+**`sub` DOES NOT REACH THE EMBED.** "Event Room 4 · Hall C" shows on the dashboard and not in the
+copied snippet: `sub` rides on a fixed `heading` only, by design, because a room repeated under
+every day heading is noise. Here the room is the same both days, so it is a small loss.
+
+**A SEED SCRIPT THAT RENAMES ROWS IS NOT IDEMPOTENT BY DEFAULT.** Two bugs, both caught by
+re-running the dry run straight after `--apply`, and both worth copying into the next script of
+this kind:
+1. It looked rows up by the OLD name first. After the rename that name is gone, so a second run
+   created five duplicates. Fixed: try the new title first, fall back to `match`.
+2. `same()` compared `Name of the Event`, which the fetch never requested — so every row read as
+   drifted and a second `--apply` would have rewritten all eleven. **Every field the script writes
+   must be in the `fields[]` list.**
+
+### NEXT STEPS
+
+1. **Paste the embed.** `/program`, the "Defense and Dual Use" tab, Copy embed. Nothing is deployed
+   yet: `lib/program.ts` and `app/program/page.tsx` are uncommitted on
+   `event-room-labels-and-splits`, so the tab is local-only until they ship.
+2. **Five people are missing a title or a company IN BRELLA**, and their cards render with a
+   dangling "@": Blythe Crawford (nothing), Tobias Billström (no title), Mykyta Rozhkov (nothing),
+   Erlend Prestgard (no company), Jens Holzapfel (blank on the Arena row, complete on #5). Fixing
+   them in Brella fixes every surface at once. None was invented here.
+3. **Two line-ups are genuinely unnamed** and show as sessions with nobody on them: #2's moderator
+   is "CIO – EIFO" with no person, and the Closing Keynote Conversation says line-up TBA.
+4. **Decide on the day headings** (see gotchas). "August 26th / August 27th" would read better on
+   techbbq.dk than "Day 1 / Day 2".
+5. **Session #5's title lost its double space** ("#5:  B2B") in the rewrite. Brella still has it.
+
+### FILE POINTERS
+
+| What | Where |
+|---|---|
+| The programme source, filter, faces | `lib/program.ts`, `defence` in `PROGRAM_SOURCES` |
+| The tab | `app/program/page.tsx`, `defence` in `EVENTS` + the `EventKey` union |
+| The rows and every editorial decision | `scripts/seed-defence-dual-use.mjs` |
+| Day headings in the copied snippet | `lib/agendaSnippet.ts:500,519` |
+| Where the real programme still lives | Brella, Event Room 4, both days |
+
 ## SESSION · 2026-08-24 · EVERYTHING THAT REVEALS ITSELF AT 08:40 ON 25 AUGUST
 
 **READ THIS FIRST IF YOU ARE HERE ON THE MORNING OF THE 25th.** Nothing needs doing at 08:40. No
