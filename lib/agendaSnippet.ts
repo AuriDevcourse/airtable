@@ -416,6 +416,10 @@ export function buildAgendaSnippet({
   #${id} .tbbq-agenda__face{flex:none;width:34px;height:34px;border-radius:9999px;object-fit:cover;object-position:50% 30%;background:rgba(255,255,255,.06)}
   #${id} .tbbq-agenda__face--empty{display:grid;place-items:center;font-family:"Onest",sans-serif;font-size:13px;font-weight:700;color:var(--acc)}
   #${id} .tbbq-agenda__who{min-width:0;font-size:14px;line-height:1.35;color:var(--fg)}
+  /* These two are a FALLBACK now. The person line is pinned inline with !important in person()
+     below, because a scoped class rule loses to whatever the host theme does to a bare span — see
+     the note there. Kept so the markup still reads correctly if that inline pinning is ever
+     removed, and so the colours live beside the rest of the palette. */
   #${id} .tbbq-agenda__who b{font-weight:600}
   #${id} .tbbq-agenda__who span{color:var(--muted)}
   /* The role sits above its group, small and spaced, so "Moderator" is never mistaken for a name. */
@@ -447,13 +451,37 @@ ${endpointDecl(path, "  ")}
     var p=ICONS[String(type||"").toLowerCase()];
     return p?'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tbbq-agenda__ic">'+p+'</svg>':'';
   }
+  // THE PERSON LINE IS PINNED INLINE WITH !important, AND IT HAS TO BE.
+  //
+  // The name sits in a <b> and the title + company in a bare <span>, and that span carries no class
+  // of its own. On techbbq.dk that is enough for the host theme to win it: Elementor styles bare
+  // descendant spans, so "Founder, ODIN" rendered in the heading font at ~19px beside a 14px name
+  // (Auri, screenshot 2026-08-25): the job title shouting over the person holding it.
+  //
+  // The stylesheet above cannot defend this on its own. It is scoped to a class inside this widget,
+  // which any host rule can match or beat, and there is no way to know what the page it is pasted
+  // into does. An inline declaration with !important is the only thing that survives an unknown
+  // stylesheet, so the three parts of the line each carry one. This is the ONE place in the snippet
+  // that needs it: everything else is a class the theme has no reason to target.
+  //
+  // THE font SHORTHAND COMES FIRST, then the specific properties. It resets family, size, weight,
+  // style, variant and line-height in one go, so a host rule cannot reach any of them through a
+  // property this code forgot to name; the declarations after it put back the three that matter.
+  // Order matters: the shorthand placed after font-size would undo the size.
+  //
+  // NO BACKTICKS IN THIS COMMENT, and that is not a style preference. Every line of this script is
+  // inside a template literal, so one backtick here ends the literal and the file stops compiling.
+  var WHO_CSS  = "font:inherit!important;font-size:14px!important;line-height:1.35!important;color:var(--fg)!important";
+  var NAME_CSS = "font:inherit!important;font-size:14px!important;font-weight:600!important;letter-spacing:normal!important;text-transform:none!important;color:var(--fg)!important";
+  var META_CSS = "font:inherit!important;font-size:14px!important;font-weight:400!important;letter-spacing:normal!important;text-transform:none!important;color:var(--muted)!important";
   // One person: face (or their initial when the row has no photo), name, then title.
   function person(p){
     var face = p.photo
       ? '<img class="tbbq-agenda__face" src="'+esc(p.photo)+'" alt="" loading="lazy">'
       : '<span class="tbbq-agenda__face tbbq-agenda__face--empty" aria-hidden="true">'+esc(String(p.name||"?").trim().charAt(0).toUpperCase())+'</span>';
     return '<div class="tbbq-agenda__person">'+face
-      +'<div class="tbbq-agenda__who"><b>'+esc(p.name)+'</b>'+(p.meta?'<span>, '+esc(p.meta)+'</span>':'')+'</div></div>';
+      +'<div class="tbbq-agenda__who" style="'+WHO_CSS+'"><b style="'+NAME_CSS+'">'+esc(p.name)+'</b>'
+      +(p.meta?'<span style="'+META_CSS+'">, '+esc(p.meta)+'</span>':'')+'</div></div>';
   }
   // Moderator first: they open the session, and on a panel of four the reader wants to know who is
   // steering before who is talking. Singular or plural label from the count, so one moderator is not

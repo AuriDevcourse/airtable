@@ -198,6 +198,43 @@ this kind:
    techbbq.dk than "Day 1 / Day 2".
 5. **Session #5's title lost its double space** ("#5:  B2B") in the rewrite. Brella still has it.
 
+### THE JOB TITLE WAS SHOUTING OVER THE PERSON · `lib/agendaSnippet.ts`
+
+Auri's screenshot of the pasted agenda, 2026-08-25: "Nicholas Hawtin" rendering at 14px beside
+", Founder, ODIN" at roughly 19px in the heading font and the accent colour. The title and company
+were louder than the name on every person in the programme.
+
+**IT IS THE EMBED, NOT THE DASHBOARD.** Worth pinning down before touching anything, because the two
+render the same data through completely different code. The screenshot shows the type pill, the
+150px time column and the gradient day heading, all of which are `tbbq-agenda__*` classes from the
+snippet. The dashboard's own agenda draws a card with a 110px time column and an `<h3>` at 17px, and
+it was never affected: its person line is React inline styles on our own page with no host CSS to
+fight. `app/program/page.tsx` was not changed.
+
+**THE CAUSE.** The name sits in a `<b>` and the title in a bare `<span>` with **no class of its
+own**. Elementor styles bare descendant spans, so on techbbq.dk the host theme simply won.
+
+**WHY THE STYLESHEET COULD NOT FIX IT.** The rule is scoped to a class inside the widget, which any
+host rule can match or beat, and there is no knowing what the page it is pasted into does. An inline
+declaration with `!important` is the only thing that survives an unknown stylesheet. All three parts
+of the line now carry one: the wrapper, the name, and the title/company.
+
+**THE `font` SHORTHAND COMES FIRST**, then the specific properties. It resets family, size, weight,
+style, variant and line-height in one go, so a host rule cannot reach any of them through a property
+the code forgot to name; the declarations after it put back the three that matter. Order matters:
+the shorthand placed *after* `font-size` would undo the size.
+
+This is the ONLY place in the snippet that needs `!important`. Everything else is a class a theme has
+no reason to target. The old CSS rules are kept as a fallback and labelled as one.
+
+> **NO BACKTICKS IN COMMENTS INSIDE THAT SCRIPT BODY.** The whole snippet is one template literal, so
+> a backtick in a comment ends the literal and the file stops compiling. The first draft of this fix
+> used them for `font:inherit` and produced three TS1443 errors that name a "module declaration" and
+> point nowhere near the real problem. Same trap as the escaped word boundary in `lib/partners.ts`.
+
+**NEXT:** paste the embed again on techbbq.dk. The previously pasted snippet carries the old markup
+and will keep rendering the big titles until it is replaced.
+
 ### FILE POINTERS
 
 | What | Where |
@@ -206,6 +243,7 @@ this kind:
 | The tab | `app/program/page.tsx`, `defence` in `EVENTS` + the `EventKey` union |
 | The rows and every editorial decision | `scripts/seed-defence-dual-use.mjs` |
 | Day headings in the copied snippet | `lib/agendaSnippet.ts:500,519` |
+| The pinned person line | `lib/agendaSnippet.ts`, `WHO_CSS` / `NAME_CSS` / `META_CSS` |
 | Where the real programme still lives | Brella, Event Room 4, both days |
 
 ## SESSION · 2026-08-24 · EVERYTHING THAT REVEALS ITSELF AT 08:40 ON 25 AUGUST
