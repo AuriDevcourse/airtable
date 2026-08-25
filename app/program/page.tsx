@@ -530,7 +530,8 @@ type EventKey =
   | "investor-day"
   | "deep-tech"
   | "denmark-sweden"
-  | "aws-nvidia";
+  | "aws-nvidia"
+  | "defence";
 const EVENTS: {
   key: EventKey;
   label: string;
@@ -657,6 +658,24 @@ const EVENTS: {
       url: "https://techbbq.dk/wp-content/uploads/2026/08/PolicyStage_Program_27.08.2026.pdf",
       label: "See the full program (PDF)",
     },
+  },
+  // DEFENSE AND DUAL USE — Event Room 4, BOTH DAYS, so there is no fixed `heading`: the day
+  // headings come from the data ("Day 1", "Day 2") like the two-day programmes in lib/program.ts.
+  // Auri asked for this tab on 2026-08-25 so the programme can be pasted on techbbq.dk.
+  //
+  // LABELLED "Defense and Dual Use", which is Auri's spelling of it and NOT the Airtable cell. The
+  // filter behind this tab matches `Name of the Event = "Defence & Dual Use"` exactly, British
+  // spelling and ampersand included, because that is what the cell says. Do not "fix" one to match
+  // the other: the label is what a reader sees, the cell is what Airtable is filtered on, and
+  // editing the filter to the American spelling empties the tab with no error.
+  //
+  // `navy` like the Board Summit, and `people: true` because 9 of the 10 rows name a line-up.
+  {
+    key: "defence",
+    label: "Defense and Dual Use",
+    sub: "Event Room 4 · Hall C",
+    theme: "navy",
+    people: true,
   },
   // THE BOARD SUMMIT (Boardway), out of the same Sessions table as the Policy Stage. Dark blue
   // rather than the fire gradient (Auri, 2026-08-10) — see the `navy` theme in lib/agendaSnippet.ts.

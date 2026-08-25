@@ -593,6 +593,51 @@ export const PROGRAM_SOURCES = {
       moderatorPhoto: "Moderator Photo",
     },
   },
+  // DEFENCE & DUAL USE, Event Room 4, BOTH DAYS. Two programmes under one name: the six numbered
+  // "Future of Defence" sessions on the 26th, curated with ODIN and TYR.vc, and the Defence Tech &
+  // Cyber Arena on the 27th, opened by the Danish Industry Foundation.
+  //
+  // THE ROWS WERE A SKELETON UNTIL 2026-08-25 and the real programme was in Brella the whole time.
+  // scripts/seed-defence-dual-use.mjs wrote Brella's titles, times and line-ups into the table; its
+  // header carries the three editorial decisions Auri made and why each row reads as it does.
+  //
+  // `day` IS MAPPED, like the Longevity Lounge and Hero Academy above and unlike the single-day
+  // programmes: this one spans both days and the Sessions table's "When Is it" cell is the only
+  // thing that says which. Sorting is day then start time, so Day 1's six land above Day 2's four.
+  //
+  // ─── THE ROYAL RECEPTION IS EXCLUDED BY NAME, AND THAT IS THE POINT OF THE FORMULA ─────
+  // Auri, 2026-08-25: it stays off the website. The 08:00 Royal Reception on the 27th is
+  // registration-only and hosts HRH Prince Joachim, so the row belongs in Airtable for the team and
+  // not in an embed pasted on techbbq.dk. Excluding it HERE rather than deleting the row is what
+  // lets the team keep planning it: the cell stays, the agenda simply starts at 09:30.
+  //
+  // A NAME IS A WEAK KEY and this is the honest version of that trade. Rename that cell in Airtable
+  // and the reception appears on the public agenda with no error anywhere — the same failure mode as
+  // the `Name of the Event` filters, which is why the exact string is written out here. The table has
+  // no "publish" checkbox to gate it on instead; when it gets one, use that.
+  //
+  // FACES COME FROM BRELLA. These 21 people are the hosts' guests: they are not in Marketing Project
+  // Overview and they filled in no TechBBQ form, because the partner attached them in Brella's own
+  // admin, which is also where their headshots are. So neither `facesFrom` nor `facesFromView` would
+  // match anybody, and the session rows carry no photo cells of their own.
+  defence: {
+    kind: "airtable",
+    table: "tblSlpTzDi2oVYwqv", // Sessions
+    filter:
+      'AND({Name of the Event}="Defence & Dual Use",{Session Name}!="Royal Reception (By Registration Only)")',
+    facesFromBrella: true,
+    fields: {
+      name: "Session Name",
+      day: "When Is it",
+      timeSlot: "Time Slot",
+      type: "Session Type",
+      description: "Description",
+      speakerDetails: "Speaker Details",
+      speakerPhoto: "Speaker Photo",
+      moderatorDetails: "Moderator Details",
+      moderatorPhoto: "Moderator Photo",
+    },
+  },
   // NASS 2026 — the Nordic Africa Startup Summit, Day 2 in Event Room 2. Same Sessions table and the
   // same hand-typed people fields as the Policy Stage above: its agenda arrived as a run-of-show
   // spreadsheet and was typed in on 2026-08-12, so the session rows carry "Speaker Details" text and
